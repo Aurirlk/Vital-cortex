@@ -59,4 +59,20 @@ public interface UserMapper {
      */
     User getByActive(User user);
 
+    /**
+     * 根据用户ID获取用户信息
+     *
+     * @param userId 用户ID
+     * @return User
+     */
+    User getUserById(@Param("userId") Integer userId);
+
+    /**
+     * 根据手机号(账号)查找用户
+     *
+     * @param userAccount 用户账号(手机号)
+     * @return User
+     */
+    User findByPhone(@Param("userAccount") String userAccount);
+
 }

@@ -26,4 +26,9 @@ public interface NewsMapper {
 
     Integer queryCount(NewsQueryDto newsQueryDto);
 
+    /**
+     * RAG知识库检索 — 按关键词匹配标题和内容，返回TopN文章
+     */
+    List<NewsVO> ragSearch(@Param("keyword") String keyword, @Param("limit") int limit);
+
 }

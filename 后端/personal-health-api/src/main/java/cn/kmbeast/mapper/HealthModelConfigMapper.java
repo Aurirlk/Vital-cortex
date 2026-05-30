@@ -21,4 +21,11 @@ public interface HealthModelConfigMapper {
 
     Integer queryCount(HealthModelConfigQueryDto healthModelConfigQueryDto);
 
+    /**
+     * 获取所有全局健康模型配置
+     *
+     * @return 全局模型列表
+     */
+    List<HealthModelConfig> getGlobalModels();
+
 }

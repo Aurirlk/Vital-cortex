@@ -119,6 +119,7 @@ public class UserController {
      * @param map 修改信息入参
      * @return Result<String> 响应结果
      */
+    @Protector
     @PutMapping(value = "/updatePwd")
     @ResponseBody
     public Result<String> updatePwd(@RequestBody Map<String, String> map) {
@@ -154,6 +155,7 @@ public class UserController {
      *
      * @return Result<List < ChartVO>> 响应结果
      */
+    @Protector(role = "管理员")
     @GetMapping(value = "/daysQuery/{day}")
     @ResponseBody
     public Result<List<ChartVO>> query(@PathVariable Integer day) {

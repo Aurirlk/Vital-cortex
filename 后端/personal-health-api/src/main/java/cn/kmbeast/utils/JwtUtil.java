@@ -1,59 +1,74 @@
 package cn.kmbeast.utils;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtBuilder;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
-import io.jsonwebtoken.*;
-
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
 
 /**
- * jwt token 工具类
- *
- * @author 【B站：程序员晨星】
+ * JWT Token 工具类
+ * 密钥和过期时间通过环境变量配置
  */
+@Component
 public class JwtUtil {
+
+    @Value("${jwt.secret:${JWT_SECRET:***REMOVED***}}")
+    private String privateKey;
+
+    @Value("${jwt.expiration:${JWT_EXPIRATION:604800000}}")
+    private Long expiration;
+
     /**
-     * 密钥
+     * 获取签名密钥
      */
-    private static final String privateKey = "d8c986df-8512-42b5-906f-eeea9b3acf86";
-    /**
-     * 有效期一周 --> 时间戳
-     */
-    private static final Integer time = 1000 * 60 * 60 * 24 * 7;
+    private SecretKey getSigningKey() {
+        // 确保密钥至少256位（32字节）
+        byte[] keyBytes = privateKey.getBytes(StandardCharsets.UTF_8);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
 
     /**
      * 生成 token
      *
-     * @param id 用户ID
-     * @return String
+     * @param id   用户ID
+     * @param role 用户角色
+     * @return JWT token
      */
-    public static String toToken(Integer id, Integer role) {
+    public String toToken(Integer id, Integer role) {
         JwtBuilder jwtBuilder = Jwts.builder();
-        return jwtBuilder.setHeaderParam("typ", "JWT")
-                .setHeaderParam("alg", "HS256")
+        return jwtBuilder
+                .id(UUID.randomUUID().toString())
+                .subject("用户认证")
                 .claim("id", id)
                 .claim("role", role)
-                .setSubject("用户认证")
-                .setExpiration(new Date(System.currentTimeMillis() + time))
-                .setId(UUID.randomUUID().toString())
-                .signWith(SignatureAlgorithm.HS256, privateKey)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSigningKey())
                 .compact();
     }
 
     /**
-     * 解密TOKEN
+     * 解密 TOKEN
      *
      * @param token token信息
+     * @return Claims 或 null（如果token无效）
      */
-    public static Claims fromToken(String token) {
-        JwtParser jwtParser = Jwts.parser();
-        Jws<Claims> claimsJws;
+    public Claims fromToken(String token) {
         try {
-            claimsJws = jwtParser.setSigningKey(privateKey).parseClaimsJws(token);
-            return claimsJws.getBody();
+            return Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
         } catch (Exception e) {
             return null;
         }
     }
-
 }

@@ -1,6 +1,7 @@
 package cn.kmbeast.controller;
 
 import cn.kmbeast.aop.Pager;
+import cn.kmbeast.aop.Protector;
 import cn.kmbeast.context.LocalThreadHolder;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.extend.NewsSaveQueryDto;
@@ -24,10 +25,8 @@ public class NewsSaveController {
 
     /**
      * 资讯收藏或取消收藏
-     *
-     * @param newsSave 新增数据
-     * @return Result<Void> 通用响应体
      */
+    @Protector
     @PostMapping(value = "/operation")
     public Result<Void> operation(@RequestBody NewsSave newsSave) {
         return newsSaveService.operation(newsSave);
@@ -35,22 +34,17 @@ public class NewsSaveController {
 
     /**
      * 收藏或取消收藏操作
-     *
-     * @param newsSave 新增数据
-     * @return Result<Void> 通用响应体
      */
+    @Protector
     @PostMapping(value = "/save")
     public Result<Void> save(@RequestBody NewsSave newsSave) {
         return newsSaveService.save(newsSave);
     }
 
-
     /**
      * 资讯收藏删除
-     *
-     * @param ids 要删除的资讯收藏ID列表
-     * @return Result<Void> 通用响应体
      */
+    @Protector
     @PostMapping(value = "/batchDelete")
     public Result<Void> batchDelete(@RequestBody List<Long> ids) {
         return newsSaveService.batchDelete(ids);
@@ -58,11 +52,9 @@ public class NewsSaveController {
 
     /**
      * 查询用户收藏的健康资讯
-     *
-     * @param newsSaveQueryDto 查询参数
-     * @return Result<List < NewsSaveVO>> 通用响应
      */
     @Pager
+    @Protector
     @PostMapping(value = "/queryUser")
     public Result<List<NewsSaveVO>> queryUser(@RequestBody NewsSaveQueryDto newsSaveQueryDto) {
         newsSaveQueryDto.setUserId(LocalThreadHolder.getUserId());
@@ -70,15 +62,12 @@ public class NewsSaveController {
     }
 
     /**
-     * 资讯收藏查询
-     *
-     * @param newsSaveQueryDto 查询参数
-     * @return Result<List < NewsSaveVO>> 通用响应
+     * 资讯收藏查询（管理员）
      */
     @Pager
+    @Protector(role = "管理员")
     @PostMapping(value = "/query")
     public Result<List<NewsSaveVO>> query(@RequestBody NewsSaveQueryDto newsSaveQueryDto) {
         return newsSaveService.query(newsSaveQueryDto);
     }
-
 }

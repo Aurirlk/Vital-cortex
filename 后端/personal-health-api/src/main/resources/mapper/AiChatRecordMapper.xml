@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.AiChatRecordMapper">
+
+    <insert id="save">
+        INSERT INTO ai_chat_record (conversation_id, user_id, role, content, agent_type, create_time)
+        VALUES (#{conversationId}, #{userId}, #{role}, #{content}, #{agentType}, NOW())
+    </insert>
+
+    <insert id="batchSave">
+        INSERT INTO ai_chat_record (conversation_id, user_id, role, content, agent_type, create_time)
+        VALUES
+        <foreach collection="list" item="record" index="index" separator=",">
+            (#{record.conversationId}, #{record.userId}, #{record.role}, #{record.content}, #{record.agentType}, NOW())
+        </foreach>
+    </insert>
+
+    <delete id="deleteByConversationId">
+        DELETE FROM ai_chat_record WHERE conversation_id = #{conversationId}
+    </delete>
+
+    <delete id="batchDeleteByConversationIds" parameterType="list">
+        DELETE FROM ai_chat_record WHERE conversation_id IN
+        <foreach collection="conversationIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="query" resultMap="BaseResultMap">
+        SELECT a.*
+        FROM ai_chat_record a
+        <where>
+            <if test="conversationId != null">
+                AND a.conversation_id = #{conversationId}
+            </if>
+            <if test="userId != null">
+                AND a.user_id = #{userId}
+            </if>
+            <if test="agentType != null and agentType != ''">
+                AND a.agent_type = #{agentType}
+            </if>
+        </where>
+        ORDER BY a.id DESC
+        <if test="current != null and size != null">
+            LIMIT #{current},#{size}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="integer">
+        SELECT COUNT(*)
+        FROM ai_chat_record a
+        <where>
+            <if test="conversationId != null">
+                AND a.conversation_id = #{conversationId}
+            </if>
+            <if test="userId != null">
+                AND a.user_id = #{userId}
+            </if>
+            <if test="agentType != null and agentType != ''">
+                AND a.agent_type = #{agentType}
+            </if>
+        </where>
+    </select>
+
+    <!-- 获取指定会话的所有消息（按时间正序） -->
+    <select id="getByConversationId" resultMap="BaseResultMap">
+        SELECT * FROM ai_chat_record
+        WHERE conversation_id = #{conversationId}
+        ORDER BY id ASC
+    </select>
+
+    <select id="countAll" resultType="integer">
+        SELECT COUNT(*) FROM ai_chat_record
+    </select>
+
+    <select id="countToday" resultType="integer">
+        SELECT COUNT(*) FROM ai_chat_record WHERE DATE(create_time) = CURDATE()
+    </select>
+
+    <select id="countDistinctUsers" resultType="integer">
+        SELECT COUNT(DISTINCT user_id) FROM ai_chat_record
+    </select>
+
+    <select id="avgPerUser" resultType="java.lang.Double">
+        SELECT IFNULL(AVG(cnt), 0) FROM (
+            SELECT COUNT(*) as cnt FROM ai_chat_record GROUP BY user_id
+        ) t
+    </select>
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.entity.AiChatRecord">
+        <id column="id" property="id"/>
+        <result column="conversation_id" property="conversationId"/>
+        <result column="user_id" property="userId"/>
+        <result column="role" property="role"/>
+        <result column="content" property="content"/>
+        <result column="agent_type" property="agentType"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+</mapper>

@@ -23,8 +23,6 @@ public class EvaluationsController {
 
     /**
      * 评论
-     *
-     * @return Result<String>
      */
     @Protector
     @PostMapping(value = "/insert")
@@ -35,8 +33,6 @@ public class EvaluationsController {
 
     /**
      * 评论修改
-     *
-     * @return Result<String>
      */
     @Protector
     @PutMapping(value = "/update")
@@ -47,8 +43,6 @@ public class EvaluationsController {
 
     /**
      * 查询内容下的全部评论
-     *
-     * @return Result<String>
      */
     @Protector
     @GetMapping(value = "/list/{contentId}/{contentType}")
@@ -60,10 +54,9 @@ public class EvaluationsController {
 
     /**
      * 分页查询评论
-     *
-     * @return Result<String>
      */
     @Pager
+    @Protector(role = "管理员")
     @PostMapping(value = "/query")
     @ResponseBody
     public Result<Object> query(@RequestBody EvaluationsQueryDto evaluationsQueryDto) {
@@ -71,10 +64,9 @@ public class EvaluationsController {
     }
 
     /**
-     * 批量删除评论数据
-     *
-     * @return Result<String>
+     * 批量删除评论（管理员）
      */
+    @Protector(role = "管理员")
     @PostMapping(value = "/batchDelete")
     @ResponseBody
     public Result<Object> batchDelete(@RequestBody List<Integer> ids) {
@@ -82,9 +74,7 @@ public class EvaluationsController {
     }
 
     /**
-     * 通过ID删除评论信息
-     *
-     * @return Result<String>
+     * 通过ID删除评论
      */
     @Protector
     @DeleteMapping(value = "/delete/{id}")
@@ -92,6 +82,4 @@ public class EvaluationsController {
     public Result<String> delete(@PathVariable Integer id) {
         return evaluationsService.delete(id);
     }
-
 }
-

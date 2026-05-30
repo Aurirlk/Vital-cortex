@@ -14,6 +14,10 @@ public class Result<T> {
      * 响应消息
      */
     private String msg;
+    /**
+     * 响应数据
+     */
+    private T data;
 
     @Override
     public String toString() {
@@ -37,6 +41,14 @@ public class Result<T> {
 
     public void setMsg(String msg) {
         this.msg = msg;
+    }
+
+    public T getData() {
+        return data;
+    }
+
+    public void setData(T data) {
+        this.data = data;
     }
 
     public Result() {

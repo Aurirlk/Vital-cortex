@@ -112,4 +112,22 @@
         <result column="is_global" property="isGlobal"/>
     </resultMap>
 
+    <!-- HealthModelConfig实体映射 -->
+    <resultMap id="HealthModelConfigResultMap" type="cn.kmbeast.pojo.entity.HealthModelConfig">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="name" property="name"/>
+        <result column="detail" property="detail"/>
+        <result column="cover" property="cover"/>
+        <result column="unit" property="unit"/>
+        <result column="symbol" property="symbol"/>
+        <result column="value_range" property="valueRange"/>
+        <result column="is_global" property="isGlobal"/>
+    </resultMap>
+
+    <!-- 获取所有全局健康模型配置 -->
+    <select id="getGlobalModels" resultMap="HealthModelConfigResultMap">
+        SELECT h.* FROM health_model_config h WHERE h.is_global = 1 ORDER BY h.id ASC
+    </select>
+
 </mapper>

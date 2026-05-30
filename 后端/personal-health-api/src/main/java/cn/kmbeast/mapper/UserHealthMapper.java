@@ -25,4 +25,13 @@ public interface UserHealthMapper {
 
     Integer queryCount(UserHealthQueryDto userHealthQueryDto);
 
+    /**
+     * 获取用户最近N天的健康记录
+     *
+     * @param userId 用户ID
+     * @param days   天数
+     * @return 健康记录列表
+     */
+    List<UserHealth> getRecentByUserId(@Param("userId") Integer userId, @Param("days") Integer days);
+
 }

@@ -83,4 +83,22 @@
         <result column="value_range" property="valueRange"/>
     </resultMap>
 
+    <!-- UserHealth实体映射 -->
+    <resultMap id="UserHealthResultMap" type="cn.kmbeast.pojo.entity.UserHealth">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="health_model_config_id" property="healthModelConfigId"/>
+        <result column="value" property="value"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <!-- 获取用户最近N天的健康记录 -->
+    <select id="getRecentByUserId" resultMap="UserHealthResultMap">
+        SELECT uh.*
+        FROM user_health uh
+        WHERE uh.user_id = #{userId}
+        AND uh.create_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+        ORDER BY uh.create_time DESC
+    </select>
+
 </mapper>

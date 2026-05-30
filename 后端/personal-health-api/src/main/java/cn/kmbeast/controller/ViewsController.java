@@ -1,5 +1,6 @@
 package cn.kmbeast.controller;
 
+import cn.kmbeast.aop.Protector;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.vo.ChartVO;
 import cn.kmbeast.service.ViewsService;
@@ -21,13 +22,11 @@ public class ViewsController {
     private ViewsService viewsService;
 
     /**
-     * 统计一些系统的基础数据
-     *
-     * @return Result<List < ChartVO>>
+     * 统计系统基础数据（管理员）
      */
+    @Protector(role = "管理员")
     @GetMapping("/staticControls")
     public Result<List<ChartVO>> staticControls() {
         return viewsService.staticControls();
     }
-
 }

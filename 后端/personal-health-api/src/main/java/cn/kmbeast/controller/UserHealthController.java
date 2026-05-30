@@ -1,6 +1,7 @@
 package cn.kmbeast.controller;
 
 import cn.kmbeast.aop.Pager;
+import cn.kmbeast.aop.Protector;
 import cn.kmbeast.context.LocalThreadHolder;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.base.QueryDto;
@@ -25,13 +26,10 @@ public class UserHealthController {
     @Resource
     private UserHealthService userHealthService;
 
-
     /**
      * 用户健康记录新增
-     *
-     * @param userHealths 新增数据
-     * @return Result<Void> 通用响应体
      */
+    @Protector
     @PostMapping(value = "/save")
     public Result<Void> save(@RequestBody List<UserHealth> userHealths) {
         return userHealthService.save(userHealths);
@@ -39,10 +37,8 @@ public class UserHealthController {
 
     /**
      * 用户健康记录删除
-     *
-     * @param ids 要删除的用户健康记录ID列表
-     * @return Result<Void> 通用响应体
      */
+    @Protector
     @PostMapping(value = "/batchDelete")
     public Result<Void> batchDelete(@RequestBody List<Long> ids) {
         return userHealthService.batchDelete(ids);
@@ -50,34 +46,28 @@ public class UserHealthController {
 
     /**
      * 用户健康记录修改
-     *
-     * @param userHealth 参数
-     * @return Result<Void> 响应
      */
+    @Protector
     @PutMapping(value = "/update")
     public Result<Void> update(@RequestBody UserHealth userHealth) {
         return userHealthService.update(userHealth);
     }
 
     /**
-     * 用户健康记录查询
-     *
-     * @param userHealthQueryDto 查询参数
-     * @return Result<List < UserHealthVO>> 通用响应
+     * 用户健康记录查询（管理员）
      */
     @Pager
+    @Protector(role = "管理员")
     @PostMapping(value = "/query")
     public Result<List<UserHealthVO>> query(@RequestBody UserHealthQueryDto userHealthQueryDto) {
         return userHealthService.query(userHealthQueryDto);
     }
 
     /**
-     * 用户健康记录查询
-     *
-     * @param userHealthQueryDto 查询参数
-     * @return Result<List < UserHealthVO>> 通用响应
+     * 用户健康记录查询（当前用户）
      */
     @Pager
+    @Protector
     @PostMapping(value = "/queryUser")
     public Result<List<UserHealthVO>> queryUser(@RequestBody UserHealthQueryDto userHealthQueryDto) {
         userHealthQueryDto.setUserId(LocalThreadHolder.getUserId());
@@ -85,16 +75,12 @@ public class UserHealthController {
     }
 
     /**
-     * 用户健康记录查询
-     *
-     * @param id  健康模型ID
-     * @param day 往前查多少天
-     * @return Result<List < UserHealthVO>> 通用响应
+     * 用户健康记录时间范围查询
      */
+    @Protector
     @GetMapping(value = "/timeQuery/{id}/{day}")
     public Result<List<UserHealthVO>> timeQuery(@PathVariable Integer id,
                                                 @PathVariable Integer day) {
-        // 有了时间范围，也有了健康模型ID，还需要什么？
         Integer userId = LocalThreadHolder.getUserId();
         QueryDto queryDto = DateUtil.startAndEndTime(day);
         UserHealthQueryDto userHealthQueryDto = new UserHealthQueryDto();
@@ -107,13 +93,11 @@ public class UserHealthController {
 
     /**
      * 统计模型存量数据
-     *
-     * @return Result<List < ChartVO>> 响应结果
      */
+    @Protector(role = "管理员")
     @GetMapping(value = "/daysQuery/{day}")
     @ResponseBody
     public Result<List<ChartVO>> query(@PathVariable Integer day) {
         return userHealthService.daysQuery(day);
     }
-
 }

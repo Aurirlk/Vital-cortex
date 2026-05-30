@@ -1,6 +1,7 @@
 package cn.kmbeast.controller;
 
 import cn.kmbeast.aop.Pager;
+import cn.kmbeast.aop.Protector;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.extend.TagsQueryDto;
 import cn.kmbeast.pojo.entity.Tags;
@@ -21,33 +22,27 @@ public class TagsController {
     private TagsService tagsService;
 
     /**
-     * 标签新增
-     *
-     * @param tags 新增数据
-     * @return Result<Void> 通用响应体
+     * 标签新增（管理员）
      */
+    @Protector(role = "管理员")
     @PostMapping(value = "/save")
     public Result<Void> save(@RequestBody Tags tags) {
         return tagsService.save(tags);
     }
 
     /**
-     * 标签删除
-     *
-     * @param ids 要删除的标签ID列表
-     * @return Result<Void> 通用响应体
+     * 标签删除（管理员）
      */
+    @Protector(role = "管理员")
     @PostMapping(value = "/batchDelete")
     public Result<Void> batchDelete(@RequestBody List<Long> ids) {
         return tagsService.batchDelete(ids);
     }
 
     /**
-     * 标签修改
-     *
-     * @param tags 参数
-     * @return Result<Void> 响应
+     * 标签修改（管理员）
      */
+    @Protector(role = "管理员")
     @PutMapping(value = "/update")
     public Result<Void> update(@RequestBody Tags tags) {
         return tagsService.update(tags);
@@ -55,14 +50,11 @@ public class TagsController {
 
     /**
      * 标签查询
-     *
-     * @param tagsQueryDto 查询参数
-     * @return Result<List < Tags>> 通用响应
      */
     @Pager
+    @Protector
     @PostMapping(value = "/query")
     public Result<List<Tags>> query(@RequestBody TagsQueryDto tagsQueryDto) {
         return tagsService.query(tagsQueryDto);
     }
-
 }

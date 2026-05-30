@@ -157,5 +157,14 @@
         <result column="create_time" property="createTime"/>
     </resultMap>
 
+    <!-- 根据用户ID获取用户信息 -->
+    <select id="getUserById" resultMap="BaseResultMap">
+        SELECT u.* FROM user u WHERE u.id = #{userId}
+    </select>
+
+    <!-- 根据手机号(账号)查找用户 -->
+    <select id="findByPhone" resultMap="BaseResultMap">
+        SELECT u.* FROM user u WHERE u.user_account = #{userAccount} LIMIT 1
+    </select>
 
 </mapper>

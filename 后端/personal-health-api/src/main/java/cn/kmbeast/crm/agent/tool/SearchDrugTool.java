@@ -1,5 +1,6 @@
 package cn.kmbeast.crm.agent.tool;
 
+import cn.kmbeast.crm.agent.model.ToolResult;
 import cn.kmbeast.mapper.DrugMapper;
 import cn.kmbeast.pojo.vo.DrugVO;
 import com.alibaba.fastjson2.JSON;
@@ -10,9 +11,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * CRM 工具：搜索药品信息和价格
- */
 @Component
 public class SearchDrugTool implements Tool {
 
@@ -44,23 +42,23 @@ public class SearchDrugTool implements Tool {
     }
 
     @Override
-    public String execute(Map<String, Object> arguments) {
+    public ToolResult execute(Map<String, Object> arguments) {
         String keyword = (String) arguments.get("keyword");
         if (keyword == null || keyword.isEmpty()) {
-            return JSON.toJSONString(Map.of("error", "请提供药品名称或分类关键词"));
+            return ToolResult.error("请提供药品名称或分类关键词");
         }
         try {
             List<DrugVO> drugs = drugMapper.searchByName(keyword, 10);
             if (drugs.isEmpty()) {
-                return JSON.toJSONString(Map.of("message", "未找到相关药品", "keyword", keyword));
+                return ToolResult.ok(JSON.toJSONString(Map.of("message", "未找到相关药品", "keyword", keyword)));
             }
             Map<String, Object> result = new HashMap<>();
             result.put("keyword", keyword);
             result.put("count", drugs.size());
             result.put("drugs", drugs);
-            return JSON.toJSONString(result);
+            return ToolResult.ok(JSON.toJSONString(result));
         } catch (Exception e) {
-            return JSON.toJSONString(Map.of("error", "搜索药品失败: " + e.getMessage()));
+            return ToolResult.error("搜索药品失败: " + e.getMessage());
         }
     }
 }

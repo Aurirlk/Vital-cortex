@@ -1,6 +1,7 @@
 package cn.kmbeast.controller;
 
 import cn.kmbeast.aop.Pager;
+import cn.kmbeast.aop.Protector;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.extend.MessageQueryDto;
@@ -29,10 +30,8 @@ public class MessageController {
 
     /**
      * 查询全部的消息类型
-     *
-     * @return Result<List < MessageTypeVO>> 通用响应体
-     * // 系统通知 ： 一种是全站用户都需要接收的；一种是向指定用户发送指定消息的。
      */
+    @Protector
     @GetMapping(value = "/types")
     public Result<List<MessageTypeVO>> all() {
         MessageType[] messageTypes = MessageType.values();
@@ -45,22 +44,18 @@ public class MessageController {
     }
 
     /**
-     * 全站的系统通知
-     *
-     * @param message 消息通知集合
-     * @return Result<Void> 通用响应体
+     * 全站的系统通知（管理员）
      */
+    @Protector(role = "管理员")
     @PostMapping(value = "/systemInfoUsersSave")
     public Result<Void> systemInfoUsersSave(@RequestBody Message message) {
         return messageService.systemInfoUsersSave(message);
     }
 
     /**
-     * 消息通知
-     *
-     * @param messages 消息通知集合
-     * @return Result<Void> 通用响应体
+     * 消息通知（管理员）
      */
+    @Protector(role = "管理员")
     @PostMapping(value = "/systemInfoSave")
     public Result<Void> systemInfoSave(@RequestBody List<Message> messages) {
         messages.forEach(message -> {
@@ -71,24 +66,19 @@ public class MessageController {
         return messageService.systemInfoSave(messages);
     }
 
-
     /**
      * 消息删除
-     *
-     * @param ids 要删除的消息ID列表
-     * @return Result<Void> 通用响应体
      */
+    @Protector
     @PostMapping(value = "/batchDelete")
     public Result<Void> batchDelete(@RequestBody List<Long> ids) {
         return messageService.batchDelete(ids);
     }
 
-
     /**
      * 将全部消息设置为已读
-     *
-     * @return Result<Void> 响应
      */
+    @Protector
     @PutMapping(value = "/clearMessage")
     public Result<Void> clearMessage() {
         return messageService.clearMessage();
@@ -96,14 +86,11 @@ public class MessageController {
 
     /**
      * 消息查询
-     *
-     * @param messageQueryDto 查询参数
-     * @return Result<List < MessageVO>> 通用响应
      */
     @Pager
+    @Protector
     @PostMapping(value = "/query")
     public Result<List<MessageVO>> query(@RequestBody MessageQueryDto messageQueryDto) {
         return messageService.query(messageQueryDto);
     }
-
 }

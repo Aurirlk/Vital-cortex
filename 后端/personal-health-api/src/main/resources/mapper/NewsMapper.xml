@@ -98,4 +98,18 @@
         <result column="tag_name" property="tagName"/>
     </resultMap>
 
+    <!-- RAG知识库检索 — 关键词匹配标题和内容 -->
+    <select id="ragSearch" resultMap="BaseResultMap">
+        SELECT n.*, t.name AS tag_name
+        FROM news n
+        LEFT JOIN tags t ON t.id = n.tag_id
+        WHERE n.name LIKE CONCAT('%', #{keyword}, '%')
+           OR n.content LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY
+            (CASE WHEN n.name LIKE CONCAT('%', #{keyword}, '%') THEN 1 ELSE 2 END),
+            n.is_top DESC,
+            n.create_time DESC
+        LIMIT #{limit}
+    </select>
+
 </mapper>

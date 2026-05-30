@@ -29,21 +29,21 @@ public class LocalThreadHolder {
     /**
      * 取出用户ID
      *
-     * @return Integer
-     * @author 【B站：程序员晨星】
+     * @return Integer，未设置时返回 null
      */
     public static Integer getUserId() {
-        return USER_HOLDER.get().get("userId");
+        Map<String, Integer> map = USER_HOLDER.get();
+        return map != null ? map.get("userId") : null;
     }
 
     /**
      * 取出用户角色
      *
-     * @return Integer
-     * @author 【B站：程序员晨星】
+     * @return Integer，未设置时返回 null
      */
     public static Integer getRoleId() {
-        return USER_HOLDER.get().get("userRole");
+        Map<String, Integer> map = USER_HOLDER.get();
+        return map != null ? map.get("userRole") : null;
     }
 
     /**

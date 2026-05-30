@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.DrugMapper">
+
+    <insert id="save">
+        INSERT INTO drug (name, generic_name, category, description, price, unit, specification, manufacturer, cover, is_otc, stock, status, create_time)
+        VALUES (#{name}, #{genericName}, #{category}, #{description}, #{price}, #{unit}, #{specification}, #{manufacturer}, #{cover}, #{isOtc}, #{stock}, #{status}, #{createTime})
+    </insert>
+
+    <update id="update">
+        UPDATE drug
+        <set>
+            <if test="name != null and name != ''">
+                name = #{name},
+            </if>
+            <if test="genericName != null and genericName != ''">
+                generic_name = #{genericName},
+            </if>
+            <if test="category != null and category != ''">
+                category = #{category},
+            </if>
+            <if test="description != null and description != ''">
+                description = #{description},
+            </if>
+            <if test="price != null">
+                price = #{price},
+            </if>
+            <if test="unit != null and unit != ''">
+                unit = #{unit},
+            </if>
+            <if test="specification != null and specification != ''">
+                specification = #{specification},
+            </if>
+            <if test="manufacturer != null and manufacturer != ''">
+                manufacturer = #{manufacturer},
+            </if>
+            <if test="cover != null and cover != ''">
+                cover = #{cover},
+            </if>
+            <if test="isOtc != null">
+                is_otc = #{isOtc},
+            </if>
+            <if test="stock != null">
+                stock = #{stock},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="batchDelete" parameterType="list">
+        DELETE FROM drug WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="query" resultMap="DrugVOMap">
+        SELECT d.*,
+               (SELECT COUNT(*) FROM drug_subscription ds WHERE ds.drug_id = d.id) AS subscription_count
+        FROM drug d
+        <where>
+            <if test="id != null">
+                AND d.id = #{id}
+            </if>
+            <if test="name != null and name != ''">
+                AND d.name LIKE concat('%',#{name},'%')
+            </if>
+            <if test="category != null and category != ''">
+                AND d.category = #{category}
+            </if>
+            <if test="isOtc != null">
+                AND d.is_otc = #{isOtc}
+            </if>
+            <if test="status != null">
+                AND d.status = #{status}
+            </if>
+        </where>
+        ORDER BY d.id DESC
+        <if test="current != null and size != null">
+            LIMIT #{current},#{size}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="integer">
+        SELECT COUNT(*)
+        FROM drug d
+        <where>
+            <if test="id != null">
+                AND d.id = #{id}
+            </if>
+            <if test="name != null and name != ''">
+                AND d.name LIKE concat('%',#{name},'%')
+            </if>
+            <if test="category != null and category != ''">
+                AND d.category = #{category}
+            </if>
+            <if test="isOtc != null">
+                AND d.is_otc = #{isOtc}
+            </if>
+            <if test="status != null">
+                AND d.status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="getById" resultMap="DrugVOMap">
+        SELECT d.*,
+               (SELECT COUNT(*) FROM drug_subscription ds WHERE ds.drug_id = d.id) AS subscription_count
+        FROM drug d
+        WHERE d.id = #{id}
+    </select>
+
+    <insert id="subscribe">
+        INSERT INTO drug_subscription (user_id, drug_id, quantity)
+        VALUES (#{userId}, #{drugId}, #{quantity})
+    </insert>
+
+    <delete id="unsubscribe">
+        DELETE FROM drug_subscription WHERE user_id = #{userId} AND drug_id = #{drugId}
+    </delete>
+
+    <select id="getSubscribedDrugs" resultMap="DrugVOMap">
+        SELECT d.*,
+               ds.quantity AS subscription_count
+        FROM drug d
+        INNER JOIN drug_subscription ds ON d.id = ds.drug_id
+        WHERE ds.user_id = #{userId}
+        ORDER BY ds.create_time DESC
+    </select>
+
+    <select id="searchByName" resultMap="DrugVOMap">
+        SELECT d.*,
+               (SELECT COUNT(*) FROM drug_subscription ds WHERE ds.drug_id = d.id) AS subscription_count
+        FROM drug d
+        WHERE d.status = 1 AND (d.name LIKE concat('%',#{keyword},'%') OR d.generic_name LIKE concat('%',#{keyword},'%') OR d.category LIKE concat('%',#{keyword},'%'))
+        ORDER BY d.name ASC
+        <if test="limit > 0">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <resultMap id="DrugVOMap" type="cn.kmbeast.pojo.vo.DrugVO">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="generic_name" property="genericName"/>
+        <result column="category" property="category"/>
+        <result column="description" property="description"/>
+        <result column="price" property="price"/>
+        <result column="unit" property="unit"/>
+        <result column="specification" property="specification"/>
+        <result column="manufacturer" property="manufacturer"/>
+        <result column="cover" property="cover"/>
+        <result column="is_otc" property="isOtc"/>
+        <result column="stock" property="stock"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="subscription_count" property="subscriptionCount"/>
+    </resultMap>
+
+</mapper>

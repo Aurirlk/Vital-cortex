@@ -8,92 +8,126 @@
     <version>1.0-SNAPSHOT</version>
     <name>personal-health-api</name>
     <packaging>jar</packaging>
+
     <!--编译配置-->
     <properties>
         <news.build.sourceEncoding>UTF-8</news.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
     </properties>
-    <!--springboot父亲依赖-->
+
+    <!--springboot父亲依赖 - 升级到 2.7.18 LTS-->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.2.4.RELEASE</version>
+        <version>2.7.18</version>
         <relativePath/>
     </parent>
+
     <!--依赖-->
     <dependencies>
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.12.0</version>
         </dependency>
+
         <!--SpringBoot 启动包-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
+
         <!--SpringBoot Web-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
         <!--SpringBoot Aop-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
+
+        <!--SpringBoot Validation (参数校验)-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
         <!--Lombok 简化实体类开发-->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+
         <!--数据库链接-->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.33</version>
+            <scope>runtime</scope>
         </dependency>
-        <!-- mybatis依赖-->
+
+        <!-- mybatis依赖 - 升级版本 -->
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>2.1.2</version>
+            <version>2.3.2</version>
         </dependency>
+
         <!--excel处理-->
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>easyexcel</artifactId>
-            <version>3.2.1</version>
+            <version>3.3.4</version>
         </dependency>
+
         <!--excel处理-->
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi</artifactId>
-            <version>4.1.2</version>
+            <version>5.2.5</version>
         </dependency>
-        <!-- JWT相关 -->
-        <dependency>
-            <groupId>com.auth0</groupId>
-            <artifactId>java-jwt</artifactId>
-            <version>3.4.0</version>
-        </dependency>
+
         <!-- JWT相关 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt</artifactId>
-            <version>0.9.0</version>
+            <version>0.12.5</version>
         </dependency>
-        <!-- JWT相关 -->
+
         <dependency>
             <groupId>com.itextpdf</groupId>
             <artifactId>itext-asian</artifactId>
             <version>5.2.0</version>
         </dependency>
+
         <!-- JSON解析 -->
         <dependency>
             <groupId>com.alibaba.fastjson2</groupId>
             <artifactId>fastjson2</artifactId>
-            <version>2.0.33</version>
+            <version>2.0.47</version>
+        </dependency>
+
+        <!-- OkHttp3 HTTP客户端 -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.12.0</version>
+        </dependency>
+
+        <!-- Spring Security Crypto (BCrypt密码加密) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
+        <!-- SQLite JDBC (CRM本地数据库) -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.45.3.0</version>
         </dependency>
     </dependencies>
 
@@ -117,12 +151,12 @@
             </resource>
         </resources>
 
-            <plugins>
-                <plugin>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-maven-plugin</artifactId>
-                </plugin>
-            </plugins>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
     </build>
 
     <repositories>
@@ -137,7 +171,6 @@
     </repositories>
 
     <pluginRepositories>
-
         <pluginRepository>
             <id>public</id>
             <name>aliyun nexus</name>
