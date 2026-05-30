@@ -23,3 +23,16 @@ yarn-error.log*
 # 忽略系统生成的文件
 .DS_Store
 Thumbs.db
+
+# 忽略环境变量文件（包含敏感信息）
+.env
+.env.local
+.env.*.local
+
+# 忽略向量缓存目录
+vector_cache/
+**/vector_cache/
+
+# 忽略日志文件
+*.log
+logs/
