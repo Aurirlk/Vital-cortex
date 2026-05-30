@@ -159,10 +159,15 @@ CREATE TABLE IF NOT EXISTS `evaluations` (
 ) ENGINE = InnoDB AUTO_INCREMENT = 100 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin ROW_FORMAT = DYNAMIC;
 
 -- -----------------------------------------------------------
--- 初始数据：默认管理员账号
+-- 初始数据：默认账号
+-- 密码均为 123456（BCrypt加密）
 -- -----------------------------------------------------------
 INSERT INTO `user` (`user_account`, `user_name`, `user_pwd`, `user_role`, `is_login`, `is_word`)
-VALUES ('admin', '管理员', 'e10adc3949ba59abbe56e057f20f883e', 1, 0, 0)
+VALUES ('admin', '管理员', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', 1, 0, 0)
+ON DUPLICATE KEY UPDATE `user_account` = `user_account`;
+
+INSERT INTO `user` (`user_account`, `user_name`, `user_pwd`, `user_role`, `is_login`, `is_word`)
+VALUES ('user', '普通用户', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', 2, 0, 0)
 ON DUPLICATE KEY UPDATE `user_account` = `user_account`;
 
 -- -----------------------------------------------------------
