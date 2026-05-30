@@ -1,28 +1,48 @@
 // 输入框
 .input-title {
     width: 100%;
-    border: none;
+    border: 2px solid transparent;
     outline: none;
-    padding: 5px 10px;
-    line-height: 45px;
-    font-size: 26px;
-    background-color: rgb(248,248,248);
-    border-radius: 5px;
-    font-weight: bold;
+    padding: 8px 14px;
+    line-height: 42px;
+    font-size: 22px;
+    background-color: #f5f7fa;
+    border-radius: 10px;
+    font-weight: 600;
+    color: #2d3748;
+    transition: all 0.3s ease;
+
+    &:focus {
+        background-color: #fff;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    &::placeholder {
+        color: #a0aec0;
+        font-weight: 400;
+    }
 }
 
 .top-bar {
     display: inline-block;
     margin: 0 10px;
     font-size: 14px;
-    color: #909399;
+    color: #a0aec0;
 }
 
 .input-child {
     width: 100%;
     border: none;
     outline: none;
-    padding: 5px 10px;
-    font-size: 22px;
-    font-weight: bold;
+    padding: 8px 10px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #2d3748;
+    border-bottom: 2px solid #e2e8f0;
+    transition: border-color 0.3s;
+
+    &:focus {
+        border-bottom-color: #667eea;
+    }
 }

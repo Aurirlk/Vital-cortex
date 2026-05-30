@@ -1,33 +1,26 @@
-import Vue from "vue";
-import VueRouter from "vue-router";
-import ElementUI from 'element-ui';
-import 'element-ui/lib/theme-chalk/index.css';
+import { createRouter, createWebHashHistory } from "vue-router";
 import { getToken } from "@/utils/storage.js";
-import echarts from 'echarts';
-Vue.prototype.$echarts = echarts;
-Vue.use(ElementUI);
-Vue.use(VueRouter);
 
 const routes = [
   {
-    path: "*",
-    redirect: "/login"
+    path: "/:pathMatch(.*)*",
+    redirect: "/login",
   },
   {
     path: "/login",
-    component: () => import(`@/views/login/Login.vue`)
+    component: () => import(`@/views/login/Login.vue`),
   },
   {
     path: "/register",
-    component: () => import(`@/views/register/Register.vue`)
+    component: () => import(`@/views/register/Register.vue`),
   },
   {
     path: "/message",
-    component: () => import(`@/views/user/Message.vue`)
+    component: () => import(`@/views/user/Message.vue`),
   },
   {
     path: "/record",
-    component: () => import(`@/views/user/Record.vue`)
+    component: () => import(`@/views/user/Record.vue`),
   },
   {
     path: "/admin",
@@ -37,62 +30,83 @@ const routes = [
     },
     children: [
       {
-        path: "/adminLayout",
-        name: '仪表盘',
-        icon: 'el-icon-pie-chart',
+        path: "adminLayout",
+        name: "仪表盘",
+        icon: "PieChart",
         component: () => import(`@/views/admin/Main.vue`),
         meta: { requireAuth: true },
       },
       {
-        path: "/userManage",
-        name: '用户管理',
-        icon: 'el-icon-user',
+        path: "userManage",
+        name: "用户管理",
+        icon: "User",
         component: () => import(`@/views/admin/UserManage.vue`),
         meta: { requireAuth: true },
       },
       {
-        path: "/tagsManage",
-        name: '资讯分类',
-        icon: 'el-icon-house',
+        path: "tagsManage",
+        name: "资讯分类",
+        icon: "House",
         component: () => import(`@/views/admin/TagsManage.vue`),
         meta: { requireAuth: true },
       },
       {
-        path: "/newsManage",
-        name: '资讯管理',
-        icon: 'el-icon-document',
+        path: "newsManage",
+        name: "资讯管理",
+        icon: "Document",
         component: () => import(`@/views/admin/NewsManage.vue`),
         meta: { requireAuth: true },
       },
       {
-        path: "/healthModelConfigManage",
-        name: '模型管理',
-        icon: 'el-icon-files',
+        path: "healthModelConfigManage",
+        name: "模型管理",
+        icon: "Files",
         component: () => import(`@/views/admin/HealthModelConfigManage.vue`),
         meta: { requireAuth: true },
       },
       {
-        path: "/userHealthManage",
-        name: '健康记录',
-        icon: 'el-icon-c-scale-to-original',
+        path: "userHealthManage",
+        name: "健康记录",
+        icon: "ScaleToOriginal",
         component: () => import(`@/views/admin/UserHealthManage.vue`),
         meta: { requireAuth: true },
       },
       {
-        path: "/messageManage",
-        name: '消息管理',
-        icon: 'el-icon-message',
+        path: "messageManage",
+        name: "消息管理",
+        icon: "Message",
         component: () => import(`@/views/admin/MessageManage.vue`),
         meta: { requireAuth: true },
       },
       {
-        path: "/evaluationsManage",
-        name: '评论管理',
-        icon: 'el-icon-chat-dot-round',
+        path: "evaluationsManage",
+        name: "评论管理",
+        icon: "ChatDotRound",
         component: () => import(`@/views/admin/EvaluationsManage.vue`),
         meta: { requireAuth: true },
       },
-    ]
+      {
+        path: "aiAnalysis",
+        name: "AI分析",
+        icon: "MagicStick",
+        component: () => import(`@/views/admin/AiAnalysis.vue`),
+        meta: { requireAuth: true },
+      },
+      {
+        path: "aiDoctorManage",
+        name: "AI医生管理",
+        icon: "Setting",
+        component: () => import(`@/views/admin/AiDoctorManage.vue`),
+        meta: { requireAuth: true },
+      },
+      {
+        path: "drugManage",
+        name: "药品管理",
+        icon: "FirstAidKit",
+        component: () => import(`@/views/admin/DrugManage.vue`),
+        meta: { requireAuth: true },
+      },
+    ],
   },
   {
     path: "/user",
@@ -102,32 +116,32 @@ const routes = [
     },
     children: [
       {
-        name: '健康资讯',
-        path: "/news-record",
+        name: "健康资讯",
+        path: "news-record",
         component: () => import(`@/views/user/Home.vue`),
         meta: {
           requireAuth: true,
         },
       },
       {
-        name: '我的收藏',
-        path: "/my-save",
+        name: "我的收藏",
+        path: "my-save",
         component: () => import(`@/views/user/NewsSave.vue`),
         meta: {
           requireAuth: true,
         },
       },
       {
-        name: '健康指标',
-        path: "/user-health-model",
+        name: "健康指标",
+        path: "user-health-model",
         component: () => import(`@/views/user/UserHealthModel.vue`),
         meta: {
           requireAuth: true,
         },
       },
       {
-        name: '健康资讯详情',
-        path: "/news-detail",
+        name: "健康资讯详情",
+        path: "news-detail",
         component: () => import(`@/views/user/NewsDetail.vue`),
         meta: {
           requireAuth: true,
@@ -135,21 +149,43 @@ const routes = [
         isHidden: true,
       },
       {
-        name: '搜索页',
-        path: "/search-detail",
+        name: "搜索页",
+        path: "search-detail",
         component: () => import(`@/views/user/Search.vue`),
         meta: {
           requireAuth: true,
         },
         isHidden: true,
       },
-    ]
-  }
+      {
+        name: "AI健康分析",
+        path: "ai-analysis",
+        component: () => import(`@/views/user/AiAnalysis.vue`),
+        meta: {
+          requireAuth: true,
+        },
+      },
+      {
+        name: "药品订阅",
+        path: "drug",
+        component: () => import(`@/views/user/Drug.vue`),
+        meta: {
+          requireAuth: true,
+        },
+      },
+    ],
+  },
 ];
-const router = new VueRouter({
+
+const router = createRouter({
+  history: createWebHashHistory(),
   routes,
-  mode: 'history'
 });
+
+router.onError((error) => {
+  console.error("[Router Error]", error);
+});
+
 router.beforeEach((to, from, next) => {
   if (to.meta.requireAuth) {
     const token = getToken();
@@ -158,10 +194,9 @@ router.beforeEach((to, from, next) => {
     } else {
       next("/login");
     }
-  }
-  else {
+  } else {
     next();
   }
 });
-import 'vue-vibe'
+
 export default router;

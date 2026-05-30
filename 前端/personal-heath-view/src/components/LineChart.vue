@@ -3,9 +3,19 @@
     <div>
       <span class="tag">{{ tag }}</span>
       <span class="time-show">
-        <span class="top-bar" style="font-size: 12px;">时间选择</span>
-        <el-select size="mini" style="width: 90px;" v-model="selectedValue" placeholder="期限">
-          <el-option v-for="item in options" :key="item.num" :label="item.name" :value="item.num">
+        <span class="top-bar" style="font-size: 12px">时间选择</span>
+        <el-select
+          size="small"
+          style="width: 90px"
+          v-model="selectedValue"
+          placeholder="期限"
+        >
+          <el-option
+            v-for="item in options"
+            :key="item.num"
+            :label="item.name"
+            :value="item.num"
+          >
           </el-option>
         </el-select>
       </span>
@@ -15,46 +25,85 @@
 </template>
 <script>
 // 折线图组件
-import * as echarts from 'echarts';
+import * as echarts from "echarts";
 export default {
-  name: 'DialogLine',
+  name: "DialogLine",
   props: {
     tag: {
       type: String,
-      default: '折线图'
+      default: "折线图",
     },
     values: {
       type: Array,
-      required: true
+      required: true,
     },
     date: {
       type: Array,
-      required: true
+      required: true,
     },
     height: {
       type: String,
-      default: '220px'
+      default: "220px",
     },
   },
   watch: {
-    selectedValue(v1, v2) {
-      this.$emit('on-selected', v1);
+    selectedValue() {
+      this.$emit("on-selected", this.selectedValue);
     },
-    values(v1,v2){
-      console.log("监听值：",v1);
-      this.initChart();
-    }
+    values: {
+      handler() {
+        this.$nextTick(() => {
+          this.initChart();
+        });
+      },
+      immediate: true,
+    },
+    date: {
+      handler() {
+        this.$nextTick(() => {
+          this.initChart();
+        });
+      },
+      immediate: true,
+    },
   },
   data() {
     return {
       chart: null,
-      options: [{ num: 7, name: '7天内' }, { num: 30, name: '30天内' }, { num: 60, name: '60天内' }],
-      selectedValue: '',
+      options: [
+        { num: 7, name: "7天内" },
+        { num: 30, name: "30天内" },
+        { num: 60, name: "60天内" },
+      ],
+      selectedValue: "",
+    };
+  },
+  mounted() {
+    this.$nextTick(() => {
+      this.initChart();
+    });
+    window.addEventListener("resize", this.handleResize);
+  },
+  beforeUnmount() {
+    window.removeEventListener("resize", this.handleResize);
+    if (this.chart) {
+      this.chart.dispose();
+      this.chart = null;
     }
   },
   methods: {
+    handleResize() {
+      if (this.chart) {
+        this.chart.resize();
+      }
+    },
     // 图表初始化
     initChart() {
+      if (!this.$refs.chart) return;
+      if (!this.values.length || !this.date.length) return;
+      if (this.chart) {
+        this.chart.dispose();
+      }
       this.chart = echarts.init(this.$refs.chart);
       let option = {
         grid: {
@@ -64,66 +113,62 @@ export default {
           borderWidth: 0,
         },
         title: {
-          text: '',
-          color: '#ffffff',
+          text: "",
+          color: "#ffffff",
         },
         tooltip: {
-          trigger: 'axis',
-          formatter: '{b}=>{c}',
+          trigger: "axis",
+          formatter: "{b}=>{c}",
         },
         legend: {
-          data: ['']
+          data: [""],
         },
         xAxis: {
           data: this.date,
           axisLine: { show: false },
           axisTick: { show: false },
           axisLabel: {
-            color: 'rgb(51，51，51)',
-            fontSize: '14'
+            color: "rgb(51，51，51)",
+            fontSize: "14",
           },
         },
         yAxis: {
           axisLine: { show: false },
           axisTick: { show: false },
           axisLabel: {
-            color: 'rgb(51，51，51)',
-            fontSize: '14'
+            color: "rgb(51，51，51)",
+            fontSize: "14",
           },
         },
-        series: [{
-          name: '',
-          type: 'line',
-          smooth: true,
-          data: this.values,
-          areaStyle: {
-            color: 'rgba(144, 191, 237, 0.3)'
+        series: [
+          {
+            name: "",
+            type: "line",
+            smooth: true,
+            data: this.values,
+            areaStyle: {
+              color: "rgba(144, 191, 237, 0.3)",
+            },
+            lineStyle: {
+              color: "#5B8FF9",
+            },
+            itemStyle: {
+              color: "#5B8FF9",
+              borderColor: "#5B8FF9",
+              borderWidth: 2,
+            },
+            label: {
+              show: true,
+              position: "top",
+              color: "rgb(102, 102, 102)",
+            },
           },
-          lineStyle: {
-            color: '#5B8FF9'
-          },
-          itemStyle: {
-            color: '#5B8FF9',
-            borderColor: '#5B8FF9',
-            borderWidth: 2
-          },
-          label: {
-            show: true,
-            position: 'top',
-            color: 'rgb(102, 102, 102)',
-          },
-        }]
+        ],
       };
       this.chart.setOption(option);
     },
   },
-  beforeDestroy() {
-    if (!this.chart) {
-      return;
-    }
-    this.chart.dispose();
-  },
-};  
+};
 </script>
 <style scoped lang="scss">
 .line-main {
@@ -142,6 +187,5 @@ export default {
     padding: 15px 6px;
     float: right;
   }
-
 }
 </style>

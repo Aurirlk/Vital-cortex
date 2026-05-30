@@ -1,65 +1,83 @@
 // 编辑按钮
 .edit-button {
-    background-color: rgb(56, 183, 129);
+    background: linear-gradient(135deg, #667eea, #764ba2);
     font-size: 12px;
-    padding: 2px 15px;
-    border-radius: 3px;
-    height: 25px;
-    line-height: 25px;
+    padding: 4px 16px;
+    border-radius: 8px;
+    height: 28px;
+    line-height: 28px;
     display: inline-block;
     user-select: none;
     cursor: pointer;
     color: #FFFFFF;
     margin-right: 6px;
+    border: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .edit-button:hover {
-    background-color: rgb(56, 183, 129);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     color: #FFFFFF;
 }
 
 // 取消按钮
 .channel-button {
-    background-color: rgb(245, 245, 245);
+    background-color: #f0f2f5;
     font-size: 12px;
-    padding: 2px 15px;
-    height: 25px;
-    line-height: 25px;
-    border-radius: 3px;
+    padding: 4px 16px;
+    height: 28px;
+    line-height: 28px;
+    border-radius: 8px;
     display: inline-block;
     user-select: none;
     cursor: pointer;
-    color: #1c1c1c;
+    color: #4a5568;
     margin: 0 10px;
+    border: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
 }
 
 .channel-button:hover {
-    color: #304a99;
+    background-color: #e2e8f0;
+    color: #667eea;
 }
 
 // 文字按钮
 .text-button {
     margin-right: 10px;
-    color: rgb(108, 143, 166);
+    color: #667eea;
     cursor: pointer;
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.text-button:hover {
+    color: #764ba2;
 }
 
 // 删除按钮
 .delete-button {
-    background-color: rgb(241, 241, 241);
+    background-color: #f0f2f5;
     font-size: 12px;
-    padding: 2px 15px;
-    height: 25px;
-    line-height: 25px;
-    border-radius: 3px;
+    padding: 4px 16px;
+    height: 28px;
+    line-height: 28px;
+    border-radius: 8px;
     display: inline-block;
     user-select: none;
     cursor: pointer;
-    color: #1c1c1c;
+    color: #4a5568;
+    border: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
 }
 
 .delete-button:hover {
-    background-color: rgb(167, 83, 90);
-    font-size: 12px;
+    background: linear-gradient(135deg, #e53e3e, #c53030);
     color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(229, 62, 62, 0.3);
 }

@@ -1,11 +1,12 @@
 // 标签
 .theme-tag {
-    color: #1c1c1c;
-    background-color: rgb(237, 235, 235);
-    padding: 3px 10px;
-    border-radius: 3px;
+    color: #4a5568;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+    padding: 4px 12px;
+    border-radius: 12px;
     font-size: 12px;
     margin-right: 5px;
+    font-weight: 500;
 }
 
 // 弹窗标题
@@ -13,36 +14,52 @@
     font-size: 16px;
     padding: 15px 20px;
     user-select: none;
-    color: rgb(107, 106, 106);
+    color: #4a5568;
+    font-weight: 600;
 }
 
 .dialog-avatar {
     width: 78px;
     height: 78px;
+    border-radius: 12px;
+    object-fit: cover;
 }
 
 .dialog-input {
-    font-size: 24px;
+    font-size: 18px;
     font-weight: 600;
     width: 100%;
-    border: 5px;
-    padding: 8px 6px;
+    padding: 10px 12px;
     box-sizing: border-box;
-    border-radius: 5px;
-    border: none;
+    border-radius: 10px;
+    border: 2px solid transparent;
     outline: none;
     user-select: none;
-    background-color: rgb(248, 248, 248);
+    background-color: #f5f7fa;
+    color: #2d3748;
+    transition: all 0.3s ease;
+
+    &:focus {
+        background-color: #fff;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
 }
 
 .dialog-hover {
     display: inline-block;
     padding: 10px 6px;
     font-size: 12px;
-    color: rgb(107, 106, 106);
+    color: #a0aec0;
+    cursor: pointer;
+    transition: color 0.3s;
+
+    &:hover {
+        color: #667eea;
+    }
 }
 
-
 .el-dialog {
-    border-radius: 8px !important;
+    border-radius: 16px !important;
+    overflow: hidden;
 }

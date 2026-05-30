@@ -5,7 +5,8 @@
 </template>
 
 <style lang="scss">
-#app{
+#app {
   height: 100%;
+  background-color: #f5f7fa;
 }
 </style>

@@ -1,319 +1,354 @@
 <template>
-    <div>
-        <ul class="nav">
-            <li>
-                <Logo sysName="健康资讯"/>
-            </li>
-            <li v-if="!item.isHidden" :style="{
-                fontSize: selectedIndex === index ? '18px' : '14px',
-                color: selectedIndex === index ? '#1c1c1c' : 'rgb(102 102 102)'
-            }" class="funItem" v-for="(item, index) in menus" :key="index" @click="menuClick(`${item.path}`, index)">
-                <span>
-                    <i :class="item.icon"></i>
-                    <span>&nbsp; {{ item.name }}</span>
-                </span>
-            </li>
-            <li>
-                <el-row>
-                    <el-col :span="18">
-                        <input class="search-input" placeholder="搜索..." @keyup.enter="search" v-model="filterText" />
-                    </el-col>
-                    <el-col :span="6">
-                        <span @click="search"
-                            style="background-color: #000;color: #f1f1f1;border-radius: 5px;padding: 5px 10px;width: 100%;box-sizing: border-box;">
-                            搜索
-                        </span>
-                    </el-col>
-                </el-row>
-            </li>
-            <li style="position: absolute;right: 350px;cursor: pointer;">
-                <span @click="healthDataRecord" style="margin:14px 10px;">
-                    <i class="el-icon-upload"></i>
-                    指标记录
-                </span>
-            </li>
-            <li style="position: absolute;right: 320px;">
-                <el-badge style="margin-left: 5px;font-size: 16px;" v-if="noReadMsg !== 0" :value="noReadMsg">
-                    <span class="message-span" @click="messageCenter">
-                        <i class="el-icon-bell"></i>
-                    </span>
-                </el-badge>
-                <span style="margin-left: 5px;font-size: 16px;" v-else class="message-span" @click="messageCenter">
-                    <i class="el-icon-bell"></i>
-                </span>
-            </li>
-            <li>
-                <span class="user-block">
-                    <el-dropdown class="user-dropdown">
-                        <span class="el-dropdown-link" style="display: flex; align-items: center;">
-                            <el-avatar :size="35" :src="userInfo.url" style="margin-top: 0;"></el-avatar>
-                            <span class="userName" style="margin-left: 5px;font-size: 16px;width: 50px;overflow: hidden;text-overflow: ellipsis;white-space: nowrap;">{{ userInfo.name }}</span>
-                            <i class="el-icon-arrow-down el-icon--right" style="margin-left: 5px;"></i>
-                        </span>
-                        <el-dropdown-menu slot="dropdown">
-                            <el-dropdown-item icon="el-icon-user"
-                                @click.native="userCenterPanel">个人中心</el-dropdown-item>
-                            <el-dropdown-item icon="el-icon-warning-outline"
-                                @click.native="resetPwd">修改密码</el-dropdown-item>
-                            <el-dropdown-item icon="el-icon-back" @click.native="loginOut">退出登录</el-dropdown-item>
-                        </el-dropdown-menu>
-                    </el-dropdown>
-                </span>
-            </li>
-        </ul>
+  <header class="header">
+    <!-- 左侧：Logo + 导航菜单 -->
+    <div class="header-left">
+      <div class="logo-area">
+        <Logo sysName="健康资讯" />
+      </div>
+      <nav class="nav-menu">
+        <template v-for="(item, index) in menus" :key="index">
+          <div
+            v-if="!item.isHidden"
+            class="nav-item"
+            :class="{ 'nav-item--active': selectedIndex === index }"
+            @click="menuClick(item.path, index)"
+          >
+            <span class="nav-item-text">
+              <el-icon><component :is="item.icon" /></el-icon>
+              {{ item.name }}
+            </span>
+            <div v-if="selectedIndex === index" class="nav-indicator"></div>
+          </div>
+        </template>
+      </nav>
     </div>
+
+    <!-- 右侧：搜索 + 指标记录 + 铃铛 + 个人主页 -->
+    <div class="header-right">
+      <!-- 搜索框 -->
+      <div class="search-box">
+        <input
+          class="search-input"
+          placeholder="搜索..."
+          @keyup.enter="search"
+          v-model="filterText"
+        />
+        <span class="search-btn" @click="search">搜索</span>
+      </div>
+
+      <!-- 指标记录按钮 -->
+      <button class="record-btn" @click="healthDataRecord">
+        <svg class="record-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+        <span>指标记录</span>
+      </button>
+
+      <!-- 铃铛 -->
+      <div class="bell-area" @click="messageCenter">
+        <el-badge :hidden="noReadMsg === 0" :value="noReadMsg">
+          <el-icon class="bell-icon"><Bell /></el-icon>
+        </el-badge>
+      </div>
+
+      <!-- 个人主页 -->
+      <div class="user-area">
+        <el-dropdown trigger="click">
+          <div class="user-trigger">
+            <el-avatar :size="32" :src="userInfo.url"></el-avatar>
+            <span class="user-name">{{ userInfo.name }}</span>
+            <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item :icon="User" @click="userCenterPanel">个人中心</el-dropdown-item>
+              <el-dropdown-item :icon="WarningFilled" @click="resetPwd">修改密码</el-dropdown-item>
+              <el-dropdown-item :icon="Back" @click="loginOut">退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+    </div>
+  </header>
 </template>
+
 <script>
 import { clearToken } from "@/utils/storage.js";
-import Logo from '@/components/Logo.vue';
+import Logo from "@/components/Logo.vue";
+import { Upload, Bell, ArrowDown, User, WarningFilled, Back } from "@element-plus/icons-vue";
+
 export default {
-    name: "UserMenu",
-    components: {
-        Logo
+  name: "UserMenu",
+  components: { Logo, Upload, Bell, ArrowDown, User, WarningFilled, Back },
+  data() {
+    return {
+      selectedIndex: 0,
+      messagePath: "/message",
+      defaultPath: "/user/news-record",
+      filterText: "",
+      noReadMsg: 0,
+      User, WarningFilled, Back,
+    };
+  },
+  props: {
+    menus: { type: Array, required: true },
+    userInfo: { type: Object, required: true },
+  },
+  mounted() {
+    this.pathToDo(this.defaultPath);
+    this.loadMsgCount();
+  },
+  methods: {
+    search() {
+      if (this.$route.path === "/search-detail") {
+        sessionStorage.setItem("keyWord", this.filterText);
+        return;
+      }
+      sessionStorage.setItem("keyWord", this.filterText);
+      this.$emit("eventListener", "search-detail");
     },
-    data() {
-        return {
-            selectedIndex: 0,
-            messagePath: '/message',
-            loginPath: '/login',
-            sysName: '健康资讯',
-            defaultPath: '/news-record',
-            filterText: '',
-            noReadMsg: 0,
+    userCenterPanel() { this.$emit("eventListener", "center"); },
+    resetPwd() { this.$emit("eventListener", "resetPwd"); },
+    loginOut() { this.$emit("eventListener", "loginOut"); },
+    healthDataRecord() { this.$emit("eventListener", "healthDataRecord"); },
+    async loadMsgCount() {
+      try {
+        const userInfo = sessionStorage.getItem("userInfo");
+        if (!userInfo) return;
+        const userInfoEntity = JSON.parse(userInfo);
+        const messageQueryDto = { userId: userInfoEntity.id, isRead: false };
+        const response = await this.$axios.post(`/message/query`, messageQueryDto);
+        const { data } = response;
+        if (data.code === 200) {
+          this.noReadMsg = data.data.length;
         }
+      } catch (e) { /* ignore */ }
     },
-    props: {
-        // 路由菜单数据
-        menus: {
-            type: Array,
-            required: true
-        },
-        // 用户信息数据
-        userInfo: {
-            type: Object,
-            required: true
-        }
+    pathToDo(path) {
+      if (this.$route.path !== path) {
+        this.$router.push(path);
+      }
     },
-    mounted() {
-        this.pathToDo(this.defaultPath);
-        this.loadMsgCount();
+    menuClick(path, index) {
+      this.selectedIndex = index;
+      this.pathToDo(`/user/${path}`);
     },
-    methods: {
-        // 搜索关键词，返回父组件处理
-        search() {
-            // 如果当前是搜索页面了，更新关键词即可
-            if (this.$route.path === '/search-detail') {
-                sessionStorage.setItem('keyWord', this.filterText);
-                return;
-            }
-            // 将关键词存起来
-            sessionStorage.setItem('keyWord', this.filterText);
-            this.$emit('eventListener', 'search-detail');
-        },
-        // 个人中心，传回父组件处理
-        userCenterPanel() {
-            this.$emit('eventListener', 'center');
-        },
-        // 重置密码，传回父组件处理
-        resetPwd() {
-            this.$emit('eventListener', 'resetPwd');
-        },
-        // 退出登录，传回父组件处理
-        loginOut() {
-            this.$emit('eventListener', 'loginOut');
-        },
-        // 记录饮食，传回父组件处理
-        dietRecord() {
-            this.$emit('eventListener', 'dietRecord');
-        },
-        // 记录个人健康指标，传回父组件处理
-        healthDataRecord() {
-            this.$emit('eventListener', 'healthDataRecord');
-        },
-        // 退出登录，传回父组件处理
-        loginOut() {
-            this.$emit('eventListener', 'loginOut');
-        },
-        async loadMsgCount() {
-            const userInfo = sessionStorage.getItem('userInfo');
-            const userInfoEntity = JSON.parse(userInfo);
-            const messageQueryDto = { userId: userInfoEntity.id, isRead: false }
-            const response = await this.$axios.post(`/message/query`, messageQueryDto);
-            const { data } = response;
-            if(data.code === 200){
-                this.noReadMsg = data.data.length;
-            }
-        },
-        // 不是存量路由，则跳转
-        pathToDo(path) {
-            if (this.$route.path !== path) {
-                this.$router.push(path);
-            }
-        },
-        //路由跳转
-        menuClick(path, index) {
-            this.selectedIndex = index;
-            this.pathToDo(path);
-        },
-        // 消息中心
-        messageCenter() {
-            this.selectedIndex = null;
-            this.pathToDo(this.messagePath);
-        },
-        // 退出登录
-        async out() {
-            const confirmed = await this.$swalConfirm({
-                title: '是否退出登录',
-                text: `退出后将重新登录，才能使用系统功能`,
-                icon: 'warning',
-            });
-            if (confirmed) {
-                this.$swal.fire({
-                    title: '退出登录',
-                    text: '您已成功退出登录。',
-                    icon: 'success', // 使用'success'图标表示操作成功
-                    showConfirmButton: false, // 隐藏确认按钮，使得弹窗只展示信息后自动关闭
-                    timer: 1300, // 自动关闭弹窗的延迟时间，这里是2秒
-                });
-                setTimeout(() => {
-                    clearToken();
-                    this.$router.push('/loginPath');
-                }, 1300)
-            } else {
-                console.log('用户取消了退出操作');
-            }
-        },
-    }
-}
+    messageCenter() {
+      this.selectedIndex = null;
+      this.pathToDo(this.messagePath);
+    },
+  },
+};
 </script>
-<style scoped lang="scss">
-.nav {
-    padding: 6px 150px;
-    height: 70px;
-    line-height: 70px;
-    list-style: none;
-    border-bottom: 1px solid #f1f1f1;
-    margin: 0;
 
-    li {
-        float: left;
-        height: 70px;
-        line-height: 70px;
-        font-weight: 400;
-        padding: 0 20px;
-        user-select: none;
-        color: rgb(102, 102, 102);
-        font-size: 14px;
-        transition: all 0.5s;
-
-        i {
-            color: rgb(102, 102, 102);
-        }
-
-        .message-span {
-            padding: 5px;
-            border-radius: 5px;
-
-            i {
-                font-size: 16px;
-            }
-        }
-
-        .message-span:hover {
-            background-color: rgb(240, 240, 240);
-        }
-
-        .search-input {
-            outline: none;
-            width: 100%;
-            font-size: 14px;
-            height: 35px;
-            line-height: 35px;
-            font-size: 16px;
-            padding: 2px 30px;
-            border-radius: 5px;
-            transition: all 0.5s;
-            border: 1px solid rgb(76, 77, 11);
-            border-radius: 5px;
-        }
-
-        .search-button {
-            background-color: #000;
-            font-size: 16px;
-            cursor: pointer;
-            height: 30px;
-            line-height: 30px;
-        }
-
-        .serch-input:focus {
-            border: 1px solid rgb(188, 229, 247);
-        }
-
-    }
+<style scoped>
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  padding: 0 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
-.user-block {
-    position: absolute;
-    right: 200px;
-
-    .userName {
-        display: inline-block;
-        vertical-align: middle;
-        font-size: 14px;
-        cursor: pointer;
-        user-select: none;
-    }
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 32px;
 }
 
-.info-block {
-    position: fixed;
-    right: 10px;
-    float: right;
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-    .search {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
+.nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-        span {
-            font-size: 12px;
-            padding: 0 8px;
-        }
+.nav-item {
+  position: relative;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.25s ease;
+}
 
-    }
+.nav-item:hover {
+  background: rgba(102, 126, 234, 0.06);
+}
 
-    i {
-        padding: 6px;
-        border-radius: 3px;
-        font-size: 20px;
-    }
+.nav-item-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  color: #6B7280;
+  transition: color 0.25s ease;
+}
 
-    i:hover {
-        background-color: rgb(230, 230, 230);
-    }
+.nav-item--active .nav-item-text {
+  font-weight: 700;
+  color: #111827;
+}
 
-    .user-name {
-        padding: 0 10px;
-        color: #252933;
-        font-weight: 400;
-        margin: 0 10px;
-        font-size: 14px;
-    }
+.nav-item:hover .nav-item-text {
+  color: #111827;
+}
 
-    .login-out {
-        margin: 0 20px;
-        width: 20px;
-        height: 20px;
-        padding: 6px;
-        background-color: none !important;
-        border-radius: 3px;
-    }
+.nav-indicator {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  transform: translateX(-50%);
+  height: 3px;
+  width: 24px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
+  animation: indicator-in 0.25s ease;
+}
 
-    .login-out:hover {
-        background-color: rgb(230, 230, 230);
-    }
+@keyframes indicator-in {
+  from { width: 0; opacity: 0; }
+  to { width: 24px; opacity: 1; }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.search-box:focus-within {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.search-input {
+  outline: none;
+  border: none;
+  padding: 6px 12px;
+  font-size: 14px;
+  width: 160px;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.search-input::placeholder {
+  color: #9CA3AF;
+}
+
+.search-btn {
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.search-btn:hover {
+  opacity: 0.9;
+}
+
+.record-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #10B981;
+  color: #fff;
+  border: none;
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.record-btn:hover {
+  background: #059669;
+}
+
+.record-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.bell-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.bell-area:hover {
+  background: #f3f4f6;
+}
+
+.bell-icon {
+  font-size: 20px;
+  color: #10B981;
+}
+
+.user-area {
+  display: flex;
+  align-items: center;
+}
+
+.user-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.user-trigger:hover {
+  background: #f3f4f6;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.arrow-icon {
+  font-size: 12px;
+  color: #9CA3AF;
 }
 </style>
