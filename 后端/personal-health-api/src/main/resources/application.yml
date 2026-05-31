@@ -41,23 +41,23 @@ mybatis:
 # DeepSeek AI 配置（chat + embedding 共用 API Key）
 # ============================================================
 deepseek:
-  api-key: ${DEEPSEEK_API_KEY:***REMOVED***}
+  api-key: ${DEEPSEEK_API_KEY:sk-}
   api-url: ${DEEPSEEK_API_URL:https://api.deepseek.com/v1/chat/completions}
   model: ${DEEPSEEK_MODEL:deepseek-v4-flash}
   connect-timeout: ${AI_CONNECT_TIMEOUT:30000}
   read-timeout: ${AI_READ_TIMEOUT:60000}
 
-# ============================================================
+
 # AI 服务配置
-# ============================================================
+
 ai:
   max-history-rounds: ${AI_MAX_HISTORY_ROUNDS:10}
   max-tokens: ${AI_MAX_TOKENS:4096}
   vector-cache-dir: ${VECTOR_CACHE_DIR:./vector_cache}
 
-# ============================================================
+
 # CRM 模块配置
-# ============================================================
+
 crm:
   # SQLite 本地数据库路径
   sqlite:
