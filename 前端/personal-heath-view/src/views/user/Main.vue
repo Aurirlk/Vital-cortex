@@ -10,6 +10,8 @@
     <div class="content-container">
       <router-view class="route-container"></router-view>
     </div>
+    <!-- 客服悬浮球 -->
+    <CustomerServiceBall />
     <!-- 个人中心 -->
     <el-dialog :show-close="true" v-model="dialogOperaion" width="26%" class="user-center-dialog" :style="{ marginTop: '15vh' }">
       <template #title>
@@ -197,6 +199,7 @@
                 v-model="healthModel.input"
                 placeholder="数值"
               />
+
               <span class="model-unit">{{ healthModel.modelUnit }}</span>
             </div>
             <div style="margin: 10px 5px">
@@ -220,16 +223,95 @@
         </el-row>
       </div>
     </el-dialog>
+    <!-- 设置对话框 -->
+    <el-dialog v-model="settingsDialog" width="40%" :show-close="true">
+      <template #title>
+        <div>
+          <p
+            style="
+              color: #fff;
+              margin: 0;
+              padding: 20px;
+              font-size: 18px;
+              font-weight: 600;
+            "
+          >
+            设置
+          </p>
+        </div>
+      </template>
+      <div style="padding: 20px">
+        <div class="settings-section">
+          <h3>外观设置</h3>
+          <div class="setting-item">
+            <div class="setting-info">
+              <el-icon><Moon /></el-icon>
+              <span>深色模式</span>
+            </div>
+            <el-switch
+              v-model="settings.isDarkMode"
+              @change="toggleDarkMode"
+              active-text="深色"
+              inactive-text="浅色"
+            />
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>显示设置</h3>
+          <div class="setting-item">
+            <div class="setting-info">
+              <el-icon><View /></el-icon>
+              <span>显示轮播图白点</span>
+            </div>
+            <el-switch
+              v-model="settings.showBannerDots"
+              @change="saveSettings"
+              active-text="显示"
+              inactive-text="隐藏"
+            />
+          </div>
+          <div class="setting-item">
+            <div class="setting-info">
+              <el-icon><Timer /></el-icon>
+              <span>轮播图自动播放</span>
+            </div>
+            <el-switch
+              v-model="settings.autoPlayBanner"
+              @change="saveSettings"
+              active-text="开启"
+              inactive-text="关闭"
+            />
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>通知设置</h3>
+          <div class="setting-item">
+            <div class="setting-info">
+              <el-icon><Bell /></el-icon>
+              <span>消息通知</span>
+            </div>
+            <el-switch
+              v-model="settings.enableNotification"
+              @change="saveSettings"
+              active-text="开启"
+              inactive-text="关闭"
+            />
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 <script>
 import { clearToken } from "@/utils/storage.js";
 import router from "@/router";
 import UserMenu from "@/components/LevelMenu.vue";
+import CustomerServiceBall from "@/components/CustomerServiceBall.vue";
 export default {
   name: "UserMain",
   components: {
     UserMenu,
+    CustomerServiceBall,
   },
   data() {
     return {
@@ -247,11 +329,19 @@ export default {
       selecedHealthModelIndex: 0,
       dietDialog: false,
       healthModelConfigDialog: false,
+      settingsDialog: false,
+      settings: {
+        isDarkMode: false,
+        showBannerDots: true,
+        autoPlayBanner: true,
+        enableNotification: true,
+      },
     };
   },
   created() {
     console.log("[Main.vue] created, route:", this.$route.path);
     this.tokenCheckLoad();
+    this.loadSettings();
   },
   mounted() {
     console.log("[Main.vue] mounted, DOM ready");
@@ -373,6 +463,10 @@ export default {
       else if (event === "healthDataRecord") {
         this.$router.push("/record");
       }
+      // 设置
+      else if (event === "settings") {
+        this.settingsDialog = true;
+      }
     },
     removeFood(food) {
       // 清空输入项
@@ -484,6 +578,38 @@ export default {
         // 清除Token，路由至登录页
         clearToken();
         this.$router.push("/login");
+      }
+    },
+    // 设置相关方法
+    loadSettings() {
+      const settings = localStorage.getItem("userSettings");
+      if (settings) {
+        const parsed = JSON.parse(settings);
+        this.settings = {
+          isDarkMode: parsed.isDarkMode || false,
+          showBannerDots: parsed.showBannerDots !== false,
+          autoPlayBanner: parsed.autoPlayBanner !== false,
+          enableNotification: parsed.enableNotification !== false,
+        };
+      }
+      this.applyDarkMode();
+    },
+    saveSettings() {
+      localStorage.setItem("userSettings", JSON.stringify(this.settings));
+      this.applyDarkMode();
+    },
+    toggleDarkMode() {
+      this.saveSettings();
+    },
+    applyDarkMode() {
+      if (this.settings.isDarkMode) {
+        document.documentElement.classList.add("dark");
+        document.body.style.backgroundColor = "#1a1a2e";
+        document.body.style.color = "#eee";
+      } else {
+        document.documentElement.classList.remove("dark");
+        document.body.style.backgroundColor = "#f5f7fa";
+        document.body.style.color = "#333";
       }
     },
     // Token检验
@@ -656,6 +782,47 @@ label {
 
   &:hover {
     opacity: 0.9;
+  }
+}
+
+.settings-section {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #f0f0f0;
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #2d3748;
+  }
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+}
+
+.setting-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .el-icon {
+    font-size: 18px;
+    color: #667eea;
+  }
+
+  span {
+    font-size: 14px;
+    color: #4a5568;
   }
 }
 </style>

@@ -23,7 +23,7 @@
           v-model="pwdConfirm"
           class="pwd"
           type="password"
-          placeholder="输入密码"
+          placeholder="确认密码"
         />
       </div>
       <div>

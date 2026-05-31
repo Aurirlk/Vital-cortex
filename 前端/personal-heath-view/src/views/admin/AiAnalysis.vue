@@ -156,6 +156,27 @@
               </div>
 
               <div class="chat-input-area">
+                <!-- 功能开关 -->
+                <div class="feature-toggles">
+                  <el-tooltip content="启用联网搜索获取最新信息">
+                    <el-button 
+                      :type="enableWebSearch ? 'primary' : 'default'"
+                      size="small"
+                      @click="enableWebSearch = !enableWebSearch"
+                    >
+                      <el-icon><Search /></el-icon> 联网搜索
+                    </el-button>
+                  </el-tooltip>
+                  <el-tooltip content="启用深度推理，回答更详细但耗时更长">
+                    <el-button 
+                      :type="enableDeepThink ? 'warning' : 'default'"
+                      size="small"
+                      @click="enableDeepThink = !enableDeepThink"
+                    >
+                      <el-icon><MagicStick /></el-icon> 深度思考
+                    </el-button>
+                  </el-tooltip>
+                </div>
                 <el-input
                   class="chat-input"
                   v-model="inputMessage"
@@ -347,6 +368,206 @@
           </el-col>
         </el-row>
       </el-tab-pane>
+
+      <!-- AI配置管理 -->
+      <el-tab-pane label="AI 配置" name="config">
+        <div class="config-container">
+          <el-alert type="info" :closable="false" style="margin-bottom: 20px">
+            <template #title>
+              <div>
+                <strong>AI配置管理</strong> - 在此配置DeepSeek API的各项参数
+                <br/>
+                <span style="font-size: 12px; color: #999">
+                  修改后立即生效，无需重启服务。API Key不会完整显示，修改时请输入完整Key。
+                </span>
+              </div>
+            </template>
+          </el-alert>
+
+          <el-form :model="aiConfig" label-width="140px">
+            <!-- 普通对话配置 -->
+            <el-divider content-position="left">
+              <el-icon><ChatDotRound /></el-icon> 普通对话配置
+            </el-divider>
+            
+            <el-form-item label="API Key">
+              <el-input 
+                v-model="aiConfig.chat.apiKey" 
+                placeholder="请输入DeepSeek API Key"
+                show-password
+              />
+              <span class="form-tip">当前: {{ aiConfig.chat.apiKey || '未配置' }}</span>
+            </el-form-item>
+            
+            <el-form-item label="API 地址">
+              <el-input 
+                v-model="aiConfig.chat.apiUrl" 
+                placeholder="https://api.deepseek.com/v1/chat/completions"
+              />
+            </el-form-item>
+            
+            <el-form-item label="模型名称">
+              <el-select v-model="aiConfig.chat.model" style="width: 100%">
+                <el-option label="deepseek-chat" value="deepseek-chat" />
+                <el-option label="deepseek-v4-flash" value="deepseek-v4-flash" />
+              </el-select>
+            </el-form-item>
+
+            <!-- 深度思考配置 -->
+            <el-divider content-position="left">
+              <el-icon><MagicStick /></el-icon> 深度思考配置
+            </el-divider>
+            
+            <el-form-item label="API Key">
+              <el-input 
+                v-model="aiConfig.reasoner.apiKey" 
+                placeholder="留空则使用普通对话的API Key"
+                show-password
+              />
+              <span class="form-tip">当前: {{ aiConfig.reasoner.apiKey || '未配置' }}</span>
+            </el-form-item>
+            
+            <el-form-item label="API 地址">
+              <el-input 
+                v-model="aiConfig.reasoner.apiUrl" 
+                placeholder="https://api.deepseek.com/v1/chat/completions"
+              />
+            </el-form-item>
+            
+            <el-form-item label="模型名称">
+              <el-select v-model="aiConfig.reasoner.model" style="width: 100%">
+                <el-option label="deepseek-reasoner" value="deepseek-reasoner" />
+                <el-option label="deepseek-chat" value="deepseek-chat" />
+              </el-select>
+            </el-form-item>
+
+            <!-- 联网搜索配置 -->
+            <el-divider content-position="left">
+              <el-icon><Search /></el-icon> 联网搜索配置
+            </el-divider>
+            
+            <el-form-item label="启用联网搜索">
+              <el-switch v-model="aiConfig.webSearch.enabled" />
+            </el-form-item>
+            
+            <el-form-item label="API Key">
+              <el-input 
+                v-model="aiConfig.webSearch.apiKey" 
+                placeholder="留空则使用普通对话的API Key"
+                show-password
+              />
+              <span class="form-tip">当前: {{ aiConfig.webSearch.apiKey || '未配置' }}</span>
+            </el-form-item>
+            
+            <el-form-item label="API 地址">
+              <el-input 
+                v-model="aiConfig.webSearch.apiUrl" 
+                placeholder="https://api.deepseek.com/v1/chat/completions"
+              />
+            </el-form-item>
+            
+            <el-form-item label="模型名称">
+              <el-select v-model="aiConfig.webSearch.model" style="width: 100%">
+                <el-option label="deepseek-chat" value="deepseek-chat" />
+                <el-option label="deepseek-v4-flash" value="deepseek-v4-flash" />
+              </el-select>
+            </el-form-item>
+
+            <!-- Embedding配置 -->
+            <el-divider content-position="left">
+              <el-icon><Connection /></el-icon> Embedding配置
+            </el-divider>
+            
+            <el-form-item label="API Key">
+              <el-input 
+                v-model="aiConfig.embedding.apiKey" 
+                placeholder="留空则使用普通对话的API Key"
+                show-password
+              />
+              <span class="form-tip">当前: {{ aiConfig.embedding.apiKey || '未配置' }}</span>
+            </el-form-item>
+            
+            <el-form-item label="API 地址">
+              <el-input 
+                v-model="aiConfig.embedding.apiUrl" 
+                placeholder="https://api.deepseek.com/v1/embeddings"
+              />
+            </el-form-item>
+            
+            <el-form-item label="模型名称">
+              <el-input 
+                v-model="aiConfig.embedding.model" 
+                placeholder="text-embedding-3-small"
+              />
+            </el-form-item>
+
+            <!-- 通用配置 -->
+            <el-divider content-position="left">
+              <el-icon><Setting /></el-icon> 通用配置
+            </el-divider>
+            
+            <el-form-item label="连接超时(ms)">
+              <el-input-number 
+                v-model="aiConfig.common.connectTimeout" 
+                :min="5000" 
+                :max="120000"
+                :step="1000"
+              />
+            </el-form-item>
+            
+            <el-form-item label="读取超时(ms)">
+              <el-input-number 
+                v-model="aiConfig.common.readTimeout" 
+                :min="10000" 
+                :max="300000"
+                :step="5000"
+              />
+            </el-form-item>
+            
+            <el-form-item label="最大Token数">
+              <el-input-number 
+                v-model="aiConfig.common.maxTokens" 
+                :min="256" 
+                :max="32768"
+                :step="256"
+              />
+            </el-form-item>
+            
+            <el-form-item label="历史轮数">
+              <el-input-number 
+                v-model="aiConfig.common.maxHistoryRounds" 
+                :min="1" 
+                :max="50"
+                :step="1"
+              />
+            </el-form-item>
+          </el-form>
+
+          <!-- 操作按钮 -->
+          <div class="config-actions">
+            <el-button type="primary" @click="saveConfig" :loading="configSaving">
+              <el-icon><Check /></el-icon> 保存配置
+            </el-button>
+            <el-button @click="loadConfig">
+              <el-icon><Refresh /></el-icon> 刷新配置
+            </el-button>
+            <el-button type="warning" @click="resetConfig">
+              <el-icon><RefreshLeft /></el-icon> 重置默认
+            </el-button>
+          </div>
+
+          <!-- 配置摘要 -->
+          <el-card style="margin-top: 20px">
+            <template #header>
+              <span>当前配置摘要</span>
+            </template>
+            <div class="config-summary">
+              <p><strong>状态：</strong> {{ aiConfig.apiKeyValid ? '✅ API Key已配置' : '❌ API Key未配置' }}</p>
+              <p><strong>摘要：</strong> {{ aiConfig.summary }}</p>
+            </div>
+          </el-card>
+        </div>
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -361,6 +582,8 @@ export default {
       topP: 0.3,
       inputMessage: "",
       messages: [],
+      enableWebSearch: false,
+      enableDeepThink: false,
       loading: false,
       fileList: [],
       uploadFiles: [],
@@ -417,6 +640,16 @@ export default {
       },
       roleStats: [],
       trendData: [],
+      aiConfig: {
+        chat: { apiKey: '', apiUrl: '', model: 'deepseek-chat' },
+        reasoner: { apiKey: '', apiUrl: '', model: 'deepseek-reasoner' },
+        webSearch: { apiKey: '', apiUrl: '', model: 'deepseek-chat', enabled: true },
+        embedding: { apiKey: '', apiUrl: '', model: 'text-embedding-3-small' },
+        common: { connectTimeout: 30000, readTimeout: 60000, maxTokens: 4096, maxHistoryRounds: 10 },
+        apiKeyValid: false,
+        summary: ''
+      },
+      configSaving: false,
     };
   },
   watch: {
@@ -430,6 +663,7 @@ export default {
   created() {
     this.loadChatRecords();
     this.loadStats();
+    this.loadConfig();
   },
   methods: {
     handleTabClick() {
@@ -437,6 +671,52 @@ export default {
         this.loadChatRecords();
       } else if (this.activeTab === "stats") {
         this.loadStats();
+      } else if (this.activeTab === "config") {
+        this.loadConfig();
+      }
+    },
+    // AI配置相关方法
+    async loadConfig() {
+      try {
+        const res = await this.$axios.get("/ai/config/get");
+        if (res.data.code === 200) {
+          this.aiConfig = res.data.data;
+        }
+      } catch (e) {
+        console.error("加载AI配置失败:", e);
+      }
+    },
+    async saveConfig() {
+      this.configSaving = true;
+      try {
+        const res = await this.$axios.post("/ai/config/update", this.aiConfig);
+        if (res.data.code === 200) {
+          this.$message.success("配置保存成功");
+          this.loadConfig();
+        } else {
+          this.$message.error(res.data.msg || "保存失败");
+        }
+      } catch (e) {
+        this.$message.error("保存配置失败");
+        console.error("保存AI配置失败:", e);
+      } finally {
+        this.configSaving = false;
+      }
+    },
+    async resetConfig() {
+      try {
+        await this.$confirm("确定要重置为默认配置吗？", "提示", {
+          type: "warning"
+        });
+        const res = await this.$axios.post("/ai/config/reset");
+        if (res.data.code === 200) {
+          this.$message.success("配置已重置");
+          this.loadConfig();
+        }
+      } catch (e) {
+        if (e !== "cancel") {
+          this.$message.error("重置配置失败");
+        }
       }
     },
     switchRole(role) {
@@ -464,6 +744,8 @@ export default {
           temperature: this.temperature,
           topP: this.topP,
           files: this.uploadFiles,
+          enableWebSearch: this.enableWebSearch,
+          enableDeepThink: this.enableDeepThink,
         });
         const { data } = response;
         if (data.code === 200) {
@@ -911,5 +1193,42 @@ export default {
   padding: 15px 20px 0;
   border-bottom: 1px solid #f0f0f0;
   padding-bottom: 10px;
+}
+
+.config-container {
+  padding: 20px;
+}
+
+.config-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #999;
+  margin-left: 10px;
+}
+
+.config-summary {
+  font-size: 14px;
+  line-height: 2;
+}
+
+.config-summary p {
+  margin: 0;
+}
+
+.feature-toggles {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.feature-toggles .el-button {
+  border-radius: 20px;
 }
 </style>

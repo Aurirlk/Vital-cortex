@@ -63,6 +63,7 @@
             <el-dropdown-menu>
               <el-dropdown-item :icon="User" @click="userCenterPanel">个人中心</el-dropdown-item>
               <el-dropdown-item :icon="WarningFilled" @click="resetPwd">修改密码</el-dropdown-item>
+              <el-dropdown-item :icon="Setting" @click="openSettings">设置</el-dropdown-item>
               <el-dropdown-item :icon="Back" @click="loginOut">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -75,11 +76,11 @@
 <script>
 import { clearToken } from "@/utils/storage.js";
 import Logo from "@/components/Logo.vue";
-import { Upload, Bell, ArrowDown, User, WarningFilled, Back } from "@element-plus/icons-vue";
+import { Upload, Bell, ArrowDown, User, WarningFilled, Back, Setting } from "@element-plus/icons-vue";
 
 export default {
   name: "UserMenu",
-  components: { Logo, Upload, Bell, ArrowDown, User, WarningFilled, Back },
+  components: { Logo, Upload, Bell, ArrowDown, User, WarningFilled, Back, Setting },
   data() {
     return {
       selectedIndex: 0,
@@ -87,7 +88,7 @@ export default {
       defaultPath: "/user/news-record",
       filterText: "",
       noReadMsg: 0,
-      User, WarningFilled, Back,
+      User, WarningFilled, Back, Setting,
     };
   },
   props: {
@@ -109,6 +110,7 @@ export default {
     },
     userCenterPanel() { this.$emit("eventListener", "center"); },
     resetPwd() { this.$emit("eventListener", "resetPwd"); },
+    openSettings() { this.$emit("eventListener", "settings"); },
     loginOut() { this.$emit("eventListener", "loginOut"); },
     healthDataRecord() { this.$emit("eventListener", "healthDataRecord"); },
     async loadMsgCount() {

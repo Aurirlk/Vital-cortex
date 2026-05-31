@@ -476,7 +476,7 @@ export default {
     },
     getAllModelConfig() {
       this.$axios
-        .post("/health-model-config/query", this.userHealthModel)
+        .post("/health-model-config/modelList")
         .then((response) => {
           const { data } = response;
           if (data.code === 200) {

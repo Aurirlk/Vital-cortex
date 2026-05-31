@@ -6,6 +6,10 @@
         <el-icon><Plus /></el-icon>
         新增药品
       </el-button>
+      <el-button type="success" @click="showImportDialog">
+        <el-icon><Upload /></el-icon>
+        JSON导入
+      </el-button>
       <el-input
         v-model="searchName"
         placeholder="搜索药品名称"
@@ -24,6 +28,78 @@
         <el-option label="中成药" value="中成药" />
       </el-select>
     </div>
+
+    <!-- JSON导入弹窗 -->
+    <el-dialog v-model="importDialogVisible" title="JSON导入药品" width="700px">
+      <div style="margin-bottom: 16px">
+        <el-alert type="info" :closable="false">
+          <template #title>
+            <div>
+              <p><strong>导入方式：</strong></p>
+              <p>1. 上传JSON文件  2. 直接粘贴JSON内容</p>
+            </div>
+          </template>
+        </el-alert>
+      </div>
+      
+      <!-- 文件上传区域 -->
+      <div style="margin-bottom: 16px">
+        <el-upload
+          ref="uploadRef"
+          :auto-upload="false"
+          :show-file-list="false"
+          accept=".json"
+          :on-change="handleFileChange"
+        >
+          <el-button type="primary">
+            <el-icon><Upload /></el-icon>
+            选择JSON文件
+          </el-button>
+          <template #tip>
+            <span style="margin-left: 12px; color: #999; font-size: 12px">
+              {{ uploadedFileName || '支持 .json 格式文件' }}
+            </span>
+          </template>
+        </el-upload>
+      </div>
+      
+      <div style="margin-bottom: 16px; display: flex; gap: 8px">
+        <el-button type="primary" size="small" @click="showTemplate">
+          <el-icon><View /></el-icon>
+          查看模板
+        </el-button>
+        <el-button type="success" size="small" @click="fillExample">
+          <el-icon><DocumentCopy /></el-icon>
+          填充示例
+        </el-button>
+        <el-button size="small" @click="downloadTemplate">
+          <el-icon><Download /></el-icon>
+          下载模板
+        </el-button>
+      </div>
+      
+      <el-input
+        v-model="importJson"
+        type="textarea"
+        :rows="12"
+        placeholder='或直接在此粘贴JSON内容...'
+      />
+      <template #footer>
+        <el-button @click="importDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleImport" :loading="importing">
+          导入
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- JSON模板查看弹窗 -->
+    <el-dialog v-model="templateDialogVisible" title="JSON模板示例" width="700px">
+      <pre class="json-template">{{ jsonTemplate }}</pre>
+      <template #footer>
+        <el-button @click="copyTemplate">复制模板</el-button>
+        <el-button type="primary" @click="templateDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 表格 -->
     <el-table :data="drugList" stripe v-loading="loading" style="margin-top: 16px">
@@ -149,6 +225,39 @@ export default {
       isEdit: false,
       form: {},
       submitting: false,
+      importDialogVisible: false,
+      templateDialogVisible: false,
+      importJson: "",
+      importing: false,
+      uploadedFileName: "",
+      jsonTemplate: `[
+  {
+    "name": "阿莫西林胶囊",
+    "genericName": "阿莫西林",
+    "category": "抗生素",
+    "description": "适用于敏感菌所致的感染",
+    "price": 12.50,
+    "unit": "盒",
+    "specification": "0.25g*24粒",
+    "manufacturer": "哈药集团制药总厂",
+    "isOtc": true,
+    "stock": 100,
+    "status": true
+  },
+  {
+    "name": "布洛芬缓释胶囊",
+    "genericName": "布洛芬",
+    "category": "解热镇痛",
+    "description": "用于缓解轻至中度疼痛及感冒引起的发热",
+    "price": 25.00,
+    "unit": "盒",
+    "specification": "0.3g*20粒",
+    "manufacturer": "中美天津史克制药有限公司",
+    "isOtc": true,
+    "stock": 200,
+    "status": true
+  }
+]`,
     };
   },
   created() {
@@ -244,6 +353,84 @@ export default {
         this.$message.error("删除失败");
       }
     },
+    showImportDialog() {
+      this.importJson = "";
+      this.uploadedFileName = "";
+      this.importDialogVisible = true;
+    },
+    handleFileChange(file) {
+      this.uploadedFileName = file.name;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const content = e.target.result;
+          // 验证是否为有效JSON
+          JSON.parse(content);
+          this.importJson = content;
+          this.$message.success("文件读取成功");
+        } catch {
+          this.$message.error("文件内容不是有效的JSON格式");
+        }
+      };
+      reader.readAsText(file.raw);
+    },
+    showTemplate() {
+      this.templateDialogVisible = true;
+    },
+    fillExample() {
+      this.importJson = this.jsonTemplate;
+    },
+    copyTemplate() {
+      navigator.clipboard.writeText(this.jsonTemplate).then(() => {
+        this.$message.success("模板已复制到剪贴板");
+      }).catch(() => {
+        this.$message.error("复制失败，请手动复制");
+      });
+    },
+    downloadTemplate() {
+      const blob = new Blob([this.jsonTemplate], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "药品导入模板.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+    async handleImport() {
+      if (!this.importJson.trim()) {
+        this.$message.warning("请输入JSON数据");
+        return;
+      }
+      try {
+        const data = JSON.parse(this.importJson);
+        if (!Array.isArray(data)) {
+          this.$message.error("JSON数据必须是数组格式");
+          return;
+        }
+        this.importing = true;
+        let successCount = 0;
+        let failCount = 0;
+        for (const drug of data) {
+          try {
+            const res = await this.$axios.post("/drug/save", drug);
+            if (res.data.code === 200) {
+              successCount++;
+            } else {
+              failCount++;
+            }
+          } catch {
+            failCount++;
+          }
+        }
+        this.$message.success(`导入完成：成功${successCount}条，失败${failCount}条`);
+        this.importDialogVisible = false;
+        this.loadDrugs();
+      } catch (e) {
+        this.$message.error("JSON格式错误，请检查格式");
+      } finally {
+        this.importing = false;
+      }
+    },
   },
 };
 </script>
@@ -255,5 +442,15 @@ export default {
 .operate-bar {
   display: flex;
   align-items: center;
+}
+.json-template {
+  background: #f5f7fa;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
 }
 </style>

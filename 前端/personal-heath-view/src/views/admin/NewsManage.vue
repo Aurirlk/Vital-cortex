@@ -1,58 +1,71 @@
 ﻿<template>
-  <el-row style="background-color: #ffffff; padding: 5px 0; border-radius: 5px">
-    <el-row style="padding: 10px; margin-left: 10px">
-      <el-row>
-        <el-select
-          @change="changeNewsTag"
-          size="small"
-          v-model="newsQueryDto.tagId"
-          placeholder="资讯分类"
-        >
-          <el-option
-            v-for="tag in tagsList"
-            :key="tag.id"
-            :label="tag.name"
-            :value="tag.id"
+  <el-row style="background-color: #ffffff; padding: 20px; border-radius: 12px">
+    <el-row style="padding: 15px 20px; margin-left: 10px">
+      <el-row :gutter="16" align="middle">
+        <el-col :span="4">
+          <el-select
+            @change="changeNewsTag"
+            size="default"
+            v-model="newsQueryDto.tagId"
+            placeholder="资讯分类"
+            style="width: 100%"
           >
-          </el-option>
-        </el-select>
-        <el-date-picker
-          size="small"
-          style="margin-left: 5px; width: 220px"
-          v-model="searchTime"
-          type="daterange"
-          range-separator="至"
-          start-placeholder="发布开始"
-          end-placeholder="发布结束"
-        >
-        </el-date-picker>
-        <el-input
-          size="small"
-          style="width: 188px; margin-left: 5px; margin-right: 6px"
-          v-model="newsQueryDto.name"
-          placeholder="资讯标题"
-          clearable
-          @clear="handleFilterClear"
-        >
-          <template #append
-            ><el-button @click="handleFilter"
-              ><el-icon><Search /></el-icon></el-button
-          ></template>
-        </el-input>
-        <span style="float: right">
+            <el-option
+              v-for="tag in tagsList"
+              :key="tag.id"
+              :label="tag.name"
+              :value="tag.id"
+            >
+            </el-option>
+          </el-select>
+        </el-col>
+        <el-col :span="6">
+          <el-date-picker
+            size="default"
+            style="width: 100%"
+            v-model="searchTime"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="发布开始"
+            end-placeholder="发布结束"
+          >
+          </el-date-picker>
+        </el-col>
+        <el-col :span="5">
+          <el-input
+            size="default"
+            style="width: 100%"
+            v-model="newsQueryDto.name"
+            placeholder="资讯标题"
+            clearable
+            @clear="handleFilterClear"
+          >
+            <template #append
+              ><el-button @click="handleFilter"
+                ><el-icon><Search /></el-icon></el-button
+            ></template>
+          </el-input>
+        </el-col>
+        <el-col :span="4">
           <el-button
-            size="small"
+            size="default"
             style="
-              background-color: rgb(96, 98, 102);
-              color: rgb(247, 248, 249);
+              background: linear-gradient(135deg, #667eea, #764ba2);
+              color: #fff;
               border: none;
+              height: 40px;
+              padding: 0 24px;
+              font-size: 14px;
+              font-weight: 600;
+              border-radius: 8px;
+              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
             "
             class="customer"
             type="info"
             @click="add()"
-            ><el-icon><Plus /></el-icon>新增资讯</el-button
+            ><el-icon style="margin-right: 4px"><Plus /></el-icon>新增资讯</el-button
           >
-        </span>
+        </el-col>
       </el-row>
     </el-row>
     <el-row style="margin: 0 20px; border-top: 1px solid rgb(245, 245, 245)">
@@ -103,6 +116,13 @@
               >
             </el-tooltip>
             <span v-else>已推送</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="isBanner" width="128" label="轮播图">
+          <template #default="{ row }">
+            <el-tag :type="row.isBanner ? 'success' : 'info'" size="small">
+              {{ row.isBanner ? '是' : '否' }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column
@@ -185,6 +205,19 @@
           <el-switch
             style="user-select: none; padding: 0 6px"
             v-model="data.isTop"
+            active-color="#13ce66"
+            inactive-color="rgb(226, 226, 226)"
+          >
+          </el-switch>
+        </el-row>
+        <!-- 轮播图 -->
+        <el-row style="margin: 12px 0">
+          <el-row>
+            <span class="dialog-hover">是否轮播图</span>
+          </el-row>
+          <el-switch
+            style="user-select: none; padding: 0 6px"
+            v-model="data.isBanner"
             active-color="#13ce66"
             inactive-color="rgb(226, 226, 226)"
           >

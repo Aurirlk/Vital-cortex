@@ -44,7 +44,7 @@
       </div>
     </div>
     <div style="padding: 30px 0">
-      <div style="margin: 20px 0">
+      <div style="margin: 20px 0; display: flex; align-items: center; gap: 16px;">
         <!-- 选择具体的指标模型 -->
         <el-select
           size="small"
@@ -60,20 +60,26 @@
           >
           </el-option>
         </el-select>
+        <!-- 下载报告按钮 -->
+        <el-button
+          type="primary"
+          size="small"
+          @click="downloadReport"
+          :loading="reportLoading"
+        >
+          <el-icon><Document /></el-icon>
+          生成健康报告
+        </el-button>
       </div>
       <div>
-        <div v-if="dates.length === 0">
-          <el-empty description="暂无数据，快去记录吧"></el-empty>
-        </div>
-        <div v-else>
-          <LineChart
-            @on-selected="onSelectedTime"
-            height="600px"
-            tag=""
-            :values="values"
-            :date="dates"
-          />
-        </div>
+        <LineChart
+          @on-selected="onSelectedTime"
+          @on-date-range="onDateRange"
+          height="500px"
+          tag="健康趋势图"
+          :values="values"
+          :date="dates"
+        />
       </div>
     </div>
     <div>
@@ -199,6 +205,7 @@ export default {
       totalItems: 0,
       searchTime: [],
       healthModelConfigId: null,
+      reportLoading: false,
     };
   },
   created() {
@@ -340,18 +347,47 @@ export default {
     },
     // 查询用户具体记录的值，指定时间范围内
     loadUserModelHavaRecord() {
-      // 往后端什么？
+      const modelId = this.userHealthQueryDto.healthModelConfigId;
+      const time = this.userHealthQueryDto.time;
+      console.log('加载健康数据, modelId:', modelId, 'time:', time);
+      
+      if (!modelId) {
+        console.log('模型ID为空，跳过加载');
+        return;
+      }
+      
       this.$axios
-        .get(
-          `/user-health/timeQuery/${this.userHealthQueryDto.healthModelConfigId}/${this.userHealthQueryDto.time}`
-        )
+        .get(`/user-health/timeQuery/${modelId}/${time}`)
         .then((response) => {
           const { data } = response;
-          if (data.code === 200) {
-            // 拿到的数据，要做可视化处理
-            this.values = data.data.map((entity) => entity.value).reverse();
-            this.dates = data.data.map((entity) => entity.createTime).reverse();
+          console.log('健康数据响应:', data);
+          
+          if (data.code === 200 && data.data && data.data.length > 0) {
+            const records = data.data;
+            console.log('记录数量:', records.length);
+            
+            this.values = records.map((entity) => parseFloat(entity.value)).reverse();
+            this.dates = records.map((entity) => {
+              if (entity.createTime) {
+                const dateStr = entity.createTime.replace('T', ' ').substring(0, 10);
+                const parts = dateStr.split('-');
+                return `${parts[1]}-${parts[2]}`;
+              }
+              return '';
+            }).reverse();
+            
+            console.log('values:', this.values);
+            console.log('dates:', this.dates);
+          } else {
+            console.log('无数据或返回错误');
+            this.values = [];
+            this.dates = [];
           }
+        })
+        .catch((error) => {
+          console.error('加载健康数据失败:', error);
+          this.values = [];
+          this.dates = [];
         });
     },
     // 模型选中方法
@@ -376,20 +412,100 @@ export default {
     },
     // 默认加载
     defaultLoad() {
-      this.userHealthQueryDto.healthModelConfigId = this.modelConfigList[3].id;
-      // 数少，查一年
-      this.userHealthQueryDto.time = 365;
-      this.loadUserModelHavaRecord();
+      if (this.modelConfigList && this.modelConfigList.length > 0) {
+        // 优先找用户自定义模型（isGlobal为false或0）
+        const userModel = this.modelConfigList.find(m => m.isGlobal === false || m.isGlobal === 0);
+        if (userModel) {
+          this.userHealthQueryDto.healthModelConfigId = userModel.id;
+          console.log('使用用户模型:', userModel.id, userModel.name);
+        } else {
+          // 如果没有用户模型，使用第一个全局模型
+          const globalModel = this.modelConfigList.find(m => m.isGlobal === true || m.isGlobal === 1);
+          if (globalModel) {
+            this.userHealthQueryDto.healthModelConfigId = globalModel.id;
+            console.log('使用全局模型:', globalModel.id, globalModel.name);
+          } else {
+            this.userHealthQueryDto.healthModelConfigId = this.modelConfigList[0].id;
+            console.log('使用第一个模型:', this.modelConfigList[0].id);
+          }
+        }
+        // 使用-1表示查询所有数据，不受时间限制
+        this.userHealthQueryDto.time = -1;
+        this.loadUserModelHavaRecord();
+      }
     },
     // 折线图选择指定事件范围之后，返回的一个回调
     onSelectedTime(time) {
       this.userHealthQueryDto.time = time;
       this.loadUserModelHavaRecord();
     },
+    // 自定义日期范围查询
+    onDateRange(startDate, endDate) {
+      this.loadUserModelHavaRecordByDateRange(startDate, endDate);
+    },
+    // 按日期范围查询数据
+    loadUserModelHavaRecordByDateRange(startDate, endDate) {
+      const modelId = this.userHealthQueryDto.healthModelConfigId;
+      if (!modelId) return;
+      
+      const start = startDate.toISOString().split('T')[0] + 'T00:00:00';
+      const end = endDate.toISOString().split('T')[0] + 'T23:59:59';
+      
+      this.$axios
+        .get(`/user-health/queryByDateRange?modelId=${modelId}&startTime=${start}&endTime=${end}`)
+        .then((response) => {
+          const { data } = response;
+          if (data.code === 200 && data.data && data.data.length > 0) {
+            const records = data.data;
+            this.values = records.map((entity) => parseFloat(entity.value)).reverse();
+            this.dates = records.map((entity) => {
+              if (entity.createTime) {
+                const dateStr = entity.createTime.replace('T', ' ').substring(0, 10);
+                const parts = dateStr.split('-');
+                return `${parts[1]}-${parts[2]}`;
+              }
+              return '';
+            }).reverse();
+          } else {
+            this.values = [];
+            this.dates = [];
+          }
+        })
+        .catch(() => {
+          this.values = [];
+          this.dates = [];
+        });
+    },
     // 组件里面返回的数据
     timeSelected() {},
     toRecord() {
       this.$router.push("/record");
+    },
+    // 下载健康报告
+    async downloadReport() {
+      this.reportLoading = true;
+      try {
+        const response = await this.$axios.get('/report/health-pdf', {
+          responseType: 'blob'
+        });
+
+        // 创建下载链接
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `健康报告_${new Date().toLocaleDateString()}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+
+        this.$message.success('报告生成成功');
+      } catch (e) {
+        this.$message.error('报告生成失败，请稍后再试');
+        console.error('下载报告失败:', e);
+      } finally {
+        this.reportLoading = false;
+      }
     },
   },
 };

@@ -14,6 +14,7 @@ import "./assets/css/elementui-cover.scss";
 import "./assets/css/basic.scss";
 import "./assets/css/dialog.scss";
 import "./assets/css/input.scss";
+import "./assets/css/dark-mode.scss";
 import request from "@/utils/request";
 import md5 from "js-md5";
 import swalPlugin from "@/utils/swalPlugin";
@@ -31,7 +32,8 @@ app.config.globalProperties.$echarts = echarts;
 app.config.globalProperties.$provinceAndCityData = provinceAndCityData;
 app.config.globalProperties.$regionData = regionData;
 app.config.globalProperties.$uploadUrl = "http://localhost:21090/api/personal-health/v1.0/file/upload";
-app.config.globalProperties.$crmApiKey = "crm-default-key";
+// CRM API Key 从环境变量读取，或通过管理员配置
+app.config.globalProperties.$crmApiKey = process.env.VUE_APP_CRM_API_KEY || "";
 
 app.use(ElementPlus, { locale: zhCn });
 app.use(VueSweetalert2);

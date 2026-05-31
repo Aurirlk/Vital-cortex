@@ -122,33 +122,59 @@ export default {
 
 <style scoped lang="scss">
 .home-container {
-  padding: 10px 0;
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  min-height: 100vh;
 }
 
 .top-news-card {
-  padding: 12px;
-  border-radius: 12px;
+  padding: 16px;
+  border-radius: 16px;
   background: #fff;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transform: scaleX(0);
+    transition: transform 0.4s ease;
+  }
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.12);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2);
+
+    &::before {
+      transform: scaleX(1);
+    }
   }
 }
 
 .top-news-img {
   width: 100%;
-  height: 118px;
-  border-radius: 8px;
+  height: 130px;
+  border-radius: 12px;
   object-fit: cover;
+  transition: transform 0.4s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
 }
 
 .top-news-meta {
   font-size: 12px;
-  margin-top: 8px;
+  margin-top: 12px;
 }
 
 .news-time {
@@ -158,43 +184,89 @@ export default {
 
 .news-tags {
   display: inline-block;
-  padding: 3px 8px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  padding: 4px 12px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
   color: #667eea;
-  border-radius: 12px;
+  border-radius: 20px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .new-item {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   padding: 0 8px;
   box-sizing: border-box;
 }
 
 .news-card {
-  border-radius: 12px;
+  border-radius: 16px;
   background: #fff;
   overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transform: scaleX(0);
+    transition: transform 0.4s ease;
+  }
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.12);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2);
+
+    &::after {
+      transform: scaleX(1);
+    }
   }
 
   &:hover .news-card-img {
-    transform: scale(1.05);
+    transform: scale(1.08);
+  }
+
+  &:hover .news-card-body {
+    background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
   }
 }
 
 .news-card-img {
   width: 100%;
-  height: 120px;
+  height: 140px;
   object-fit: cover;
-  transition: transform 0.4s ease;
+  transition: transform 0.5s ease;
+}
+
+.news-card-body {
+  padding: 16px;
+  transition: background 0.3s ease;
+}
+
+.news-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.news-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
 }
 
 .news-card-body {

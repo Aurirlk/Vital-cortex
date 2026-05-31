@@ -1,0 +1,266 @@
+// 深色模式全局样式
+html.dark {
+  background-color: #1a1a2e;
+  color: #eee;
+}
+
+html.dark body {
+  background-color: #1a1a2e;
+  color: #eee;
+}
+
+// 主内容区域
+html.dark .content-container,
+html.dark .el-main {
+  background-color: #16213e;
+  color: #eee;
+}
+
+// 卡片和容器
+html.dark .el-card,
+html.dark .el-dialog,
+html.dark .el-table,
+html.dark .el-form {
+  background-color: #1a1a2e;
+  color: #eee;
+}
+
+// 表格
+html.dark .el-table {
+  background-color: #1a1a2e;
+  color: #eee;
+  
+  th, td {
+    background-color: #1a1a2e;
+    color: #eee;
+    border-bottom-color: #2a2a4a;
+  }
+  
+  tr:hover > td {
+    background-color: #16213e;
+  }
+  
+  .el-table__header-wrapper th {
+    background-color: #16213e;
+    color: #eee;
+  }
+}
+
+// 输入框
+html.dark .el-input__wrapper,
+html.dark .el-textarea__inner {
+  background-color: #16213e;
+  border-color: #2a2a4a;
+  color: #eee;
+  
+  &:hover, &:focus {
+    border-color: #667eea;
+  }
+}
+
+html.dark .el-input__inner {
+  color: #eee;
+  
+  &::placeholder {
+    color: #666;
+  }
+}
+
+// 按钮
+html.dark .el-button--default {
+  background-color: #16213e;
+  border-color: #2a2a4a;
+  color: #eee;
+  
+  &:hover {
+    background-color: #1a1a2e;
+    border-color: #667eea;
+    color: #667eea;
+  }
+}
+
+// 下拉菜单
+html.dark .el-select-dropdown {
+  background-color: #1a1a2e;
+  border-color: #2a2a4a;
+}
+
+html.dark .el-select-dropdown__item {
+  color: #eee;
+  
+  &:hover, &.hover {
+    background-color: #16213e;
+  }
+  
+  &.selected {
+    color: #667eea;
+  }
+}
+
+// 对话框
+html.dark .el-dialog {
+  background-color: #1a1a2e;
+  
+  .el-dialog__header {
+    background-color: #16213e;
+  }
+  
+  .el-dialog__title {
+    color: #eee;
+  }
+  
+  .el-dialog__body {
+    color: #eee;
+  }
+}
+
+// 分页
+html.dark .el-pagination {
+  color: #eee;
+  
+  .el-pager li {
+    background-color: #16213e;
+    color: #eee;
+    
+    &.active {
+      color: #667eea;
+    }
+  }
+  
+  .btn-prev, .btn-next {
+    background-color: #16213e;
+    color: #eee;
+  }
+}
+
+// 标签
+html.dark .el-tag {
+  background-color: #16213e;
+  border-color: #2a2a4a;
+  color: #eee;
+}
+
+// 开关
+html.dark .el-switch {
+  .el-switch__core {
+    background-color: #2a2a4a;
+  }
+  
+  &.is-checked .el-switch__core {
+    background-color: #667eea;
+  }
+}
+
+// 单选框
+html.dark .el-radio {
+  color: #eee;
+}
+
+html.dark .el-radio__input.is-checked .el-radio__inner {
+  background-color: #667eea;
+  border-color: #667eea;
+}
+
+// 日期选择器
+html.dark .el-date-editor .el-range-input {
+  color: #eee;
+  background-color: transparent;
+}
+
+html.dark .el-date-editor .el-range-separator {
+  color: #666;
+}
+
+// 菜单
+html.dark .el-menu {
+  background-color: #1a1a2e;
+  border-right-color: #2a2a4a;
+}
+
+html.dark .el-menu-item,
+html.dark .el-sub-menu__title {
+  color: #eee;
+  
+  &:hover {
+    background-color: #16213e;
+    color: #667eea;
+  }
+}
+
+html.dark .el-menu-item.is-active {
+  color: #667eea;
+  background-color: rgba(102, 126, 234, 0.1);
+}
+
+// 消息框
+html.dark .el-message-box {
+  background-color: #1a1a2e;
+  border-color: #2a2a4a;
+  
+  .el-message-box__title {
+    color: #eee;
+  }
+  
+  .el-message-box__message {
+    color: #eee;
+  }
+}
+
+// 工具提示
+html.dark .el-tooltip__popper {
+  background-color: #16213e;
+  border-color: #2a2a4a;
+  color: #eee;
+}
+
+// 空状态
+html.dark .el-empty__description p {
+  color: #666;
+}
+
+// 头部导航
+html.dark .header {
+  background-color: #1a1a2e;
+  border-bottom-color: #2a2a4a;
+}
+
+html.dark .nav-item-text {
+  color: #999;
+}
+
+html.dark .nav-item--active .nav-item-text {
+  color: #eee;
+}
+
+html.dark .search-input {
+  background-color: #16213e;
+  color: #eee;
+  
+  &::placeholder {
+    color: #666;
+  }
+}
+
+html.dark .user-name {
+  color: #eee;
+}
+
+// 侧边菜单
+html.dark .menu-side {
+  background-color: #1a1a2e;
+  border-right-color: #2a2a4a;
+}
+
+html.dark .vertical-menu-item {
+  color: #999;
+  
+  &:hover {
+    background-color: #16213e;
+    color: #eee;
+  }
+  
+  &.active {
+    color: #667eea;
+    background-color: rgba(102, 126, 234, 0.1);
+  }
+}
