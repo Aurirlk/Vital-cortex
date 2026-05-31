@@ -1,40 +1,35 @@
 # SQL 脚本说明
 
-## 执行顺序
+## 文件列表
 
-### 1. 首次安装（必选其一）
-
-| 脚本 | 说明 | 推荐 |
-|------|------|------|
-| `mysql_schema.sql` | 纯建表语句（10张表，含外键约束） | ✅ 推荐 |
-| `personal_health_init.sql` | 建表 + 初始数据（管理员账号、8个健康指标） | ✅ 推荐 |
-
-### 2. 功能升级（按需执行）
-
-| 脚本 | 说明 |
+| 文件 | 说明 |
 |------|------|
-| `ai_chat_upgrade.sql` | AI聊天表升级（新增 `ai_conversation` 表 + `conversation_id` 字段） |
-| `drug_schema.sql` | 药品订阅功能（新增 `drug` + `drug_subscription` 表 + 示例数据） |
-
-### 3. 数据修复（可选）
-
-| 脚本 | 说明 |
-|------|------|
-| `fix_news_cover.sql` | 批量填充资讯封面图（后端已做兜底，此脚本用于彻底修复） |
+| `personal_health_schema.sql` | ✅ 建表脚本（表结构 + 默认数据） |
+| `personal_health_data.sql` | ✅ 数据导入脚本（从原数据库导出的数据） |
+| `ai_chat_upgrade_safe.sql` | AI聊天表升级（安全版本，自动检测字段是否存在） |
+| `fix_news_cover.sql` | 批量填充资讯封面图（可选） |
 
 ## 完整安装流程
 
 ```sql
--- 1. 初始化数据库（选 personal_health_init.sql 或 mysql_schema.sql）
-source sql/personal_health_init.sql;
+-- 1. 创建数据库
+DROP DATABASE IF EXISTS personal_health;
+CREATE DATABASE personal_health DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+USE personal_health;
 
--- 2. AI聊天升级
-source sql/ai_chat_upgrade.sql;
+-- 2. 执行建表脚本（表结构 + 默认数据）
+source sql/personal_health_schema.sql;
 
--- 3. 药品订阅功能
+-- 3. 导入原数据库数据
+source sql/personal_health_data.sql;
+
+-- 4. (可选) 药品订阅功能
 source 后端/personal-health-api/sql/drug_schema.sql;
 
--- 4. (可选) 修复资讯封面
+-- 5. (可选) AI聊天升级
+source sql/ai_chat_upgrade_safe.sql;
+
+-- 6. (可选) 修复资讯封面
 source sql/fix_news_cover.sql;
 ```
 
@@ -42,4 +37,11 @@ source sql/fix_news_cover.sql;
 
 - **数据库名**: `personal-health`
 - **字符集**: `utf8mb4`
-- **表数量**: 13张（原10张 + 新增2张药品表 + 1张AI会话表）
+- **表数量**: 12张
+
+## 注意事项
+
+1. 所有SQL文件均使用 **UTF-8** 编码
+2. 执行前请确保数据库使用 `utf8mb4` 字符集
+3. `ai_chat_upgrade_safe.sql` 会自动检测字段是否存在，避免重复创建错误
+4. `personal_health_data.sql` 包含原数据库的实际数据
