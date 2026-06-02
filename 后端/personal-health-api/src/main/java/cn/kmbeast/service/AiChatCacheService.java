@@ -102,4 +102,11 @@ public interface AiChatCacheService {
      * @return 是否加载成功
      */
     boolean loadFromFile(Integer conversationId);
+
+    /**
+     * 从所有JSON备份文件恢复数据到数据库
+     *
+     * @return 恢复结果统计
+     */
+    Map<String, Object> restoreAllFromJson();
 }

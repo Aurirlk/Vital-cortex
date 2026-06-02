@@ -75,7 +75,7 @@
                 AND u.user_account = #{userAccount}
             </if>
         </where>
-
+        LIMIT 1
     </select>
 
     <!--分页查询用户信息-->

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.AiConfigMapper">
+
+    <select id="findAll" resultType="cn.kmbeast.pojo.entity.AiConfigEntity">
+        SELECT * FROM ai_config ORDER BY id ASC
+    </select>
+
+    <select id="findByKey" resultType="cn.kmbeast.pojo.entity.AiConfigEntity">
+        SELECT * FROM ai_config WHERE config_key = #{configKey}
+    </select>
+
+    <insert id="saveOrUpdate">
+        INSERT INTO ai_config (config_key, config_value, description)
+        VALUES (#{configKey}, #{configValue}, #{description})
+        ON DUPLICATE KEY UPDATE config_value = #{configValue}, update_time = NOW()
+    </insert>
+
+    <insert id="batchSaveOrUpdate">
+        INSERT INTO ai_config (config_key, config_value, description)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.configKey}, #{item.configValue}, #{item.description})
+        </foreach>
+        ON DUPLICATE KEY UPDATE config_value = VALUES(config_value), update_time = NOW()
+    </insert>
+
+</mapper>

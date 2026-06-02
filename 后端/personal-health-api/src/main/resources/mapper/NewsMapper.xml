@@ -3,8 +3,8 @@
 <mapper namespace="cn.kmbeast.mapper.NewsMapper">
 
     <insert id="save">
-        INSERT INTO news (name, content, tag_id, cover, reader_ids, is_top, create_time)
-        VALUES (#{name}, #{content}, #{tagId}, #{cover}, #{readerIds}, #{isTop}, #{createTime})
+        INSERT INTO news (name, content, tag_id, cover, reader_ids, is_top, is_banner, create_time)
+        VALUES (#{name}, #{content}, #{tagId}, #{cover}, #{readerIds}, #{isTop}, #{isBanner}, #{createTime})
     </insert>
 
     <update id="update">
@@ -27,6 +27,9 @@
             </if>
             <if test="isTop != null">
                 is_top = #{isTop},
+            </if>
+            <if test="isBanner != null">
+                is_banner = #{isBanner},
             </if>
         </set>
         WHERE id = #{id}
@@ -54,6 +57,9 @@
             <if test="isTop != null">
                 AND n.is_top = #{isTop}
             </if>
+            <if test="isBanner != null">
+                AND n.is_banner = #{isBanner}
+            </if>
             <if test="startTime != null and endTime != null">
                 AND n.create_time BETWEEN #{startTime} AND #{endTime}
             </if>
@@ -78,6 +84,9 @@
             <if test="isTop != null">
                 AND n.is_top = #{isTop}
             </if>
+            <if test="isBanner != null">
+                AND n.is_banner = #{isBanner}
+            </if>
             <if test="startTime != null and endTime != null">
                 AND n.create_time BETWEEN #{startTime} AND #{endTime}
             </if>
@@ -94,6 +103,7 @@
         <result column="cover" property="cover"/>
         <result column="reader_ids" property="readerIds"/>
         <result column="is_top" property="isTop"/>
+        <result column="is_banner" property="isBanner"/>
         <result column="create_time" property="createTime"/>
         <result column="tag_name" property="tagName"/>
     </resultMap>

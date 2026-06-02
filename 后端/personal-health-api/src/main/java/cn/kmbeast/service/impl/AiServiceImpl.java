@@ -2,6 +2,7 @@ package cn.kmbeast.service.impl;
 
 import cn.kmbeast.config.AiConfig;
 import cn.kmbeast.config.AiPromptConfig;
+import cn.kmbeast.crm.agent.tool.AiSessionContext;
 import cn.kmbeast.mapper.AiChatRecordMapper;
 import cn.kmbeast.mapper.NewsMapper;
 import cn.kmbeast.pojo.api.ApiResult;
@@ -16,6 +17,8 @@ import cn.kmbeast.pojo.vo.NewsVO;
 import cn.kmbeast.service.AiChatCacheService;
 import cn.kmbeast.service.AiHealthDataService;
 import cn.kmbeast.service.AiService;
+import cn.kmbeast.crm.dto.WebSearchResult;
+import cn.kmbeast.crm.service.WebSearchService;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
@@ -49,6 +52,9 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private NewsMapper newsMapper;
+
+    @Resource
+    private WebSearchService webSearchService;
 
     private OkHttpClient httpClient;
 
@@ -96,27 +102,63 @@ public class AiServiceImpl implements AiService {
             // 先获取历史记录（不含当前用户消息）
             List<AiChatRecord> historyRecords = chatCacheService.getMessages(conversationId);
 
-            String healthContext = buildHealthContext(userId);
-            String articleContext = buildArticleRagContext(userMessage);
+            // 根据设置决定是否读取用户健康数据
+            String healthContext = "";
+            if (chatRequest.getEnableHealthData() == null || Boolean.TRUE.equals(chatRequest.getEnableHealthData())) {
+                healthContext = buildHealthContext(userId);
+            }
+            
+            // 根据设置决定是否启用知识库
+            String articleContext = "";
+            if (chatRequest.getEnableKnowledgeBase() == null || Boolean.TRUE.equals(chatRequest.getEnableKnowledgeBase())) {
+                articleContext = buildArticleRagContext(userMessage);
+            }
+            
+            // 联网搜索上下文
+            String webSearchContext = "";
+            if (Boolean.TRUE.equals(chatRequest.getEnableWebSearch())) {
+                List<WebSearchResult> searchResults = webSearchService.search(userMessage);
+                if (searchResults != null && !searchResults.isEmpty()) {
+                    webSearchContext = webSearchService.formatResultsAsText(searchResults);
+                }
+            }
 
             String systemPrompt = AiPromptConfig.getSystemPrompt(agentType);
-            JSONArray messages = buildMessagesArray(systemPrompt, healthContext + articleContext,
+            String fullContext = healthContext + articleContext + webSearchContext;
+            JSONArray messages = buildMessagesArray(systemPrompt, fullContext,
                     historyRecords, userMessage);
 
             // 构建消息后再保存用户消息到缓存
             chatCacheService.addMessage(conversationId, userRecord);
 
             JSONObject requestBody = new JSONObject();
-            requestBody.put("model", aiConfig.getModel());
+            
+            // 根据是否启用深度思考选择模型和API
+            String apiUrl;
+            String apiKey;
+            if (Boolean.TRUE.equals(chatRequest.getEnableDeepThink())) {
+                requestBody.put("model", aiConfig.getReasonerModel());
+                apiUrl = aiConfig.getReasonerApiUrl();
+                apiKey = aiConfig.getReasonerApiKey() != null && !aiConfig.getReasonerApiKey().isEmpty()
+                        ? aiConfig.getReasonerApiKey() : aiConfig.getApiKey();
+            } else {
+                requestBody.put("model", aiConfig.getModel());
+                apiUrl = aiConfig.getApiUrl();
+                apiKey = aiConfig.getApiKey();
+            }
+            
             requestBody.put("messages", messages);
             requestBody.put("temperature", temperature);
             requestBody.put("top_p", topP);
             requestBody.put("max_tokens", aiConfig.getMaxTokens());
 
-            log.info("AI请求: userId={}, conversationId={}, role={}, temp={}, topP={}, historySize={}",
-                    userId, conversationId, agentType, temperature, topP, historyRecords.size());
+            log.info("AI请求: userId={}, conversationId={}, role={}, model={}, webSearch={}, deepThink={}",
+                    userId, conversationId, agentType, 
+                    requestBody.getString("model"),
+                    chatRequest.getEnableWebSearch(),
+                    chatRequest.getEnableDeepThink());
 
-            String aiReply = callDeepSeekApi(requestBody.toJSONString());
+            String aiReply = callDeepSeekApi(requestBody.toJSONString(), apiUrl, apiKey);
 
             AiChatRecord aiRecord = AiChatRecord.builder()
                     .conversationId(conversationId)
@@ -145,6 +187,19 @@ public class AiServiceImpl implements AiService {
         String agentType = chatRequest.getRole();
         Integer conversationId = chatRequest.getConversationId();
 
+        log.info("[AI] 流式对话开始: userId={}, agentType={}, message={}", userId, agentType, 
+                userMessage != null ? userMessage.substring(0, Math.min(50, userMessage.length())) : "null");
+
+        // 设置会话元数据
+        Map<String, Object> sessionMetadata = new LinkedHashMap<>();
+        sessionMetadata.put("enableWebSearch", chatRequest.getEnableWebSearch());
+        sessionMetadata.put("enableKnowledgeBase", chatRequest.getEnableKnowledgeBase());
+        sessionMetadata.put("enableHealthData", chatRequest.getEnableHealthData());
+        sessionMetadata.put("enableDeepThink", chatRequest.getEnableDeepThink());
+        sessionMetadata.put("temperature", chatRequest.getTemperature());
+        sessionMetadata.put("topP", chatRequest.getTopP());
+        AiSessionContext.setMetadata(sessionMetadata);
+
         try {
             Double temperature = chatRequest.getTemperature() != null
                     ? chatRequest.getTemperature()
@@ -169,18 +224,75 @@ public class AiServiceImpl implements AiService {
             // 先获取历史记录（不含当前用户消息）
             List<AiChatRecord> historyRecords = chatCacheService.getMessages(conversationId);
 
-            String healthContext = buildHealthContext(userId);
-            String articleContext = buildArticleRagContext(userMessage);
+            // 根据设置决定是否读取用户健康数据
+            String healthContext = "";
+            boolean enableHealth = chatRequest.getEnableHealthData() == null || Boolean.TRUE.equals(chatRequest.getEnableHealthData());
+            if (enableHealth) {
+                healthContext = buildHealthContext(userId);
+                log.info("[AI] 健康数据查询: userId={}, 数据长度={}, 有数据={}", 
+                        userId, healthContext.length(), healthContext.length() > 100);
+            } else {
+                log.info("[AI] 健康数据查询: 已禁用");
+            }
+            
+            // 根据设置决定是否启用知识库
+            String articleContext = "";
+            boolean enableKB = chatRequest.getEnableKnowledgeBase() == null || Boolean.TRUE.equals(chatRequest.getEnableKnowledgeBase());
+            if (enableKB) {
+                articleContext = buildArticleRagContext(userMessage);
+                log.info("[AI] 知识库查询: 查询词='{}', 结果长度={}, 有结果={}", 
+                        userMessage, articleContext.length(), !articleContext.isEmpty());
+            } else {
+                log.info("[AI] 知识库查询: 已禁用");
+            }
+            
+            // 联网搜索上下文
+            String webSearchContext = "";
+            List<WebSearchResult> searchResults = null;
+            if (Boolean.TRUE.equals(chatRequest.getEnableWebSearch())) {
+                searchResults = webSearchService.search(userMessage);
+                if (searchResults != null && !searchResults.isEmpty()) {
+                    webSearchContext = webSearchService.formatResultsAsText(searchResults);
+                    // 推送搜索结果事件
+                    callback.onEvent("search_results", JSON.toJSONString(
+                            buildMap("results", searchResults)));
+                }
+                log.info("[AI] 联网搜索: 结果数={}", searchResults != null ? searchResults.size() : 0);
+            } else {
+                log.info("[AI] 联网搜索: 已禁用");
+            }
 
             String systemPrompt = AiPromptConfig.getSystemPrompt(agentType);
-            JSONArray messages = buildMessagesArray(systemPrompt, healthContext + articleContext,
+            String fullContext = healthContext + articleContext + webSearchContext;
+            JSONArray messages = buildMessagesArray(systemPrompt, fullContext,
                     historyRecords, userMessage);
+
+            log.info("[AI] 上下文构建完成: 健康数据={}字, 知识库={}字, 联网搜索={}字, 总上下文={}字", 
+                    healthContext.length(), articleContext.length(), webSearchContext.length(), fullContext.length());
 
             // 构建消息后再保存用户消息到缓存
             chatCacheService.addMessage(conversationId, userRecord);
 
             JSONObject requestBody = new JSONObject();
-            requestBody.put("model", aiConfig.getModel());
+            
+            // 根据是否启用深度思考选择模型和API
+            String apiUrl;
+            String apiKey;
+            if (Boolean.TRUE.equals(chatRequest.getEnableDeepThink())) {
+                // 深度思考模式
+                requestBody.put("model", aiConfig.getReasonerModel());
+                apiUrl = aiConfig.getReasonerApiUrl();
+                apiKey = aiConfig.getReasonerApiKey() != null && !aiConfig.getReasonerApiKey().isEmpty()
+                        ? aiConfig.getReasonerApiKey() : aiConfig.getApiKey();
+                // 深度思考需要更长的超时时间
+                log.info("[AI] 启用深度思考模式: model={}", aiConfig.getReasonerModel());
+            } else {
+                // 普通模式
+                requestBody.put("model", aiConfig.getModel());
+                apiUrl = aiConfig.getApiUrl();
+                apiKey = aiConfig.getApiKey();
+            }
+            
             requestBody.put("messages", messages);
             requestBody.put("temperature", temperature);
             requestBody.put("top_p", topP);
@@ -196,8 +308,8 @@ public class AiServiceImpl implements AiService {
             }
 
             Request request = new Request.Builder()
-                    .url(aiConfig.getApiUrl())
-                    .addHeader("Authorization", "Bearer " + aiConfig.getApiKey())
+                    .url(apiUrl)
+                    .addHeader("Authorization", "Bearer " + apiKey)
                     .addHeader("Content-Type", "application/json")
                     .addHeader("Accept", "text/event-stream")
                     .post(RequestBody.create(requestBody.toJSONString(), JSON_MEDIA_TYPE))
@@ -206,7 +318,11 @@ public class AiServiceImpl implements AiService {
             StringBuilder fullReply = new StringBuilder();
 
             try (Response response = httpClient.newCall(request).execute()) {
+                log.info("[AI] API响应状态: code={}, agentType={}", response.code(), agentType);
+                
                 if (!response.isSuccessful()) {
+                    String errorBody = response.body() != null ? response.body().string() : "";
+                    log.error("[AI] API调用失败: code={}, body={}", response.code(), errorBody);
                     callback.onEvent("error", JSON.toJSONString(
                             buildMap("message", "AI服务异常: HTTP " + response.code())));
                     return;
@@ -221,6 +337,7 @@ public class AiServiceImpl implements AiService {
                 BufferedReader reader = new BufferedReader(
                         new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8));
                 String line;
+                int chunkCount = 0;
 
                 while ((line = reader.readLine()) != null) {
                     if (line.startsWith("data: ")) {
@@ -235,6 +352,7 @@ public class AiServiceImpl implements AiService {
                                 String content = delta.getString("content");
                                 if (content != null && !content.isEmpty()) {
                                     fullReply.append(content);
+                                    chunkCount++;
                                     callback.onEvent("answer_chunk", JSON.toJSONString(
                                             buildMap("content", content, "done", false)));
                                 }
@@ -245,6 +363,7 @@ public class AiServiceImpl implements AiService {
                     }
                 }
                 reader.close();
+                log.info("[AI] 流式响应完成: agentType={}, chunkCount={}, replyLength={}", agentType, chunkCount, fullReply.length());
             }
 
             AiChatRecord aiRecord = AiChatRecord.builder()
@@ -267,13 +386,19 @@ public class AiServiceImpl implements AiService {
             log.error("AI流式聊天异常", e);
             callback.onEvent("error", JSON.toJSONString(
                     buildMap("message", "AI服务异常: " + e.getMessage())));
+        } finally {
+            // 清除会话上下文
+            AiSessionContext.clear();
         }
     }
 
     @Override
     public Result<?> queryRecords(AiChatRecordQueryDto queryDto) {
+        log.info("[AI] 查询咨询记录: userId={}, agentType={}, current={}, size={}", 
+                queryDto.getUserId(), queryDto.getAgentType(), queryDto.getCurrent(), queryDto.getSize());
         List<AiChatRecord> records = aiChatRecordMapper.query(queryDto);
         Integer totalCount = aiChatRecordMapper.queryCount(queryDto);
+        log.info("[AI] 查询结果: 记录数={}, 总数={}", records != null ? records.size() : 0, totalCount);
         return PageResult.success(records, totalCount);
     }
 
@@ -312,54 +437,38 @@ public class AiServiceImpl implements AiService {
     private String buildHealthContext(Integer userId) {
         try {
             StringBuilder context = new StringBuilder();
-            context.append("\n\n【用户健康档案】\n");
+            context.append("\n\n【用户健康档案 - JSON格式】\n");
+            context.append("以下是以JSON格式提供的用户健康数据，请严格基于此数据进行分析：\n\n");
 
             Result<Map<String, Object>> profileResult = aiHealthDataService.getUserHealthProfile(userId);
             if (profileResult != null && profileResult.getCode() == 200) {
                 Map<String, Object> profile = (Map<String, Object>) profileResult.getData();
                 if (profile != null) {
-                    Map<String, Object> userInfo = (Map<String, Object>) profile.get("用户信息");
-                    if (userInfo != null) {
-                        context.append("用户：").append(userInfo.get("用户名")).append("\n");
-                    }
-
-                    Map<String, Object> healthSummary = (Map<String, Object>) profile.get("健康指标摘要");
-                    if (healthSummary != null && !healthSummary.isEmpty()) {
-                        context.append("健康指标：\n");
-                        for (Map.Entry<String, Object> entry : healthSummary.entrySet()) {
-                            Map<String, Object> indicator = (Map<String, Object>) entry.getValue();
-                            context.append("- ").append(entry.getKey()).append(": ")
-                                    .append(indicator.get("最新值"))
-                                    .append(" (状态: ").append(indicator.getOrDefault("状态", "未知")).append(")")
-                                    .append("\n");
-                        }
-                    }
+                    // 直接将整个profile转为JSON字符串
+                    String profileJson = JSON.toJSONString(profile, com.alibaba.fastjson2.JSONWriter.Feature.PrettyFormat);
+                    context.append("```json\n").append(profileJson).append("\n```\n\n");
+                    
+                    // 添加使用说明
+                    context.append("数据说明：\n");
+                    context.append("- userInfo: 用户基本信息\n");
+                    context.append("- healthIndicators: 健康指标数组，每项包含 name(指标名), value(值), unit(单位), normalRange(正常范围), status(状态: normal/abnormal)\n");
+                    context.append("- abnormalIndicators: 异常指标数组\n");
+                    context.append("- totalRecords: 记录总数\n\n");
+                    context.append("请基于以上JSON数据进行分析，如有异常指标请重点说明。如无数据，请告知用户需要先录入健康数据。\n");
+                } else {
+                    context.append("暂无健康数据记录。\n");
+                    context.append("请告知用户：您还没有录入健康数据，请先在\"健康数据\"页面录入您的健康指标（如血压、血糖、血脂等），然后我就能为您进行个性化分析。\n");
                 }
+            } else {
+                context.append("暂无健康数据记录。\n");
+                context.append("请告知用户：您还没有录入健康数据，请先在\"健康数据\"页面录入您的健康指标（如血压、血糖、血脂等），然后我就能为您进行个性化分析。\n");
             }
 
-            Result<Map<String, Object>> abnormalResult = aiHealthDataService.getAbnormalIndicators(userId);
-            if (abnormalResult != null && abnormalResult.getCode() == 200) {
-                Map<String, Object> abnormalData = (Map<String, Object>) abnormalResult.getData();
-                if (abnormalData != null) {
-                    List<Map<String, Object>> abnormalList = (List<Map<String, Object>>) abnormalData.get("异常指标列表");
-                    if (abnormalList != null && !abnormalList.isEmpty()) {
-                        context.append("异常指标：\n");
-                        for (Map<String, Object> abnormal : abnormalList) {
-                            context.append("- ").append(abnormal.get("指标")).append(": ")
-                                    .append(abnormal.get("最新值"))
-                                    .append(" (").append(abnormal.get("状态")).append(")")
-                                    .append("\n");
-                        }
-                    }
-                }
-            }
-
-            context.append("请基于以上用户健康数据进行分析和建议。\n");
             return context.toString();
 
         } catch (Exception e) {
             log.warn("获取用户健康数据失败: userId={}, error={}", userId, e.getMessage());
-            return "\n\n【用户健康档案】暂无健康数据记录，请根据用户描述进行分析。\n";
+            return "\n\n【用户健康档案】数据加载失败，请根据用户描述进行分析。\n";
         }
     }
 
@@ -444,9 +553,13 @@ public class AiServiceImpl implements AiService {
     }
 
     private String callDeepSeekApi(String requestBody) throws IOException {
+        return callDeepSeekApi(requestBody, aiConfig.getApiUrl(), aiConfig.getApiKey());
+    }
+
+    private String callDeepSeekApi(String requestBody, String apiUrl, String apiKey) throws IOException {
         Request request = new Request.Builder()
-                .url(aiConfig.getApiUrl())
-                .addHeader("Authorization", "Bearer " + aiConfig.getApiKey())
+                .url(apiUrl)
+                .addHeader("Authorization", "Bearer " + apiKey)
                 .addHeader("Content-Type", "application/json")
                 .post(RequestBody.create(requestBody, JSON_MEDIA_TYPE))
                 .build();

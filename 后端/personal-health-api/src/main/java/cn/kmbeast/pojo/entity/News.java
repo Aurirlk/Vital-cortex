@@ -39,6 +39,10 @@ public class News {
      */
     private Boolean isTop;
     /**
+     * 是否轮播图
+     */
+    private Boolean isBanner;
+    /**
      * 发布时间
      */
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")

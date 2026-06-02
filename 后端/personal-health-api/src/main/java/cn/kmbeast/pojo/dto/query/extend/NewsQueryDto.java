@@ -20,5 +20,9 @@ public class NewsQueryDto extends QueryDto {
      * 是否推荐
      */
     private Boolean isTop;
+    /**
+     * 是否轮播图
+     */
+    private Boolean isBanner;
 
 }

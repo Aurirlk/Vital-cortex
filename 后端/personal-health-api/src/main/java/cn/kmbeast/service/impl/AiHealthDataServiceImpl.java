@@ -44,10 +44,10 @@ public class AiHealthDataServiceImpl implements AiHealthDataService {
             User user = userMapper.getUserById(userId);
             if (user != null) {
                 Map<String, Object> userInfo = new LinkedHashMap<>();
-                userInfo.put("用户名", user.getUserName());
-                userInfo.put("邮箱", user.getUserEmail());
-                userInfo.put("注册时间", user.getCreateTime());
-                profile.put("用户信息", userInfo);
+                userInfo.put("id", user.getId());
+                userInfo.put("name", user.getUserName());
+                userInfo.put("email", user.getUserEmail());
+                profile.put("userInfo", userInfo);
             }
 
             // 2. 获取全局健康模型配置
@@ -56,8 +56,10 @@ public class AiHealthDataServiceImpl implements AiHealthDataService {
             // 3. 获取用户最近的健康记录
             List<UserHealth> recentRecords = userHealthMapper.getRecentByUserId(userId, 30);
 
-            // 4. 构建健康指标摘要
-            Map<String, Object> healthSummary = new LinkedHashMap<>();
+            // 4. 构建健康指标列表（标准JSON格式）
+            List<Map<String, Object>> healthIndicators = new ArrayList<>();
+            List<Map<String, Object>> abnormalIndicators = new ArrayList<>();
+            
             if (recentRecords != null && !recentRecords.isEmpty()) {
                 // 按健康模型分组
                 Map<Integer, List<UserHealth>> grouped = recentRecords.stream()
@@ -83,52 +85,44 @@ public class AiHealthDataServiceImpl implements AiHealthDataService {
                     // 获取最新值
                     UserHealth latest = records.get(0);
                     Map<String, Object> indicator = new LinkedHashMap<>();
-                    indicator.put("最新值", latest.getValue() + " " + unit);
-                    indicator.put("记录时间", latest.getCreateTime());
-                    indicator.put("正常范围", valueRange);
+                    indicator.put("name", modelName);
+                    indicator.put("value", latest.getValue());
+                    indicator.put("unit", unit);
+                    indicator.put("normalRange", valueRange);
+                    indicator.put("recordTime", latest.getCreateTime() != null ? 
+                        latest.getCreateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) : "");
 
                     // 判断是否异常
+                    boolean isAbnormal = false;
                     if (valueRange != null && valueRange.contains(",")) {
                         try {
                             String[] range = valueRange.split(",");
-                            double min = Double.parseDouble(range[0]);
-                            double max = Double.parseDouble(range[1]);
+                            double min = Double.parseDouble(range[0].trim());
+                            double max = Double.parseDouble(range[1].trim());
                             double value = Double.parseDouble(latest.getValue());
-                            String status = (value >= min && value <= max) ? "正常" : "异常";
-                            indicator.put("状态", status);
+                            indicator.put("status", (value >= min && value <= max) ? "normal" : "abnormal");
+                            isAbnormal = value < min || value > max;
                         } catch (Exception e) {
-                            indicator.put("状态", "无法判断");
+                            indicator.put("status", "unknown");
                         }
+                    } else {
+                        indicator.put("status", "unknown");
                     }
 
-                    // 计算统计信息
-                    List<Double> values = records.stream()
-                            .map(r -> {
-                                try {
-                                    return Double.parseDouble(r.getValue());
-                                } catch (Exception e) {
-                                    return null;
-                                }
-                            })
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toList());
-
-                    if (!values.isEmpty()) {
-                        double avg = values.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-                        double min = values.stream().mapToDouble(Double::doubleValue).min().orElse(0);
-                        double max = values.stream().mapToDouble(Double::doubleValue).max().orElse(0);
-                        indicator.put("平均值", String.format("%.2f", avg));
-                        indicator.put("最小值", String.format("%.2f", min));
-                        indicator.put("最大值", String.format("%.2f", max));
-                        indicator.put("记录次数", records.size());
+                    healthIndicators.add(indicator);
+                    
+                    if (isAbnormal) {
+                        Map<String, Object> abnormal = new LinkedHashMap<>(indicator);
+                        abnormal.put("status", "abnormal");
+                        abnormalIndicators.add(abnormal);
                     }
-
-                    healthSummary.put(modelName, indicator);
                 }
             }
 
-            profile.put("健康指标摘要", healthSummary);
-            profile.put("记录总数", recentRecords != null ? recentRecords.size() : 0);
+            profile.put("healthIndicators", healthIndicators);
+            profile.put("abnormalIndicators", abnormalIndicators);
+            profile.put("totalRecords", recentRecords != null ? recentRecords.size() : 0);
+            profile.put("generatedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
 
             return ApiResult.success(profile);
 

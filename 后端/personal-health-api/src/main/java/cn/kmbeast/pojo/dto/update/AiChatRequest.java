@@ -33,4 +33,24 @@ public class AiChatRequest {
     private Integer maxReasoningLength;
 
     private Boolean longMemory;
+
+    /**
+     * 是否启用联网搜索
+     */
+    private Boolean enableWebSearch;
+
+    /**
+     * 是否启用深度思考
+     */
+    private Boolean enableDeepThink;
+
+    /**
+     * 是否启用知识库参考（平台文章）
+     */
+    private Boolean enableKnowledgeBase;
+
+    /**
+     * 是否读取用户健康指标数据
+     */
+    private Boolean enableHealthData;
 }
