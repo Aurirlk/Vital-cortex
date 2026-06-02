@@ -1,38 +1,53 @@
-# 忽略后端的编译输出
-**/target/
+# ==================== 敏感配置文件 ====================
+# AI配置文件（包含API Key）
+**/config/ai-config.json
+**/ai-config.json
+
+# 环境变量文件
+.env
+.env.*
+*.env
+
+# 数据库配置（排除本地配置，保留示例）
+**/application.yml
+**/application-local.yml
+**/application-dev.yml
+!**/application-example.yml
+
+# ==================== 构建产物 ====================
+# Java
+target/
 *.class
+*.jar
+*.war
 
-# 忽略前端的依赖和打包输出
-**/node_modules/
-**/dist/
+# Node
+node_modules/
+dist/
+.DS_Store
 
-# 忽略 IDE 配置文件
+# ==================== 运行时数据 ====================
+# 向量数据库
+crm_data/
+vector_cache/
+
+# 聊天缓存
+chat_cache/
+chat_backup/
+
+# AI数据导出
+ai_data/
+
+# 图片上传
+pic/
+uploads/
+
+# 日志
+*.log
+logs/
+
+# ==================== IDE ====================
 .idea/
 .vscode/
 *.iml
-
-# 忽略 IDE 的配置文件 (可选，建议加上)
-.idea/
-.vscode/
-
-# 忽略 npm 的报错日志 (可选)
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# 忽略系统生成的文件
-.DS_Store
-Thumbs.db
-
-# 忽略环境变量文件（包含敏感信息）
-.env
-.env.local
-.env.*.local
-
-# 忽略向量缓存目录
-vector_cache/
-**/vector_cache/
-
-# 忽略日志文件
-*.log
-logs/
+*.swp

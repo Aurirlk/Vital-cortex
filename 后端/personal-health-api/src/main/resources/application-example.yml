@@ -1,0 +1,38 @@
+# ============================================================
+# 配置文件示例（复制为 application.yml 使用）
+# ============================================================
+
+server:
+  port: 21090
+  servlet:
+    context-path: /api/personal-health/v1.0
+
+my-server:
+  api-context-path: /api/personal-health/v1.0
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/personal_health?characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
+    username: root
+    password: YOUR_DB_PASSWORD_HERE  # ← 修改为你的数据库密码
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: cn.kmbeast.pojo.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+# AI配置（API Key 在管理员后台配置，不要写在这里）
+ai:
+  provider: deepseek
+  max-history-rounds: 10
+  max-tokens: 4096
+  vector-cache-dir: ./vector_cache

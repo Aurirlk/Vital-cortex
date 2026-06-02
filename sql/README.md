@@ -2,12 +2,12 @@
 
 ## 文件列表
 
-| 文件 | 说明 |
-|------|------|
-| `personal_health_schema.sql` | ✅ 建表脚本（表结构 + 默认数据） |
-| `personal_health_data.sql` | ✅ 数据导入脚本（从原数据库导出的数据） |
-| `ai_chat_upgrade_safe.sql` | AI聊天表升级（安全版本，自动检测字段是否存在） |
-| `fix_news_cover.sql` | 批量填充资讯封面图（可选） |
+| 文件                           | 说明                       |
+| ---------------------------- | ------------------------ |
+| `personal_health_schema.sql` | ✅ 建表脚本（表结构 + 默认数据）       |
+| `personal_health_data.sql`   | ✅ 数据导入脚本（从原数据库导出的数据）     |
+| `ai_chat_upgrade_safe.sql`   | AI聊天表升级（安全版本，自动检测字段是否存在） |
+| `fix_news_cover.sql`         | 批量填充资讯封面图（可选）            |
 
 ## 完整安装流程
 
