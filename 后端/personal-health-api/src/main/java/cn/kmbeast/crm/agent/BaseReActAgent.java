@@ -6,6 +6,7 @@ import cn.kmbeast.crm.agent.model.ReActResponse;
 import cn.kmbeast.crm.agent.model.ToolCall;
 import cn.kmbeast.crm.agent.model.ToolResult;
 import cn.kmbeast.crm.agent.tool.Tool;
+import cn.kmbeast.crm.agent.tool.ToolContext;
 import cn.kmbeast.crm.config.CrmConfig;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
