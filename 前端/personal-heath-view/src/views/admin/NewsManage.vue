@@ -159,19 +159,26 @@
         <!-- 封面 -->
         <el-row style="margin-top: 10px">
           <p>*封面</p>
-          <el-upload
-            class="avatar-uploader"
-            :action="$uploadUrl"
-            :show-file-list="false"
-            :on-success="handleAvatarSuccess"
-          >
-            <img
-              v-if="data.cover"
-              :src="data.cover"
-              style="height: 120px; width: 188px"
-            />
-            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-          </el-upload>
+          <div style="display: flex; align-items: flex-start; gap: 12px">
+            <el-upload
+              class="avatar-uploader"
+              :action="$uploadUrl"
+              :show-file-list="false"
+              :on-success="handleAvatarSuccess"
+            >
+              <img
+                v-if="data.cover"
+                :src="data.cover"
+                style="height: 120px; width: 188px"
+              />
+              <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
+            </el-upload>
+            <el-button
+              size="small"
+              style="margin-top: 90px"
+              @click="showDefaultCoverDialog = true"
+            >选择默认图片</el-button>
+          </div>
         </el-row>
         <!-- 标题 -->
         <el-row>
@@ -270,6 +277,24 @@
         </span>
       </template>
     </el-dialog>
+    <!-- 默认图片选择对话框 -->
+    <el-dialog v-model="showDefaultCoverDialog" title="选择默认封面" width="600px">
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; padding: 10px">
+        <div
+          v-for="(cover, index) in defaultCovers"
+          :key="index"
+          style="cursor: pointer; border: 2px solid transparent; border-radius: 8px; overflow: hidden; transition: border-color 0.3s"
+          :style="{ borderColor: data.cover === cover.url ? '#409eff' : 'transparent' }"
+          @click="selectDefaultCover(cover.url)"
+        >
+          <img :src="cover.url" :alt="cover.name" style="width: 160px; height: 100px; object-fit: cover; display: block" />
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showDefaultCoverDialog = false">取消</el-button>
+        <el-button type="primary" @click="showDefaultCoverDialog = false">确定</el-button>
+      </template>
+    </el-dialog>
   </el-row>
 </template>
 
@@ -294,6 +319,15 @@ export default {
       newsQueryDto: {}, // 搜索条件
       messsageContent: "",
       tagsList: [],
+      showDefaultCoverDialog: false,
+      defaultCovers: [
+        { name: "健康饮食", url: "https://picsum.photos/seed/health1/400/250" },
+        { name: "运动健身", url: "https://picsum.photos/seed/health2/400/250" },
+        { name: "医疗健康", url: "https://picsum.photos/seed/health3/400/250" },
+        { name: "心理健康", url: "https://picsum.photos/seed/health4/400/250" },
+        { name: "养生保健", url: "https://picsum.photos/seed/health5/400/250" },
+        { name: "健康生活", url: "https://picsum.photos/seed/health6/400/250" },
+      ],
     };
   },
   watch: {
@@ -482,6 +516,9 @@ export default {
     handleDelete(row) {
       this.selectedRows.push(row);
       this.batchDelete();
+    },
+    selectDefaultCover(url) {
+      this.data.cover = url;
     },
   },
 };

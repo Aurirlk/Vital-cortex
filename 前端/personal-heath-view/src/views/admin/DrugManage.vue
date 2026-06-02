@@ -268,7 +268,7 @@ export default {
       this.loading = true;
       try {
         const params = {
-          current: (this.currentPage - 1) * this.pageSize,
+          current: this.currentPage,
           size: this.pageSize,
         };
         if (this.searchName) params.name = this.searchName;
@@ -276,7 +276,7 @@ export default {
         const res = await this.$axios.post("/drug/query", params);
         if (res.data.code === 200) {
           this.drugList = res.data.data || [];
-          this.total = res.data.totalCount || 0;
+          this.total = res.data.total || 0;
         }
       } catch (e) {
         console.error("加载药品失败", e);

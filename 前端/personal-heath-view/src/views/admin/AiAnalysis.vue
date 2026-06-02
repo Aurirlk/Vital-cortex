@@ -1,206 +1,6 @@
 ﻿<template>
   <div style="box-sizing: border-box; padding: 10px">
     <el-tabs v-model="activeTab" @tab-click="handleTabClick">
-      <!-- AI 对话 -->
-      <el-tab-pane label="AI 对话" name="chat">
-        <el-row :gutter="20">
-          <!-- 左侧：角色选择与参数-->
-          <el-col :span="6">
-            <div class="side-panel">
-              <div class="panel-title">
-                <el-icon><User /></el-icon>
-                智能体角色
-              </div>
-              <div class="role-list">
-                <div
-                  v-for="(role, key) in roles"
-                  :key="key"
-                  :class="['role-item', { 'role-active': currentRole === key }]"
-                  @click="switchRole(key)"
-                >
-                  <span class="role-icon">{{ role.icon }}</span>
-                  <div class="role-info">
-                    <div class="role-name">{{ role.name }}</div>
-                    <div class="role-desc">{{ role.desc }}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="panel-title" style="margin-top: 20px">
-                <el-icon><Setting /></el-icon>
-                模型参数
-              </div>
-              <div class="param-item">
-                <span class="param-label">Temperature: {{ temperature }}</span>
-                <el-slider
-                  v-model="temperature"
-                  :min="0"
-                  :max="1.5"
-                  :step="0.1"
-                ></el-slider>
-              </div>
-              <div class="param-item">
-                <span class="param-label">Top-P: {{ topP }}</span>
-                <el-slider
-                  v-model="topP"
-                  :min="0"
-                  :max="1"
-                  :step="0.1"
-                ></el-slider>
-              </div>
-
-              <div class="panel-title" style="margin-top: 20px">
-                <el-icon><Paperclip /></el-icon>
-                附件上传
-              </div>
-              <el-upload
-                class="upload-area"
-                :action="$uploadUrl"
-                :on-success="handleFileUpload"
-                :on-remove="handleFileRemove"
-                :file-list="fileList"
-                multiple
-                :limit="5"
-              >
-                <el-button
-                  size="small"
-                  type="primary"
-                  style="background-color: #15559a; border: none"
-                >
-                  <el-icon><Upload /></el-icon> 上传文件
-                </el-button>
-                <template #tip>
-                  <div class="el-upload__tip">支持 PDF、Word、文本文件</div>
-                </template>
-              </el-upload>
-            </div>
-          </el-col>
-
-          <!-- 右侧：聊天区域-->
-          <el-col :span="18">
-            <div class="chat-panel">
-              <div class="chat-header">
-                <span class="current-role-badge">
-                  {{ roles[currentRole].icon }} {{ roles[currentRole].name }}
-                </span>
-                <div>
-                  <el-button
-                    size="small"
-                    type="warning"
-                    plain
-                    @click="exportChat"
-                  >
-                    <el-icon><Download /></el-icon> 导出记录
-                  </el-button>
-                  <el-button
-                    size="small"
-                    type="danger"
-                    plain
-                    @click="clearChat"
-                  >
-                    <el-icon><Delete /></el-icon> 清空对话
-                  </el-button>
-                </div>
-              </div>
-
-              <div class="chat-messages" ref="chatMessages">
-                <div v-if="messages.length === 0" class="chat-empty">
-                  <el-icon style="font-size: 48px; color: #ccc"
-                    ><ChatDotRound
-                  /></el-icon>
-                  <p>管理员 AI 健康分析工作台</p>
-                  <p class="quick-tips">支持角色切换、对话记录导出与历史查询</p>
-                </div>
-                <div
-                  v-for="(msg, index) in messages"
-                  :key="index"
-                  :class="[
-                    'message-item',
-                    msg.role === 'user' ? 'message-user' : 'message-ai',
-                  ]"
-                >
-                  <div class="message-avatar">
-                    <span v-if="msg.role === 'user'">
-                      <el-icon><User /></el-icon>
-                    </span>
-                    <span v-else>
-                      {{ roles[currentRole].icon }}
-                    </span>
-                  </div>
-                  <div class="message-content">
-                    <div class="message-role">
-                      {{
-                        msg.role === "user" ? "管理员" : roles[currentRole].name
-                      }}
-                    </div>
-                    <div
-                      class="message-text"
-                      v-html="formatMessage(msg.content)"
-                    ></div>
-                    <div class="message-time">{{ msg.time }}</div>
-                  </div>
-                </div>
-                <div v-if="loading" class="message-item message-ai">
-                  <div class="message-avatar">
-                    <span>{{ roles[currentRole].icon }}</span>
-                  </div>
-                  <div class="message-content">
-                    <div class="message-role">
-                      {{ roles[currentRole].name }}
-                    </div>
-                    <div class="typing-indicator">
-                      <span></span><span></span><span></span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="chat-input-area">
-                <!-- 功能开关 -->
-                <div class="feature-toggles">
-                  <el-tooltip content="启用联网搜索获取最新信息">
-                    <el-button 
-                      :type="enableWebSearch ? 'primary' : 'default'"
-                      size="small"
-                      @click="enableWebSearch = !enableWebSearch"
-                    >
-                      <el-icon><Search /></el-icon> 联网搜索
-                    </el-button>
-                  </el-tooltip>
-                  <el-tooltip content="启用深度推理，回答更详细但耗时更长">
-                    <el-button 
-                      :type="enableDeepThink ? 'warning' : 'default'"
-                      size="small"
-                      @click="enableDeepThink = !enableDeepThink"
-                    >
-                      <el-icon><MagicStick /></el-icon> 深度思考
-                    </el-button>
-                  </el-tooltip>
-                </div>
-                <el-input
-                  class="chat-input"
-                  v-model="inputMessage"
-                  type="textarea"
-                  :rows="2"
-                  placeholder="输入健康分析问题..."
-                  @keyup.ctrl.enter="sendMessage"
-                  :disabled="loading"
-                ></el-input>
-                <el-button
-                  class="send-btn"
-                  type="primary"
-                  @click="sendMessage"
-                  :loading="loading"
-                  :disabled="!inputMessage.trim()"
-                >
-                  <el-icon><Promotion /></el-icon> 发送
-                </el-button>
-              </div>
-            </div>
-          </el-col>
-        </el-row>
-      </el-tab-pane>
-
       <!-- 咨询记录 -->
       <el-tab-pane label="咨询记录" name="records">
         <div style="padding: 10px 0">
@@ -375,7 +175,7 @@
           <el-alert type="info" :closable="false" style="margin-bottom: 20px">
             <template #title>
               <div>
-                <strong>AI配置管理</strong> - 在此配置DeepSeek API的各项参数
+                <strong>AI配置管理</strong> - 选择AI厂商并配置API参数
                 <br/>
                 <span style="font-size: 12px; color: #999">
                   修改后立即生效，无需重启服务。API Key不会完整显示，修改时请输入完整Key。
@@ -384,7 +184,43 @@
             </template>
           </el-alert>
 
-          <el-form :model="aiConfig" label-width="140px">
+          <el-form :model="aiConfig" label-width="160px">
+            <!-- 厂商选择 -->
+            <el-divider content-position="left">
+              <el-icon><OfficeBuilding /></el-icon> AI厂商选择
+            </el-divider>
+            
+            <el-form-item label="选择厂商">
+              <el-select 
+                v-model="aiConfig.provider" 
+                style="width: 100%"
+                @change="onProviderChange"
+              >
+                <el-option 
+                  v-for="(config, key) in providers" 
+                  :key="key" 
+                  :label="config.name" 
+                  :value="key"
+                />
+              </el-select>
+            </el-form-item>
+            
+            <el-form-item label="OpenAI Base URL">
+              <el-input 
+                v-model="currentProvider.openaiBaseUrl" 
+                disabled
+                style="background-color: #f5f5f5"
+              />
+            </el-form-item>
+            
+            <el-form-item label="Anthropic Base URL" v-if="currentProvider.anthropicBaseUrl">
+              <el-input 
+                v-model="currentProvider.anthropicBaseUrl" 
+                disabled
+                style="background-color: #f5f5f5"
+              />
+            </el-form-item>
+
             <!-- 普通对话配置 -->
             <el-divider content-position="left">
               <el-icon><ChatDotRound /></el-icon> 普通对话配置
@@ -393,7 +229,7 @@
             <el-form-item label="API Key">
               <el-input 
                 v-model="aiConfig.chat.apiKey" 
-                placeholder="请输入DeepSeek API Key"
+                placeholder="请输入API Key"
                 show-password
               />
               <span class="form-tip">当前: {{ aiConfig.chat.apiKey || '未配置' }}</span>
@@ -402,14 +238,18 @@
             <el-form-item label="API 地址">
               <el-input 
                 v-model="aiConfig.chat.apiUrl" 
-                placeholder="https://api.deepseek.com/v1/chat/completions"
+                placeholder="API地址"
               />
             </el-form-item>
             
             <el-form-item label="模型名称">
-              <el-select v-model="aiConfig.chat.model" style="width: 100%">
-                <el-option label="deepseek-chat" value="deepseek-chat" />
-                <el-option label="deepseek-v4-flash" value="deepseek-v4-flash" />
+              <el-select v-model="aiConfig.chat.model" style="width: 100%" allow-create filterable>
+                <el-option 
+                  v-for="model in currentProvider.models" 
+                  :key="model" 
+                  :label="model" 
+                  :value="model"
+                />
               </el-select>
             </el-form-item>
 
@@ -430,46 +270,18 @@
             <el-form-item label="API 地址">
               <el-input 
                 v-model="aiConfig.reasoner.apiUrl" 
-                placeholder="https://api.deepseek.com/v1/chat/completions"
+                placeholder="深度思考API地址"
               />
             </el-form-item>
             
             <el-form-item label="模型名称">
-              <el-select v-model="aiConfig.reasoner.model" style="width: 100%">
-                <el-option label="deepseek-reasoner" value="deepseek-reasoner" />
-                <el-option label="deepseek-chat" value="deepseek-chat" />
-              </el-select>
-            </el-form-item>
-
-            <!-- 联网搜索配置 -->
-            <el-divider content-position="left">
-              <el-icon><Search /></el-icon> 联网搜索配置
-            </el-divider>
-            
-            <el-form-item label="启用联网搜索">
-              <el-switch v-model="aiConfig.webSearch.enabled" />
-            </el-form-item>
-            
-            <el-form-item label="API Key">
-              <el-input 
-                v-model="aiConfig.webSearch.apiKey" 
-                placeholder="留空则使用普通对话的API Key"
-                show-password
-              />
-              <span class="form-tip">当前: {{ aiConfig.webSearch.apiKey || '未配置' }}</span>
-            </el-form-item>
-            
-            <el-form-item label="API 地址">
-              <el-input 
-                v-model="aiConfig.webSearch.apiUrl" 
-                placeholder="https://api.deepseek.com/v1/chat/completions"
-              />
-            </el-form-item>
-            
-            <el-form-item label="模型名称">
-              <el-select v-model="aiConfig.webSearch.model" style="width: 100%">
-                <el-option label="deepseek-chat" value="deepseek-chat" />
-                <el-option label="deepseek-v4-flash" value="deepseek-v4-flash" />
+              <el-select v-model="aiConfig.reasoner.model" style="width: 100%" allow-create filterable>
+                <el-option 
+                  v-for="model in currentProvider.models" 
+                  :key="model" 
+                  :label="model" 
+                  :value="model"
+                />
               </el-select>
             </el-form-item>
 
@@ -490,14 +302,14 @@
             <el-form-item label="API 地址">
               <el-input 
                 v-model="aiConfig.embedding.apiUrl" 
-                placeholder="https://api.deepseek.com/v1/embeddings"
+                placeholder="Embedding API地址"
               />
             </el-form-item>
             
             <el-form-item label="模型名称">
               <el-input 
                 v-model="aiConfig.embedding.model" 
-                placeholder="text-embedding-3-small"
+                placeholder="Embedding模型名称"
               />
             </el-form-item>
 
@@ -562,10 +374,157 @@
               <span>当前配置摘要</span>
             </template>
             <div class="config-summary">
+              <p><strong>厂商：</strong> {{ currentProvider.name || '未选择' }}</p>
               <p><strong>状态：</strong> {{ aiConfig.apiKeyValid ? '✅ API Key已配置' : '❌ API Key未配置' }}</p>
               <p><strong>摘要：</strong> {{ aiConfig.summary }}</p>
             </div>
           </el-card>
+        </div>
+      </el-tab-pane>
+
+      <!-- 联网搜索配置 -->
+      <el-tab-pane label="联网搜索" name="websearch">
+        <div class="config-container">
+          <el-alert type="info" :closable="false" style="margin-bottom: 20px">
+            <template #title>
+              <div>
+                <strong>联网搜索配置</strong> - 配置搜索引擎API，让AI能够获取最新信息
+                <br/>
+                <span style="font-size: 12px; color: #999">
+                  推荐使用博查AI（国内医疗优化）或Tavily（国际搜索）
+                </span>
+              </div>
+            </template>
+          </el-alert>
+
+          <el-form :model="aiConfig" label-width="140px">
+            <!-- 基本配置 -->
+            <el-divider content-position="left">
+              <el-icon><Setting /></el-icon> 基本配置
+            </el-divider>
+            
+            <el-form-item label="启用联网搜索">
+              <el-switch v-model="aiConfig.webSearch.enabled" />
+            </el-form-item>
+            
+            <el-form-item label="搜索引擎">
+              <el-select v-model="aiConfig.webSearch.provider" style="width: 100%">
+                <el-option label="自动（优先博查）" value="auto" />
+                <el-option label="博查AI（国内推荐）" value="bocha" />
+                <el-option label="Tavily（国际）" value="tavily" />
+                <el-option label="DuckDuckGo（免费）" value="duckduckgo" />
+                <el-option label="Serper（Google搜索）" value="serper" />
+                <el-option label="SerpAPI（Google/Bing）" value="serpapi" />
+              </el-select>
+            </el-form-item>
+
+            <!-- 博查AI配置 -->
+            <el-divider content-position="left" style="font-size: 13px">
+              博查AI配置 <span style="color: #999; font-size: 11px">（国内医疗优化，推荐）</span>
+            </el-divider>
+            
+            <el-form-item label="博查 API Key">
+              <el-input 
+                v-model="aiConfig.webSearch.bocha.apiKey" 
+                placeholder="输入博查AI的API Key"
+                show-password
+              />
+              <span class="form-tip">当前: {{ aiConfig.webSearch.bocha?.apiKey || '未配置' }}</span>
+            </el-form-item>
+            
+            <el-form-item label="博查 API 地址">
+              <el-input 
+                v-model="aiConfig.webSearch.bocha.apiUrl" 
+                placeholder="https://api.bochaai.com/v1/web-search"
+              />
+            </el-form-item>
+
+            <!-- Tavily配置 -->
+            <el-divider content-position="left" style="font-size: 13px">
+              Tavily配置 <span style="color: #999; font-size: 11px">（国际搜索，每月1000次免费）</span>
+            </el-divider>
+            
+            <el-form-item label="Tavily API Key">
+              <el-input 
+                v-model="aiConfig.webSearch.tavily.apiKey" 
+                placeholder="输入Tavily的API Key"
+                show-password
+              />
+              <span class="form-tip">当前: {{ aiConfig.webSearch.tavily?.apiKey || '未配置' }}</span>
+            </el-form-item>
+            
+            <el-form-item label="Tavily API 地址">
+              <el-input 
+                v-model="aiConfig.webSearch.tavily.apiUrl" 
+                placeholder="https://api.tavily.com/search"
+              />
+            </el-form-item>
+
+            <!-- DuckDuckGo配置 -->
+            <el-divider content-position="left" style="font-size: 13px">
+              DuckDuckGo配置 <span style="color: #999; font-size: 11px">（免费，无需API Key）</span>
+            </el-divider>
+            
+            <el-form-item label="API 地址">
+              <el-input 
+                v-model="aiConfig.webSearch.duckduckgo.apiUrl" 
+                placeholder="https://api.duckduckgo.com/"
+              />
+              <span class="form-tip">默认: https://api.duckduckgo.com/</span>
+            </el-form-item>
+
+            <!-- Serper配置 -->
+            <el-divider content-position="left" style="font-size: 13px">
+              Serper配置 <span style="color: #999; font-size: 11px">（Google搜索，每月100次免费）</span>
+            </el-divider>
+            
+            <el-form-item label="Serper API Key">
+              <el-input 
+                v-model="aiConfig.webSearch.serper.apiKey" 
+                placeholder="输入Serper的API Key"
+                show-password
+              />
+              <span class="form-tip">当前: {{ aiConfig.webSearch.serper?.apiKey || '未配置' }}</span>
+            </el-form-item>
+            
+            <el-form-item label="Serper API 地址">
+              <el-input 
+                v-model="aiConfig.webSearch.serper.apiUrl" 
+                placeholder="https://google.serper.dev/search"
+              />
+            </el-form-item>
+
+            <!-- SerpAPI配置 -->
+            <el-divider content-position="left" style="font-size: 13px">
+              SerpAPI配置 <span style="color: #999; font-size: 11px">（Google/Bing搜索，每月100次免费）</span>
+            </el-divider>
+            
+            <el-form-item label="SerpAPI Key">
+              <el-input 
+                v-model="aiConfig.webSearch.serpapi.apiKey" 
+                placeholder="输入SerpAPI的Key"
+                show-password
+              />
+              <span class="form-tip">当前: {{ aiConfig.webSearch.serpapi?.apiKey || '未配置' }}</span>
+            </el-form-item>
+            
+            <el-form-item label="SerpAPI 地址">
+              <el-input 
+                v-model="aiConfig.webSearch.serpapi.apiUrl" 
+                placeholder="https://serpapi.com/search"
+              />
+            </el-form-item>
+          </el-form>
+
+          <!-- 操作按钮 -->
+          <div class="config-actions">
+            <el-button type="primary" @click="saveConfig" :loading="configSaving">
+              <el-icon><Check /></el-icon> 保存配置
+            </el-button>
+            <el-button @click="loadConfig">
+              <el-icon><Refresh /></el-icon> 刷新配置
+            </el-button>
+          </div>
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -576,7 +535,7 @@ export default {
   name: "AdminAiAnalysis",
   data() {
     return {
-      activeTab: "chat",
+      activeTab: "records",
       currentRole: "doctor",
       temperature: 0.2,
       topP: 0.3,
@@ -641,13 +600,29 @@ export default {
       roleStats: [],
       trendData: [],
       aiConfig: {
-        chat: { apiKey: '', apiUrl: '', model: 'deepseek-chat' },
-        reasoner: { apiKey: '', apiUrl: '', model: 'deepseek-reasoner' },
-        webSearch: { apiKey: '', apiUrl: '', model: 'deepseek-chat', enabled: true },
-        embedding: { apiKey: '', apiUrl: '', model: 'text-embedding-3-small' },
+        provider: 'deepseek',
+        chat: { apiKey: '', apiUrl: '', model: 'deepseek-v4-flash' },
+        reasoner: { apiKey: '', apiUrl: '', model: 'deepseek-v4-pro' },
+        webSearch: { 
+          enabled: true, 
+          provider: 'auto',
+          bocha: { apiKey: '', apiUrl: 'https://api.bochaai.com/v1/web-search' },
+          tavily: { apiKey: '', apiUrl: 'https://api.tavily.com/search' },
+          duckduckgo: { apiUrl: 'https://api.duckduckgo.com/' },
+          serper: { apiKey: '', apiUrl: 'https://google.serper.dev/search' },
+          serpapi: { apiKey: '', apiUrl: 'https://serpapi.com/search' }
+        },
+        embedding: { apiKey: '', apiUrl: 'https://api.deepseek.com/v1/embeddings', model: 'text-embedding-3-small' },
         common: { connectTimeout: 30000, readTimeout: 60000, maxTokens: 4096, maxHistoryRounds: 10 },
         apiKeyValid: false,
         summary: ''
+      },
+      providers: {},
+      currentProvider: {
+        name: 'DeepSeek',
+        openaiBaseUrl: 'https://api.deepseek.com/v1/chat/completions',
+        anthropicBaseUrl: 'https://api.deepseek.com/anthropic',
+        models: ['deepseek-v4-flash', 'deepseek-v4-pro']
       },
       configSaving: false,
     };
@@ -664,6 +639,7 @@ export default {
     this.loadChatRecords();
     this.loadStats();
     this.loadConfig();
+    this.loadProviders();
   },
   methods: {
     handleTabClick() {
@@ -681,9 +657,44 @@ export default {
         const res = await this.$axios.get("/ai/config/get");
         if (res.data.code === 200) {
           this.aiConfig = res.data.data;
+          this.updateCurrentProvider();
         }
       } catch (e) {
         console.error("加载AI配置失败:", e);
+      }
+    },
+    async loadProviders() {
+      try {
+        const res = await this.$axios.get("/ai/config/providers");
+        if (res.data.code === 200) {
+          const providersList = res.data.data;
+          this.providers = {};
+          providersList.forEach(p => {
+            this.providers[p.key] = p;
+          });
+          this.updateCurrentProvider();
+        }
+      } catch (e) {
+        console.error("加载厂商列表失败:", e);
+      }
+    },
+    updateCurrentProvider() {
+      if (this.providers[this.aiConfig.provider]) {
+        this.currentProvider = this.providers[this.aiConfig.provider];
+      }
+    },
+    async onProviderChange(provider) {
+      try {
+        const res = await this.$axios.post("/ai/config/switch-provider", { provider });
+        if (res.data.code === 200) {
+          this.$message.success("厂商切换成功");
+          this.loadConfig();
+        } else {
+          this.$message.error(res.data.msg || "切换失败");
+        }
+      } catch (e) {
+        this.$message.error("切换厂商失败");
+        console.error("切换厂商失败:", e);
       }
     },
     async saveConfig() {

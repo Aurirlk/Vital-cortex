@@ -70,6 +70,25 @@
           <el-icon><Document /></el-icon>
           生成健康报告
         </el-button>
+        <!-- JSON导入按钮 -->
+        <el-button
+          type="success"
+          size="small"
+          @click="showImportDialog = true"
+        >
+          <el-icon><Upload /></el-icon>
+          JSON导入
+        </el-button>
+        <!-- JSON导出按钮 -->
+        <el-button
+          type="info"
+          size="small"
+          @click="exportHealthData"
+          :loading="exportLoading"
+        >
+          <el-icon><Download /></el-icon>
+          JSON导出
+        </el-button>
       </div>
       <div>
         <LineChart
@@ -185,6 +204,55 @@
         ></el-pagination>
       </el-row>
     </div>
+
+    <!-- JSON导入弹窗 -->
+    <el-dialog v-model="showImportDialog" title="JSON导入健康记录" width="700px">
+      <div style="margin-bottom: 16px">
+        <el-alert type="info" :closable="false">
+          <template #title>
+            <div>
+              <p><strong>导入格式说明：</strong></p>
+              <p>支持JSON格式，每条记录包含：</p>
+              <p>- <code>healthModelConfigId</code>: 健康模型ID（优先）</p>
+              <p>- <code>modelName</code>: 模型名称（如"收缩压"、"血糖"等，当没有ID时使用）</p>
+              <p>- <code>value</code>: 记录值</p>
+              <p>- <code>recordTime</code>: 记录时间（可选，格式：yyyy-MM-dd HH:mm:ss）</p>
+            </div>
+          </template>
+        </el-alert>
+      </div>
+      
+      <div style="margin-bottom: 16px; display: flex; gap: 8px">
+        <el-upload
+          :auto-upload="false"
+          :show-file-list="false"
+          accept=".json"
+          :on-change="handleFileChange"
+        >
+          <el-button size="small" type="primary">
+            <el-icon><Upload /></el-icon>
+            选择JSON文件
+          </el-button>
+        </el-upload>
+        <el-button size="small" @click="fillExample">
+          <el-icon><DocumentCopy /></el-icon>
+          填充示例
+        </el-button>
+      </div>
+      
+      <el-input
+        v-model="importJson"
+        type="textarea"
+        :rows="12"
+        placeholder="或直接在此粘贴JSON内容..."
+      />
+      <template #footer>
+        <el-button @click="showImportDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleImport" :loading="importing">
+          导入
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 <script>
@@ -206,6 +274,28 @@ export default {
       searchTime: [],
       healthModelConfigId: null,
       reportLoading: false,
+      // 导入导出相关
+      showImportDialog: false,
+      importJson: "",
+      importing: false,
+      exportLoading: false,
+      jsonTemplate: `[
+  {
+    "modelName": "收缩压",
+    "value": "120",
+    "recordTime": "2024-01-01 10:00:00"
+  },
+  {
+    "modelName": "舒张压",
+    "value": "80",
+    "recordTime": "2024-01-01 10:00:00"
+  },
+  {
+    "modelName": "血糖",
+    "value": "5.6",
+    "recordTime": "2024-01-01 10:00:00"
+  }
+]`,
     };
   },
   created() {
@@ -505,6 +595,96 @@ export default {
         console.error('下载报告失败:', e);
       } finally {
         this.reportLoading = false;
+      }
+    },
+    // 处理文件选择
+    handleFileChange(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const content = e.target.result;
+          JSON.parse(content); // 验证JSON格式
+          this.importJson = content;
+          this.$message.success("文件读取成功");
+        } catch {
+          this.$message.error("文件内容不是有效的JSON格式");
+        }
+      };
+      reader.readAsText(file.raw);
+    },
+    // 填充示例
+    fillExample() {
+      this.importJson = this.jsonTemplate;
+    },
+    // 处理导入
+    async handleImport() {
+      if (!this.importJson.trim()) {
+        this.$message.warning("请输入JSON数据");
+        return;
+      }
+      try {
+        const data = JSON.parse(this.importJson);
+        let records = [];
+        
+        // 支持两种格式：直接数组或 {records: [...]}
+        if (Array.isArray(data)) {
+          records = data;
+        } else if (data.records && Array.isArray(data.records)) {
+          records = data.records;
+        } else {
+          this.$message.error("JSON格式错误，需要数组格式");
+          return;
+        }
+
+        this.importing = true;
+        const response = await this.$axios.post("/user-health/import", { records });
+        
+        if (response.data.code === 200) {
+          const result = response.data.data;
+          let msg = `导入完成：成功${result.success}条，失败${result.fail}条`;
+          if (result.errors && result.errors.length > 0) {
+            msg += `\n错误示例：${result.errors[0]}`;
+          }
+          this.$swal.fire({
+            title: "导入结果",
+            text: msg,
+            icon: result.fail > 0 ? "warning" : "success",
+          });
+          this.showImportDialog = false;
+          this.fetchFreshData();
+        } else {
+          this.$message.error(response.data.message || "导入失败");
+        }
+      } catch (e) {
+        this.$message.error("JSON格式错误，请检查格式");
+      } finally {
+        this.importing = false;
+      }
+    },
+    // 导出健康数据
+    async exportHealthData() {
+      this.exportLoading = true;
+      try {
+        const response = await this.$axios.get("/user-health/export");
+        
+        if (response.data.code === 200) {
+          const data = response.data.data;
+          const json = JSON.stringify(data, null, 2);
+          const blob = new Blob([json], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `健康数据_${new Date().toISOString().slice(0, 10)}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          this.$message.success(`导出成功，共${data.length}条记录`);
+        } else {
+          this.$message.error("导出失败");
+        }
+      } catch (e) {
+        this.$message.error("导出失败：" + e.message);
+      } finally {
+        this.exportLoading = false;
       }
     },
   },
