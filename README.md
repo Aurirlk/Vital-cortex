@@ -27,9 +27,10 @@
 
 - **健康资讯** — 浏览、搜索、收藏健康文章，支持轮播图
 - **健康指标** — 自定义健康模型，记录健康数据（血压、血糖、体重等）
-- **AI 健康分析** — 5 种 AI 角色（全科医生、营养师、心理咨询师、报告分析师、全能助手），支持 SSE 流式对话、联网搜索、深度思考
+- **AI 健康分析** — 6 种 AI 角色（健康助手、全科医生、营养师、心理咨询师、报告分析师、全能助手），支持 SSE 流式对话、联网搜索、深度思考、知识库参考、健康数据读取
+- **健康助手悬浮球** — 可拖拽移动的悬浮球，点击打开快捷健康咨询
+- **健康数据导入导出** — 支持 JSON 格式批量导入导出健康指标
 - **药品订阅** — 浏览药品信息（价格、说明、分类），订阅关注的药品
-- **CRM 智能客服** — 右下角悬浮球，随时与 AI 助手对话
 - **健康报告** — 一键生成 PDF 健康报告，包含图表和 AI 建议
 - **深色模式** — 支持深色/浅色主题切换
 - **消息中心** — 系统通知与提醒
@@ -40,21 +41,22 @@
 - **用户管理** — 用户信息 CRUD
 - **资讯管理** — 健康文章 CRUD（富文本编辑器），支持轮播图和置顶设置
 - **药品管理** — 药品信息 CRUD，支持 JSON 批量导入
-- **AI 配置管理** — 支持多厂商切换，动态配置 API Key、模型等
+- **AI 配置管理** — 支持多厂商切换，动态配置 API Key、模型等，配置持久化到 MySQL
 - **联网搜索配置** — 独立配置搜索引擎（博查AI、Tavily、DuckDuckGo等）
-- **AI 医生管理** — 修改 AI 角色的系统提示词、Temperature、Top-P 参数
-- **AI 分析** — 管理端 AI 对话工作台
+- **AI 医生管理** — 修改 AI 角色的系统提示词、Temperature、Top-P 参数，支持 CRM 助理配置
+- **健康数据管理** — 查看和管理用户健康记录
 - **评论/消息管理** — 评论审核、消息推送
 
 ### CRM 智能助理
 
-- **六大核心功能**：
-  1. 药品推荐与价格查询（search_drug 工具）
+- **七大核心功能**：
+  1. 药品推荐与价格查询（search_drug 工具，从JSON文件读取）
   2. 推荐 AI 医生角色
   3. 推荐健康资讯文章（向量语义检索）
   4. 联网搜索获取最新信息（web_search 工具）
-  5. 读取用户健康档案（get_health_data 工具）
+  5. 读取用户健康档案（get_health_data 工具，从JSON文件读取）
   6. 查询聊天历史（get_chat_history 工具）
+  7. SQL 查询执行（execute_sql 工具）
 - **ReAct Agent** — 工具增强推理，支持 5 轮自主决策
 - **本地向量数据库** — 文件存储 + 内存索引，余弦相似度搜索
 - **SQLite 聊天记录** — 嵌入式数据库，零外部依赖
@@ -105,10 +107,16 @@
 │   ├── src/
 │   │   ├── views/
 │   │   │   ├── user/                      # 用户页面
+│   │   │   │   ├── AiAnalysis.vue         # AI健康分析（含悬浮球）
+│   │   │   │   ├── UserHealthModel.vue    # 健康数据管理
+│   │   │   │   └── ...
 │   │   │   └── admin/                     # 管理页面
+│   │   │       ├── AiAnalysis.vue         # AI配置管理
+│   │   │       ├── AiDoctorManage.vue     # AI医生管理
+│   │   │       └── ...
 │   │   ├── components/                    # 公共组件
+│   │   │   ├── FloatBall.vue              # 可拖拽悬浮球
 │   │   │   ├── CustomerServiceBall.vue    # 客服悬浮球
-│   │   │   ├── Banner.vue                 # 轮播图
 │   │   │   └── ...
 │   │   ├── router/                        # 路由配置
 │   │   └── assets/css/                    # 样式文件
@@ -117,12 +125,13 @@
 │   ├── src/main/java/cn/kmbeast/
 │   │   ├── controller/                    # REST 接口
 │   │   │   ├── AiConfigController.java    # AI配置管理
+│   │   │   ├── DataExportController.java  # 数据导出
 │   │   │   ├── UserChatController.java    # 用户端聊天
 │   │   │   ├── ReportController.java      # PDF报告
 │   │   │   └── ...
 │   │   ├── service/                       # 业务逻辑
-│   │   │   ├── ChartService.java          # JFreeChart图表
-│   │   │   ├── PdfReportService.java      # PDF生成
+│   │   │   ├── AiChatCacheService.java    # 对话缓存服务
+│   │   │   ├── DataExportService.java     # 数据导出服务
 │   │   │   └── ...
 │   │   ├── crm/                           # CRM 模块
 │   │   │   ├── agent/
@@ -132,24 +141,26 @@
 │   │   │   │   └── tool/                  # 工具实现
 │   │   │   │       ├── SearchDrugTool.java
 │   │   │   │       ├── SearchKnowledgeTool.java
-│   │   │   │       ├── WebSearchTool.java # 联网搜索
+│   │   │   │       ├── WebSearchTool.java
+│   │   │   │       ├── GetHealthDataTool.java
 │   │   │   │       └── ...
 │   │   │   ├── vectordb/                  # 向量数据库
 │   │   │   ├── sqlite/                    # SQLite管理
 │   │   │   └── workflow/                  # 工作流
 │   │   ├── config/
 │   │   │   ├── AiConfig.java              # AI多厂商配置
+│   │   │   ├── AiConfigPersistenceService.java # 配置持久化
 │   │   │   └── ...
 │   │   └── pojo/                          # 实体类
-│   └── src/main/resources/
-│       ├── application.yml                # 配置文件
-│       └── mapper/                        # MyBatis XML
+│   ├── src/main/resources/
+│   │   ├── application-example.yml        # 配置示例
+│   │   └── mapper/                        # MyBatis XML
+│   └── sql/                               # 数据库脚本
+│       ├── ai_chat_schema.sql             # AI会话表
+│       ├── ai_config_schema.sql           # AI配置表
+│       └── drug_schema.sql                # 药品表
 │
-└── sql/                                   # 数据库脚本
-    ├── personal_health_schema.sql         # 建表脚本
-    ├── personal_health_data.sql           # 数据导入
-    ├── ai_chat_upgrade_safe.sql           # AI聊天升级
-    └── README.md                          # SQL说明
+└── .gitignore                             # Git忽略规则
 ```
 
 ---
@@ -168,6 +179,7 @@
 | user_health | 用户健康记录 |
 | ai_conversation | AI 会话 |
 | ai_chat_record | AI 聊天记录 |
+| ai_config | AI 配置（持久化API Key） |
 | drug | 药品信息 |
 | drug_subscription | 药品订阅记录 |
 
@@ -197,6 +209,10 @@ source sql/personal_health_data.sql;
 
 -- 药品数据（可选）
 source 后端/personal-health-api/sql/drug_schema.sql;
+
+-- AI会话表和配置表
+source 后端/personal-health-api/sql/ai_chat_schema.sql;
+source 后端/personal-health-api/sql/ai_config_schema.sql;
 ```
 
 ### 2. 启动后端
@@ -274,6 +290,49 @@ crm:
 
 ---
 
+## 数据流设计
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         数据流总览                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  对话历史记录                                                    │
+│  用户对话 ──→ MySQL(ai_conversation + ai_chat_record)            │
+│     ↑                                                           │
+│     └──── 查询时从MySQL读取                                      │
+│                                                                 │
+│  AI调用的数据（健康指标、药品）                                    │
+│  管理员操作 ──→ MySQL ──→ 导出 ──→ JSON文件(ai_data/)             │
+│                                      ↑                          │
+│  AI工具读取 ──→ JSON文件 ────────────┘                           │
+│                                                                 │
+│  AI配置                                                          │
+│  管理员后台 ──→ MySQL(ai_config表，AES加密存储)                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 数据存储说明
+
+| 数据类型 | 主存储 | AI读取方式 | 说明 |
+|----------|--------|------------|------|
+| 对话历史 | MySQL | - | 查询时从MySQL读取 |
+| 药品数据 | MySQL | JSON文件 | 需要先调用导出接口 |
+| 健康指标 | MySQL | JSON文件 | 需要先调用导出接口 |
+| AI配置 | MySQL | - | AES加密存储，重启不丢失 |
+
+### 数据导出接口
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/data-export/drugs` | POST | 导出药品到JSON |
+| `/data-export/health/{userId}` | POST | 导出指定用户健康数据 |
+| `/data-export/health/all` | POST | 导出所有用户健康数据 |
+| `/data-export/all` | POST | 导出所有数据 |
+
+---
+
 ## API 接口
 
 ### 用户接口（需JWT认证）
@@ -284,10 +343,14 @@ crm:
 | 用户 | POST | `/user/register` | 注册 |
 | 资讯 | POST | `/news/query` | 查询资讯 |
 | 健康 | POST | `/user-health/save` | 保存健康记录 |
+| 健康 | POST | `/user-health/import` | JSON导入健康记录 |
+| 健康 | GET | `/user-health/export` | JSON导出健康记录 |
 | 药品 | POST | `/drug/query` | 查询药品 |
 | 药品 | POST | `/drug/subscribe/{id}` | 订阅药品 |
 | AI | POST | `/ai/chat` | AI对话 |
 | AI | POST | `/ai/chat/stream` | AI流式对话 |
+| AI | GET | `/ai/conversations` | 获取会话列表 |
+| AI | GET | `/ai/conversations/{id}/messages` | 获取会话消息 |
 | 聊天 | POST | `/user/chat/stream` | 客服流式对话 |
 | 报告 | GET | `/report/health-pdf` | 下载健康报告 |
 
@@ -330,6 +393,28 @@ crm:
 ---
 
 ## 更新日志
+
+### v4.0 (2026-06-02)
+
+**新功能：**
+- ✅ 健康助手悬浮球（可拖拽移动，快捷咨询）
+- ✅ 健康数据 JSON 导入导出
+- ✅ AI 配置持久化到 MySQL（AES加密，重启不丢失）
+- ✅ SaaS 风格功能按钮栏（联网搜索、深度思考、知识库、健康数据）
+- ✅ Markdown 渲染支持
+- ✅ 数据导出服务（药品、健康指标导出为JSON供AI读取）
+- ✅ 会话元数据记录（联网搜索、知识库等状态）
+
+**优化：**
+- ✅ 数据流重构：MySQL为主存储，JSON为备份/导出
+- ✅ AI工具从JSON文件读取数据（药品、健康指标）
+- ✅ 对话缓存机制优化
+- ✅ 用户界面布局优化（三栏布局：角色+聊天+设置）
+- ✅ 生成设置移至右侧边栏
+
+**安全：**
+- ✅ API Key 加密存储到数据库
+- ✅ .gitignore 排除敏感文件
 
 ### v3.0 (2026-06-01)
 
