@@ -357,4 +357,15 @@ public class AiController {
         log.info("[AI配置] 管理员 {} 重置所有角色为默认配置", userId);
         return ApiResult.success("已恢复所有角色默认提示词");
     }
+
+    /**
+     * 从JSON备份文件恢复数据到数据库（管理员）
+     */
+    @Protector(role = "管理员")
+    @PostMapping(value = "/restore-from-json")
+    public Result<Map<String, Object>> restoreFromJson() {
+        log.info("[AI] 开始从JSON备份文件恢复数据到数据库");
+        Map<String, Object> result = chatCacheService.restoreAllFromJson();
+        return ApiResult.success(result);
+    }
 }

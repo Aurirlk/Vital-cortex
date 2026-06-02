@@ -3,22 +3,26 @@ package cn.kmbeast.controller;
 import cn.kmbeast.aop.Pager;
 import cn.kmbeast.aop.Protector;
 import cn.kmbeast.context.LocalThreadHolder;
+import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.base.QueryDto;
 import cn.kmbeast.pojo.dto.query.extend.UserHealthQueryDto;
+import cn.kmbeast.pojo.dto.update.HealthImportDto;
 import cn.kmbeast.pojo.entity.UserHealth;
 import cn.kmbeast.pojo.vo.ChartVO;
 import cn.kmbeast.pojo.vo.UserHealthVO;
 import cn.kmbeast.service.UserHealthService;
 import cn.kmbeast.utils.DateUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
-import java.util.List;
+import java.util.*;
 
 /**
  * 用户健康记录的 Controller
  */
+@Slf4j
 @RestController
 @RequestMapping(value = "/user-health")
 public class UserHealthController {
@@ -33,6 +37,28 @@ public class UserHealthController {
     @PostMapping(value = "/save")
     public Result<Void> save(@RequestBody List<UserHealth> userHealths) {
         return userHealthService.save(userHealths);
+    }
+
+    /**
+     * 用户健康记录JSON导入
+     */
+    @Protector
+    @PostMapping(value = "/import")
+    public Result<Map<String, Object>> importFromJson(@RequestBody HealthImportDto importDto) {
+        Integer userId = LocalThreadHolder.getUserId();
+        log.info("[健康导入] 用户{}开始导入，记录数: {}", userId, 
+                importDto.getRecords() != null ? importDto.getRecords().size() : 0);
+        return userHealthService.importFromJson(userId, importDto);
+    }
+
+    /**
+     * 用户健康记录JSON导出
+     */
+    @Protector
+    @GetMapping(value = "/export")
+    public Result<List<Map<String, Object>>> exportToJson() {
+        Integer userId = LocalThreadHolder.getUserId();
+        return userHealthService.exportToJson(userId);
     }
 
     /**

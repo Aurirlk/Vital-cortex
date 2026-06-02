@@ -129,9 +129,9 @@ public class FileController {
         if (fileName == null) {
             return "";
         }
-        return fileName.replaceAll("[\\\\/]", "")
-                       .replaceAll("\\.{2,}", "")
-                       .replaceAll("[^a-zA-Z0-9\\-_.]", "");
+        // 保留中文字符、字母、数字、连字符、下划线、点号、斜杠（支持子文件夹）
+        return fileName.replaceAll("\\\\.\\\\.", "")  // 防止 ..
+                       .replaceAll("[^a-zA-Z0-9\\-_./\\u4e00-\\u9fa5]", "");
     }
 
     /**
