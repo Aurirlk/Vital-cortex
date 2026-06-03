@@ -10,8 +10,6 @@
     <div class="content-container">
       <router-view class="route-container"></router-view>
     </div>
-    <!-- 客服悬浮球 -->
-    <CustomerServiceBall />
     <!-- 个人中心 -->
     <el-dialog :show-close="true" v-model="dialogOperaion" width="26%" class="user-center-dialog" :style="{ marginTop: '15vh' }">
       <template #title>
@@ -306,12 +304,10 @@
 import { clearToken } from "@/utils/storage.js";
 import router from "@/router";
 import UserMenu from "@/components/LevelMenu.vue";
-import CustomerServiceBall from "@/components/CustomerServiceBall.vue";
 export default {
   name: "UserMain",
   components: {
     UserMenu,
-    CustomerServiceBall,
   },
   data() {
     return {

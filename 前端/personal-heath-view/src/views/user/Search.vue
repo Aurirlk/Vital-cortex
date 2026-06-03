@@ -7,7 +7,7 @@
       <el-col
         class="new-item"
         @click="newsItemClick(news)"
-        :span="4"
+        :span="6"
         :key="index"
         v-for="(news, index) in newsData"
       >
@@ -99,14 +99,16 @@ export default {
 }
 
 .new-item {
-  margin-bottom: 10px;
+  margin-bottom: 16px;
   padding: 10px;
   box-sizing: border-box;
+  cursor: pointer;
 
   img {
     width: 100%;
-    height: 118px;
-    border-radius: 3px;
+    height: 140px;
+    border-radius: 8px;
+    object-fit: cover;
   }
 }
 

@@ -23,7 +23,7 @@
               :class="['role-item', { 'role-active': currentRole === key }]"
               @click="switchRole(key)"
             >
-              <span class="role-icon">{{ role.icon }}</span>
+              <el-icon class="role-icon-el" :size="20"><component :is="role.icon" /></el-icon>
               <div class="role-info">
                 <div class="role-name">{{ role.name }}</div>
                 <div class="role-desc">{{ role.desc }}</div>
@@ -70,7 +70,8 @@
         <div class="chat-panel">
           <div class="chat-header">
             <span class="current-role-badge">
-              {{ roles[currentRole].icon }} {{ roles[currentRole].name }}
+              <el-icon><component :is="roles[currentRole].icon" /></el-icon>
+              {{ roles[currentRole].name }}
             </span>
             <span v-if="currentConversationId" class="conv-id-badge">
               会话 #{{ currentConversationId }}
@@ -87,7 +88,9 @@
 
           <div class="chat-messages" ref="chatMessages">
             <div v-if="messages.length === 0" class="chat-empty">
-              <div class="welcome-icon">{{ roles[currentRole].icon }}</div>
+              <div class="welcome-icon">
+                <el-icon :size="56"><component :is="roles[currentRole].icon" /></el-icon>
+              </div>
               <p class="welcome-text">{{ roles[currentRole].welcome }}</p>
               <div class="preset-list">
                 <div
@@ -114,7 +117,7 @@
                   <el-icon><User /></el-icon>
                 </span>
                 <span v-else>
-                  {{ roles[currentRole].icon }}
+                  <el-icon :size="18"><component :is="roles[currentRole].icon" /></el-icon>
                 </span>
               </div>
               <div class="message-content">
@@ -137,7 +140,7 @@
             </div>
             <div v-if="loading" class="message-item message-ai">
               <div class="message-avatar">
-                <span>{{ roles[currentRole].icon }}</span>
+                <span><el-icon :size="18"><component :is="roles[currentRole].icon" /></el-icon></span>
               </div>
               <div class="message-content">
                 <div class="message-role">{{ roles[currentRole].name }}</div>
@@ -253,7 +256,7 @@
               :class="['recent-item', { 'recent-active': currentConversationId === conv.id }]"
               @click="loadConversation(conv)"
             >
-              <span class="recent-icon">{{ roles[conv.agentType]?.icon || "🧠" }}</span>
+              <span class="recent-icon"><el-icon :size="16"><ChatDotRound /></el-icon></span>
               <span class="recent-title">{{ conv.title || '新会话' }}</span>
             </div>
           </div>
@@ -347,7 +350,7 @@
             @click="loadConversation(conv); showHistoryDialog = false"
           >
             <div class="history-item-header">
-              <span class="history-icon">{{ roles[conv.agentType]?.icon || "🧠" }}</span>
+              <span class="history-icon"><el-icon :size="20"><ChatDotRound /></el-icon></span>
               <span class="history-title">{{ conv.title }}</span>
               <el-button
                 type="text"
@@ -365,56 +368,11 @@
         </div>
       </div>
     </el-dialog>
-
-    <!-- 健康助手悬浮球 -->
-    <FloatBall @click="openHealthAssistant" />
-    
-    <!-- 健康助手快捷对话框 -->
-    <el-dialog v-model="showHealthAssistant" title="健康助手" width="500px" :append-to-body="true">
-      <div class="health-assistant-container">
-        <div class="health-assistant-messages" ref="healthMessages">
-          <div v-if="healthMessages.length === 0" class="health-assistant-empty">
-            <div class="health-assistant-icon">🩺</div>
-            <p>您好！我是您的健康助手</p>
-            <p class="health-assistant-tip">可以随时向我咨询健康问题</p>
-          </div>
-          <div
-            v-for="(msg, index) in healthMessages"
-            :key="index"
-            :class="['health-msg', msg.role]"
-          >
-            <div class="health-msg-content" v-html="formatMessage(msg.content)"></div>
-          </div>
-          <div v-if="healthLoading" class="health-msg assistant">
-            <div class="health-msg-content">
-              <div class="typing-indicator">
-                <span></span><span></span><span></span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="health-assistant-input">
-          <el-input
-            v-model="healthInput"
-            placeholder="输入您的健康问题..."
-            @keyup.enter="sendHealthMessage"
-            :disabled="healthLoading"
-          >
-            <template #append>
-              <el-button @click="sendHealthMessage" :loading="healthLoading">
-                <el-icon><Promotion /></el-icon>
-              </el-button>
-            </template>
-          </el-input>
-        </div>
-      </div>
-    </el-dialog>
   </div>
 </template>
 <script>
 import { getToken } from "@/utils/storage.js";
 import { marked } from "marked";
-import FloatBall from "@/components/FloatBall.vue";
 
 // 配置 marked
 marked.setOptions({
@@ -424,7 +382,6 @@ marked.setOptions({
 
 export default {
   name: "UserAiAnalysis",
-  components: { FloatBall },
   data() {
     return {
       currentRole: "consultant",
@@ -445,7 +402,7 @@ export default {
       showHistoryDialog: false,
       historySearchKey: "",
       // 用户设置
-      enableStream: true,
+      enableStream: false,
       enableWebSearch: false,
       enableKnowledgeBase: true,
       enableDeepThink: false,
@@ -472,7 +429,8 @@ export default {
       roles: {
         consultant: {
           name: "健康助手",
-          icon: "\uD83D\uDCBC",
+          icon: "Service",
+          color: "#667eea",
           desc: "智能健康咨询·综合服务",
           temp: 0.3,
           topP: 0.5,
@@ -481,7 +439,8 @@ export default {
         },
         doctor: {
           name: "全科医生",
-          icon: "\uD83E\uDE7A",
+          icon: "FirstAidKit",
+          color: "#e74c3c",
           desc: "症状分析与就医建议",
           temp: 0.2,
           topP: 0.3,
@@ -490,7 +449,8 @@ export default {
         },
         nutritionist: {
           name: "营养师",
-          icon: "\uD83E\uDD57",
+          icon: "Apple",
+          color: "#27ae60",
           desc: "膳食规划与营养指导",
           temp: 0.6,
           topP: 0.8,
@@ -499,7 +459,8 @@ export default {
         },
         psychologist: {
           name: "心理咨询",
-          icon: "\uD83D\uDECB\uFE0F",
+          icon: "ChatDotRound",
+          color: "#f39c12",
           desc: "情绪疏导与心理支持",
           temp: 0.8,
           topP: 0.9,
@@ -508,7 +469,8 @@ export default {
         },
         analyst: {
           name: "报告分析",
-          icon: "\uD83D\uDCCA",
+          icon: "DataAnalysis",
+          color: "#3498db",
           desc: "体检报告解读与分析",
           temp: 0.1,
           topP: 0.1,
@@ -517,7 +479,8 @@ export default {
         },
         general_assistant: {
           name: "全能助手",
-          icon: "\uD83E\uDDE0",
+          icon: "MagicStick",
+          color: "#8e44ad",
           desc: "综合健康咨询与科普",
           temp: 0.5,
           topP: 0.5,
@@ -582,9 +545,8 @@ export default {
     // 加载会话列表
     async loadConversations() {
       try {
-        const response = await this.$axios.get("/ai/conversations", {
-          params: { agentType: this.currentRole },
-        });
+        // 不传 agentType，获取所有角色的历史会话
+        const response = await this.$axios.get("/ai/conversations");
         const { data } = response;
         if (data.code === 200) {
           this.conversations = data.data || [];
@@ -675,6 +637,20 @@ export default {
         const headers = { "Content-Type": "application/json" };
         if (token) headers["token"] = token;
 
+        // 如果开启知识库，先提取关键词
+        let keywords = null;
+        if (this.enableKnowledgeBase) {
+          try {
+            const kwRes = await this.$axios.post("/ai/keywords/extract", { message: msg });
+            if (kwRes.data.code === 200 && kwRes.data.data && kwRes.data.data.length > 0) {
+              keywords = kwRes.data.data;
+              console.log("[Dify] 关键词提取:", keywords);
+            }
+          } catch (e) {
+            console.warn("[Dify] 关键词提取失败:", e);
+          }
+        }
+
         const requestBody = {
           conversationId: this.currentConversationId,
           message: msg,
@@ -690,6 +666,7 @@ export default {
           enableKnowledgeBase: this.enableKnowledgeBase,
           enableDeepThink: this.enableDeepThink,
           enableHealthData: this.enableHealthData,
+          keywords: keywords,
           files: this.uploadFiles,
           userId: userInfo.id || null,
           context: {
@@ -744,14 +721,32 @@ export default {
           }
         } else {
           // 非流式输出
-          const response = await this.$axios.post("/ai/chat", requestBody);
-          if (response.data.code === 200) {
-            aiMsg.content = response.data.data.reply || "暂无回复";
-            if (response.data.data.conversationId) {
-              this.currentConversationId = parseInt(response.data.data.conversationId);
+          try {
+            const response = await fetch(apiUrl, {
+              method: "POST",
+              headers: headers,
+              body: JSON.stringify(requestBody),
+              signal: this._abortController.signal,
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const result = await response.json();
+            
+            let reply = "";
+            if (result.code === 200 && result.data) {
+              reply = (result.data.reply || "暂无回复")
+                .replace(/<think>[\s\S]*?<\/think>/gi, "");
+              if (result.data.conversationId) {
+                this.currentConversationId = parseInt(result.data.conversationId);
+              }
+            } else {
+              reply = "请求失败：" + (result.msg || "未知错误");
             }
-          } else {
-            aiMsg.content = "请求失败：" + (response.data.msg || "未知错误");
+            const idx = this.messages.length - 1;
+            this.messages.splice(idx, 1, { ...aiMsg, content: reply });
+          } catch (e) {
+            console.error("AI非流式请求异常:", e);
+            const idx = this.messages.length - 1;
+            this.messages.splice(idx, 1, { ...aiMsg, content: "网络异常：" + e.message });
           }
         }
       } catch (e) {
@@ -937,114 +932,6 @@ export default {
         return escaped.replace(/\n/g, "<br>");
       }
     },
-    // 打开健康助手
-    openHealthAssistant() {
-      this.showHealthAssistant = true;
-    },
-    // 发送健康助手消息
-    async sendHealthMessage() {
-      const msg = this.healthInput.trim();
-      if (!msg || this.healthLoading) return;
-
-      this.healthMessages.push({
-        role: "user",
-        content: msg,
-      });
-      this.healthInput = "";
-      this.healthLoading = true;
-
-      this.$nextTick(() => {
-        const container = this.$refs.healthMessages;
-        if (container) container.scrollTop = container.scrollHeight;
-      });
-
-      try {
-        const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
-        const token = getToken();
-        const headers = { "Content-Type": "application/json" };
-        if (token) headers["token"] = token;
-
-        const aiMsg = {
-          role: "assistant",
-          content: "",
-        };
-        this.healthMessages.push(aiMsg);
-
-        const response = await fetch(
-          "http://localhost:21090/api/personal-health/v1.0/ai/chat/stream",
-          {
-            method: "POST",
-            headers: headers,
-            body: JSON.stringify({
-              conversationId: this.healthConversationId,
-              message: msg,
-              role: "consultant",
-              temperature: 0.3,
-              topP: 0.5,
-              enableWebSearch: false,
-              enableKnowledgeBase: true,
-              enableHealthData: true,
-              userId: userInfo.id || null,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-
-          const lines = buffer.split("\n");
-          buffer = lines.pop();
-
-          let currentEvent = "";
-          for (const line of lines) {
-            if (line.startsWith("event: ")) {
-              currentEvent = line.slice(7).trim();
-            } else if (line.startsWith("data: ")) {
-              const raw = line.slice(6);
-              try {
-                const data = JSON.parse(raw);
-                if (currentEvent === "answer_chunk") {
-                  aiMsg.content += data.content;
-                } else if (currentEvent === "answer_done") {
-                  if (data.conversationId) {
-                    this.healthConversationId = parseInt(data.conversationId);
-                  }
-                }
-              } catch (e) {
-                // ignore
-              }
-            }
-          }
-
-          this.$nextTick(() => {
-            const container = this.$refs.healthMessages;
-            if (container) container.scrollTop = container.scrollHeight;
-          });
-        }
-      } catch (e) {
-        console.error("健康助手对话异常:", e);
-        this.healthMessages.push({
-          role: "assistant",
-          content: "抱歉，服务暂时不可用，请稍后再试。",
-        });
-      } finally {
-        this.healthLoading = false;
-        this.$nextTick(() => {
-          const container = this.$refs.healthMessages;
-          if (container) container.scrollTop = container.scrollHeight;
-        });
-      }
-    },
   },
 };
 </script>
@@ -1119,9 +1006,15 @@ export default {
   border-color: #409eff;
 }
 
-.role-icon {
-  font-size: 28px;
-  margin-right: 12px;
+.role-icon-el {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .role-name {

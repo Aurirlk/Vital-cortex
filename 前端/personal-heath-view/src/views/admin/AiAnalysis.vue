@@ -232,7 +232,7 @@
                 placeholder="请输入API Key"
                 show-password
               />
-              <span class="form-tip">当前: {{ aiConfig.chat.apiKey || '未配置' }}</span>
+              <span class="form-tip">{{ aiConfig.chat.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
             
             <el-form-item label="API 地址">
@@ -264,7 +264,7 @@
                 placeholder="留空则使用普通对话的API Key"
                 show-password
               />
-              <span class="form-tip">当前: {{ aiConfig.reasoner.apiKey || '未配置' }}</span>
+              <span class="form-tip">{{ aiConfig.reasoner.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
             
             <el-form-item label="API 地址">
@@ -296,7 +296,7 @@
                 placeholder="留空则使用普通对话的API Key"
                 show-password
               />
-              <span class="form-tip">当前: {{ aiConfig.embedding.apiKey || '未配置' }}</span>
+              <span class="form-tip">{{ aiConfig.embedding.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
             
             <el-form-item label="API 地址">
@@ -429,7 +429,7 @@
                 placeholder="输入博查AI的API Key"
                 show-password
               />
-              <span class="form-tip">当前: {{ aiConfig.webSearch.bocha?.apiKey || '未配置' }}</span>
+              <span class="form-tip">{{ aiConfig.webSearch.bocha?.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
             
             <el-form-item label="博查 API 地址">
@@ -450,7 +450,7 @@
                 placeholder="输入Tavily的API Key"
                 show-password
               />
-              <span class="form-tip">当前: {{ aiConfig.webSearch.tavily?.apiKey || '未配置' }}</span>
+              <span class="form-tip">{{ aiConfig.webSearch.tavily?.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
             
             <el-form-item label="Tavily API 地址">
@@ -484,7 +484,7 @@
                 placeholder="输入Serper的API Key"
                 show-password
               />
-              <span class="form-tip">当前: {{ aiConfig.webSearch.serper?.apiKey || '未配置' }}</span>
+              <span class="form-tip">{{ aiConfig.webSearch.serper?.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
             
             <el-form-item label="Serper API 地址">
@@ -505,7 +505,7 @@
                 placeholder="输入SerpAPI的Key"
                 show-password
               />
-              <span class="form-tip">当前: {{ aiConfig.webSearch.serpapi?.apiKey || '未配置' }}</span>
+              <span class="form-tip">{{ aiConfig.webSearch.serpapi?.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
             
             <el-form-item label="SerpAPI 地址">
@@ -625,6 +625,7 @@ export default {
         models: ['deepseek-v4-flash', 'deepseek-v4-pro']
       },
       configSaving: false,
+      configVerified: false,
     };
   },
   watch: {
@@ -648,7 +649,49 @@ export default {
       } else if (this.activeTab === "stats") {
         this.loadStats();
       } else if (this.activeTab === "config") {
-        this.loadConfig();
+        if (this.configVerified) {
+          this.loadConfig();
+        } else {
+          this.verifyPassword();
+        }
+      }
+    },
+    async verifyPassword() {
+      const { value: password } = await this.$swal.fire({
+        title: "验证管理员身份",
+        html: `<p style="margin-bottom:12px">查看和修改AI配置需要验证密码</p>`,
+        input: "password",
+        inputLabel: "请输入管理员密码",
+        inputPlaceholder: "密码",
+        showCancelButton: true,
+        confirmButtonText: "验证",
+        cancelButtonText: "取消",
+        confirmButtonColor: "#15559a",
+        inputValidator: (value) => { if (!value) return "请输入密码"; }
+      });
+      if (!password) {
+        this.activeTab = "records";
+        return;
+      }
+      try {
+        // 调用登录接口验证密码
+        const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
+        const md5 = this.$md5;
+        const hashedPwd = md5(md5(password));
+        const res = await this.$axios.post("/user/login", {
+          userAccount: userInfo.userEmail || userInfo.userAccount || "yangshu",
+          userPwd: hashedPwd,
+        });
+        if (res.data.code === 200) {
+          this.configVerified = true;
+          this.loadConfig();
+        } else {
+          this.$swal.fire({ icon: "error", title: "密码错误", text: "请重新输入" });
+          this.activeTab = "records";
+        }
+      } catch (e) {
+        this.$swal.fire({ icon: "error", title: "验证失败", text: "密码错误" });
+        this.activeTab = "records";
       }
     },
     // AI配置相关方法
@@ -826,7 +869,7 @@ export default {
     async loadChatRecords() {
       try {
         const params = {
-          current: this.pagination.current,
+          current: (this.pagination.current - 1) * this.pagination.size,
           size: this.pagination.size,
           agentType: this.queryRole || undefined,
         };

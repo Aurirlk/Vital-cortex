@@ -161,9 +161,13 @@ const routes = [
         name: "AI健康分析",
         path: "ai-analysis",
         component: () => import(`@/views/user/AiAnalysis.vue`),
-        meta: {
-          requireAuth: true,
-        },
+        meta: { requireAuth: true },
+      },
+      {
+        name: "网站小助手",
+        path: "assistant",
+        component: () => import(`@/views/user/Assistant.vue`),
+        meta: { requireAuth: true },
       },
       {
         name: "药品订阅",
