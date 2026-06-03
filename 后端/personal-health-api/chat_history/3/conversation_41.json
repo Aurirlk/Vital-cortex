@@ -1,0 +1,16 @@
+{
+	"conversationId":41,
+	"userId":3,
+	"title":"我发烧咳嗽，出现头晕恶心症状应该怎么办？",
+	"agentType":"doctor",
+	"messageCount":1,
+	"createTime":"",
+	"lastUpdateTime":"2026-06-03T10:09:12.234",
+	"messages":[
+		{
+			"role":"user",
+			"content":"我发烧咳嗽，出现头晕恶心症状应该怎么办？",
+			"createTime":""
+		}
+	]
+}
