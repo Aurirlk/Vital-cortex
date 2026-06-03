@@ -53,4 +53,9 @@ public class AiChatRequest {
      * 是否读取用户健康指标数据
      */
     private Boolean enableHealthData;
+
+    /**
+     * 前端提取的关键词列表（用于RAG搜索）
+     */
+    private List<String> keywords;
 }

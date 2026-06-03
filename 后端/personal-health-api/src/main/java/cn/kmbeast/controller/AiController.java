@@ -23,6 +23,7 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +67,18 @@ public class AiController {
         return aiService.chat(chatRequest, userId);
     }
 
+    @Protector
+    @PostMapping(value = "/keywords/extract")
+    public Result<List<String>> extractKeywords(@RequestBody Map<String, String> body) {
+        String message = body.get("message");
+        if (message == null || message.trim().isEmpty()) {
+            return ApiResult.success(new ArrayList<>());
+        }
+        List<String> keywords = aiService.extractKeywords(message);
+        log.info("[AI] 关键词提取: \"{}\" -> {}", message, keywords);
+        return ApiResult.success(keywords);
+    }
+
     /**
      * AI医生流式对话（SSE）
      */
@@ -73,6 +86,10 @@ public class AiController {
     @PostMapping(value = "/chat/stream")
     public void chatStream(@RequestBody AiChatRequest chatRequest,
                            HttpServletResponse response) {
+        log.info("[AI Controller] 收到流式对话请求: role={}, message={}", 
+                chatRequest.getRole(), 
+                chatRequest.getMessage() != null ? chatRequest.getMessage().substring(0, Math.min(30, chatRequest.getMessage().length())) : "null");
+        
         response.setContentType("text/event-stream");
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Cache-Control", "no-cache");
@@ -80,6 +97,7 @@ public class AiController {
         response.setHeader("X-Accel-Buffering", "no");
 
         Integer userId = LocalThreadHolder.getUserId();
+        log.info("[AI Controller] 用户ID: {}", userId);
 
         try {
             PrintWriter writer = response.getWriter();
@@ -198,12 +216,8 @@ public class AiController {
     // ==================== 管理员接口 ====================
 
     /**
-     * 分页查询聊天记录
-     *
-     * @param queryDto 查询参数
-     * @return 聊天记录列表
+     * 查询聊天记录（管理员）
      */
-    @Pager
     @Protector(role = "管理员")
     @PostMapping(value = "/records/query")
     public Result<?> queryRecords(@RequestBody AiChatRecordQueryDto queryDto) {

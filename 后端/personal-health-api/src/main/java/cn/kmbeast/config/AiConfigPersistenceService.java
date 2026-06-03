@@ -6,20 +6,13 @@ import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
-import java.util.Map;
 
 /**
  * AI配置持久化服务
- * 使用MySQL存储配置，支持AES加密保存API Key
+ * 使用MySQL存储配置（明文存储）
  */
 @Slf4j
 @Service
@@ -28,53 +21,43 @@ public class AiConfigPersistenceService {
     @Resource
     private AiConfigMapper aiConfigMapper;
 
-    private static final String ENCRYPTION_KEY = "HealthAI2024Key"; // 16字节密钥
-
     /**
-     * 保存配置到MySQL
+     * 保存配置到MySQL（明文）
      */
     public void saveConfig(AiConfig config) {
         try {
             List<AiConfigEntity> configs = new ArrayList<>();
             
-            // 基础配置
             configs.add(buildConfig("provider", config.getProvider(), "AI厂商"));
-            configs.add(buildConfig("api_url", config.getApiUrl(), "普通对话API地址"));
-            configs.add(buildConfig("model", config.getModel(), "普通对话模型"));
-            configs.add(buildConfig("api_key", encryptApiKey(config.getApiKey()), "普通对话API Key（加密）"));
-            
-            // 深度思考配置
+            configs.add(buildConfig("api_url", config.getApiUrl(), "API地址"));
+            configs.add(buildConfig("model", config.getModel(), "模型"));
+            configs.add(buildConfig("api_key", config.getApiKey(), "API Key"));
             configs.add(buildConfig("reasoner_api_url", config.getReasonerApiUrl(), "深度思考API地址"));
             configs.add(buildConfig("reasoner_model", config.getReasonerModel(), "深度思考模型"));
-            configs.add(buildConfig("reasoner_api_key", encryptApiKey(config.getReasonerApiKey()), "深度思考API Key（加密）"));
-            
-            // 联网搜索配置
-            configs.add(buildConfig("web_search_enabled", String.valueOf(config.isWebSearchEnabled()), "联网搜索是否启用"));
-            configs.add(buildConfig("web_search_provider", config.getWebSearchProvider(), "联网搜索引擎"));
-            configs.add(buildConfig("bocha_api_key", encryptApiKey(config.getBochaApiKey()), "博查API Key（加密）"));
+            configs.add(buildConfig("reasoner_api_key", config.getReasonerApiKey(), "深度思考API Key"));
+            configs.add(buildConfig("web_search_enabled", String.valueOf(config.isWebSearchEnabled()), "联网搜索"));
+            configs.add(buildConfig("web_search_provider", config.getWebSearchProvider(), "搜索引擎"));
+            configs.add(buildConfig("bocha_api_key", config.getBochaApiKey(), "博查API Key"));
             configs.add(buildConfig("bocha_api_url", config.getBochaApiUrl(), "博查API地址"));
-            configs.add(buildConfig("tavily_api_key", encryptApiKey(config.getTavilyApiKey()), "Tavily API Key（加密）"));
+            configs.add(buildConfig("tavily_api_key", config.getTavilyApiKey(), "Tavily API Key"));
             configs.add(buildConfig("tavily_api_url", config.getTavilyApiUrl(), "Tavily API地址"));
             configs.add(buildConfig("duckduckgo_api_url", config.getDuckduckgoApiUrl(), "DuckDuckGo API地址"));
-            configs.add(buildConfig("serper_api_key", encryptApiKey(config.getSerperApiKey()), "Serper API Key（加密）"));
+            configs.add(buildConfig("serper_api_key", config.getSerperApiKey(), "Serper API Key"));
             configs.add(buildConfig("serper_api_url", config.getSerperApiUrl(), "Serper API地址"));
-            configs.add(buildConfig("serpapi_api_key", encryptApiKey(config.getSerpapiApiKey()), "SerpAPI Key（加密）"));
+            configs.add(buildConfig("serpapi_api_key", config.getSerpapiApiKey(), "SerpAPI Key"));
             configs.add(buildConfig("serpapi_api_url", config.getSerpapiApiUrl(), "SerpAPI地址"));
-            
-            // Embedding配置
             configs.add(buildConfig("embedding_api_url", config.getEmbeddingApiUrl(), "Embedding API地址"));
             configs.add(buildConfig("embedding_model", config.getEmbeddingModel(), "Embedding模型"));
-            configs.add(buildConfig("embedding_api_key", encryptApiKey(config.getEmbeddingApiKey()), "Embedding API Key（加密）"));
+            configs.add(buildConfig("embedding_api_key", config.getEmbeddingApiKey(), "Embedding API Key"));
+            configs.add(buildConfig("connect_timeout", String.valueOf(config.getConnectTimeout()), "连接超时"));
+            configs.add(buildConfig("read_timeout", String.valueOf(config.getReadTimeout()), "读取超时"));
+            configs.add(buildConfig("max_tokens", String.valueOf(config.getMaxTokens()), "最大Token"));
+            configs.add(buildConfig("max_history_rounds", String.valueOf(config.getMaxHistoryRounds()), "历史轮数"));
+            configs.add(buildConfig("dify_api_key", config.getDifyApiKey(), "Dify API Key"));
+            configs.add(buildConfig("dify_base_url", config.getDifyBaseUrl(), "Dify基础URL"));
+            configs.add(buildConfig("dify_keyword_workflow", config.getDifyKeywordWorkflow(), "Dify关键词端点"));
             
-            // 通用配置
-            configs.add(buildConfig("connect_timeout", String.valueOf(config.getConnectTimeout()), "连接超时(ms)"));
-            configs.add(buildConfig("read_timeout", String.valueOf(config.getReadTimeout()), "读取超时(ms)"));
-            configs.add(buildConfig("max_tokens", String.valueOf(config.getMaxTokens()), "最大Token数"));
-            configs.add(buildConfig("max_history_rounds", String.valueOf(config.getMaxHistoryRounds()), "最大历史轮数"));
-            
-            // 批量保存到MySQL
             aiConfigMapper.batchSaveOrUpdate(configs);
-            
             log.info("[AiConfig] 配置已保存到MySQL，共{}项", configs.size());
         } catch (Exception e) {
             log.error("[AiConfig] 保存配置失败", e);
@@ -96,12 +79,6 @@ public class AiConfigPersistenceService {
             for (AiConfigEntity config : configs) {
                 String key = camelCase(config.getConfigKey());
                 String value = config.getConfigValue();
-                
-                // 解密API Key
-                if (key.endsWith("ApiKey") && value != null && !value.isEmpty()) {
-                    value = decryptApiKey(value);
-                }
-                
                 json.put(key, value);
             }
             
@@ -113,9 +90,6 @@ public class AiConfigPersistenceService {
         }
     }
     
-    /**
-     * 下划线转驼峰
-     */
     private String camelCase(String underscore) {
         if (underscore == null) return null;
         StringBuilder sb = new StringBuilder();
@@ -137,43 +111,5 @@ public class AiConfigPersistenceService {
         entity.setConfigValue(value != null ? value : "");
         entity.setDescription(description);
         return entity;
-    }
-    
-    /**
-     * AES加密API Key
-     */
-    private String encryptApiKey(String apiKey) {
-        if (apiKey == null || apiKey.isEmpty()) {
-            return "";
-        }
-        try {
-            SecretKey key = new SecretKeySpec(ENCRYPTION_KEY.getBytes(StandardCharsets.UTF_8), "AES");
-            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-            cipher.init(Cipher.ENCRYPT_MODE, key);
-            byte[] encrypted = cipher.doFinal(apiKey.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(encrypted);
-        } catch (Exception e) {
-            log.error("[AiConfig] 加密失败", e);
-            return apiKey;
-        }
-    }
-    
-    /**
-     * AES解密API Key
-     */
-    private String decryptApiKey(String encryptedKey) {
-        if (encryptedKey == null || encryptedKey.isEmpty()) {
-            return "";
-        }
-        try {
-            SecretKey key = new SecretKeySpec(ENCRYPTION_KEY.getBytes(StandardCharsets.UTF_8), "AES");
-            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-            cipher.init(Cipher.DECRYPT_MODE, key);
-            byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedKey));
-            return new String(decrypted, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            // 解密失败可能是未加密的旧配置，直接返回
-            return encryptedKey;
-        }
     }
 }

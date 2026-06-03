@@ -5,10 +5,12 @@ import cn.kmbeast.mapper.AiConversationMapper;
 import cn.kmbeast.pojo.entity.AiChatRecord;
 import cn.kmbeast.pojo.entity.AiConversation;
 import cn.kmbeast.service.AiChatCacheService;
+import cn.kmbeast.service.HistoryStorageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -16,10 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * AI对话缓存服务
- * 
- * 数据流：
- *   写操作 → MySQL(主存储) + 内存缓存
- *   读操作 → 内存缓存 → MySQL
+ * 数据流：MySQL(主存储) + 用户隔离JSON存储(备份)
  */
 @Service
 @Slf4j
@@ -31,10 +30,10 @@ public class AiChatCacheServiceImpl implements AiChatCacheService {
     @Resource
     private AiChatRecordMapper chatRecordMapper;
 
-    /** 内存缓存：conversationId -> 消息列表 */
-    private final ConcurrentHashMap<Integer, List<AiChatRecord>> messageCache = new ConcurrentHashMap<>();
+    @Resource
+    private HistoryStorageService historyStorage;
 
-    /** 内存缓存：conversationId -> 会话信息 */
+    private final ConcurrentHashMap<Integer, List<AiChatRecord>> messageCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Integer, AiConversation> conversationCache = new ConcurrentHashMap<>();
 
     @Override
@@ -61,20 +60,16 @@ public class AiChatCacheServiceImpl implements AiChatCacheService {
     }
 
     @Override
-    public AiConversation getConversation(Integer conversationId) {
-        AiConversation conversation = conversationCache.get(conversationId);
-        if (conversation != null) return conversation;
-
-        conversation = conversationMapper.getById(conversationId);
-        if (conversation != null) {
-            conversationCache.put(conversationId, conversation);
-        }
-        return conversation;
-    }
-
-    @Override
     public List<AiConversation> getConversationList(Integer userId, String agentType) {
-        return conversationMapper.queryByUserId(userId, agentType);
+        List<AiConversation> list = conversationMapper.queryByUserId(userId, agentType);
+        if (list == null || list.isEmpty()) {
+            // 从JSON文件加载
+            list = historyStorage.loadConversations(userId);
+            if (list != null && !list.isEmpty()) {
+                log.info("[Cache] 从JSON加载了{}个会话: userId={}", list.size(), userId);
+            }
+        }
+        return list != null ? list : new ArrayList<>();
     }
 
     @Override
@@ -109,20 +104,33 @@ public class AiChatCacheServiceImpl implements AiChatCacheService {
                     .build());
             conversationCache.put(conversationId, conversation);
         }
+
+        // 4. 持久化到用户隔离的JSON文件
+        if (conversation != null && conversation.getUserId() != null) {
+            historyStorage.saveConversation(conversation.getUserId(), conversation, messages);
+        }
     }
 
     @Override
     public List<AiChatRecord> getMessages(Integer conversationId) {
-        // 1. 先查缓存
         List<AiChatRecord> messages = messageCache.get(conversationId);
         if (messages != null && !messages.isEmpty()) {
             return new ArrayList<>(messages);
         }
 
-        // 2. 查MySQL
         messages = chatRecordMapper.getByConversationId(conversationId);
         if (messages != null && !messages.isEmpty()) {
             messageCache.put(conversationId, new ArrayList<>(messages));
+            return messages;
+        }
+
+        // 从JSON加载
+        AiConversation conv = conversationMapper.getById(conversationId);
+        if (conv != null && conv.getUserId() != null) {
+            messages = historyStorage.loadMessages(conv.getUserId(), conversationId);
+            if (messages != null && !messages.isEmpty()) {
+                messageCache.put(conversationId, new ArrayList<>(messages));
+            }
         }
         return messages != null ? messages : new ArrayList<>();
     }
@@ -151,6 +159,15 @@ public class AiChatCacheServiceImpl implements AiChatCacheService {
     }
 
     @Override
+    public AiConversation getConversation(Integer conversationId) {
+        AiConversation conv = conversationCache.get(conversationId);
+        if (conv != null) return conv;
+        conv = conversationMapper.getById(conversationId);
+        if (conv != null) conversationCache.put(conversationId, conv);
+        return conv;
+    }
+
+    @Override
     public void evictCache(Integer conversationId) {
         messageCache.remove(conversationId);
         conversationCache.remove(conversationId);
@@ -171,21 +188,13 @@ public class AiChatCacheServiceImpl implements AiChatCacheService {
     }
 
     @Override
-    public void persistToFile(Integer conversationId) {
-        // 不再需要，保留接口兼容
-    }
+    public void persistToFile(Integer conversationId) {}
 
     @Override
-    public boolean loadFromFile(Integer conversationId) {
-        // 不再需要，保留接口兼容
-        return false;
-    }
+    public boolean loadFromFile(Integer conversationId) { return false; }
 
     @Override
-    public Map<String, Object> restoreAllFromJson() {
-        // 不再需要，保留接口兼容
-        return Collections.emptyMap();
-    }
+    public Map<String, Object> restoreAllFromJson() { return Collections.emptyMap(); }
 
     private String getRoleName(String agentType) {
         switch (agentType != null ? agentType : "") {

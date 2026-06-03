@@ -125,6 +125,17 @@ public class AiConfig {
     @Value("${ai.vector-cache-dir:./vector_cache}")
     private String vectorCacheDir;
 
+    // ==================== Dify 配置 ====================
+    
+    @Value("${dify.api-key:}")
+    private String difyApiKey;
+
+    @Value("${dify.base-url:http://localhost:5001/v1}")
+    private String difyBaseUrl;
+
+    @Value("${dify.keyword-workflow-endpoint:/workflows/run}")
+    private String difyKeywordWorkflow;
+
     // ==================== 厂商配置表 ====================
     
     public static final Map<String, ProviderConfig> PROVIDERS = new LinkedHashMap<>();
@@ -247,6 +258,9 @@ public class AiConfig {
 
         log.info("[AI] 配置初始化完成:");
         log.info("  厂商: {}", provider);
+        log.info("  Dify: apiKey={}, baseUrl={}, endpoint={}", 
+                difyApiKey != null && !difyApiKey.isEmpty() ? "已配置" : "未配置",
+                difyBaseUrl, difyKeywordWorkflow);
         log.info("  普通对话: model={}, apiUrl={}", model, apiUrl);
         log.info("  深度思考: model={}, apiUrl={}", reasonerModel, reasonerApiUrl);
         log.info("  联网搜索: provider={}, enabled={}", webSearchProvider, webSearchEnabled);
@@ -312,6 +326,11 @@ public class AiConfig {
             if (saved.containsKey("readTimeout")) this.readTimeout = saved.getInteger("readTimeout");
             if (saved.containsKey("maxTokens")) this.maxTokens = saved.getInteger("maxTokens");
             if (saved.containsKey("maxHistoryRounds")) this.maxHistoryRounds = saved.getInteger("maxHistoryRounds");
+            
+            // 加载Dify配置
+            if (saved.containsKey("difyApiKey")) this.difyApiKey = saved.getString("difyApiKey");
+            if (saved.containsKey("difyBaseUrl")) this.difyBaseUrl = saved.getString("difyBaseUrl");
+            if (saved.containsKey("difyKeywordWorkflow")) this.difyKeywordWorkflow = saved.getString("difyKeywordWorkflow");
             
             log.info("[AI] 已从持久化文件加载配置");
         } catch (Exception e) {

@@ -19,6 +19,7 @@ import cn.kmbeast.service.AiHealthDataService;
 import cn.kmbeast.service.AiService;
 import cn.kmbeast.crm.dto.WebSearchResult;
 import cn.kmbeast.crm.service.WebSearchService;
+import cn.kmbeast.service.DifyWorkflowService;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
@@ -31,8 +32,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -56,9 +61,12 @@ public class AiServiceImpl implements AiService {
     @Resource
     private WebSearchService webSearchService;
 
+    @Resource
+    private DifyWorkflowService difyWorkflowService;
+
     private OkHttpClient httpClient;
 
-    private static final int RAG_ARTICLE_LIMIT = 3;
+    private static final int RAG_ARTICLE_LIMIT = 6;
     private static final int RAG_CONTENT_MAX_LENGTH = 300;
 
     @javax.annotation.PostConstruct
@@ -71,6 +79,11 @@ public class AiServiceImpl implements AiService {
     }
 
     private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
+
+    @Override
+    public List<String> extractKeywords(String userMessage) {
+        return difyWorkflowService.extractKeywords(userMessage);
+    }
 
     @Override
     public Result<Map<String, String>> chat(AiChatRequest chatRequest, Integer userId) {
@@ -111,7 +124,7 @@ public class AiServiceImpl implements AiService {
             // 根据设置决定是否启用知识库
             String articleContext = "";
             if (chatRequest.getEnableKnowledgeBase() == null || Boolean.TRUE.equals(chatRequest.getEnableKnowledgeBase())) {
-                articleContext = buildArticleRagContext(userMessage);
+                articleContext = buildArticleRagContext(userMessage, chatRequest.getKeywords());
             }
             
             // 联网搜索上下文
@@ -124,7 +137,7 @@ public class AiServiceImpl implements AiService {
             }
 
             String systemPrompt = AiPromptConfig.getSystemPrompt(agentType);
-            String fullContext = healthContext + articleContext + webSearchContext;
+            String fullContext = healthContext + articleContext + buildDrugContext() + webSearchContext;
             JSONArray messages = buildMessagesArray(systemPrompt, fullContext,
                     historyRecords, userMessage);
 
@@ -239,12 +252,16 @@ public class AiServiceImpl implements AiService {
             String articleContext = "";
             boolean enableKB = chatRequest.getEnableKnowledgeBase() == null || Boolean.TRUE.equals(chatRequest.getEnableKnowledgeBase());
             if (enableKB) {
-                articleContext = buildArticleRagContext(userMessage);
-                log.info("[AI] 知识库查询: 查询词='{}', 结果长度={}, 有结果={}", 
-                        userMessage, articleContext.length(), !articleContext.isEmpty());
+                articleContext = buildArticleRagContext(userMessage, chatRequest.getKeywords());
+                log.info("[AI] 知识库查询: 关键词={}, 结果长度={}, 有结果={}", 
+                        chatRequest.getKeywords() != null ? chatRequest.getKeywords() : userMessage,
+                        articleContext.length(), !articleContext.isEmpty());
             } else {
                 log.info("[AI] 知识库查询: 已禁用");
             }
+            
+            // 药品数据上下文（始终注入）
+            String drugContext = buildDrugContext();
             
             // 联网搜索上下文
             String webSearchContext = "";
@@ -263,12 +280,13 @@ public class AiServiceImpl implements AiService {
             }
 
             String systemPrompt = AiPromptConfig.getSystemPrompt(agentType);
-            String fullContext = healthContext + articleContext + webSearchContext;
+            String fullContext = healthContext + articleContext + drugContext + webSearchContext;
             JSONArray messages = buildMessagesArray(systemPrompt, fullContext,
                     historyRecords, userMessage);
 
-            log.info("[AI] 上下文构建完成: 健康数据={}字, 知识库={}字, 联网搜索={}字, 总上下文={}字", 
-                    healthContext.length(), articleContext.length(), webSearchContext.length(), fullContext.length());
+            log.info("[AI] 上下文构建完成: 健康={}字, 知识库={}字, 药品={}字, 搜索={}字, 总={}字", 
+                    healthContext.length(), articleContext.length(), drugContext.length(),
+                    webSearchContext.length(), fullContext.length());
 
             // 构建消息后再保存用户消息到缓存
             chatCacheService.addMessage(conversationId, userRecord);
@@ -472,17 +490,38 @@ public class AiServiceImpl implements AiService {
         }
     }
 
-    private String buildArticleRagContext(String userMessage) {
+    private String buildArticleRagContext(String userMessage, List<String> keywords) {
         if (userMessage == null || userMessage.trim().isEmpty()) return "";
 
         try {
-            String keyword = extractKeyword(userMessage);
-            List<NewsVO> articles = newsMapper.ragSearch(keyword, RAG_ARTICLE_LIMIT);
+            // 使用传入的关键词或AI提取
+            List<String> keywordList;
+            if (keywords != null && !keywords.isEmpty()) {
+                keywordList = keywords;
+                log.info("[RAG] 使用前端关键词: {}", keywordList);
+            } else {
+                // Dify提取 → AI提取 → 直接用原文（不再做本地切割）
+                List<String> difyWords = difyWorkflowService.extractKeywords(userMessage);
+                if (difyWords != null && !difyWords.isEmpty()) {
+                    keywordList = difyWords;
+                    log.info("[RAG] Dify提取: {}", keywordList);
+                } else {
+                    // 回退：直接取原文前10个字作为关键词搜索
+                    String raw = userMessage.replaceAll("[？！？\\s]", "").trim();
+                    keywordList = Collections.singletonList(raw.length() > 10 ? raw.substring(0, 10) : raw);
+                    log.info("[RAG] 回退原文搜索: {}", keywordList);
+                }
+            }
+            
+            List<NewsVO> articles = newsMapper.ragSearch(keywordList, RAG_ARTICLE_LIMIT);
+
+            if (articles == null || articles.isEmpty()) return "";
 
             if (articles == null || articles.isEmpty()) return "";
 
             StringBuilder context = new StringBuilder();
             context.append("\n\n【相关知识库文章参考（RAG）】\n");
+            context.append("以下是从本站知识库检索到的相关文章，请严格基于以下文章内容回答用户：\n\n");
 
             for (int i = 0; i < articles.size(); i++) {
                 NewsVO article = articles.get(i);
@@ -497,13 +536,19 @@ public class AiServiceImpl implements AiService {
                     String summary = content.length() > RAG_CONTENT_MAX_LENGTH
                             ? content.substring(0, RAG_CONTENT_MAX_LENGTH) + "..."
                             : content;
-                    context.append("摘要: ").append(summary).append("\n\n");
+                    context.append("文章内容: ").append(summary).append("\n\n");
                 }
             }
 
+            context.append("【重要要求】\n");
+            context.append("1. 必须基于以上文章内容回答，在回答中引用文章标题。\n");
+            context.append("2. 用自己的话总结文章核心观点，不要直接复制。\n");
+            context.append("3. 如果文章中没有相关答案，明确告知用户\"本站暂无相关文章\"。\n");
+            context.append("4. 回答末尾列出\"📚 相关文章推荐\"，包含文章标题和分类。\n");
+
             context.append("请参考以上文章内容，结合用户健康数据，给出专业建议。可以在回复末尾附带相关文章推荐。\n");
 
-            log.info("[RAG] 检索到 {} 篇相关文章, keyword={}", articles.size(), keyword);
+            log.info("[RAG] 检索到 {} 篇相关文章, keywords={}", articles.size(), keywords);
             return context.toString();
         } catch (Exception e) {
             log.warn("[RAG] 文章检索失败: {}", e.getMessage());
@@ -511,18 +556,136 @@ public class AiServiceImpl implements AiService {
         }
     }
 
-    private String extractKeyword(String userMessage) {
-        if (userMessage == null) return "";
+    /**
+     * 构建药品数据上下文
+     * 从ai_data/drugs.json读取药品列表注入AI上下文
+     */
+    private String buildDrugContext() {
+        try {
+            Path drugsPath = Paths.get("ai_data", "drugs.json");
+            if (!Files.exists(drugsPath)) {
+                return "";
+            }
+            String content = new String(Files.readAllBytes(drugsPath), StandardCharsets.UTF_8);
+            JSONObject root = JSON.parseObject(content);
+            JSONArray drugs = root.getJSONArray("drugs");
+            if (drugs == null || drugs.isEmpty()) return "";
 
-        String trimmed = userMessage.trim();
-        if (trimmed.length() <= 30) return trimmed;
-
-        int lastPeriod = Math.max(trimmed.lastIndexOf("。"), trimmed.lastIndexOf("？"));
-        lastPeriod = Math.max(lastPeriod, trimmed.lastIndexOf("！"));
-        if (lastPeriod > 0) {
-            return trimmed.substring(Math.max(0, lastPeriod - 30), Math.min(trimmed.length(), lastPeriod + 10));
+            StringBuilder ctx = new StringBuilder();
+            ctx.append("\n\n【系统药品数据库】\n");
+            ctx.append("以下是系统内的药品信息，当用户询问药品时请基于此数据回答：\n\n");
+            
+            int limit = Math.min(drugs.size(), 30);
+            for (int i = 0; i < limit; i++) {
+                JSONObject d = drugs.getJSONObject(i);
+                ctx.append("- ").append(d.getString("name"))
+                   .append(" | ").append(d.getString("category"))
+                   .append(" | ¥").append(d.getBigDecimal("price"))
+                   .append("/").append(d.getString("unit"))
+                   .append(" | ").append(d.getString("specification"))
+                   .append(" | ").append(d.getString("manufacturer"))
+                   .append("\n");
+            }
+            ctx.append("\n共").append(drugs.size()).append("种药品。请基于以上数据回答用户。\n");
+            
+            log.info("[Drug] 药品上下文: {} 种药品, {}字", drugs.size(), ctx.length());
+            return ctx.toString();
+        } catch (Exception e) {
+            log.warn("[Drug] 药品上下文构建失败: {}", e.getMessage());
+            return "";
         }
-        return trimmed.substring(0, Math.min(trimmed.length(), 30));
+    }
+
+    /**
+     * 使用AI模型提取健康领域关键词
+     */
+    private String extractKeywordsWithAI(String userMessage) {
+        try {
+            // 输入减半：最多取前15个字发送给AI
+            String shortMsg = userMessage.length() > 15 ? userMessage.substring(0, 15) : userMessage;
+            
+            JSONObject body = new JSONObject();
+            body.put("model", aiConfig.getModel());
+            body.put("messages", buildMessagesArray(
+                "你是一个医疗健康领域的意图识别助手。请从用户问题中提取2-5个最关键的医学/健康关键词，" +
+                "用逗号分隔。只返回关键词，不要任何解释。",
+                "", new ArrayList<>(), shortMsg));
+            body.put("temperature", 0.1);
+            body.put("max_tokens", 50);
+            body.put("top_p", 0.3);
+
+            Request request = new Request.Builder()
+                    .url(aiConfig.getApiUrl())
+                    .addHeader("Authorization", "Bearer " + aiConfig.getApiKey())
+                    .addHeader("Content-Type", "application/json")
+                    .post(RequestBody.create(body.toJSONString(), JSON_MEDIA_TYPE))
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (response.isSuccessful() && response.body() != null) {
+                    String respBody = response.body().string();
+                    JSONObject json = JSON.parseObject(respBody);
+                    JSONArray choices = json.getJSONArray("choices");
+                    if (choices != null && !choices.isEmpty()) {
+                        String content = choices.getJSONObject(0).getJSONObject("message").getString("content");
+                        if (content != null && !content.isEmpty()) {
+                            // 清理关键词：去换行、去多余空格
+                            String keywords = content.replace("\n", ",").replace("，", ",").trim();
+                            log.info("[RAG] AI提取关键词: \"{}\" -> {}", userMessage, keywords);
+                            return keywords;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[RAG] AI关键词提取失败，回退到简单模式: {}", e.getMessage());
+        }
+        // 失败时回退到本地关键词提取
+        return localExtractKeyword(userMessage);
+    }
+
+    /**
+     * 本地关键词提取（不依赖AI）
+     * 移除停用字符，保留核心内容，缩减到原长度1/3（最多10字）
+     */
+    private String localExtractKeyword(String userMessage) {
+        if (userMessage == null || userMessage.length() <= 3) return userMessage;
+        
+        // 中文停用字（逐字删除）
+        Set<String> stops = new HashSet<>(Arrays.asList(
+            "我","你","他","她","它","们","的","了","是","在","有","和","就","都","也","还","吗","呢","吧","啊",
+            "这","那","么","什","怎","如","何","为","能","会","要","可","以","应","该","需","想","觉得","请问",
+            "不","没","否","能","一","下","些","点","办","样","请","问","帮","看","给","让","把","被","对","从",
+            "很","非","常","特","别","比","较","太","挺","最近","经","总","已","正","将","刚","都","只","才",
+            "搜","索","网","站","中","关","于","帖","子","查","找","浏","览","页","面","回","答","告","诉",
+            "啥","哪","怎","怎","办","为","啥","因","所","以","虽","然","但","而","且","与","或","向"
+        ));
+        
+        StringBuilder sb = new StringBuilder();
+        for (char c : userMessage.toCharArray()) {
+            if (Character.isLetterOrDigit(c) || !stops.contains(String.valueOf(c))) {
+                sb.append(c);
+            }
+        }
+        
+        String cleaned = sb.toString().replaceAll("[？！？。，；：、\"'（）()【】《》\\s]", "").trim();
+        int maxLen = userMessage.length() / 3; // 原长度1/3
+        if (maxLen < 3) maxLen = 3;
+        if (maxLen > 10) maxLen = 10;
+        
+        return cleaned.length() > maxLen ? cleaned.substring(0, maxLen) : cleaned;
+    }
+    
+    /**
+     * 分割逗号分隔的关键词为列表
+     */
+    private List<String> splitKeywords(String keywords) {
+        if (keywords == null || keywords.trim().isEmpty()) return new ArrayList<>();
+        return Arrays.stream(keywords.split("[,，]"))
+                .map(String::trim)
+                .filter(k -> !k.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     private JSONArray buildMessagesArray(String systemPrompt, String healthContext,

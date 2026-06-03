@@ -12,6 +12,11 @@ import lombok.EqualsAndHashCode;
 public class AiChatRecordQueryDto extends QueryDto {
 
     /**
+     * 会话ID
+     */
+    private Integer conversationId;
+
+    /**
      * 用户ID
      */
     private Integer userId;

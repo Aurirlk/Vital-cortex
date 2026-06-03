@@ -4,6 +4,7 @@ import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.extend.AiChatRecordQueryDto;
 import cn.kmbeast.pojo.dto.update.AiChatRequest;
 
+import java.util.List;
 import java.util.Map;
 
 public interface AiService {
@@ -15,6 +16,11 @@ public interface AiService {
     Result<?> queryRecords(AiChatRecordQueryDto queryDto);
 
     Result<Map<String, Object>> getStats();
+
+    /**
+     * 提取关键词（用于RAG知识库搜索）
+     */
+    List<String> extractKeywords(String userMessage);
 
     @FunctionalInterface
     interface StreamCallback {

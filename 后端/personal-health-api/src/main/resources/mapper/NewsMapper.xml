@@ -108,18 +108,19 @@
         <result column="tag_name" property="tagName"/>
     </resultMap>
 
-    <!-- RAG知识库检索 — 关键词匹配标题和内容 -->
+    <!-- RAG知识库检索 — 多关键词匹配标题和内容 -->
     <select id="ragSearch" resultMap="BaseResultMap">
-        SELECT n.*, t.name AS tag_name
+        SELECT DISTINCT n.*, t.name AS tag_name
         FROM news n
         LEFT JOIN tags t ON t.id = n.tag_id
-        WHERE n.name LIKE CONCAT('%', #{keyword}, '%')
-           OR n.content LIKE CONCAT('%', #{keyword}, '%')
+        WHERE
+        <foreach collection="keywords" item="kw" separator=" OR ">
+            n.name LIKE CONCAT('%', #{kw}, '%') OR n.content LIKE CONCAT('%', #{kw}, '%')
+        </foreach>
         ORDER BY
-            (CASE WHEN n.name LIKE CONCAT('%', #{keyword}, '%') THEN 1 ELSE 2 END),
+            (CASE WHEN n.name LIKE CONCAT('%', #{keywords[0]}, '%') THEN 0 ELSE 1 END),
             n.is_top DESC,
             n.create_time DESC
         LIMIT #{limit}
     </select>
-
 </mapper>
