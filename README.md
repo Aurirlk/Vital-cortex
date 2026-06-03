@@ -267,16 +267,130 @@ npm run dev
 
 ## 数据库表结构
 
-| 表名                  | 说明          |
-| ------------------- | ----------- |
-| user                | 用户表         |
-| news / tags         | 健康资讯 + 分类   |
-| ai_conversation     | AI 会话元数据    |
-| ai_chat_record      | AI 聊天记录     |
-| ai_config           | AI 配置（明文存储） |
-| drug                | 药品信息        |
-| health_model_config | 健康模型配置      |
-| user_health         | 用户健康记录      |
+### 用户表 `user`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT, 主键 | 用户ID |
+| user_account | VARCHAR(50) | 用户账号（手机号） |
+| user_name | VARCHAR(50) | 用户名 |
+| user_pwd | VARCHAR(128) | 密码（BCrypt加密） |
+| user_role | TINYINT | 角色：1=管理员, 2=用户 |
+| user_avatar | VARCHAR(500) | 头像URL |
+| user_email | VARCHAR(100) | 邮箱 |
+| is_login | TINYINT | 登录状态 |
+| is_word | TINYINT | 状态 |
+| create_time | DATETIME | 创建时间 |
+
+### 健康资讯表 `news`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT, 主键 | 资讯ID |
+| name | VARCHAR(200) | 标题 |
+| content | TEXT | 内容 |
+| tag_id | INT | 分类ID（关联 tags 表） |
+| cover | VARCHAR(500) | 封面图URL |
+| is_top | TINYINT | 是否置顶 |
+| is_banner | TINYINT | 是否轮播图 |
+| create_time | DATETIME | 创建时间 |
+
+### 资讯分类表 `tags`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT, 主键 | 分类ID |
+| name | VARCHAR(50) | 分类名称 |
+
+### 药品表 `drug`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT, 主键 | 药品ID |
+| name | VARCHAR(200) | 药品名称 |
+| generic_name | VARCHAR(200) | 通用名 |
+| category | VARCHAR(100) | 分类（感冒药/抗生素/维生素等） |
+| description | TEXT | 药品说明 |
+| price | DECIMAL(10,2) | 价格 |
+| unit | VARCHAR(50) | 单位（盒/瓶/支） |
+| specification | VARCHAR(200) | 规格 |
+| manufacturer | VARCHAR(200) | 生产厂家 |
+| is_otc | TINYINT | 是否OTC（0=处方药, 1=OTC） |
+| stock | INT | 库存 |
+| status | TINYINT | 状态（0=下架, 1=上架） |
+
+### 药品订阅表 `drug_subscription`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT, 主键 | 订阅ID |
+| user_id | INT | 用户ID |
+| drug_id | INT | 药品ID |
+| quantity | INT | 订阅数量 |
+| status | TINYINT | 状态（0=取消, 1=有效） |
+| create_time | DATETIME | 订阅时间 |
+
+### 健康模型配置表 `health_model_config`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT, 主键 | 模型ID |
+| name | VARCHAR(50) | 指标名称（如"收缩压"） |
+| unit | VARCHAR(20) | 单位（如"mmHg"） |
+| symbol | VARCHAR(10) | 符号 |
+| value_range | VARCHAR(50) | 正常范围（格式："90,140"） |
+| is_global | TINYINT | 是否全局模型 |
+
+### 用户健康记录表 `user_health`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT, 主键 | 记录ID |
+| user_id | INT | 用户ID |
+| health_model_config_id | INT | 健康模型ID |
+| value | VARCHAR(50) | 记录值 |
+| create_time | DATETIME | 记录时间 |
+
+### AI 会话表 `ai_conversation`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT, 主键 | 会话ID |
+| user_id | INT | 用户ID |
+| title | VARCHAR(255) | 会话标题 |
+| agent_type | VARCHAR(50) | AI角色（doctor/nutritionist/consultant等） |
+| message_count | INT | 消息数量 |
+| last_message_time | DATETIME | 最后消息时间 |
+| create_time | DATETIME | 创建时间 |
+
+### AI 聊天记录表 `ai_chat_record`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT, 主键 | 记录ID |
+| conversation_id | INT | 关联会话ID |
+| user_id | INT | 用户ID |
+| role | VARCHAR(20) | 角色（user/assistant） |
+| content | TEXT | 消息内容 |
+| agent_type | VARCHAR(50) | AI角色类型 |
+| create_time | DATETIME | 创建时间 |
+
+### AI 配置表 `ai_config`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT, 主键 | 配置ID |
+| config_key | VARCHAR(100) | 配置键（如 api_key, model） |
+| config_value | TEXT | 配置值（API Key 明文存储） |
+| description | VARCHAR(255) | 配置描述 |
+| create_time | DATETIME | 创建时间 |
+
+### 评论表 `evaluations` / 消息表 `message`
+
+| 表名 | 说明 |
+|------|------|
+| evaluations | 用户评论/评价记录 |
+| message | 系统消息通知 |
 
 ---
 

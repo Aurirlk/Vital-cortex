@@ -241,5 +241,14 @@
 		"messageCount":2,
 		"createTime":"",
 		"lastMessageTime":"2026-06-03T10:15:23.131"
+	},
+	{
+		"id":43,
+		"userId":3,
+		"title":"我最近健康指标合格吗，应该如何进行饮食计...",
+		"agentType":"nutritionist",
+		"messageCount":2,
+		"createTime":"",
+		"lastMessageTime":"2026-06-03T11:22:58.059"
 	}
 ]
