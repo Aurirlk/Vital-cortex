@@ -1,266 +1,291 @@
-// 深色模式全局样式
+/* ===========================================================
+ * 深色模式 — 使用 CSS 变量驱动，不再依赖硬编码色值。
+ * 亮色/深色切换时只需改变 :root 的 CSS 变量值即可。
+ * =========================================================== */
+
 html.dark {
-  background-color: #1a1a2e;
-  color: #eee;
+  /* ---- 基础色板 ---- */
+  --bg-color: #121212;
+  --bg-card: #1e1e1e;
+  --bg-sidebar: #252525;
+  --text-primary: #e0e0e0;
+  --text-secondary: #90caf9;
+  --text-muted: #757575;
+  --border-color: #333;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.5);
+
+  /* ---- 别名兼容 ---- */
+  --primary: var(--primary-color, #90caf9);
+  --primary-dark: var(--primary-dark, #42a5f5);
+  --bg-light: var(--bg-color);
+  --card-shadow: var(--shadow-sm);
+  --card-shadow-hover: var(--shadow-md);
+}
+
+html.dark {
+  background-color: var(--bg-color);
+  color: var(--text-primary);
 }
 
 html.dark body {
-  background-color: #1a1a2e;
-  color: #eee;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
 }
 
-// 主内容区域
+/* 主内容区域 */
 html.dark .content-container,
 html.dark .el-main {
-  background-color: #16213e;
-  color: #eee;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
 }
 
-// 卡片和容器
+/* 卡片和容器 */
 html.dark .el-card,
 html.dark .el-dialog,
 html.dark .el-table,
 html.dark .el-form {
-  background-color: #1a1a2e;
-  color: #eee;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
 }
 
-// 表格
+/* 表格 */
 html.dark .el-table {
-  background-color: #1a1a2e;
-  color: #eee;
-  
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+
   th, td {
-    background-color: #1a1a2e;
-    color: #eee;
-    border-bottom-color: #2a2a4a;
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border-bottom-color: var(--border-color);
   }
-  
+
   tr:hover > td {
-    background-color: #16213e;
+    background-color: var(--bg-sidebar);
   }
-  
+
   .el-table__header-wrapper th {
-    background-color: #16213e;
-    color: #eee;
+    background-color: var(--bg-sidebar);
+    color: var(--text-primary);
   }
 }
 
-// 输入框
+/* 输入框 */
 html.dark .el-input__wrapper,
 html.dark .el-textarea__inner {
-  background-color: #16213e;
-  border-color: #2a2a4a;
-  color: #eee;
-  
+  background-color: var(--bg-sidebar);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+
   &:hover, &:focus {
-    border-color: #667eea;
+    border-color: var(--primary-color, #667eea);
   }
 }
 
 html.dark .el-input__inner {
-  color: #eee;
-  
+  color: var(--text-primary);
+
   &::placeholder {
-    color: #666;
+    color: var(--text-muted);
   }
 }
 
-// 按钮
+/* 按钮 */
 html.dark .el-button--default {
-  background-color: #16213e;
-  border-color: #2a2a4a;
-  color: #eee;
-  
+  background-color: var(--bg-sidebar);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+
   &:hover {
-    background-color: #1a1a2e;
-    border-color: #667eea;
-    color: #667eea;
+    background-color: var(--bg-card);
+    border-color: var(--primary-color, #667eea);
+    color: var(--primary-color, #667eea);
   }
 }
 
-// 下拉菜单
+/* 下拉菜单 */
 html.dark .el-select-dropdown {
-  background-color: #1a1a2e;
-  border-color: #2a2a4a;
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
 }
 
 html.dark .el-select-dropdown__item {
-  color: #eee;
-  
+  color: var(--text-primary);
+
   &:hover, &.hover {
-    background-color: #16213e;
+    background-color: var(--bg-sidebar);
   }
-  
+
   &.selected {
-    color: #667eea;
+    color: var(--primary-color, #667eea);
   }
 }
 
-// 对话框
+/* 对话框 */
 html.dark .el-dialog {
-  background-color: #1a1a2e;
-  
+  background-color: var(--bg-card);
+
   .el-dialog__header {
-    background-color: #16213e;
+    background-color: var(--bg-sidebar);
   }
-  
+
   .el-dialog__title {
-    color: #eee;
+    color: var(--text-primary);
   }
-  
+
   .el-dialog__body {
-    color: #eee;
+    color: var(--text-primary);
   }
 }
 
-// 分页
+/* 分页 */
 html.dark .el-pagination {
-  color: #eee;
-  
+  color: var(--text-primary);
+
   .el-pager li {
-    background-color: #16213e;
-    color: #eee;
-    
+    background-color: var(--bg-sidebar);
+    color: var(--text-primary);
+
     &.active {
-      color: #667eea;
+      color: var(--primary-color, #667eea);
     }
   }
-  
+
   .btn-prev, .btn-next {
-    background-color: #16213e;
-    color: #eee;
+    background-color: var(--bg-sidebar);
+    color: var(--text-primary);
   }
 }
 
-// 标签
+/* 标签 */
 html.dark .el-tag {
-  background-color: #16213e;
-  border-color: #2a2a4a;
-  color: #eee;
+  background-color: var(--bg-sidebar);
+  border-color: var(--border-color);
+  color: var(--text-primary);
 }
 
-// 开关
+/* 开关 */
 html.dark .el-switch {
   .el-switch__core {
-    background-color: #2a2a4a;
+    background-color: var(--border-color);
   }
-  
+
   &.is-checked .el-switch__core {
-    background-color: #667eea;
+    background-color: var(--primary-color, #667eea);
   }
 }
 
-// 单选框
+/* 单选框 */
 html.dark .el-radio {
-  color: #eee;
+  color: var(--text-primary);
 }
 
 html.dark .el-radio__input.is-checked .el-radio__inner {
-  background-color: #667eea;
-  border-color: #667eea;
+  background-color: var(--primary-color, #667eea);
+  border-color: var(--primary-color, #667eea);
 }
 
-// 日期选择器
+/* 日期选择器 */
 html.dark .el-date-editor .el-range-input {
-  color: #eee;
+  color: var(--text-primary);
   background-color: transparent;
 }
 
 html.dark .el-date-editor .el-range-separator {
-  color: #666;
+  color: var(--text-muted);
 }
 
-// 菜单
+/* 菜单 */
 html.dark .el-menu {
-  background-color: #1a1a2e;
-  border-right-color: #2a2a4a;
+  background-color: var(--bg-card);
+  border-right-color: var(--border-color);
 }
 
 html.dark .el-menu-item,
 html.dark .el-sub-menu__title {
-  color: #eee;
-  
+  color: var(--text-primary);
+
   &:hover {
-    background-color: #16213e;
-    color: #667eea;
+    background-color: var(--bg-sidebar);
+    color: var(--primary-color, #667eea);
   }
 }
 
 html.dark .el-menu-item.is-active {
-  color: #667eea;
+  color: var(--primary-color, #667eea);
   background-color: rgba(102, 126, 234, 0.1);
 }
 
-// 消息框
+/* 消息框 */
 html.dark .el-message-box {
-  background-color: #1a1a2e;
-  border-color: #2a2a4a;
-  
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+
   .el-message-box__title {
-    color: #eee;
+    color: var(--text-primary);
   }
-  
+
   .el-message-box__message {
-    color: #eee;
+    color: var(--text-primary);
   }
 }
 
-// 工具提示
+/* 工具提示 */
 html.dark .el-tooltip__popper {
-  background-color: #16213e;
-  border-color: #2a2a4a;
-  color: #eee;
+  background-color: var(--bg-sidebar);
+  border-color: var(--border-color);
+  color: var(--text-primary);
 }
 
-// 空状态
+/* 空状态 */
 html.dark .el-empty__description p {
-  color: #666;
+  color: var(--text-muted);
 }
 
-// 头部导航
+/* 头部导航 */
 html.dark .header {
-  background-color: #1a1a2e;
-  border-bottom-color: #2a2a4a;
+  background-color: var(--bg-card);
+  border-bottom-color: var(--border-color);
 }
 
 html.dark .nav-item-text {
-  color: #999;
+  color: var(--text-muted);
 }
 
 html.dark .nav-item--active .nav-item-text {
-  color: #eee;
+  color: var(--text-primary);
 }
 
 html.dark .search-input {
-  background-color: #16213e;
-  color: #eee;
-  
+  background-color: var(--bg-sidebar);
+  color: var(--text-primary);
+
   &::placeholder {
-    color: #666;
+    color: var(--text-muted);
   }
 }
 
 html.dark .user-name {
-  color: #eee;
+  color: var(--text-primary);
 }
 
-// 侧边菜单
+/* 侧边菜单 */
 html.dark .menu-side {
-  background-color: #1a1a2e;
-  border-right-color: #2a2a4a;
+  background-color: var(--bg-card);
+  border-right-color: var(--border-color);
 }
 
 html.dark .vertical-menu-item {
-  color: #999;
-  
+  color: var(--text-muted);
+
   &:hover {
-    background-color: #16213e;
-    color: #eee;
+    background-color: var(--bg-sidebar);
+    color: var(--text-primary);
   }
-  
+
   &.active {
-    color: #667eea;
+    color: var(--primary-color, #667eea);
     background-color: rgba(102, 126, 234, 0.1);
   }
 }

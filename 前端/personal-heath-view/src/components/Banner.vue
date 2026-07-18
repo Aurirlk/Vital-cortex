@@ -6,7 +6,7 @@
       class="banner-img"
     />
     <h3 @click="onClick" class="tip-name">{{ activeData.name }}</h3>
-    <!-- 白点指示器 -->
+    <!--  -->
     <div class="dots-container" v-if="data.length > 1">
       <span
         v-for="(item, idx) in data"
@@ -16,7 +16,7 @@
         @click.stop="goToSlide(idx)"
       ></span>
     </div>
-    <!-- 左右箭头 -->
+    <!--  -->
     <div class="arrow left-arrow" @click.stop="prevSlide" v-if="data.length > 1">
       <el-icon><ArrowLeft /></el-icon>
     </div>
@@ -27,7 +27,7 @@
 </template>
 
 <script>
-// 轮播图组件
+// 
 export default {
   name: "Banner",
   props: {
@@ -36,22 +36,22 @@ export default {
       required: true,
     },
     width: {
-      // 宽度
+      // 
       type: String,
       default: "100%",
     },
     height: {
-      // 高度
+      // 
       type: String,
       default: "208px",
     },
     borderRadius: {
-      // 图片边框曲度
+      // 
       type: String,
       default: "5px",
     },
     time: {
-      // 轮播时间
+      // 
       type: Number,
       default: 3000,
     },
@@ -105,7 +105,7 @@ export default {
     goToSlide(idx) {
       this.index = idx;
       this.activeData = { ...this.data[this.index] };
-      // 重新设置定时器
+      // 
       this.config();
     },
   },
@@ -192,7 +192,7 @@ export default {
   }
 }
 
-// 深色模式下的指示器
+// 
 :deep(.dark) .dots-container {
   background: rgba(0, 0, 0, 0.6);
 }

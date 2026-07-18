@@ -12,7 +12,7 @@ export default {
   },
   watch: {
     $route(to) {
-      // 路由变化时检查是否需要应用深色模式
+      // 
       this.applyDarkModeForRoute(to.path);
     },
   },
@@ -22,7 +22,7 @@ export default {
       if (settings) {
         const parsed = JSON.parse(settings);
         if (parsed.isDarkMode) {
-          // 只在用户端应用深色模式
+          // 
           const currentPath = this.$route?.path || "";
           if (currentPath.startsWith("/user")) {
             document.documentElement.classList.add("dark");
@@ -50,11 +50,7 @@ export default {
 <style lang="scss">
 #app {
   height: 100%;
-  background-color: #f5f7fa;
+  background-color: var(--bg-color, #f5f7fa);
   transition: background-color 0.3s ease;
-}
-
-html.dark #app {
-  background-color: #1a1a2e;
 }
 </style>
