@@ -75,9 +75,8 @@ public class DifyWorkflowServiceImpl implements DifyWorkflowService {
 
         String apiKey = aiConfig.getApiKey();
         if (apiKey == null || apiKey.isEmpty()) {
-            log.info("[关键词] API Key为空，使用原文");
-            String raw = userMessage.replaceAll("[？！？\\s]", "").trim();
-            return Collections.singletonList(raw.length() > 8 ? raw.substring(0, 8) : raw);
+            log.info("[关键词] API Key为空，使用本地提取");
+            return localExtract(userMessage);
         }
 
         try {
@@ -131,10 +130,10 @@ public class DifyWorkflowServiceImpl implements DifyWorkflowService {
             log.warn("[关键词] AI调用异常: {}", e.getMessage());
         }
 
-        // AI提取失败，直接用原文
-        log.info("[关键词] 回退原文: \"{}\"", userMessage);
-        String raw = userMessage.replaceAll("[？！？\\s]", "").trim();
-        return Collections.singletonList(raw.length() > 8 ? raw.substring(0, 8) : raw);
+        // AI提取失败，回退本地提取（RAG-18 整改：原实现截取原文前 8 字符，
+        // "我最近血压有点高怎么办"→"我最近血压"→ LIKE 必然零召回；改用词库+停用词提取）
+        log.info("[关键词] AI提取失败，回退本地提取: \"{}\"", userMessage);
+        return localExtract(userMessage);
     }
 
     private List<String> parseKeywords(String text) {
@@ -147,19 +146,38 @@ public class DifyWorkflowServiceImpl implements DifyWorkflowService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 本地关键词提取（RAG-18 整改）。
+     * 第一优先：医学/健康领域词库命中（覆盖常见健康话题，LIKE 召回率高）；
+     * 第二优先：去停用词后返回完整剩余短语（不再截断成无意义的 6 字符）。
+     */
     private List<String> localExtract(String userMessage) {
-        if (userMessage == null || userMessage.length() <= 3) {
+        if (userMessage == null || userMessage.trim().isEmpty()) {
             return Collections.emptyList();
         }
-        
+
+        // 医学词库命中优先
+        String text = userMessage.replaceAll("[\\s？！？。，；：、,.!?\"']", "");
+        List<String> hits = new ArrayList<>();
+        for (String term : MEDICAL_TERMS) {
+            if (text.contains(term)) {
+                hits.add(term);
+            }
+        }
+        if (!hits.isEmpty()) {
+            return hits.stream().distinct().limit(5).collect(Collectors.toList());
+        }
+
+        // 词库未命中：去停用词取剩余短语
         Set<String> stops = new HashSet<>(Arrays.asList(
-            "我","你","他","她","它","们","的","了","是","在","有","和","就","都","也","还","吗","呢","吧","啊",
-            "这","那","么","什","怎","如","何","为","能","会","要","可","以","应","该","需","想","觉得",
-            "不","没","否","一","下","些","点","办","样","请","问","帮","看","给","让","把","被","对","从",
-            "很","非","常","特","别","比","较","太","挺","最近","经","总","已","正","将",
-            "搜","索","网","站","中","关","于","帖","子","查","找","浏","览","页","面"
+                "我", "你", "他", "她", "它", "们", "的", "了", "是", "在", "有", "和", "就", "都", "也", "还",
+                "吗", "呢", "吧", "啊", "这", "那", "么", "什", "怎", "如", "何", "为", "能", "会", "要", "可",
+                "以", "应", "该", "需", "想", "觉得", "不", "没", "否", "一", "下", "些", "点", "办", "样",
+                "请", "问", "帮", "看", "给", "让", "把", "被", "对", "从", "很", "非", "常", "特", "别",
+                "比", "较", "太", "挺", "最近", "经", "总", "已", "正", "将", "搜", "索", "网", "站", "中",
+                "关", "于", "帖", "子", "查", "找", "浏", "览", "页", "面"
         ));
-        
+
         StringBuilder sb = new StringBuilder();
         for (char c : userMessage.toCharArray()) {
             if (!stops.contains(String.valueOf(c)) && c > 32) {
@@ -167,9 +185,21 @@ public class DifyWorkflowServiceImpl implements DifyWorkflowService {
             }
         }
         String cleaned = sb.toString().replaceAll("[？！？。，；：、\\s]", "").trim();
-        if (cleaned.isEmpty()) return Arrays.asList(userMessage.substring(0, Math.min(6, userMessage.length())));
-        
-        int len = Math.min(cleaned.length(), 6);
-        return Collections.singletonList(cleaned.substring(0, len));
+        if (cleaned.isEmpty()) {
+            // 全部是停用词时，退回整句前 12 字（比原 8 字更完整）
+            String raw = userMessage.replaceAll("[\\s？！？。，；：、]", "");
+            return Collections.singletonList(raw.length() > 12 ? raw.substring(0, 12) : raw);
+        }
+        // 返回完整短语（不截断），长度 ≤ 20 字避免过宽
+        return Collections.singletonList(cleaned.length() > 20 ? cleaned.substring(0, 20) : cleaned);
     }
+
+    private static final List<String> MEDICAL_TERMS = Arrays.asList(
+            "血压", "血糖", "血脂", "心率", "脉搏", "体重", "身高", "BMI", "尿酸", "甘油三酯",
+            "高血压", "低血压", "糖尿病", "高血糖", "低血糖", "失眠", "感冒", "发烧", "发热", "咳嗽",
+            "头痛", "偏头痛", "胃痛", "胃胀", "腹泻", "便秘", "过敏", "哮喘", "贫血", "骨质疏松",
+            "甲状腺", "甲亢", "甲减", "脂肪肝", "肝功能", "肾功能", "心电图", "体检", "报告",
+            "症状", "化验", "指标", "正常", "异常", "吃药", "用药", "剂量", "处方", "维生素",
+            "钙片", "益生菌", "饮食", "运动", "睡眠", "情绪", "焦虑", "抑郁", "心理"
+    );
 }

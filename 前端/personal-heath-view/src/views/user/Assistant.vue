@@ -64,7 +64,7 @@
           <div class="msg-avatar"><el-icon v-if="msg.role==='user'"><User /></el-icon><el-icon v-else><ChatDotRound /></el-icon></div>
           <div class="msg-bubble">
             <div v-if="msg.intent" class="msg-intent">{{ intentLabel(msg.intent) }}</div>
-            <div class="msg-content" v-html="msg.content"></div>
+            <div class="msg-content" v-html="safeHtml(msg.content)"></div>
             <div v-if="msg.doctors" class="doctor-quick">
               <div v-for="d in msg.doctors" :key="d.key" class="doctor-quick-btn" @click="jumpToDoctor(d.key)">
                 {{ d.icon }} {{ d.name }}
@@ -92,6 +92,7 @@
 
 <script>
 import { getToken } from "@/utils/storage.js";
+import { sanitizeHtml } from "@/utils/sanitize.js";
 import { URL_API } from "@/utils/request.js";
 import { marked } from "marked";
 marked.setOptions({ breaks: true, gfm: true });
@@ -126,6 +127,10 @@ export default {
   },
   methods: {
     // =====  =====
+    safeHtml(html) {
+      return sanitizeHtml(html);
+    },
+
     loadConversations() {
       try {
         const saved = localStorage.getItem(STORAGE_KEY);

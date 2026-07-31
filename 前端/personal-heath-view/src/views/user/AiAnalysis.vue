@@ -132,7 +132,7 @@
                 </div>
                 <div
                   class="message-text"
-                  v-html="formatMessage(msg.content)"
+                  v-html="safeHtml(msg.content)"
                 ></div>
                 <div class="message-time">
                   {{ msg.createTime || formatTime(new Date()) }}
@@ -223,9 +223,10 @@
                   class="voice-btn"
                   :type="isVoiceMode ? 'danger' : 'success'"
                   circle
-                  @mousedown="startVoiceRecord"
-                  @mouseup="stopVoiceRecord"
-                  @mouseleave="cancelVoiceRecord"
+                  @pointerdown="startVoiceRecord"
+                  @pointerup="stopVoiceRecord"
+                  @pointercancel="cancelVoiceRecord"
+                  @pointerleave="cancelVoiceRecord"
                   :loading="isRecording"
                 >
                   <el-icon><Microphone /></el-icon>
@@ -388,6 +389,7 @@
 </template>
 <script>
 import { getToken } from "@/utils/storage.js";
+import { sanitizeHtml } from "@/utils/sanitize.js";
 import { URL_API } from "@/utils/request.js";
 import { marked } from "marked";
 
@@ -427,8 +429,7 @@ export default {
       // 
       isVoiceMode: false,
       isRecording: false,
-      mediaRecorder: null,
-      audioChunks: [],
+      recognition: null,
       voiceCancelled: false,
       // 
       uploadUrl: URL_API + "/file/upload",
@@ -514,6 +515,10 @@ export default {
     };
   },
   computed: {
+    safeHtml(html) {
+      return sanitizeHtml(html);
+    },
+
     recentConversations() {
       return this.conversations.slice(0, 3);
     },
@@ -552,112 +557,85 @@ export default {
       this.loadConversations();
     },
 
-    // ====================  ====================
-    async startVoiceRecord() {
+    // ==================== 语音输入（Web Speech API） ====================
+    // MM-01/MM-11/MM-12/MM-13 整改：语音流程整体改为浏览器原生 SpeechRecognition——
+    // 原实现 MediaRecorder 录制 + sendVoiceToServer 里又启动一次 SpeechRecognition，
+    // 造成"按住录一遍 + 松开再识别一遍"的重复录音；且 MediaRecorder 无
+    // getUserMedia 存在性判断、无权限错误分支、无触摸事件。
+    startVoiceRecord() {
       if (this.loading) return;
-      
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        this.$message.warning('当前浏览器不支持语音输入，请使用 Chrome / Edge');
+        return;
+      }
+      // 上次识别未结束时先终止
+      if (this.recognition) {
+        try { this.recognition.abort(); } catch (e) { /* ignore */ }
+      }
+
+      const recognition = new SpeechRecognition();
+      this.recognition = recognition;
+      this.voiceCancelled = false;
+      recognition.lang = 'zh-CN';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = (event) => {
+        if (this.voiceCancelled) return;
+        const text = event.results[0][0].transcript;
+        if (text && text.trim()) {
+          this.inputMessage = text;
+          this.$message.success('已识别: ' + text);
+          this.sendMessage();
+        } else {
+          this.$message.warning('未识别到有效内容，请重试');
+        }
+      };
+      recognition.onerror = (event) => {
+        // MM-12：按 error.name 分支提示，不统一吞错
+        if (event.error === 'not-allowed') {
+          this.$message.error('麦克风权限被拒绝，请在浏览器地址栏允许使用麦克风');
+        } else if (event.error === 'no-speech') {
+          this.$message.warning('未检测到语音，请重试');
+        } else if (event.error === 'network') {
+          this.$message.error('语音识别网络异常，请检查网络后重试');
+        } else if (event.error === 'aborted') {
+          // 用户主动取消，静默
+        } else {
+          this.$message.error('语音识别失败: ' + event.error);
+        }
+      };
+      recognition.onend = () => {
+        this.isRecording = false;
+        this.recognition = null;
+      };
+
+      this.isRecording = true;
+      this.$message.info('请说话...');
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        this.mediaRecorder = new MediaRecorder(stream);
-        this.audioChunks = [];
-        // MM-03 修复：取消标志位。原实现 cancel 时先清空 audioChunks 再 stop，
-        // 而 stop() 是异步触发 onstop——清空发生在 onstop 执行之前，
-        // 但 onstop 里仍然会用（已被清空的）audioChunks 组装 Blob 并上传，
-        // 造成"用户点取消，整段医疗问诊录音仍被上传"。
-        this.voiceCancelled = false;
-        
-        this.mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            this.audioChunks.push(event.data);
-          }
-        };
-        
-        this.mediaRecorder.onstop = async () => {
-          // 取消时只释放麦克风，绝不把录音发出去
-          stream.getTracks().forEach(track => track.stop());
-          if (this.voiceCancelled) {
-            this.audioChunks = [];
-            return;
-          }
-          const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
-          await this.sendVoiceToServer(audioBlob);
-        };
-        
-        this.mediaRecorder.start();
-        this.isRecording = true;
-        this.$message.info('...');
-      } catch (error) {
-        console.error(':', error);
-        this.$message.error('');
+        recognition.start();
+      } catch (e) {
+        this.isRecording = false;
+        this.recognition = null;
+        this.$message.error('语音识别启动失败');
       }
     },
 
     stopVoiceRecord() {
-      if (this.mediaRecorder && this.isRecording) {
+      if (this.recognition && this.isRecording) {
         this.voiceCancelled = false;
-        this.mediaRecorder.stop();
+        this.recognition.stop();
         this.isRecording = false;
-        this.$message.info('...');
       }
     },
 
     cancelVoiceRecord() {
-      if (this.mediaRecorder && this.isRecording) {
-        // 先置取消标志，再触发 stop；onstop 中据此丢弃录音
+      if (this.recognition && this.isRecording) {
+        // MM-03：先置取消标志再 abort，onresult 中据此丢弃识别结果
         this.voiceCancelled = true;
-        this.mediaRecorder.stop();
+        this.recognition.abort();
         this.isRecording = false;
-        this.audioChunks = [];
-        this.$message.info('');
-      }
-    },
-
-    async sendVoiceToServer(audioBlob) {
-      // MM-01 整改：后端不存在 /ai/voice/asr 端点（core/voice 为占位空壳），
-      // 此前的录音上传必然 404。改为优先使用浏览器原生 Web Speech API 完成
-      // 语音识别，零后端依赖；仅在浏览器不支持时提示降级。
-      try {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-          this.$message.warning('当前浏览器不支持语音输入，请使用 Chrome / Edge');
-          return;
-        }
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'zh-CN';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
-
-        recognition.onresult = (event) => {
-          const text = event.results[0][0].transcript;
-          if (text && text.trim()) {
-            this.inputMessage = text;
-            this.$message.success('已识别: ' + text);
-            // 识别完成后自动发送，与原交互一致
-            this.sendMessage();
-          } else {
-            this.$message.warning('未识别到有效内容，请重试');
-          }
-        };
-        recognition.onerror = (event) => {
-          console.error('语音识别失败:', event.error);
-          if (event.error === 'not-allowed') {
-            this.$message.error('麦克风权限被拒绝，请在浏览器设置中允许');
-          } else if (event.error === 'no-speech') {
-            this.$message.warning('未检测到语音，请重试');
-          } else {
-            this.$message.error('语音识别失败: ' + event.error);
-          }
-        };
-        recognition.onend = () => {
-          this.isRecording = false;
-        };
-        // 一次性识别，避免长按手势与识别时长互相干扰
-        this.isRecording = true;
-        recognition.start();
-      } catch (error) {
-        console.error('语音识别异常:', error);
-        this.isRecording = false;
-        this.$message.error('语音识别不可用');
       }
     },
 
@@ -1005,10 +983,13 @@ export default {
           },
         };
 
+        // MM-24 整改：报告流复用同一 abortController，组件卸载时一并中断
+        this._abortController = new AbortController();
         const response = await fetch(URL_API + "/ai/chat/stream", {
           method: "POST",
           headers: headers,
           body: JSON.stringify(requestBody),
+          signal: this._abortController.signal,
         });
 
         if (!response.ok) {

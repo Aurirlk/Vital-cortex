@@ -23,8 +23,8 @@ import java.util.*;
 @Component
 public class GetHealthDataTool implements Tool {
 
-    @Value("${vector-cache-dir:./vector_cache}")
-    private String vectorCacheDir;
+    @Value("${crm.health-data-dir:${HEALTH_DATA_DIR:./ai_data/health}}")
+    private String healthDataDir;
 
     @Override
     public String getName() {
@@ -105,8 +105,10 @@ public class GetHealthDataTool implements Tool {
      */
     private JSONObject loadHealthDataFromJson(Integer userId) {
         try {
-            String healthDir = vectorCacheDir.replace("vector_cache", "ai_data") + File.separator + "health";
-            Path filePath = Paths.get(healthDir, "user_" + userId + ".json");
+            // AG-15 整改：原实现用 vectorCacheDir.replace("vector_cache","ai_data")
+            // 字符串替换推导路径，配置名一变就静默失效。
+            // 改为独立配置 crm.health-data-dir（可环境变量 HEALTH_DATA_DIR 注入）。
+            Path filePath = Paths.get(healthDataDir, "user_" + userId + ".json");
             
             if (!Files.exists(filePath)) {
                 log.info("[GetHealthDataTool] 健康数据文件不存在: {}", filePath);

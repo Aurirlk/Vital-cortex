@@ -59,7 +59,7 @@
               <span v-else></span>
             </div>
             <div class="msg-content">
-              <div class="msg-text" v-html="formatMessage(msg.content)"></div>
+              <div class="msg-text" v-html="safeHtml(msg.content)"></div>
               <div class="msg-time">{{ msg.time }}</div>
             </div>
           </div>
@@ -99,10 +99,18 @@
 
 <script>
 import { getToken } from "@/utils/storage.js";
+import { sanitizeHtml } from "@/utils/sanitize.js";
 import { URL_API } from "@/utils/request.js";
 
 export default {
   name: "CustomerServiceBall",
+  beforeUnmount() {
+    // MM-25 整改：组件卸载时中断进行中的 SSE 流，避免卸载后继续 setState
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+  },
   data() {
     return {
       showChat: false,
@@ -110,9 +118,14 @@ export default {
       messages: [],
       loading: false,
       sessionId: null,
+      abortController: null,
     };
   },
   methods: {
+    safeHtml(html) {
+      return sanitizeHtml(html);
+    },
+
     toggleChat() {
       this.showChat = !this.showChat;
       if (this.showChat && this.messages.length > 0) {
@@ -138,14 +151,18 @@ export default {
 
       try {
         const token = getToken();
+        // MM-25 整改：鉴权头统一为 token（后端 JwtInterceptor 读 token 头，
+        // 原 Authorization: Bearer 实际无效导致客服球恒 401）；补 AbortController。
+        this.abortController = new AbortController();
         const response = await fetch(
           URL_API + "/user/chat/stream",
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
+              token: token,
             },
+            signal: this.abortController.signal,
             body: JSON.stringify({
               message: msg,
               sessionId: this.sessionId,
@@ -170,6 +187,7 @@ export default {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
+          if (this.abortController && this.abortController.signal.aborted) break;
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
@@ -198,12 +216,16 @@ export default {
           }
         }
       } catch (e) {
+        // 主动 abort 时静默退出，不追加错误消息
+        if (e && e.name === "AbortError") return;
         this.messages.push({
           role: "assistant",
           content: "",
           time: this.formatTime(new Date()),
         });
         console.error(":", e);
+      } finally {
+        this.abortController = null;
       }
 
       this.loading = false;

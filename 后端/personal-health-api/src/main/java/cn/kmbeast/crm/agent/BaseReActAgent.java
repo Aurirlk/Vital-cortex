@@ -140,14 +140,41 @@ public abstract class BaseReActAgent {
         Map<String, Object> toolMsg = new LinkedHashMap<>();
         toolMsg.put("role", "tool");
         toolMsg.put("tool_call_id", tc.getId());
-        toolMsg.put("content", result.toJson());
+        // AG-14 整改：工具返回的 content 本身常是 JSON 字符串，
+        // 直接整体 toJson 会把内层 JSON 转义成 \"...\" 浪费 token 且降低模型解析质量。
+        // 若 content 是合法 JSON，先解析成结构化对象再放入消息。
+        toolMsg.put("content", tryParseJson(result.getContent()));
         messages.add(toolMsg);
+    }
+
+    /**
+     * 若字符串是合法 JSON（对象或数组）则解析为结构化值，否则原样返回。
+     */
+    private Object tryParseJson(String content) {
+        if (content == null || content.isEmpty()) {
+            return content;
+        }
+        String trimmed = content.trim();
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            try {
+                return JSON.parse(trimmed);
+            } catch (Exception ignored) {
+                // 不是 JSON，按原文返回
+            }
+        }
+        return content;
     }
 
     protected ToolResult executeTool(ToolCall tc) {
         Tool tool = toolRegistry.get(tc.getName());
         if (tool == null) {
             return ToolResult.error("未知工具: " + tc.getName());
+        }
+        // AG-16：执行前按 schema 校验参数类型与必填项，避免 ClassCastException
+        String argError = ToolArgsValidator.validate(tool, tc.getArguments());
+        if (argError != null) {
+            log.warn("[ReAct] 工具参数校验失败: {} - {}", tc.getName(), argError);
+            return ToolResult.error("参数校验失败: " + argError);
         }
         Future<ToolResult> future = null;
         try {

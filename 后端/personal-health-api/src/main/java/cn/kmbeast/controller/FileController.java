@@ -166,7 +166,65 @@ public class FileController {
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             throw new IllegalArgumentException("不支持的文件类型");
         }
+        // MM-08 整改：扩展名可伪造，加魔数（magic bytes）校验，
+        // 防上传"改了后缀的恶意文件"（如伪装成 jpg 的可执行文件）
+        if (!matchesMagicBytes(file, extension)) {
+            throw new IllegalArgumentException("文件内容与扩展名不符，已拒绝上传");
+        }
         return IdFactoryUtil.getFileId() + extension;
+    }
+
+    /**
+     * MM-08：按扩展名校验文件头魔数。
+     */
+    private boolean matchesMagicBytes(MultipartFile file, String extension) {
+        try (InputStream in = file.getInputStream()) {
+            byte[] head = new byte[12];
+            int read = in.read(head);
+            if (read <= 0) return false;
+
+            switch (extension) {
+                case ".jpg":
+                case ".jpeg":
+                    return read >= 3 && (head[0] & 0xFF) == 0xFF && (head[1] & 0xFF) == 0xD8 && (head[2] & 0xFF) == 0xFF;
+                case ".png":
+                    return read >= 8 && (head[0] & 0xFF) == 0x89 && head[1] == 'P' && head[2] == 'N' && head[3] == 'G';
+                case ".gif":
+                    return read >= 6 && head[0] == 'G' && head[1] == 'I' && head[2] == 'F' && head[3] == '8';
+                case ".bmp":
+                    return read >= 2 && head[0] == 'B' && head[1] == 'M';
+                case ".webp":
+                    return read >= 12 && head[0] == 'R' && head[1] == 'I' && head[2] == 'F' && head[3] == 'F'
+                            && head[8] == 'W' && head[9] == 'E' && head[10] == 'B' && head[11] == 'P';
+                case ".pdf":
+                    return read >= 5 && head[0] == '%' && head[1] == 'P' && head[2] == 'D' && head[3] == 'F' && head[4] == '-';
+                case ".doc":
+                case ".docx":
+                    // OLE2 (D0 CF 11 E0) 或 ZIP (PK..) 容器
+                    return (read >= 4 && (head[0] & 0xFF) == 0xD0 && (head[1] & 0xFF) == 0xCF
+                            && (head[2] & 0xFF) == 0x11 && (head[3] & 0xFF) == 0xE0)
+                            || (read >= 2 && head[0] == 'P' && head[1] == 'K');
+                case ".txt":
+                    // 文本文件：仅校验不含二进制控制字节（允许 \t \n \r）
+                    for (int i = 0; i < read; i++) {
+                        int b = head[i] & 0xFF;
+                        if (b == 0) return false;
+                        if (b < 0x20 && b != '\t' && b != '\n' && b != '\r') return false;
+                    }
+                    return true;
+                case ".mp4":
+                    return read >= 12 && head[4] == 'f' && head[5] == 't' && head[6] == 'y' && head[7] == 'p';
+                case ".avi":
+                    return read >= 4 && head[0] == 'R' && head[1] == 'I' && head[2] == 'F' && head[3] == 'F';
+                case ".mov":
+                    return read >= 8 && head[4] == 'm' && head[5] == 'o' && head[6] == 'o' && head[7] == 'v';
+                default:
+                    return true;
+            }
+        } catch (Exception e) {
+            log.warn("[File] 魔数校验读取失败: {}", extension, e);
+            return false;
+        }
     }
 
     /**

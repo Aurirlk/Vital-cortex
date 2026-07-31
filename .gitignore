@@ -78,3 +78,6 @@ target/
 *.class
 # WorkBuddy 工作数据（不进仓库）
 .workbuddy/
+# JVM 崩溃转储（ENG-12）
+hs_err_pid*.log
+replay_pid*.log

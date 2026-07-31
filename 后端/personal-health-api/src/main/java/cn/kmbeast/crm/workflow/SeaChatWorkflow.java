@@ -98,7 +98,9 @@ public class SeaChatWorkflow {
 
             return CrmChatResponse.builder()
                     .reply(aiReply)
-                    .rounds(1)
+                    // AG-17 整改：原实现恒写 1，前端无法得知真实推理轮次；
+                    // 改为工具调用次数（无工具调用时为 0，直接回答）。
+                    .rounds(toolsUsed.size())
                     .toolsUsed(toolsUsed)
                     .sessionId(sessionId)
                     .isNewUser(isNewUser)

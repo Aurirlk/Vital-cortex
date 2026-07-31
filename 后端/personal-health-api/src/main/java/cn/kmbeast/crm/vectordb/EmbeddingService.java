@@ -39,7 +39,17 @@ public class EmbeddingService {
 
     private static final int CACHE_MAX = 500;
 
-    private final Map<String, float[]> embeddingCache = new ConcurrentHashMap<>();
+    /**
+     * RAG-16 整改：原实现用 ConcurrentHashMap + size()&lt;MAX 判断，满了就永久停止缓存
+     * （非 LRU）。改为 access-order LinkedHashMap，命中即刷新，超容量自动淘汰最久未用项。
+     */
+    private final Map<String, float[]> embeddingCache = Collections.synchronizedMap(
+            new LinkedHashMap<String, float[]>(CACHE_MAX, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, float[]> eldest) {
+                    return size() > CACHE_MAX;
+                }
+            });
 
     @PostConstruct
     public void init() {
@@ -100,9 +110,8 @@ public class EmbeddingService {
                         vector[i] = embeddingArr.getFloatValue(i);
                     }
 
-                    if (embeddingCache.size() < CACHE_MAX) {
-                        embeddingCache.put(text, vector);
-                    }
+                    // LRU 自动淘汰，无需手动判断容量
+                    embeddingCache.put(text, vector);
                     return vector;
                 }
             } catch (CrmException e) {
@@ -199,9 +208,8 @@ public class EmbeddingService {
                             vector[j] = embeddingArr.getFloatValue(j);
                         }
                         result[uncachedIndices.get(i)] = vector;
-                        if (embeddingCache.size() < CACHE_MAX) {
-                            embeddingCache.put(uncached.get(i), vector);
-                        }
+                        // LRU 自动淘汰
+                        embeddingCache.put(uncached.get(i), vector);
                     }
 
                     return Arrays.asList(result);

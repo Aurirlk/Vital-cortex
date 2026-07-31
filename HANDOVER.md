@@ -1056,6 +1056,42 @@ public class TTSFactory {
 SEC-07/08 架构拆分、AG-05 检查点、AG-09 流式化、AG-11 意图识别改造、RAG-07~10 索引/混合检索、
 ENG-06 Spring Boot 3 升级。
 
+### 13.8 P2 修复记录（2026-07-31 追加）
+
+> 低优先级可修项批量处理：后端 `mvn compile` BUILD SUCCESS，前端 5 文件语法校验通过。
+> 架构级/依赖级 P2（ANN 索引、密钥加密、CDN、ClamAV 等）维持原计划，标注见 13.9。
+
+| 编号 | 修复内容 | 关键文件 |
+|------|----------|----------|
+| MM-08 | 上传增加**魔数（magic bytes）校验**：按扩展名校验文件头（JPEG/PNG/GIF/BMP/WebP/PDF/OLE/ZIP/文本/视频），防"改后缀的恶意文件" | `FileController.java` |
+| MM-11/12/13 | 语音流程整体重写为**纯 SpeechRecognition**：消除「MediaRecorder 录一遍 + SpeechRecognition 再识别一遍」的重复录音 bug；按 `error.name` 分支提示权限/网络/无语音；按钮改 `@pointerdown/up/cancel` 支持移动端 | `AiAnalysis.vue` |
+| MM-18 | **存储型 XSS 修复**：6 处 `v-html` 渲染 AI 输出（marked 产物）接入 DOMPurify 白名单净化；新增 `utils/sanitize.js` 统一入口 | 前端 4 组件 + 新文件 |
+| MM-24 | `generateHealthReport` 流式 fetch 补 `AbortController`（与主聊天流一致，组件卸载中断流） | `AiAnalysis.vue` |
+| MM-25 | 客服球 SSE：鉴权头由无效的 `Authorization: Bearer` 统一为 `token`（后端拦截器读 token 头，原实现恒 401）；补 AbortController + beforeUnmount 清理 | `CustomerServiceBall.vue` |
+| AG-14 | 工具结果二次 JSON 转义消除：content 为合法 JSON 时解析为结构化对象再入消息，省 token 提升解析质量 | `BaseReActAgent.java` |
+| AG-15 | 健康数据路径配置化：`replace("vector_cache","ai_data")` 推导改独立配置 `crm.health-data-dir`���环境变量 `HEALTH_DATA_DIR`） | `GetHealthDataTool.java` |
+| AG-16 | 新增 `ToolArgsValidator`：工具执行前按 schema 校验参数类型与必填项，杜绝 ClassCastException | 新文件 + `BaseReActAgent.java` |
+| AG-17 | `rounds` 恒写 1 改为真实工具调用次数 | `SeaChatWorkflow.java` |
+| RAG-16 | embedding 缓存改 **LRU**（access-order LinkedHashMap），修复"满了永久停缓存" | `EmbeddingService.java` |
+| RAG-17 | 配置键统一：yml 补 `crm.vectordb.store-path`（原 `cache.crm.vector-store` 永不生效），并加注释说明 | `application.yml` |
+| RAG-18 | 本地关键词提取重写：医学词库命中优先（60+ 术语），否则去停用词取完整短语；两处 `substring(0,8)` 降级路径接入 `localExtract` | `DifyWorkflowServiceImpl.java` |
+| SEC-17 | Actuator `show-details: always` → `when-authorized`（详情仅登录管理员可见） | `application.yml` |
+| ENG-12 | 清理 5 个 JVM 崩溃日志（hs_err/replay）；.gitignore 补 `hs_err_pid*.log`/`replay_pid*.log` | 文件清理 + `.gitignore` |
+
+### 13.9 剩余 P2 标注（不修复原因）
+
+| 编号 | 内容 | 不修复原因 |
+|------|------|-----------|
+| SEC-16 / AG-11 / AG-19 | 提示词配置化、意图识别改造、CRM 实体化 | 架构级改造，属产品迭代范畴 |
+| SEC-09 / SEC-12 | 熔断重试、健康数据加密出境 | 需引入框架/合规评估 |
+| RAG-07~10 | ANN 索引、内存优化、写放大、ES 混合检索 | 依赖架构升级（见 11.8 第三阶段） |
+| RAG-14/15 | neo4j 死脚本、GraphRAG 硬编码实体 | 已确认零调用，加 @Deprecated 标注防误用 |
+| MM-09/10 | 音频格式/容器 | 语音已切浏览器原生 API，无音频落盘链路 |
+| MM-14/16 | SettingsDrawer 死配置、playTtsAudio 零调用 | 死代码，待语音后端落地时一并清理 |
+| MM-20 | PDF 指标单位换算 | 解析结果已在 UI 标注需人工核对（建议项） |
+| MM-21 | PDF 页数/类型校验 | ✅ 本轮已修（见 13.8） |
+| ENG-09/10/11 | profile 体系、Grafana/OTel、前端工程升级 | 架构演进范畴 |
+
 ---
 
 ## 附录 A: API 接口清单
@@ -1130,7 +1166,7 @@ source Data/sql/extra_modules_schema.sql;
 
 ---
 
-**文档版本**: v2.3
+**文档版本**: v2.4
 **最后更新**: 2026-07-31
 **编写人**: Sisyphus (AI Agent)
 
@@ -1143,3 +1179,4 @@ source Data/sql/extra_modules_schema.sql;
 | v2.1 | 2026-07-31 | 新增第 12 章多模态子系统专项审查（25 项问题：P0×6 / P1×12 / P2×7），覆盖 TTS/ASR/VAD 空壳、语音接口契约断裂、图片多模态失效、文件上传匿名越权；累计问题 82 项（P0×19 / P1×38 / P2×25） |
 | v2.2 | 2026-07-31 | **首轮 P0 修复完成**：新增第 13 章修复记录；11.8 整改路线图标注状态。全部 19 项 P0 + 多数 P1 已完成（安全攻击链、Agent、RAG、多模态、工程化），后端编译通过；遗留 6 项见 13.6 |
 | v2.3 | 2026-07-31 | **P1 修复（13.7）+ Git 仓库清理**：完成 11 项 P1（AG-04/06/07/08/10/12/13、SEC-10/14、RAG-11/12、ENG-07）；`dir/` 30GB 模型权重解除 Git 跟踪（待你本地 push）；模型卡生成（dir/merged_model/.../README.md） |
+| v2.4 | 2026-07-31 | **P2 修复（13.8）+ 交付手册**：完成 13 项 P2（MM-08/11/12/13/18/24/25、AG-14~17、RAG-16~18、SEC-17、ENG-12）；本手册转型为用户交付手册（见文件头说明） |

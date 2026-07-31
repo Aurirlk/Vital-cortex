@@ -49,7 +49,7 @@
             </template>
           </el-input>
         </div>
-        <div class="dialog-result" v-if="symptomResult" v-html="symptomResult"></div>
+        <div class="dialog-result" v-if="symptomResult" v-html="safeHtml(symptomResult)"></div>
         <div class="dialog-result" v-if="symptomLoading">...</div>
       </div>
     </el-dialog>
@@ -80,7 +80,7 @@
             </template>
           </el-input>
         </div>
-        <div class="dialog-result" v-if="drugResult" v-html="drugResult"></div>
+        <div class="dialog-result" v-if="drugResult" v-html="safeHtml(drugResult)"></div>
         <div class="dialog-result" v-if="drugLoading">...</div>
       </div>
     </el-dialog>
@@ -95,7 +95,7 @@
             </template>
           </el-input>
         </div>
-        <div class="dialog-result" v-if="knowledgeResult" v-html="knowledgeResult"></div>
+        <div class="dialog-result" v-if="knowledgeResult" v-html="safeHtml(knowledgeResult)"></div>
         <div class="dialog-result" v-if="knowledgeLoading">...</div>
       </div>
     </el-dialog>
@@ -104,6 +104,7 @@
 
 <script>
 import { getToken } from "@/utils/storage.js";
+import { sanitizeHtml } from "@/utils/sanitize.js";
 import { URL_API } from "@/utils/request.js";
 import { marked } from "marked";
 
@@ -134,6 +135,10 @@ export default {
     };
   },
   methods: {
+    safeHtml(html) {
+      return sanitizeHtml(html);
+    },
+
     openFunction(type) {
       this.showPanel = false;
       if (type === "symptom") this.showSymptom = true;
