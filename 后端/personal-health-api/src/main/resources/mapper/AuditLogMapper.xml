@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.AuditLogMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO audit_log (user_id, user_name, action, resource, resource_id, description,
+                               ip_address, user_agent, request_method, request_url, status, error_msg, create_time)
+        VALUES (#{userId}, #{userName}, #{action}, #{resource}, #{resourceId}, #{description},
+                #{ipAddress}, #{userAgent}, #{requestMethod}, #{requestUrl}, #{status}, #{errorMsg}, #{createTime})
+    </insert>
+
+    <select id="query" resultType="cn.kmbeast.pojo.entity.AuditLog">
+        SELECT * FROM audit_log
+        <where>
+            <if test="userId != null">AND user_id = #{userId}</if>
+            <if test="action != null and action != ''">AND action = #{action}</if>
+            <if test="resource != null and resource != ''">AND resource = #{resource}</if>
+        </where>
+        ORDER BY create_time DESC
+        <if test="current != null and size != null">LIMIT #{current}, #{size}</if>
+    </select>
+
+    <select id="queryCount" resultType="integer">
+        SELECT COUNT(*) FROM audit_log
+        <where>
+            <if test="userId != null">AND user_id = #{userId}</if>
+            <if test="action != null and action != ''">AND action = #{action}</if>
+            <if test="resource != null and resource != ''">AND resource = #{resource}</if>
+        </where>
+    </select>
+</mapper>

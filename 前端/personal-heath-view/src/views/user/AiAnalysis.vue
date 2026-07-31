@@ -1,20 +1,20 @@
-﻿<template>
+<template>
   <div class="ai-analysis-container">
     <div class="ai-header">
       <h2 class="ai-title">
         <el-icon><MagicStick /></el-icon>
-        AI 健康分析
+        AI 
       </h2>
-      <span class="ai-subtitle">选择智能体角色，获取专业的健康咨询建议</span>
+      <span class="ai-subtitle"></span>
     </div>
 
     <el-row :gutter="16">
-      <!-- 左侧：角色选择 + 文件报告 -->
+      <!--  +  -->
       <el-col :span="5">
         <div class="role-panel">
           <div class="panel-title">
             <el-icon><User /></el-icon>
-            智能体角色
+            
           </div>
           <div class="role-list">
             <div
@@ -31,32 +31,33 @@
             </div>
           </div>
 
-          <!-- 文件上传 & 健康报告 -->
+          <!--  &  -->
           <div class="panel-title" style="margin-top: 16px">
             <el-icon><Document /></el-icon>
-            文件 & 报告
+             & 
           </div>
           <div class="file-actions">
-            <el-upload
-              class="upload-btn"
-              :action="uploadUrl"
-              :show-file-list="false"
-              :on-success="handleFileUpload"
-              :headers="uploadHeaders"
-              accept=".pdf,.doc,.docx,.txt,.jpg,.png"
-            >
-              <el-button size="small" type="primary" plain>
-                <el-icon><Upload /></el-icon> 上传文件
-              </el-button>
-            </el-upload>
+            <!-- MM-04 整改：图片/文件附件入口临时禁用。
+                 后端 DTO 的 files 字段全仓库零消费（根本没有视觉模型链路），
+                 且前端 push 的对象结构与后端 List<String> 契约不匹配，
+                 附带任意附件都会导致聊天请求 400。
+                 在真正接入多模态（视觉/PDF解析）之前，保留上传按钮只会制造
+                 必然失败的体验，故置灰并给出说明。 -->
+            <el-tooltip content="多模态能力尚未接入，附件功能暂不可用" placement="top">
+              <span>
+                <el-button size="small" type="primary" plain disabled>
+                  <el-icon><Upload /></el-icon> 
+                </el-button>
+              </span>
+            </el-tooltip>
             <el-button size="small" type="success" plain @click="generateHealthReport">
-              <el-icon><DataAnalysis /></el-icon> 生成报告
+              <el-icon><DataAnalysis /></el-icon> 
             </el-button>
           </div>
           <div v-if="uploadFiles.length > 0" class="file-list">
             <div v-for="(file, index) in uploadFiles" :key="index" class="file-item">
               <el-icon><Document /></el-icon>
-              <span class="file-name">{{ file.name || '文件' + (index + 1) }}</span>
+              <span class="file-name">{{ file.name || '' + (index + 1) }}</span>
               <el-button type="text" size="small" @click="removeFile(index)">
                 <el-icon><Delete /></el-icon>
               </el-button>
@@ -65,7 +66,7 @@
         </div>
       </el-col>
 
-      <!-- 中间：聊天区域 -->
+      <!--  -->
       <el-col :span="14">
         <div class="chat-panel">
           <div class="chat-header">
@@ -74,14 +75,14 @@
               {{ roles[currentRole].name }}
             </span>
             <span v-if="currentConversationId" class="conv-id-badge">
-              会话 #{{ currentConversationId }}
+               #{{ currentConversationId }}
             </span>
             <div>
               <el-button size="small" type="warning" plain @click="exportChat">
-                <el-icon><Download /></el-icon> 导出
+                <el-icon><Download /></el-icon> 
               </el-button>
               <el-button size="small" type="danger" plain @click="clearChat">
-                <el-icon><Delete /></el-icon> 清空
+                <el-icon><Delete /></el-icon> 
               </el-button>
             </div>
           </div>
@@ -122,11 +123,11 @@
               </div>
               <div class="message-content">
                 <div class="message-role">
-                  {{ msg.role === "user" ? "用户" : roles[currentRole].name }}
+                  {{ msg.role === "user" ? "" : roles[currentRole].name }}
                 </div>
                 <div v-if="msg.toolCalls && msg.toolCalls.length" style="margin-bottom: 6px">
                   <span v-for="(tc, i) in msg.toolCalls" :key="i" class="tool-call-tag">
-                    🔧 {{ tc.tool }}
+                     {{ tc.tool }}
                   </span>
                 </div>
                 <div
@@ -151,91 +152,106 @@
             </div>
           </div>
 
-          <!-- 功能按钮区域 - 单行全称 -->
+          <!--  -  -->
           <div class="feature-bar">
-            <el-tooltip content="联网搜索获取最新信息" placement="top">
+            <el-tooltip content="" placement="top">
               <el-button 
                 :type="enableWebSearch ? 'primary' : 'info'"
                 size="small"
                 round
                 @click="enableWebSearch = !enableWebSearch"
               >
-                <el-icon><Search /></el-icon> 联网搜索
+                <el-icon><Search /></el-icon> 
               </el-button>
             </el-tooltip>
-            <el-tooltip content="启用深度推理，回答更详细但耗时更长" placement="top">
+            <el-tooltip content="" placement="top">
               <el-button 
                 :type="enableDeepThink ? 'warning' : 'info'"
                 size="small"
                 round
                 @click="enableDeepThink = !enableDeepThink"
               >
-                <el-icon><MagicStick /></el-icon> 深度思考
+                <el-icon><MagicStick /></el-icon> 
               </el-button>
             </el-tooltip>
-            <el-tooltip content="参考平台健康知识库文章" placement="top">
+            <el-tooltip content="" placement="top">
               <el-button 
                 :type="enableKnowledgeBase ? 'success' : 'info'"
                 size="small"
                 round
                 @click="enableKnowledgeBase = !enableKnowledgeBase"
               >
-                <el-icon><Collection /></el-icon> 知识库
+                <el-icon><Collection /></el-icon> 
               </el-button>
             </el-tooltip>
-            <el-tooltip content="读取个人健康指标数据" placement="top">
+            <el-tooltip content="" placement="top">
               <el-button 
                 :type="enableHealthData ? 'danger' : 'info'"
                 size="small"
                 round
                 @click="enableHealthData = !enableHealthData"
               >
-                <el-icon><FirstAidKit /></el-icon> 健康数据
+                <el-icon><FirstAidKit /></el-icon> 
               </el-button>
             </el-tooltip>
-            <el-tooltip content="流式输出，逐字显示回答" placement="top">
+            <el-tooltip content="" placement="top">
               <el-button 
                 :type="enableStream ? '' : 'info'"
                 size="small"
                 round
                 @click="enableStream = !enableStream"
               >
-                <el-icon><VideoPlay /></el-icon> 流式输出
+                <el-icon><VideoPlay /></el-icon> 
               </el-button>
             </el-tooltip>
           </div>
           
-          <!-- 输入区域 -->
+          <!--  -->
           <div class="chat-input-area">
             <el-input
               class="chat-input"
               v-model="inputMessage"
               type="textarea"
               :rows="3"
-              placeholder="描述您的症状、饮食需求或上传报告..."
+              placeholder="..."
               @keyup.ctrl.enter="sendMessage"
               :disabled="loading"
             ></el-input>
-            <el-button
-              class="send-btn"
-              type="primary"
-              @click="sendMessage"
-              :loading="loading"
-              :disabled="!inputMessage.trim()"
-            >
-              <el-icon><Promotion /></el-icon> 发送
-            </el-button>
+            <div class="input-actions">
+              <el-tooltip content=" ()" placement="top">
+                <el-button
+                  class="voice-btn"
+                  :type="isVoiceMode ? 'danger' : 'success'"
+                  circle
+                  @mousedown="startVoiceRecord"
+                  @mouseup="stopVoiceRecord"
+                  @mouseleave="cancelVoiceRecord"
+                  :loading="isRecording"
+                >
+                  <el-icon><Microphone /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-button
+                class="send-btn"
+                type="primary"
+                @click="sendMessage"
+                :loading="loading"
+                :disabled="!inputMessage.trim()"
+              >
+                <el-icon><Promotion /></el-icon> 
+              </el-button>
+            </div>
           </div>
         </div>
       </el-col>
 
-      <!-- 右侧：历史会话 + 生成设置边栏 -->
+      <!--  +  -->
       <el-col :span="5">
         <div class="settings-panel">
-          <!-- 历史会话 -->
+          <!--  -->
           <div class="panel-title">
             <el-icon><ChatLineRound /></el-icon>
-            历史会话
+            
             <el-button
               type="primary"
               link
@@ -243,12 +259,12 @@
               style="float: right"
               @click="showHistoryDialog = true"
             >
-              查看全部
+              
             </el-button>
           </div>
           <div class="recent-history">
             <div v-if="conversations.length === 0" class="no-recent">
-              暂无会话
+              
             </div>
             <div
               v-for="conv in recentConversations"
@@ -257,17 +273,17 @@
               @click="loadConversation(conv)"
             >
               <span class="recent-icon"><el-icon :size="16"><ChatDotRound /></el-icon></span>
-              <span class="recent-title">{{ conv.title || '新会话' }}</span>
+              <span class="recent-title">{{ conv.title || '' }}</span>
             </div>
           </div>
           
-          <!-- 生成设置 -->
+          <!--  -->
           <div class="panel-title" style="margin-top: 16px">
             <el-icon><Setting /></el-icon>
-            生成设置
+            
           </div>
           
-          <!-- 生成模式 - 两列 -->
+          <!--  -  -->
           <div class="mode-tags-grid">
             <span v-for="m in genModes" :key="m.key"
               :class="['mode-tag', { 'mode-active': genMode === m.key }]"
@@ -277,7 +293,7 @@
           <!-- Temperature -->
           <div class="param-item">
             <div class="param-row">
-              <span class="param-label">随机性</span>
+              <span class="param-label"></span>
               <span class="param-value">{{ temperature }}</span>
             </div>
             <el-slider v-model="temperature" :min="0" :max="2" :step="0.1" :show-tooltip="false" size="small" />
@@ -292,29 +308,29 @@
             <el-slider v-model="topP" :min="0" :max="1" :step="0.05" :show-tooltip="false" size="small" />
           </div>
           
-          <!-- 重复惩罚 -->
+          <!--  -->
           <div class="param-item">
             <div class="param-row">
-              <span class="param-label">重复惩罚</span>
+              <span class="param-label"></span>
               <span class="param-value">{{ repetitionPenalty }}</span>
             </div>
             <el-slider v-model="repetitionPenalty" :min="1" :max="2" :step="0.1" :show-tooltip="false" size="small" />
           </div>
           
-          <!-- 上下文轮数 -->
+          <!--  -->
           <div class="param-item">
             <div class="param-row">
-              <span class="param-label">上下文轮数</span>
+              <span class="param-label"></span>
               <span class="param-value">{{ contextRounds }}</span>
             </div>
             <el-slider v-model="contextRounds" :min="0" :max="20" :step="1" :show-tooltip="false" size="small" />
           </div>
           
-          <!-- 最大回复长度 -->
+          <!--  -->
           <div class="param-item">
             <div class="param-row">
-              <span class="param-label">最大回复</span>
-              <span class="param-value">{{ maxReplyLength === 0 ? '不限' : maxReplyLength }}</span>
+              <span class="param-label"></span>
+              <span class="param-value">{{ maxReplyLength === 0 ? '' : maxReplyLength }}</span>
             </div>
             <el-slider v-model="maxReplyLength" :min="0" :max="8192" :step="64" :show-tooltip="false" size="small" />
           </div>
@@ -322,23 +338,23 @@
       </el-col>
     </el-row>
     
-    <!-- 历史会话弹出框 -->
-    <el-dialog v-model="showHistoryDialog" title="历史会话" width="600px">
+    <!--  -->
+    <el-dialog v-model="showHistoryDialog" title="" width="600px">
       <div class="history-dialog-content">
         <div class="history-header">
           <el-input
             v-model="historySearchKey"
-            placeholder="搜索会话标题..."
+            placeholder="..."
             clearable
             prefix-icon="Search"
           />
           <el-button type="primary" @click="newConversation">
-            <el-icon><Plus /></el-icon> 新建会话
+            <el-icon><Plus /></el-icon> 
           </el-button>
         </div>
         <div class="history-list">
           <div v-if="filteredConversations.length === 0" class="no-history">
-            {{ historySearchKey ? '没有找到匹配的会话' : '暂无历史会话' }}
+            {{ historySearchKey ? '' : '' }}
           </div>
           <div
             v-for="conv in filteredConversations"
@@ -361,7 +377,7 @@
               </el-button>
             </div>
             <div class="history-meta">
-              <span>{{ conv.messageCount }}条消息</span>
+              <span>{{ conv.messageCount }}</span>
               <span>{{ formatConvTime(conv.lastMessageTime) }}</span>
             </div>
           </div>
@@ -374,10 +390,10 @@
 import { getToken } from "@/utils/storage.js";
 import { marked } from "marked";
 
-// 配置 marked
+//  marked
 marked.setOptions({
-  breaks: true, // 支持换行符转换为 <br>
-  gfm: true,    // 支持 GitHub Flavored Markdown
+  breaks: true, //  <br>
+  gfm: true,    //  GitHub Flavored Markdown
 });
 
 export default {
@@ -390,7 +406,7 @@ export default {
       loading: false,
       fileList: [],
       uploadFiles: [],
-      // 健康助手悬浮球相关
+      // 
       showHealthAssistant: false,
       healthMessages: [],
       healthInput: "",
@@ -398,19 +414,25 @@ export default {
       healthConversationId: null,
       currentConversationId: null,
       conversations: [],
-      // 历史会话弹出框
+      // 
       showHistoryDialog: false,
       historySearchKey: "",
-      // 用户设置
+      // 
       enableStream: false,
       enableWebSearch: false,
       enableKnowledgeBase: true,
       enableDeepThink: false,
       enableHealthData: true,
-      // 文件上传
+      // 
+      isVoiceMode: false,
+      isRecording: false,
+      mediaRecorder: null,
+      audioChunks: [],
+      voiceCancelled: false,
+      // 
       uploadUrl: "http://localhost:21090/api/personal-health/v1.0/file/upload",
       uploadHeaders: {},
-      // 高级参数
+      // 
       genMode: "balanced",
       temperature: 0.8,
       topP: 1.0,
@@ -421,71 +443,71 @@ export default {
       longMemory: false,
       fileBox: false,
       genModes: [
-        { key: "precise", label: "精确模式", temp: 0.2, topP: 0.7 },
-        { key: "balanced", label: "平衡模式", temp: 0.8, topP: 1.0 },
-        { key: "creative", label: "创意模式", temp: 1.2, topP: 0.95 },
-        { key: "custom", label: "自定义", temp: 0.8, topP: 1.0 },
+        { key: "precise", label: "", temp: 0.2, topP: 0.7 },
+        { key: "balanced", label: "", temp: 0.8, topP: 1.0 },
+        { key: "creative", label: "", temp: 1.2, topP: 0.95 },
+        { key: "custom", label: "", temp: 0.8, topP: 1.0 },
       ],
       roles: {
         consultant: {
-          name: "健康助手",
+          name: "",
           icon: "Service",
           color: "#667eea",
-          desc: "智能健康咨询·综合服务",
+          desc: "·",
           temp: 0.3,
           topP: 0.5,
-          welcome: "您好！我是您的健康助手，可以帮您解答健康相关问题、查询药品信息、分析体检报告等。请问有什么可以帮您？",
-          presets: ["我最近经常失眠怎么办？", "帮我解读一下体检报告", "高血压患者饮食要注意什么？", "推荐适合中老年人的运动方式"],
+          welcome: "",
+          presets: ["", "", "", ""],
         },
         doctor: {
-          name: "全科医生",
+          name: "",
           icon: "FirstAidKit",
           color: "#e74c3c",
-          desc: "症状分析与就医建议",
+          desc: "",
           temp: 0.2,
           topP: 0.3,
-          welcome: "您好，我是全科医生AI助手。请描述您的症状或不适，我会为您提供初步分析和就医建议。请注意，AI建议仅供参考，不能替代专业医生的诊断。",
-          presets: ["最近总是头疼，可能是什么原因？", "孩子发烧38.5度怎么处理？", "胸口偶尔闷痛需要就医吗？", "血压偏高该如何调理？"],
+          welcome: "AIAI",
+          presets: ["", "38.5", "", ""],
         },
         nutritionist: {
-          name: "营养师",
+          name: "",
           icon: "Apple",
           color: "#27ae60",
-          desc: "膳食规划与营养指导",
+          desc: "",
           temp: 0.6,
           topP: 0.8,
-          welcome: "您好！我是您的AI营养师。无论是日常膳食搭配、减脂增肌饮食，还是特殊人群（孕妇、糖尿病等）的营养方案，我都可以为您提供专业建议。",
-          presets: ["减肥期间一天应该吃多少热量？", "糖尿病患者能吃水果吗？", "健身增肌的饮食计划", "孩子挑食不爱吃蔬菜怎么办？"],
+          welcome: "AI",
+          presets: ["", "", "", ""],
         },
         psychologist: {
-          name: "心理咨询",
+          name: "",
           icon: "ChatDotRound",
           color: "#f39c12",
-          desc: "情绪疏导与心理支持",
+          desc: "",
           temp: 0.8,
           topP: 0.9,
-          welcome: "您好，这里是AI心理咨询室。我将为您提供一个安全、无评判的空间，倾听您的困扰并给予支持。请放心倾诉，我会认真倾听。",
-          presets: ["最近工作压力很大，总是焦虑", "失眠严重，脑子里停不下来", "和家人关系紧张怎么办？", "感觉生活没有动力，情绪低落"],
+          welcome: "AI",
+          presets: ["", "", "", ""],
         },
         analyst: {
-          name: "报告分析",
+          name: "",
           icon: "DataAnalysis",
           color: "#3498db",
-          desc: "体检报告解读与分析",
+          desc: "",
           temp: 0.1,
           topP: 0.1,
-          welcome: "您好，我是AI体检报告分析师。请上传或描述您的体检指标，我会为您逐项解读，标注异常值并给出健康建议。",
-          presets: ["帮我分析血常规报告", "肝功能指标偏高意味着什么？", "血脂异常需要怎么调理？", "肿瘤标志物升高一定是癌症吗？"],
+          welcome: "AI",
+          presets: ["", "", "", ""],
         },
         general_assistant: {
-          name: "全能助手",
+          name: "",
           icon: "MagicStick",
           color: "#8e44ad",
-          desc: "综合健康咨询与科普",
+          desc: "",
           temp: 0.5,
           topP: 0.5,
-          welcome: "您好！我是全能健康助手，可以回答各类健康知识、医疗常识、养生保健等问题。有什么想了解的，尽管问我！",
-          presets: ["每天喝多少水合适？", "久坐办公室怎么缓解腰椎压力？", "不同季节养生有什么讲究？", "如何提高免疫力？"],
+          welcome: "",
+          presets: ["", "", "", ""],
         },
       },
     };
@@ -506,14 +528,14 @@ export default {
   },
   created() {
     this.loadConversations();
-    // 初始化上传头
+    // 
     const token = getToken();
     if (token) {
       this.uploadHeaders = { token: token };
     }
   },
   beforeUnmount() {
-    // 终止进行中的 SSE 连接
+    //  SSE 
     if (this._abortController) {
       this._abortController.abort();
     }
@@ -528,12 +550,142 @@ export default {
       this.messages = [];
       this.loadConversations();
     },
-    // 发送预置问题
+
+    // ====================  ====================
+    async startVoiceRecord() {
+      if (this.loading) return;
+      
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.mediaRecorder = new MediaRecorder(stream);
+        this.audioChunks = [];
+        // MM-03 修复：取消标志位。原实现 cancel 时先清空 audioChunks 再 stop，
+        // 而 stop() 是异步触发 onstop——清空发生在 onstop 执行之前，
+        // 但 onstop 里仍然会用（已被清空的）audioChunks 组装 Blob 并上传，
+        // 造成"用户点取消，整段医疗问诊录音仍被上传"。
+        this.voiceCancelled = false;
+        
+        this.mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            this.audioChunks.push(event.data);
+          }
+        };
+        
+        this.mediaRecorder.onstop = async () => {
+          // 取消时只释放麦克风，绝不把录音发出去
+          stream.getTracks().forEach(track => track.stop());
+          if (this.voiceCancelled) {
+            this.audioChunks = [];
+            return;
+          }
+          const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
+          await this.sendVoiceToServer(audioBlob);
+        };
+        
+        this.mediaRecorder.start();
+        this.isRecording = true;
+        this.$message.info('...');
+      } catch (error) {
+        console.error(':', error);
+        this.$message.error('');
+      }
+    },
+
+    stopVoiceRecord() {
+      if (this.mediaRecorder && this.isRecording) {
+        this.voiceCancelled = false;
+        this.mediaRecorder.stop();
+        this.isRecording = false;
+        this.$message.info('...');
+      }
+    },
+
+    cancelVoiceRecord() {
+      if (this.mediaRecorder && this.isRecording) {
+        // 先置取消标志，再触发 stop；onstop 中据此丢弃录音
+        this.voiceCancelled = true;
+        this.mediaRecorder.stop();
+        this.isRecording = false;
+        this.audioChunks = [];
+        this.$message.info('');
+      }
+    },
+
+    async sendVoiceToServer(audioBlob) {
+      // MM-01 整改：后端不存在 /ai/voice/asr 端点（core/voice 为占位空壳），
+      // 此前的录音上传必然 404。改为优先使用浏览器原生 Web Speech API 完成
+      // 语音识别，零后端依赖；仅在浏览器不支持时提示降级。
+      try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          this.$message.warning('当前浏览器不支持语音输入，请使用 Chrome / Edge');
+          return;
+        }
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'zh-CN';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onresult = (event) => {
+          const text = event.results[0][0].transcript;
+          if (text && text.trim()) {
+            this.inputMessage = text;
+            this.$message.success('已识别: ' + text);
+            // 识别完成后自动发送，与原交互一致
+            this.sendMessage();
+          } else {
+            this.$message.warning('未识别到有效内容，请重试');
+          }
+        };
+        recognition.onerror = (event) => {
+          console.error('语音识别失败:', event.error);
+          if (event.error === 'not-allowed') {
+            this.$message.error('麦克风权限被拒绝，请在浏览器设置中允许');
+          } else if (event.error === 'no-speech') {
+            this.$message.warning('未检测到语音，请重试');
+          } else {
+            this.$message.error('语音识别失败: ' + event.error);
+          }
+        };
+        recognition.onend = () => {
+          this.isRecording = false;
+        };
+        // 一次性识别，避免长按手势与识别时长互相干扰
+        this.isRecording = true;
+        recognition.start();
+      } catch (error) {
+        console.error('语音识别异常:', error);
+        this.isRecording = false;
+        this.$message.error('语音识别不可用');
+      }
+    },
+
+    async playTtsAudio(text) {
+      // MM-01 整改：后端 /ai/voice/tts 端点不存在，原实现必然 404。
+      // 改用浏览器 SpeechSynthesis 朗读（Chrome/Edge/Safari 均支持，
+      // 且无需上传任何音频数据到服务端）。
+      try {
+        if (!('speechSynthesis' in window)) {
+          this.$message.warning('当前浏览器不支持语音朗读');
+          return;
+        }
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'zh-CN';
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error('TTS:', error);
+        this.$message.error('语音朗读不可用');
+      }
+    },
+
+    // 
     sendPreset(question) {
       this.inputMessage = question;
       this.sendMessage();
     },
-    // 设置生成模式
+    // 
     setGenMode(mode) {
       this.genMode = mode;
       const m = this.genModes.find(x => x.key === mode);
@@ -542,25 +694,25 @@ export default {
         this.topP = m.topP;
       }
     },
-    // 加载会话列表
+    // 
     async loadConversations() {
       try {
-        // 不传 agentType，获取所有角色的历史会话
+        //  agentType
         const response = await this.$axios.get("/ai/conversations");
         const { data } = response;
         if (data.code === 200) {
           this.conversations = data.data || [];
         }
       } catch (e) {
-        console.error("加载会话列表异常:", e);
+        console.error(":", e);
       }
     },
-    // 新建会话
+    // 
     newConversation() {
       this.currentConversationId = null;
       this.messages = [];
     },
-    // 加载历史会话
+    // 
     async loadConversation(conv) {
       this.currentConversationId = conv.id;
       this.currentRole = conv.agentType;
@@ -577,15 +729,15 @@ export default {
           this.scrollToBottom();
         }
       } catch (e) {
-        console.error("加载会话消息异常:", e);
+        console.error(":", e);
       }
     },
-    // 删除会话
+    // 
     async deleteConversation(convId) {
       try {
-        await this.$confirm("确定删除该会话？", "提示", {
-          confirmButtonText: "确定",
-          cancelButtonText: "取消",
+        await this.$confirm("", "", {
+          confirmButtonText: "",
+          cancelButtonText: "",
           type: "warning",
         });
         const response = await this.$axios.delete(
@@ -593,7 +745,7 @@ export default {
         );
         const { data } = response;
         if (data.code === 200) {
-          this.$message.success("删除成功");
+          this.$message.success("");
           if (this.currentConversationId === convId) {
             this.newConversation();
           }
@@ -601,11 +753,11 @@ export default {
         }
       } catch (e) {
         if (e !== "cancel") {
-          console.error("删除会话异常:", e);
+          console.error(":", e);
         }
       }
     },
-    // 发送消息
+    // 
     async sendMessage() {
       const msg = this.inputMessage.trim();
       if (!msg || this.loading) return;
@@ -621,7 +773,7 @@ export default {
 
       await this.sendAiMessage(msg);
     },
-    // AI 对话 - SSE 流式输出
+    // AI  - SSE 
     async sendAiMessage(msg) {
       const aiMsg = {
         role: "assistant",
@@ -637,17 +789,17 @@ export default {
         const headers = { "Content-Type": "application/json" };
         if (token) headers["token"] = token;
 
-        // 如果开启知识库，先提取关键词
+        // 
         let keywords = null;
         if (this.enableKnowledgeBase) {
           try {
             const kwRes = await this.$axios.post("/ai/keywords/extract", { message: msg });
             if (kwRes.data.code === 200 && kwRes.data.data && kwRes.data.data.length > 0) {
               keywords = kwRes.data.data;
-              console.log("[Dify] 关键词提取:", keywords);
+              console.log("[Dify] :", keywords);
             }
           } catch (e) {
-            console.warn("[Dify] 关键词提取失败:", e);
+            console.warn("[Dify] :", e);
           }
         }
 
@@ -667,7 +819,8 @@ export default {
           enableDeepThink: this.enableDeepThink,
           enableHealthData: this.enableHealthData,
           keywords: keywords,
-          files: this.uploadFiles,
+          // MM-04 整改：后端不消费 files 字段，且类型不匹配会 400，一律不再发送
+          files: [],
           userId: userInfo.id || null,
           context: {
             userName: userInfo.userName || "",
@@ -675,13 +828,13 @@ export default {
           },
         };
 
-        // 根据是否流式输出选择接口
+        // 
         const apiUrl = this.enableStream
           ? "http://localhost:21090/api/personal-health/v1.0/ai/chat/stream"
           : "http://localhost:21090/api/personal-health/v1.0/ai/chat";
 
         if (this.enableStream) {
-          // 流式输出
+          // 
           const response = await fetch(apiUrl, {
             method: "POST",
             headers: headers,
@@ -720,7 +873,7 @@ export default {
             this.scrollToBottom();
           }
         } else {
-          // 非流式输出
+          // 
           try {
             const response = await fetch(apiUrl, {
               method: "POST",
@@ -733,32 +886,32 @@ export default {
             
             let reply = "";
             if (result.code === 200 && result.data) {
-              reply = (result.data.reply || "暂无回复")
+              reply = (result.data.reply || "")
                 .replace(/<think>[\s\S]*?<\/think>/gi, "");
               if (result.data.conversationId) {
                 this.currentConversationId = parseInt(result.data.conversationId);
               }
             } else {
-              reply = "请求失败：" + (result.msg || "未知错误");
+              reply = "" + (result.msg || "");
             }
             const idx = this.messages.length - 1;
             this.messages.splice(idx, 1, { ...aiMsg, content: reply });
           } catch (e) {
-            console.error("AI非流式请求异常:", e);
+            console.error("AI:", e);
             const idx = this.messages.length - 1;
-            this.messages.splice(idx, 1, { ...aiMsg, content: "网络异常：" + e.message });
+            this.messages.splice(idx, 1, { ...aiMsg, content: "" + e.message });
           }
         }
       } catch (e) {
         if (e.name !== "AbortError") {
-          aiMsg.content += "\n\n网络异常，请检查后重试！";
-          console.error("AI SSE 异常:", e);
+          aiMsg.content += "\n\n";
+          console.error("AI SSE :", e);
         }
       }
       this.loading = false;
       this.scrollToBottom();
     },
-    // 处理 AI SSE 事件
+    //  AI SSE 
     handleAiSseEvent(event, data, aiMsg) {
       switch (event) {
         case "answer_chunk":
@@ -771,27 +924,27 @@ export default {
           this.loadConversations();
           break;
         case "error":
-          aiMsg.content += "\n\n" + (data.message || "服务异常");
+          aiMsg.content += "\n\n" + (data.message || "");
           break;
       }
     },
-    // 清空当前对话
+    // 
     clearChat() {
       this.currentConversationId = null;
       this.messages = [];
       this.uploadFiles = [];
       this.fileList = [];
     },
-    // 导出对话
+    // 
     exportChat() {
       if (this.messages.length === 0) {
-        this.$message.warning("暂无对话记录");
+        this.$message.warning("");
         return;
       }
       const content = this.messages
         .map((m) => {
           const role =
-            m.role === "user" ? "用户" : this.roles[this.currentRole].name;
+            m.role === "user" ? "" : this.roles[this.currentRole].name;
           return `[${m.createTime || ""}] ${role}:\n${m.content}\n`;
         })
         .join("\n");
@@ -799,7 +952,7 @@ export default {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `AI对话记录_${new Date().toISOString().slice(0, 10)}.txt`;
+      a.download = `AI_${new Date().toISOString().slice(0, 10)}.txt`;
       a.click();
       URL.revokeObjectURL(url);
     },
@@ -809,9 +962,9 @@ export default {
           url: res.data,
           name: file.name
         });
-        this.$message.success("文件上传成功");
+        this.$message.success("");
       } else {
-        this.$message.error("文件上传失败");
+        this.$message.error("");
       }
     },
     removeFile(index) {
@@ -825,8 +978,8 @@ export default {
         const headers = { "Content-Type": "application/json" };
         if (token) headers["token"] = token;
 
-        // 发送生成健康报告请求
-        const msg = "请根据我的健康数据生成一份详细的健康报告，包含健康指标分析、异常提示和改善建议。";
+        // 
+        const msg = "";
         
         const aiMsg = {
           role: "assistant",
@@ -838,7 +991,7 @@ export default {
         const requestBody = {
           conversationId: this.currentConversationId,
           message: msg,
-          role: "analyst", // 使用报告分析角色
+          role: "analyst", // 
           temperature: 0.1,
           topP: 0.1,
           enableWebSearch: false,
@@ -888,7 +1041,7 @@ export default {
           this.scrollToBottom();
         }
       } catch (e) {
-        this.$message.error("生成健康报告失败：" + e.message);
+        this.$message.error("" + e.message);
       } finally {
         this.loading = false;
       }
@@ -919,10 +1072,10 @@ export default {
     formatMessage(content) {
       if (!content) return "";
       try {
-        // 使用 marked 渲染 Markdown
+        //  marked  Markdown
         return marked.parse(content);
       } catch (e) {
-        // 降级处理：转义 HTML 并替换换行符
+        //  HTML 
         const escaped = content
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
@@ -1044,7 +1197,7 @@ export default {
   margin-top: 5px;
 }
 
-/* 会话列表样式 */
+/*  */
 .conversation-list {
   max-height: 300px;
   overflow-y: auto;
@@ -1107,7 +1260,7 @@ export default {
   opacity: 1;
 }
 
-/* 聊天区域样式 */
+/*  */
 .chat-panel {
   background: #fff;
   border-radius: 8px;
@@ -1231,7 +1384,7 @@ export default {
   line-height: 1.6;
   word-break: break-word;
 
-  /* Markdown 样式 */
+  /* Markdown  */
   :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
     margin-top: 12px;
     margin-bottom: 8px;
@@ -1413,7 +1566,7 @@ export default {
   margin: 2px 4px 2px 0;
 }
 
-/* 欢迎信息 */
+/*  */
 .welcome-icon {
   font-size: 56px;
   margin-bottom: 12px;
@@ -1427,7 +1580,7 @@ export default {
   margin: 0 auto 20px;
 }
 
-/* 预置问题 */
+/*  */
 .preset-list {
   display: flex;
   flex-direction: column;
@@ -1473,7 +1626,7 @@ export default {
   flex-shrink: 0;
 }
 
-/* 生成模式标签 */
+/*  */
 .mode-tags {
   display: flex;
   gap: 6px;
@@ -1504,7 +1657,7 @@ export default {
   border-color: transparent;
 }
 
-/* 参数行 */
+/*  */
 .param-item {
   margin-bottom: 12px;
 }
@@ -1529,7 +1682,7 @@ export default {
   text-align: right;
 }
 
-/* 开关列表 */
+/*  */
 .toggle-list {
   margin-top: 14px;
   border-top: 1px solid #f0f0f0;
@@ -1554,7 +1707,7 @@ export default {
   margin-bottom: 8px;
 }
 
-/* 文件操作区域 */
+/*  */
 .file-actions {
   display: flex;
   gap: 10px;
@@ -1592,7 +1745,7 @@ export default {
   }
 }
 
-/* 右侧设置边栏 */
+/*  */
 .settings-panel {
   background: #fff;
   border-radius: 8px;
@@ -1603,7 +1756,7 @@ export default {
   overflow-y: auto;
 }
 
-/* 功能按钮栏 - 单行 */
+/*  -  */
 .feature-bar {
   display: flex;
   gap: 6px;
@@ -1622,7 +1775,7 @@ export default {
   transform: translateY(-1px);
 }
 
-/* 聊天输入区域 */
+/*  */
 .chat-input-area {
   display: flex;
   flex-direction: column;
@@ -1640,7 +1793,25 @@ export default {
   font-size: 14px;
 }
 
-/* 右侧历史会话区域 */
+.input-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.voice-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 18px;
+  transition: all 0.3s ease;
+}
+
+.voice-btn:active {
+  transform: scale(0.95);
+}
+
+/*  */
 .recent-history {
   margin-bottom: 8px;
 }
@@ -1684,7 +1855,7 @@ export default {
   white-space: nowrap;
 }
 
-/* 历史会话弹出框 */
+/*  */
 .history-dialog-content {
   max-height: 500px;
 }
@@ -1757,7 +1928,7 @@ export default {
   color: #999;
 }
 
-/* 生成模式两列网格 */
+/*  */
 .mode-tags-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1765,7 +1936,7 @@ export default {
   margin-bottom: 12px;
 }
 
-/* 健康助手对话框 */
+/*  */
 .health-assistant-container {
   height: 450px;
   display: flex;

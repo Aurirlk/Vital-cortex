@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.AppointmentMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO appointment (patient_id, doctor_id, schedule_id, department_id, appointment_date,
+                                 time_slot, serial_number, symptom_description, status, create_time)
+        VALUES (#{patientId}, #{doctorId}, #{scheduleId}, #{departmentId}, #{appointmentDate},
+                #{timeSlot}, #{serialNumber}, #{symptomDescription}, #{status}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE appointment
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="cancelReason != null">cancel_reason = #{cancelReason},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    <delete id="batchDelete">
+        DELETE FROM appointment WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+    <select id="query" resultMap="AppointmentResultMap">
+        SELECT a.*, u.user_name AS patient_name, u.user_phone AS patient_phone,
+               d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name
+        FROM appointment a
+        LEFT JOIN `user` u ON u.id = a.patient_id
+        LEFT JOIN hospital_doctor d ON d.id = a.doctor_id
+        LEFT JOIN department dep ON dep.id = a.department_id
+        <where>
+            <if test="patientId != null">AND a.patient_id = #{patientId}</if>
+            <if test="doctorId != null">AND a.doctor_id = #{doctorId}</if>
+            <if test="departmentId != null">AND a.department_id = #{departmentId}</if>
+            <if test="appointmentDate != null">AND a.appointment_date = #{appointmentDate}</if>
+            <if test="status != null">AND a.status = #{status}</if>
+            <if test="startTime != null and endTime != null">AND a.create_time BETWEEN #{startTime} AND #{endTime}</if>
+        </where>
+        ORDER BY a.create_time DESC
+        <if test="current != null and size != null">LIMIT #{current}, #{size}</if>
+    </select>
+    <select id="queryCount" resultType="integer">
+        SELECT COUNT(*) FROM appointment a
+        <where>
+            <if test="patientId != null">AND a.patient_id = #{patientId}</if>
+            <if test="doctorId != null">AND a.doctor_id = #{doctorId}</if>
+            <if test="departmentId != null">AND a.department_id = #{departmentId}</if>
+            <if test="appointmentDate != null">AND a.appointment_date = #{appointmentDate}</if>
+            <if test="status != null">AND a.status = #{status}</if>
+            <if test="startTime != null and endTime != null">AND a.create_time BETWEEN #{startTime} AND #{endTime}</if>
+        </where>
+    </select>
+    <select id="getById" resultMap="AppointmentResultMap">
+        SELECT a.*, u.user_name AS patient_name, u.user_phone AS patient_phone,
+               d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name
+        FROM appointment a
+        LEFT JOIN `user` u ON u.id = a.patient_id
+        LEFT JOIN hospital_doctor d ON d.id = a.doctor_id
+        LEFT JOIN department dep ON dep.id = a.department_id
+        WHERE a.id = #{id}
+    </select>
+    <select id="countByScheduleId" resultType="integer">
+        SELECT COUNT(*) FROM appointment WHERE schedule_id = #{scheduleId} AND status IN (0, 1)
+    </select>
+    <resultMap id="AppointmentResultMap" type="cn.kmbeast.pojo.vo.AppointmentVO">
+        <id column="id" property="id"/>
+        <result column="patient_id" property="patientId"/>
+        <result column="doctor_id" property="doctorId"/>
+        <result column="schedule_id" property="scheduleId"/>
+        <result column="department_id" property="departmentId"/>
+        <result column="appointment_date" property="appointmentDate"/>
+        <result column="time_slot" property="timeSlot"/>
+        <result column="serial_number" property="serialNumber"/>
+        <result column="symptom_description" property="symptomDescription"/>
+        <result column="cancel_reason" property="cancelReason"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="patient_name" property="patientName"/>
+        <result column="patient_phone" property="patientPhone"/>
+        <result column="doctor_name" property="doctorName"/>
+        <result column="doctor_title" property="doctorTitle"/>
+        <result column="department_name" property="departmentName"/>
+    </resultMap>
+
+    <!-- 统计查询 -->
+    <select id="countByStatus" resultType="map">
+        SELECT status, COUNT(*) as count FROM appointment GROUP BY status
+    </select>
+    <select id="countByDepartment" resultType="map">
+        SELECT d.name as department, COUNT(*) as count
+        FROM appointment a
+        JOIN department d ON d.id = a.department_id
+        GROUP BY a.department_id, d.name
+        ORDER BY count DESC
+    </select>
+    <select id="countByDays" resultType="map">
+        SELECT DATE(create_time) as date, COUNT(*) as count
+        FROM appointment
+        WHERE create_time >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(create_time)
+        ORDER BY date ASC
+    </select>
+    <select id="topDoctors" resultType="map">
+        SELECT d.name as doctor, d.title, COUNT(*) as count
+        FROM appointment a
+        JOIN hospital_doctor d ON d.id = a.doctor_id
+        GROUP BY a.doctor_id, d.name, d.title
+        ORDER BY count DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

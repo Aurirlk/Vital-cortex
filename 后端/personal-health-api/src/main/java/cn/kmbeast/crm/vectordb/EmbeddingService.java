@@ -124,21 +124,29 @@ public class EmbeddingService {
     }
 
     public List<float[]> batchEmbed(List<String> texts) {
-        List<float[]> vectors = new ArrayList<>();
+        if (texts == null || texts.isEmpty()) return new ArrayList<>();
+
+        // RAG-05 修复：按输入下标预填充结果数组。
+        // 原实现先把缓存向量顺序 add 进 vectors，再对未缓存向量做 add(index) 回填——
+        // 一旦缓存/未缓存交错，index 已相对原始下标偏移，向量会被插到错误位置，
+        // 造成"文档A的内容配上了文档B的向量"，检索结果完全错乱。
+        float[][] result = new float[texts.size()][];
         List<String> uncached = new ArrayList<>();
         List<Integer> uncachedIndices = new ArrayList<>();
 
         for (int i = 0; i < texts.size(); i++) {
             float[] cached = embeddingCache.get(texts.get(i));
             if (cached != null) {
-                vectors.add(cached);
+                result[i] = cached;
             } else {
                 uncached.add(texts.get(i));
                 uncachedIndices.add(i);
             }
         }
 
-        if (uncached.isEmpty()) return vectors;
+        if (uncached.isEmpty()) {
+            return Arrays.asList(result);
+        }
 
         for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
@@ -179,32 +187,24 @@ public class EmbeddingService {
                     if (data == null || data.isEmpty()) {
                         throw CrmException.embeddingFailed("批量返回数据为空");
                     }
+                    if (data.size() != uncachedIndices.size()) {
+                        throw CrmException.embeddingFailed(
+                                "批量嵌入数量不匹配: 请求 " + uncachedIndices.size() + " 个, 返回 " + data.size() + " 个");
+                    }
 
-                    List<float[]> batchVectors = new ArrayList<>();
                     for (int i = 0; i < data.size(); i++) {
                         JSONArray embeddingArr = data.getJSONObject(i).getJSONArray("embedding");
                         float[] vector = new float[embeddingArr.size()];
                         for (int j = 0; j < embeddingArr.size(); j++) {
                             vector[j] = embeddingArr.getFloatValue(j);
                         }
-                        batchVectors.add(vector);
-                        if (embeddingCache.size() < CACHE_MAX && i < uncached.size()) {
+                        result[uncachedIndices.get(i)] = vector;
+                        if (embeddingCache.size() < CACHE_MAX) {
                             embeddingCache.put(uncached.get(i), vector);
                         }
                     }
 
-                    Map<Integer, float[]> resultMap = new TreeMap<>();
-                    for (int j = 0; j < uncachedIndices.size(); j++) {
-                        resultMap.put(uncachedIndices.get(j), batchVectors.get(j));
-                    }
-                    for (Map.Entry<Integer, float[]> entry : resultMap.entrySet()) {
-                        if (entry.getKey() < vectors.size()) {
-                            vectors.add(entry.getKey(), entry.getValue());
-                        } else {
-                            vectors.add(entry.getValue());
-                        }
-                    }
-                    return vectors;
+                    return Arrays.asList(result);
                 }
             } catch (CrmException e) {
                 throw e;

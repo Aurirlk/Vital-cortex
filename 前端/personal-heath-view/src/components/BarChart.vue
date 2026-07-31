@@ -7,7 +7,7 @@
   </div>
 </template>
 <script>
-// 柱状图组件
+// 
 import * as echarts from "echarts";
 export default {
   name: "BarChart",
@@ -18,7 +18,7 @@ export default {
     },
     tag: {
       type: String,
-      default: "柱状图",
+      default: "",
     },
     values: {
       type: Array,
@@ -71,7 +71,7 @@ export default {
         this.chart.resize();
       }
     },
-    // 柱状图加载
+    // 
     init() {
       if (!this.$refs.chart) return;
       if (!this.values.length || !this.date.length) return;

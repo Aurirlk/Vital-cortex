@@ -5,7 +5,7 @@
     @mousedown.prevent="onMouseDown"
   >
     <el-icon :size="28"><Service /></el-icon>
-    <span class="float-ball-text">健康助手</span>
+    <span class="float-ball-text"></span>
   </div>
 </template>
 

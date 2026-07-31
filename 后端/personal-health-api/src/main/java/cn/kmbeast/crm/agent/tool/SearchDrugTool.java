@@ -61,7 +61,7 @@ public class SearchDrugTool implements Tool {
             // 从JSON文件读取药品数据
             JSONArray drugs = loadDrugsFromJson();
             if (drugs == null || drugs.isEmpty()) {
-                return ToolResult.ok("药品数据为空，请联系管理员导入药品数据。");
+                return ToolResult.ok("药品数据为空，请联系管理员员导入药品数据。");
             }
 
             // 搜索匹配的药品

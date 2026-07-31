@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.QuizAnswerMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO quiz_answer (record_id, question_id, answer, score, is_correct, create_time)
+        VALUES (#{recordId}, #{questionId}, #{answer}, #{score}, #{isCorrect}, #{createTime})
+    </insert>
+    <insert id="batchSave">
+        INSERT INTO quiz_answer (record_id, question_id, answer, score, is_correct, create_time) VALUES
+        <foreach collection="answers" item="a" separator=",">
+            (#{a.recordId}, #{a.questionId}, #{a.answer}, #{a.score}, #{a.isCorrect}, #{a.createTime})
+        </foreach>
+    </insert>
+    <select id="queryByRecordId" resultType="cn.kmbeast.pojo.entity.QuizAnswer">
+        SELECT * FROM quiz_answer WHERE record_id = #{recordId}
+    </select>
+</mapper>

@@ -34,10 +34,10 @@ export default {
   data() {
     return {
       editor: null,
-      content: "<p>创作内容</p>",
+      content: "<p></p>",
       toolbarConfig: {},
       editorConfig: {
-        placeholder: "请输入内容...",
+        placeholder: "...",
         MENU_CONF: {
           uploadImage: {
             server: URL_API + "/file/upload",
@@ -63,17 +63,17 @@ export default {
   methods: {
     onCreated(editor) {
       this.editor = Object.seal(editor);
-      // 上传视频功能排除
+      // 
       this.toolbarConfig.excludeKeys = ["group-video", "group-image"];
     },
   },
   watch: {
     receiveContent: {
       handler(v1, v2) {
-        console.log("接收内容：", v1);
+        console.log("", v1);
         this.content = v1;
       },
-      deep: true, // 启用深度监听
+      deep: true, // 
       immediate: true,
     },
     content(newVal, oldVal) {
@@ -92,13 +92,13 @@ export default {
 .line-number {
   display: block;
   margin-right: 10px;
-  /* 以下样式确保行号不被选中或复制 */
+  /*  */
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
   color: #999;
-  /* 行号颜色，可自定义 */
+  /*  */
   text-align: right;
-  /* 行号对齐方式 */
+  /*  */
 }
 </style>

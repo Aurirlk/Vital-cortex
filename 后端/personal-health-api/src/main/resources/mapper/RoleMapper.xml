@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.RoleMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO role (name, code, description, status, create_time) VALUES (#{name}, #{code}, #{description}, #{status}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE role
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="code != null">code = #{code},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    <delete id="batchDelete">
+        DELETE FROM role WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+    <select id="queryAll" resultType="cn.kmbeast.pojo.entity.Role">
+        SELECT * FROM role ORDER BY id ASC
+    </select>
+    <select id="getById" resultType="cn.kmbeast.pojo.entity.Role">
+        SELECT * FROM role WHERE id = #{id}
+    </select>
+    <select id="getByCode" resultType="cn.kmbeast.pojo.entity.Role">
+        SELECT * FROM role WHERE code = #{code}
+    </select>
+    <select id="getByUserId" resultType="cn.kmbeast.pojo.entity.Role">
+        SELECT r.* FROM role r JOIN user_role ur ON ur.role_id = r.id WHERE ur.user_id = #{userId}
+    </select>
+</mapper>

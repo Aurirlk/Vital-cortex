@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.QuizRecordMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO quiz_record (exam_id, user_id, start_time, submit_time, score, total_score, correct_count, question_count, status, create_time)
+        VALUES (#{examId}, #{userId}, #{startTime}, #{submitTime}, #{score}, #{totalScore}, #{correctCount}, #{questionCount}, #{status}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE quiz_record
+        <set>
+            <if test="submitTime != null">submit_time = #{submitTime},</if>
+            <if test="score != null">score = #{score},</if>
+            <if test="correctCount != null">correct_count = #{correctCount},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    <select id="queryByUserId" resultType="cn.kmbeast.pojo.entity.QuizRecord">
+        SELECT * FROM quiz_record WHERE user_id = #{userId} ORDER BY create_time DESC
+    </select>
+    <select id="getById" resultType="cn.kmbeast.pojo.entity.QuizRecord">
+        SELECT * FROM quiz_record WHERE id = #{id}
+    </select>
+</mapper>

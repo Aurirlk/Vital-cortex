@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <el-row style="background-color: #ffffff; padding: 5px 0; border-radius: 5px">
     <el-row style="padding: 10px; margin-left: 10px">
       <el-row>
@@ -7,16 +7,16 @@
           style="width: 220px"
           v-model="searchTime"
           type="daterange"
-          range-separator="至"
-          start-placeholder="注册开启"
-          end-placeholder="注册结束"
+          range-separator=""
+          start-placeholder=""
+          end-placeholder=""
         >
         </el-date-picker>
         <el-input
           size="small"
           style="width: 188px; margin-left: 5px; margin-right: 6px"
           v-model="userQueryDto.userName"
-          placeholder="用户名"
+          placeholder=""
           clearable
           @clear="handleFilterClear"
         >
@@ -36,7 +36,7 @@
             class="customer"
             type="info"
             @click="add()"
-            ><el-icon><Plus /></el-icon>新增用户</el-button
+            ><el-icon><Plus /></el-icon></el-button
           >
         </span>
       </el-row>
@@ -46,95 +46,84 @@
         @selection-change="handleSelectionChange"
         :data="tableData"
         style="width: 100%"
+        :header-cell-style="{ fontWeight: 600, color: '#606266' }"
       >
-        <el-table-column prop="userAvatar" width="68" label="头像">
+        <el-table-column prop="userAvatar" width="60" label="" align="center">
           <template #default="{ row }">
             <el-avatar
-              :size="25"
+              :size="32"
               :src="row.userAvatar"
-              style="margin-top: 10px"
             ></el-avatar>
           </template>
         </el-table-column>
-        <el-table-column prop="userName" label="名称"></el-table-column>
+        <el-table-column prop="userName" label="" min-width="100"></el-table-column>
         <el-table-column
           prop="userAccount"
-          width="128"
-          label="账号"
+          min-width="110"
+          label=""
         ></el-table-column>
         <el-table-column
           prop="userEmail"
-          width="168"
-          label="邮箱"
+          min-width="160"
+          label=""
+          show-overflow-tooltip
         ></el-table-column>
-        <el-table-column prop="userRole" width="68" label="角色">
+        <el-table-column prop="userRole" width="72" label="" align="center">
           <template #default="{ row }">
-            <span>{{ row.userRole === 1 ? "管理员" : "用户" }}</span>
+            <span>{{ row.userRole === 1 ? "" : "" }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="isLogin" width="108" label="封号">
+        <el-table-column prop="isLogin" width="80" label="" align="center">
           <template #default="{ row }">
-            <el-icon v-if="row.isLogin" style="margin-right: 5px"
+            <el-icon v-if="row.isLogin" style="margin-right: 3px; color: #e6a23c"
               ><Warning
             /></el-icon>
-            <el-icon v-else style="margin-right: 5px; color: rgb(253, 199, 50)"
+            <el-icon v-else style="margin-right: 3px; color: #67c23a"
               ><SuccessFilled
             /></el-icon>
             <el-tooltip
               v-if="row.isLogin"
               class="item"
               effect="dark"
-              content="账号一经封号，不可登录系统。经由管理员解禁后，方可登录"
+              content=""
               placement="bottom-end"
             >
-              <span
-                style="
-                  text-decoration: underline;
-                  text-decoration-style: dashed;
-                "
-                >已封号</span
-              >
+              <span style="text-decoration: underline; text-decoration-style: dashed; font-size: 13px"></span>
             </el-tooltip>
-            <span v-else>正常</span>
+            <span v-else style="font-size: 13px"></span>
           </template>
         </el-table-column>
-        <el-table-column prop="isWord" width="108" label="禁言">
+        <el-table-column prop="isWord" width="80" label="" align="center">
           <template #default="{ row }">
-            <el-icon v-if="row.isWord" style="margin-right: 5px"
+            <el-icon v-if="row.isWord" style="margin-right: 3px; color: #e6a23c"
               ><Warning
             /></el-icon>
-            <el-icon v-else style="margin-right: 5px; color: rgb(253, 199, 50)"
+            <el-icon v-else style="margin-right: 3px; color: #67c23a"
               ><SuccessFilled
             /></el-icon>
             <el-tooltip
               v-if="row.isWord"
               class="item"
               effect="dark"
-              content="账号一经禁言，不可评论互动。经由管理员解禁后，方可评论"
+              content=""
               placement="bottom-end"
             >
-              <span
-                style="
-                  text-decoration: underline;
-                  text-decoration-style: dashed;
-                "
-                >已禁言</span
-              >
+              <span style="text-decoration: underline; text-decoration-style: dashed; font-size: 13px"></span>
             </el-tooltip>
-            <span v-else>正常</span>
+            <span v-else style="font-size: 13px"></span>
           </template>
         </el-table-column>
         <el-table-column
           :sortable="true"
           prop="createTime"
-          width="168"
-          label="注册时间"
+          min-width="155"
+          label=""
         ></el-table-column>
-        <el-table-column label="操作" width="170">
+        <el-table-column label="" min-width="160" fixed="right">
           <template #default="{ row }">
-            <span class="text-button" @click="handleStatus(row)">账号状态</span>
-            <span class="text-button" @click="handleEdit(row)">编辑</span>
-            <span class="text-button" @click="handleDelete(row)">删除</span>
+            <span class="text-button" @click="handleStatus(row)"></span>
+            <span class="text-button" @click="handleEdit(row)"></span>
+            <span class="text-button" @click="handleDelete(row)"></span>
           </template>
         </el-table-column>
       </el-table>
@@ -147,12 +136,12 @@
         :total="totalItems"
       ></el-pagination>
     </el-row>
-    <!-- 操作面板 -->
+    <!--  -->
     <el-dialog :show-close="false" v-model="dialogUserOperaion" width="25%">
       <template #title>
         <div>
           <p class="dialog-title">
-            {{ !isOperation ? "新增用户" : "修改用户信息" }}
+            {{ !isOperation ? "" : "" }}
           </p>
         </div>
       </template>
@@ -161,6 +150,7 @@
           <el-upload
             class="avatar-uploader"
             :action="$uploadUrl"
+            :headers="$uploadHeaders"
             :show-file-list="false"
             :on-success="handleAvatarSuccess"
           >
@@ -169,30 +159,30 @@
           </el-upload>
         </el-row>
         <el-row>
-          <span class="dialog-hover">用户</span>
+          <span class="dialog-hover"></span>
           <input
             class="dialog-input"
             v-model="data.userName"
-            placeholder="用户名"
+            placeholder=""
           />
-          <span class="dialog-hover">账号</span>
+          <span class="dialog-hover"></span>
           <input
             class="dialog-input"
             v-model="data.userAccount"
-            placeholder="账号"
+            placeholder=""
           />
-          <span class="dialog-hover">邮箱</span>
+          <span class="dialog-hover"></span>
           <input
             class="dialog-input"
             v-model="data.userEmail"
-            placeholder="邮箱"
+            placeholder=""
           />
-          <span class="dialog-hover">密码</span>
+          <span class="dialog-hover"></span>
           <input
             class="dialog-input"
             v-model="userPwd"
             type="password"
-            placeholder="密码"
+            placeholder=""
           />
         </el-row>
       </div>
@@ -209,7 +199,7 @@
             class="customer"
             type="info"
             @click="addOperation()"
-            >新增</el-button
+            ></el-button
           >
           <el-button
             size="small"
@@ -222,14 +212,14 @@
             class="customer"
             type="info"
             @click="updateOperation()"
-            >修改</el-button
+            ></el-button
           >
           <el-button
             class="customer"
             size="small"
             style="background-color: rgb(211, 241, 241); border: none"
             @click="cannel"
-            >取消</el-button
+            ></el-button
           >
         </span>
       </template>
@@ -237,7 +227,7 @@
     <el-dialog :show-close="false" v-model="dialogStatusOperation" width="25%">
       <template #title>
         <div>
-          <p class="dialog-title">账号状态</p>
+          <p class="dialog-title"></p>
         </div>
       </template>
       <div style="padding: 0 20px">
@@ -246,8 +236,8 @@
             active-color="rgb(230, 62, 49)"
             inactive-color="rgb(246,246,246)"
             v-model="data.isLogin"
-            active-text="封号"
-            inactive-text="正常状态"
+            active-text=""
+            inactive-text=""
           >
           </el-switch>
         </el-row>
@@ -256,12 +246,12 @@
             active-color="rgb(230, 62, 49)"
             inactive-color="rgb(246,246,246)"
             v-model="data.isWord"
-            active-text="禁言"
-            inactive-text="正常状态"
+            active-text=""
+            inactive-text=""
           >
           </el-switch>
         </el-row>
-        <span class="dialog-hover">设为管理员</span>
+        <span class="dialog-hover"></span>
         <el-switch
           v-model="roleStatus"
           active-color="rgb(230, 62, 49)"
@@ -281,14 +271,14 @@
             class="customer"
             type="info"
             @click="comfirmStatus"
-            >确认</el-button
+            ></el-button
           >
           <el-button
             class="customer"
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="cannel"
-            >取消</el-button
+            ></el-button
           >
         </span>
       </template>
@@ -315,7 +305,7 @@ export default {
       searchTime: [],
       selectedRows: [],
       status: null,
-      userQueryDto: {}, // 搜索条件
+      userQueryDto: {}, // 
       messsageContent: "",
     };
   },
@@ -344,8 +334,8 @@ export default {
           if (res.data.code === 200) {
             this.$notify({
               duration: 2000,
-              title: "操作反馈",
-              message: "操作成功",
+              title: "",
+              message: "",
               type: "success",
             });
             this.dialogStatusOperation = false;
@@ -353,7 +343,7 @@ export default {
           }
         })
         .catch((error) => {
-          console.log("修改状态异常：" + error);
+          console.log("" + error);
         });
     },
     handleStatus(data) {
@@ -365,16 +355,16 @@ export default {
       if (res.code !== 200) {
         this.$notify({
           duration: 2000,
-          title: "头像上传",
-          message: "异常",
+          title: "",
+          message: "",
           type: "error",
         });
         return;
       }
       this.$notify({
         duration: 2000,
-        title: "头像上传",
-        message: "成功",
+        title: "",
+        message: "",
         type: "success",
       });
       this.userAvatar = res.data;
@@ -385,40 +375,40 @@ export default {
     async handleSwitchChange(id, status, operation) {
       try {
         let param = { id: id };
-        // 登录状态
+        // 
         if (operation) {
           param.isLogin = status;
         } else {
-          // 评论状态
+          // 
           param.isWord = status;
         }
         const response = await this.$axios.put(`/user/backUpdate`, param);
         if (response.data.code === 200) {
           this.$notify({
             duration: 2000,
-            title: "操作提示",
-            message: "成功",
+            title: "",
+            message: "",
             type: "success",
           });
           this.cannel();
         }
       } catch (e) {
-        console.error(`更新用户状态异常：${e}`);
+        console.error(`${e}`);
       }
     },
-    // 多选框选中
+    // 
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 批量删除数据
+    // 
     async batchDelete() {
       if (!this.selectedRows.length) {
-        this.$message(`未选中任何数据`);
+        this.$message(``);
         return;
       }
       const confirmed = await this.$swalConfirm({
-        title: "删除用户数据",
-        text: `删除后不可恢复，是否继续？`,
+        title: "",
+        text: ``,
         icon: "warning",
       });
       if (confirmed) {
@@ -428,8 +418,8 @@ export default {
           if (response.data.code === 200) {
             this.$notify({
               duration: 2000,
-              title: "删除操作",
-              message: "成功",
+              title: "",
+              message: "",
               type: "success",
             });
             this.cannel();
@@ -437,7 +427,7 @@ export default {
             return;
           }
         } catch (e) {
-          console.error(`用户信息删除异常：`, e);
+          console.error(``, e);
         }
       }
     },
@@ -446,7 +436,7 @@ export default {
       this.searchTime = [];
       this.fetchFreshData();
     },
-    // 修改信息
+    // 
     async updateOperation() {
       if (this.userPwd !== "") {
         const pwd = this.$md5(this.$md5(this.userPwd));
@@ -462,17 +452,17 @@ export default {
           this.cannel();
           this.$notify({
             duration: 2000,
-            title: "修改操作",
-            message: "成功",
+            title: "",
+            message: "",
             type: "success",
           });
         }
       } catch (error) {
-        console.error("提交表单时出错", error);
-        this.$message.error("提交失败，请稍后再试！");
+        console.error("", error);
+        this.$message.error("");
       }
     },
-    // 信息新增
+    // 
     async addOperation() {
       if (this.userPwd !== "") {
         this.data.userPwd = this.$md5(this.$md5(this.userPwd));
@@ -490,14 +480,14 @@ export default {
           this.cannel();
           this.$notify({
             duration: 2000,
-            title: "新增操作",
-            message: "成功",
+            title: "",
+            message: "",
             type: "success",
           });
         }
       } catch (error) {
-        console.error("提交表单时出错", error);
-        this.$message.error("提交失败，请稍后再试！");
+        console.error("", error);
+        this.$message.error("");
       }
     },
     cannel() {
@@ -520,7 +510,7 @@ export default {
           startTime = `${startDate.split("T")[0]}T00:00:00`;
           endTime = `${endDate.split("T")[0]}T23:59:59`;
         }
-        // 请求参数
+        // 
         const params = {
           current: this.currentPage,
           size: this.pageSize,
@@ -534,7 +524,7 @@ export default {
         this.tableData = data.data;
         this.totalItems = data.total;
       } catch (error) {
-        console.error("查询用户信息异常:", error);
+        console.error(":", error);
       }
     },
     add() {
@@ -592,15 +582,15 @@ export default {
 }
 
 .dialog-footer {
-  /* 使按钮水平居中*/
+  /* */
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* 如果需要调整按钮之间的间距 */
+/*  */
 .customer {
   margin: 0 8px;
-  /* 根据需要调整间距*/
+  /* */
 }
 </style>

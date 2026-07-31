@@ -56,6 +56,19 @@ public interface AiChatCacheService {
     List<AiChatRecord> getMessages(Integer conversationId);
 
     /**
+     * 校验会话是否属于指定用户（SEC-03 越权防护）。
+     *
+     * <p>会话相关接口此前只按路径中的 conversationId 取数，不校验归属，
+     * 任意登录用户改一个数字即可读取/删除他人的问诊记录。所有涉及
+     * conversationId 的操作都必须先过这道校验。
+     *
+     * @param conversationId 会话ID
+     * @param userId         当前登录用户ID
+     * @return true 表示归属该用户
+     */
+    boolean isOwnedBy(Integer conversationId, Integer userId);
+
+    /**
      * 删除会话及其所有消息
      *
      * @param conversationId 会话ID

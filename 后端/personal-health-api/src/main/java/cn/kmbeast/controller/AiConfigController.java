@@ -265,6 +265,52 @@ public class AiConfigController {
     }
 
     /**
+     * 获取所有可用模型列表（含全部厂商的 models + 本地模型）
+     */
+    @Protector(role = "管理员")
+    @GetMapping("/models")
+    public Result<List<Map<String, Object>>> getModels() {
+        List<Map<String, Object>> models = new ArrayList<>();
+        AiConfig.PROVIDERS.forEach((key, config) -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("providerKey", key);
+            item.put("providerName", config.getName());
+            item.put("models", config.getModels());
+            item.put("current", key.equals(aiConfig.getProvider()));
+            models.add(item);
+        });
+        return ApiResult.success(models);
+    }
+
+    /**
+     * 切换当前使用模型（同时更新 provider + model 字段）
+     */
+    @Protector(role = "管理员")
+    @PostMapping("/switch-model")
+    public Result<Void> switchModel(@RequestBody Map<String, String> request) {
+        String providerKey = request.get("providerKey");
+        String model = request.get("model");
+
+        if (providerKey == null || !AiConfig.PROVIDERS.containsKey(providerKey)) {
+            return ApiResult.error("不支持的厂商: " + providerKey);
+        }
+
+        AiConfig.ProviderConfig pc = AiConfig.PROVIDERS.get(providerKey);
+        aiConfig.setProvider(providerKey);
+        aiConfig.setApiUrl(pc.getOpenaiBaseUrl());
+
+        if (model != null && !model.isEmpty()) {
+            aiConfig.setModel(model);
+        } else if (pc.getModels() != null && !pc.getModels().isEmpty()) {
+            aiConfig.setModel(pc.getModels().get(0));
+        }
+
+        aiConfig.persistConfig();
+        log.info("[AI配置] 切换模型: provider={}, model={}", providerKey, aiConfig.getModel());
+        return ApiResult.success("模型切换成功");
+    }
+
+    /**
      * 重置为默认配置
      */
     @Protector(role = "管理员")

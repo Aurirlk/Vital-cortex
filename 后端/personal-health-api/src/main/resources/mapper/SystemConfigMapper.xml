@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.SystemConfigMapper">
+
+    <select id="findAll" resultType="cn.kmbeast.pojo.entity.SystemConfigEntity">
+        SELECT * FROM system_config ORDER BY config_group, id ASC
+    </select>
+
+    <select id="findByGroup" resultType="cn.kmbeast.pojo.entity.SystemConfigEntity">
+        SELECT * FROM system_config WHERE config_group = #{configGroup} ORDER BY id ASC
+    </select>
+
+    <select id="findByKey" resultType="cn.kmbeast.pojo.entity.SystemConfigEntity">
+        SELECT * FROM system_config WHERE config_key = #{configKey}
+    </select>
+
+    <select id="findByGroupAndKey" resultType="cn.kmbeast.pojo.entity.SystemConfigEntity">
+        SELECT * FROM system_config WHERE config_group = #{configGroup} AND config_key = #{configKey}
+    </select>
+
+    <insert id="saveOrUpdate">
+        INSERT INTO system_config (config_group, config_key, config_value, `description`, `sensitive`, value_type, default_value)
+        VALUES (#{configGroup}, #{configKey}, #{configValue}, #{description}, #{sensitive}, #{valueType}, #{defaultValue})
+        ON DUPLICATE KEY UPDATE 
+            config_value = #{configValue},
+            `description` = #{description},
+            `sensitive` = #{sensitive},
+            value_type = #{valueType},
+            default_value = #{defaultValue},
+            update_time = NOW()
+    </insert>
+
+    <insert id="batchSaveOrUpdate">
+        INSERT INTO system_config (config_group, config_key, config_value, `description`, `sensitive`, value_type, default_value)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.configGroup}, #{item.configKey}, #{item.configValue}, #{item.description}, #{item.sensitive}, #{item.valueType}, #{item.defaultValue})
+        </foreach>
+        ON DUPLICATE KEY UPDATE 
+            config_value = VALUES(config_value),
+            `description` = VALUES(`description`),
+            `sensitive` = VALUES(`sensitive`),
+            value_type = VALUES(value_type),
+            default_value = VALUES(default_value),
+            update_time = NOW()
+    </insert>
+
+    <delete id="deleteByKey">
+        DELETE FROM system_config WHERE config_key = #{configKey}
+    </delete>
+
+    <delete id="deleteByGroup">
+        DELETE FROM system_config WHERE config_group = #{configGroup}
+    </delete>
+
+</mapper>

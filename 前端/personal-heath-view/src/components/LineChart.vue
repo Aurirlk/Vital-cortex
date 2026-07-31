@@ -7,7 +7,7 @@
           size="small"
           style="width: 100px"
           v-model="selectedValue"
-          placeholder="时间范围"
+          placeholder=""
           @change="handleTimeChange"
         >
           <el-option
@@ -22,9 +22,9 @@
           v-if="selectedValue === 'custom'"
           v-model="dateRange"
           type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
+          range-separator=""
+          start-placeholder=""
+          end-placeholder=""
           size="small"
           style="margin-left: 8px; width: 240px"
           @change="handleDateRangeChange"
@@ -35,14 +35,14 @@
   </div>
 </template>
 <script>
-// 折线图组件
+// 
 import * as echarts from "echarts";
 export default {
   name: "DialogLine",
   props: {
     tag: {
       type: String,
-      default: "折线图",
+      default: "",
     },
     values: {
       type: Array,
@@ -60,7 +60,7 @@ export default {
   watch: {
     values: {
       handler(newVal) {
-        console.log('LineChart values变化:', newVal);
+        console.log('LineChart values:', newVal);
         this.$nextTick(() => {
           this.initChart();
         });
@@ -69,7 +69,7 @@ export default {
     },
     date: {
       handler(newVal) {
-        console.log('LineChart date变化:', newVal);
+        console.log('LineChart date:', newVal);
         this.$nextTick(() => {
           this.initChart();
         });
@@ -81,13 +81,13 @@ export default {
     return {
       chart: null,
       options: [
-        { value: 7, label: "最近7天" },
-        { value: 30, label: "最近30天" },
-        { value: 90, label: "最近3个月" },
-        { value: 180, label: "最近半年" },
-        { value: 365, label: "最近一年" },
-        { value: -1, label: "全部数据" },
-        { value: "custom", label: "自定义范围" },
+        { value: 7, label: "7" },
+        { value: 30, label: "30" },
+        { value: 90, label: "3" },
+        { value: 180, label: "" },
+        { value: 365, label: "" },
+        { value: -1, label: "" },
+        { value: "custom", label: "" },
       ],
       selectedValue: 365,
       dateRange: null,
@@ -122,7 +122,7 @@ export default {
         this.chart.resize();
       }
     },
-    // 图表初始化
+    // 
     initChart() {
       if (!this.$refs.chart) return;
       
@@ -131,8 +131,8 @@ export default {
       }
       this.chart = echarts.init(this.$refs.chart);
       
-      // 即使无数据也显示空图表
-      const xData = this.date && this.date.length > 0 ? this.date : ['暂无数据'];
+      // 
+      const xData = this.date && this.date.length > 0 ? this.date : [''];
       const yData = this.values && this.values.length > 0 ? this.values : [0];
       
       let option = {
@@ -146,7 +146,7 @@ export default {
         tooltip: {
           trigger: "axis",
           formatter: function(params) {
-            if (params[0].name === '暂无数据') return '暂无数据';
+            if (params[0].name === '') return '';
             return params[0].name + ': ' + params[0].value;
           },
         },
@@ -197,7 +197,7 @@ export default {
             symbol: 'circle',
             symbolSize: 6,
             label: {
-              show: xData.length <= 20 && xData[0] !== '暂无数据',
+              show: xData.length <= 20 && xData[0] !== '',
               position: "top",
               color: "#666",
               fontSize: 11,
@@ -206,14 +206,14 @@ export default {
         ],
       };
       
-      // 无数据时显示提示
+      // 
       if (!this.values || this.values.length === 0) {
         option.graphic = {
           type: 'text',
           left: 'center',
           top: 'middle',
           style: {
-            text: '暂无数据，请先记录健康指标',
+            text: '',
             fontSize: 14,
             fill: '#999',
           }

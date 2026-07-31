@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.MallOrderMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO mall_order (order_no, user_id, total_amount, actual_amount, status, payment_method, payment_time, shipping_address_id, remark, create_time)
+        VALUES (#{orderNo}, #{userId}, #{totalAmount}, #{actualAmount}, #{status}, #{paymentMethod}, #{paymentTime}, #{shippingAddressId}, #{remark}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE mall_order
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="paymentMethod != null">payment_method = #{paymentMethod},</if>
+            <if test="paymentTime != null">payment_time = #{paymentTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    <select id="queryByUserId" resultMap="OrderResultMap">
+        SELECT o.* FROM mall_order o WHERE o.user_id = #{userId} ORDER BY o.create_time DESC
+    </select>
+    <select id="getById" resultMap="OrderResultMap">
+        SELECT o.* FROM mall_order o WHERE o.id = #{id}
+    </select>
+    <select id="getByOrderNo" resultType="cn.kmbeast.pojo.entity.MallOrder">
+        SELECT * FROM mall_order WHERE order_no = #{orderNo}
+    </select>
+    <resultMap id="OrderResultMap" type="cn.kmbeast.pojo.vo.MallOrderVO">
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="user_id" property="userId"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="actual_amount" property="actualAmount"/>
+        <result column="status" property="status"/>
+        <result column="payment_method" property="paymentMethod"/>
+        <result column="payment_time" property="paymentTime"/>
+        <result column="shipping_address_id" property="shippingAddressId"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 统计查询 -->
+    <select id="count" resultType="integer">
+        SELECT COUNT(*) FROM mall_order
+    </select>
+    <select id="countToday" resultType="integer">
+        SELECT COUNT(*) FROM mall_order WHERE DATE(create_time) = CURDATE()
+    </select>
+    <select id="sumAmount" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(actual_amount), 0) FROM mall_order WHERE status >= 1
+    </select>
+    <select id="sumTodayAmount" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(actual_amount), 0) FROM mall_order WHERE status >= 1 AND DATE(create_time) = CURDATE()
+    </select>
+    <select id="countByStatus" resultType="map">
+        SELECT status, COUNT(*) as count FROM mall_order GROUP BY status
+    </select>
+    <select id="countByDays" resultType="map">
+        SELECT DATE(create_time) as date, COUNT(*) as count
+        FROM mall_order WHERE create_time >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(create_time)
+        ORDER BY date ASC
+    </select>
+</mapper>

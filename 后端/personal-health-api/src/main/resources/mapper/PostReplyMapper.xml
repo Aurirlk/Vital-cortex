@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.PostReplyMapper">
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO post_reply (post_id, user_id, parent_id, content, like_count, create_time)
+        VALUES (#{postId}, #{userId}, #{parentId}, #{content}, #{likeCount}, #{createTime})
+    </insert>
+
+    <delete id="batchDelete" parameterType="list">
+        DELETE FROM post_reply WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <select id="queryByPostId" resultMap="ReplyResultMap">
+        SELECT r.*, u.user_name, u.user_avatar
+        FROM post_reply r
+        LEFT JOIN `user` u ON u.id = r.user_id
+        WHERE r.post_id = #{postId}
+        ORDER BY r.create_time ASC
+    </select>
+
+    <select id="countByPostId" resultType="integer">
+        SELECT COUNT(*) FROM post_reply WHERE post_id = #{postId}
+    </select>
+
+    <resultMap id="ReplyResultMap" type="cn.kmbeast.pojo.vo.PostReplyVO">
+        <id column="id" property="id"/>
+        <result column="post_id" property="postId"/>
+        <result column="user_id" property="userId"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="content" property="content"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="create_time" property="createTime"/>
+        <result column="user_name" property="userName"/>
+        <result column="user_avatar" property="userAvatar"/>
+    </resultMap>
+</mapper>

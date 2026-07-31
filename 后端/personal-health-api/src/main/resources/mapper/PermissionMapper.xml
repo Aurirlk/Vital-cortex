@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.PermissionMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO permission (name, code, type, parent_id, path, icon, sort_order, status, create_time)
+        VALUES (#{name}, #{code}, #{type}, #{parentId}, #{path}, #{icon}, #{sortOrder}, #{status}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE permission
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="code != null">code = #{code},</if>
+            <if test="type != null">type = #{type},</if>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="path != null">path = #{path},</if>
+            <if test="icon != null">icon = #{icon},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    <delete id="batchDelete">
+        DELETE FROM permission WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+    <select id="queryAll" resultType="cn.kmbeast.pojo.entity.Permission">
+        SELECT * FROM permission ORDER BY sort_order ASC
+    </select>
+    <select id="getByRoleId" resultType="cn.kmbeast.pojo.entity.Permission">
+        SELECT p.* FROM permission p JOIN role_permission rp ON rp.permission_id = p.id WHERE rp.role_id = #{roleId}
+    </select>
+    <select id="getByUserId" resultType="cn.kmbeast.pojo.entity.Permission">
+        SELECT DISTINCT p.* FROM permission p
+        JOIN role_permission rp ON rp.permission_id = p.id
+        JOIN user_role ur ON ur.role_id = rp.role_id
+        WHERE ur.user_id = #{userId} AND p.status = 1
+    </select>
+</mapper>

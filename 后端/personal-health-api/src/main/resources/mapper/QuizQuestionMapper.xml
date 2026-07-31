@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.QuizQuestionMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO quiz_question (category_id, question_type, title, options, answer, analysis, difficulty, score, status, create_time)
+        VALUES (#{categoryId}, #{questionType}, #{title}, #{options}, #{answer}, #{analysis}, #{difficulty}, #{score}, #{status}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE quiz_question
+        <set>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="questionType != null">question_type = #{questionType},</if>
+            <if test="title != null">title = #{title},</if>
+            <if test="options != null">options = #{options},</if>
+            <if test="answer != null">answer = #{answer},</if>
+            <if test="analysis != null">analysis = #{analysis},</if>
+            <if test="difficulty != null">difficulty = #{difficulty},</if>
+            <if test="score != null">score = #{score},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    <delete id="batchDelete">
+        DELETE FROM quiz_question WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+    <select id="query" resultMap="QuestionResultMap">
+        SELECT q.*, pc.name AS category_name
+        FROM quiz_question q
+        LEFT JOIN product_category pc ON pc.id = q.category_id
+        <where>
+            <if test="categoryId != null">AND q.category_id = #{categoryId}</if>
+            <if test="questionType != null">AND q.question_type = #{questionType}</if>
+            <if test="difficulty != null">AND q.difficulty = #{difficulty}</if>
+            <if test="status != null">AND q.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">AND q.title LIKE CONCAT('%', #{keyword}, '%')</if>
+        </where>
+        ORDER BY q.create_time DESC
+        <if test="current != null and size != null">LIMIT #{current}, #{size}</if>
+    </select>
+    <select id="queryCount" resultType="integer">
+        SELECT COUNT(*) FROM quiz_question q
+        <where>
+            <if test="categoryId != null">AND q.category_id = #{categoryId}</if>
+            <if test="questionType != null">AND q.question_type = #{questionType}</if>
+            <if test="difficulty != null">AND q.difficulty = #{difficulty}</if>
+            <if test="status != null">AND q.status = #{status}</if>
+            <if test="keyword != null and keyword != ''">AND q.title LIKE CONCAT('%', #{keyword}, '%')</if>
+        </where>
+    </select>
+    <select id="getById" resultMap="QuestionResultMap">
+        SELECT q.*, pc.name AS category_name FROM quiz_question q
+        LEFT JOIN product_category pc ON pc.id = q.category_id WHERE q.id = #{id}
+    </select>
+    <select id="queryByExamId" resultMap="QuestionResultMap">
+        SELECT q.*, pc.name AS category_name
+        FROM quiz_question q
+        LEFT JOIN product_category pc ON pc.id = q.category_id
+        JOIN quiz_exam_question eq ON eq.question_id = q.id
+        WHERE eq.exam_id = #{examId} ORDER BY eq.sort_order ASC
+    </select>
+    <resultMap id="QuestionResultMap" type="cn.kmbeast.pojo.vo.QuizQuestionVO">
+        <id column="id" property="id"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="question_type" property="questionType"/>
+        <result column="title" property="title"/>
+        <result column="options" property="options"/>
+        <result column="answer" property="answer"/>
+        <result column="analysis" property="analysis"/>
+        <result column="difficulty" property="difficulty"/>
+        <result column="score" property="score"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="category_name" property="categoryName"/>
+    </resultMap>
+</mapper>

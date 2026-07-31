@@ -220,6 +220,13 @@ public class AiConfig {
                 "https://api.xiaomimimo.com/anthropic",
                 Arrays.asList("mimo-v2.5", "mimo-v2.5-pro")
         ));
+        PROVIDERS.put("zhikangyun-local", new ProviderConfig(
+                "智康云本地医疗模型",
+                "http://localhost:8000/v1/chat/completions",
+                null,
+                Arrays.asList("HealthPulse_Qwen2.5-7B_merged")
+        ));
+
     }
 
     /**

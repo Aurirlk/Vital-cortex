@@ -1,24 +1,24 @@
 <template>
   <div class="service-container">
-    <!-- 悬浮球 -->
+    <!--  -->
     <div class="service-ball" @click="toggleChat" :class="{ 'is-open': showChat }">
       <div class="ball-icon">
-        <span v-if="!showChat">💬</span>
-        <span v-else>✕</span>
+        <span v-if="!showChat"></span>
+        <span v-else></span>
       </div>
       <div class="ball-pulse" v-if="!showChat"></div>
     </div>
 
-    <!-- 聊天窗口 -->
+    <!--  -->
     <transition name="slide-up">
       <div v-if="showChat" class="chat-window">
-        <!-- 头部 -->
+        <!--  -->
         <div class="chat-header">
           <div class="header-info">
-            <span class="header-icon">🤖</span>
+            <span class="header-icon"></span>
             <div>
-              <div class="header-title">健康助手小健</div>
-              <div class="header-status">在线</div>
+              <div class="header-title"></div>
+              <div class="header-status"></div>
             </div>
           </div>
           <div class="header-actions">
@@ -26,37 +26,37 @@
           </div>
         </div>
 
-        <!-- 快捷入口 -->
+        <!--  -->
         <div class="quick-actions" v-if="messages.length === 0">
-          <div class="quick-title">常见问题</div>
+          <div class="quick-title"></div>
           <div class="quick-list">
-            <div class="quick-item" @click="sendQuick('感冒了怎么办？')">
-              <span>🤧</span> 感冒咨询
+            <div class="quick-item" @click="sendQuick('')">
+              <span></span> 
             </div>
-            <div class="quick-item" @click="sendQuick('推荐一些感冒药')">
-              <span>💊</span> 药品查询
+            <div class="quick-item" @click="sendQuick('')">
+              <span></span> 
             </div>
-            <div class="quick-item" @click="sendQuick('高血压的预防方法')">
-              <span>📚</span> 健康知识
+            <div class="quick-item" @click="sendQuick('')">
+              <span></span> 
             </div>
-            <div class="quick-item" @click="sendQuick('推荐一个全科医生')">
-              <span>🩺</span> 推荐医生
+            <div class="quick-item" @click="sendQuick('')">
+              <span>🩺</span> 
             </div>
           </div>
         </div>
 
-        <!-- 消息列表 -->
+        <!--  -->
         <div class="message-list" ref="messageList">
           <div v-if="messages.length === 0" class="welcome-msg">
-            <div class="welcome-avatar">🤖</div>
+            <div class="welcome-avatar"></div>
             <div class="welcome-text">
-              您好！我是健康助手小健，可以帮您解答健康问题、查询药品信息、推荐AI医生。请问有什么可以帮您？
+              AI
             </div>
           </div>
           <div v-for="(msg, i) in messages" :key="i" :class="['msg', msg.role]">
             <div class="msg-avatar">
-              <span v-if="msg.role === 'user'">👤</span>
-              <span v-else>🤖</span>
+              <span v-if="msg.role === 'user'"></span>
+              <span v-else></span>
             </div>
             <div class="msg-content">
               <div class="msg-text" v-html="formatMessage(msg.content)"></div>
@@ -64,7 +64,7 @@
             </div>
           </div>
           <div v-if="loading" class="msg assistant">
-            <div class="msg-avatar">🤖</div>
+            <div class="msg-avatar"></div>
             <div class="msg-content">
               <div class="typing-indicator">
                 <span></span><span></span><span></span>
@@ -73,11 +73,11 @@
           </div>
         </div>
 
-        <!-- 输入区域 -->
+        <!--  -->
         <div class="input-area">
           <el-input
             v-model="inputMsg"
-            placeholder="请输入您的问题..."
+            placeholder="..."
             @keyup.enter="sendMessage"
             :disabled="loading"
             size="small"
@@ -89,7 +89,7 @@
             :disabled="!inputMsg.trim()"
             size="small"
           >
-            发送
+            
           </el-button>
         </div>
       </div>
@@ -153,7 +153,7 @@ export default {
         );
 
         if (!response.ok) {
-          throw new Error("请求失败");
+          throw new Error("");
         }
 
         const reader = response.body.getReader();
@@ -191,7 +191,7 @@ export default {
                   this.sessionId = json.sessionId;
                 }
               } catch (e) {
-                // 忽略解析错误
+                // 
               }
             }
           }
@@ -199,10 +199,10 @@ export default {
       } catch (e) {
         this.messages.push({
           role: "assistant",
-          content: "抱歉，服务暂时不可用，请稍后再试。",
+          content: "",
           time: this.formatTime(new Date()),
         });
-        console.error("聊天请求失败:", e);
+        console.error(":", e);
       }
 
       this.loading = false;

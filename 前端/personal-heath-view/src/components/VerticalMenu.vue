@@ -2,10 +2,11 @@
   <el-menu
     :collapse-transition="false"
     :collapse="flag"
-    style="padding: 5px 20px; max-width: 253px"
+    style="padding: 5px 12px; width: 100%"
     :default-active="activeIndex"
-    :background-color="bag"
-    text-color="#666"
+    background-color="transparent"
+    text-color="#94a3b8"
+    active-text-color="#f1f5f9"
     @select="handleSelect"
   >
     <template v-for="(item, index) in routes" :key="index">
@@ -67,33 +68,34 @@ export default {
 
 <style scoped>
 .is-active {
-  background-color: rgb(241, 241, 241) !important;
-  color: #1c1c1c !important;
-  font-weight: bold;
-  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f1f5f9 !important;
+  font-weight: 600;
+  border-radius: 8px;
 }
 
 .el-menu-item,
 .el-submenu__title {
-  height: 45px !important;
-  line-height: 45px !important;
+  height: 44px !important;
+  line-height: 44px !important;
   user-select: none;
-  color: #333;
+  color: #94a3b8;
+  border-radius: 8px;
+  margin: 2px 0;
 }
 
 .el-menu-item:focus,
 .el-menu-item:hover {
   box-sizing: border-box;
-  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.06) !important;
 }
 
 .el-menu-item {
-  height: 45px !important;
-  line-height: 45px !important;
-  margin: 3px;
+  height: 44px !important;
+  line-height: 44px !important;
 }
 
 .el-menu-item:hover {
-  background-color: rgb(241, 241, 241) !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
 }
 </style>

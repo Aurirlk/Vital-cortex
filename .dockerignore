@@ -1,0 +1,32 @@
+# 忽略的文件和目录
+.git
+.gitignore
+*.md
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# 后端
+后端/personal-health-api/target/
+后端/personal-health-api/.mvn/
+后端/personal-health-api/*.log
+
+# 前端
+前端/personal-heath-view/node_modules/
+前端/personal-heath-view/dist/
+前端/personal-heath-view/*.log
+
+# 环境文件
+.env
+.env.local
+.env.production
+
+# 临时文件
+*.tmp
+*.swp
+*.bak

@@ -28,7 +28,7 @@ public class SeaChatWorkflow {
     private UserMapper userMapper;
 
     private static final String WELCOME_MESSAGE =
-            "您好！我是健康管理助手，可以帮您解答健康问题、分析体检报告、提供营养饮食建议。" +
+            "您好！我是健康管理员助手，可以帮您解答健康问题、分析体检报告、提供营养饮食建议。" +
             "请告诉我您想咨询什么？";
 
     public CrmChatResponse processChat(CrmChatRequest request) {
@@ -137,7 +137,8 @@ public class SeaChatWorkflow {
     }
 
     public List<Map<String, Object>> executeSqlQuery(String sql) {
-        return chatHistoryService.executeQuery(sql);
+        // 管理员运维入口：只做只读校验，不做租户隔离（由 API Key 拦截器保证调用方身份）
+        return chatHistoryService.executeQuery(sql, null);
     }
 
     private Integer resolveUserId(String phoneNumber) {

@@ -2,12 +2,12 @@
   <div class="ai-doctor-manage">
     <div class="page-header">
       <div class="page-header-left">
-        <h2>AI医生管理</h2>
-        <span class="subtitle">管理AI医生角色的提示词和参数配置</span>
+        <h2>AI</h2>
+        <span class="subtitle">AI</span>
       </div>
       <el-button type="warning" @click="resetAllConfigs" :loading="resettingAll">
         <el-icon><RefreshRight /></el-icon>
-        恢复所有默认
+        
       </el-button>
     </div>
 
@@ -33,33 +33,33 @@
       </div>
     </div>
 
-    <!-- 配置编辑区 -->
+    <!--  -->
     <div v-if="selectedDoctor" class="config-editor">
       <div class="config-editor-header">
         <h3>
           <el-icon><component :is="currentConfig.icon" /></el-icon>
-          {{ currentConfig.name }} - 配置编辑
+          {{ currentConfig.name }} - 
         </h3>
         <div class="config-editor-actions">
           <el-button @click="resetConfig" :loading="resetting">
             <el-icon><RefreshRight /></el-icon>
-            重置默认
+            
           </el-button>
           <el-button type="primary" @click="saveConfig" :loading="saving">
             <el-icon><Check /></el-icon>
-            保存配置
+            
           </el-button>
         </div>
       </div>
 
       <div class="config-form">
         <div class="config-section">
-          <label class="config-label">系统提示词 (System Prompt)</label>
+          <label class="config-label"> (System Prompt)</label>
           <el-input
             v-model="editForm.systemPrompt"
             type="textarea"
             :rows="12"
-            placeholder="请输入系统提示词..."
+            placeholder="..."
           />
         </div>
 
@@ -67,7 +67,7 @@
           <div class="config-section config-section--half">
             <label class="config-label">
               Temperature
-              <el-tooltip content="控制回复的随机性，值越高回复越多样" placement="top">
+              <el-tooltip content="" placement="top">
                 <el-icon><QuestionFilled /></el-icon>
               </el-tooltip>
             </label>
@@ -83,7 +83,7 @@
           <div class="config-section config-section--half">
             <label class="config-label">
               Top-P
-              <el-tooltip content="控制词汇选择的范围，值越高词汇越丰富" placement="top">
+              <el-tooltip content="" placement="top">
                 <el-icon><QuestionFilled /></el-icon>
               </el-tooltip>
             </label>
@@ -99,7 +99,7 @@
       </div>
     </div>
 
-    <el-empty v-else description="请先选择一个AI医生角色进行配置" />
+    <el-empty v-else description="AI" />
   </div>
 </template>
 
@@ -142,8 +142,8 @@ export default {
           this.doctorList = res.data.data || [];
         }
       } catch (e) {
-        console.error("加载AI医生配置失败", e);
-        this.$message.error("加载配置失败");
+        console.error("AI", e);
+        this.$message.error("");
       } finally {
         this.loading = false;
       }
@@ -159,15 +159,15 @@ export default {
     },
     async saveConfig() {
       if (!this.editForm.systemPrompt.trim()) {
-        this.$message.warning("系统提示词不能为空");
+        this.$message.warning("");
         return;
       }
       this.saving = true;
       try {
         const res = await this.$axios.put(`/ai/config/${this.selectedDoctor}`, this.editForm);
         if (res.data.code === 200) {
-          this.$message.success("配置保存成功");
-          // 更新本地数据
+          this.$message.success("");
+          // 
           const idx = this.doctorList.findIndex(d => d.key === this.selectedDoctor);
           if (idx !== -1) {
             this.doctorList[idx].systemPrompt = this.editForm.systemPrompt;
@@ -176,31 +176,31 @@ export default {
             this.currentConfig = this.doctorList[idx];
           }
         } else {
-          this.$message.error(res.data.message || "保存失败");
+          this.$message.error(res.data.message || "");
         }
       } catch (e) {
-        this.$message.error("保存失败: " + (e.response?.data?.message || e.message));
+        this.$message.error(": " + (e.response?.data?.message || e.message));
       } finally {
         this.saving = false;
       }
     },
     async resetConfig() {
       const { value: password } = await this.$swal.fire({
-        title: "恢复默认提示词",
-        html: `<p style="margin-bottom:12px">将把 <b>${this.currentConfig.name}</b> 的配置恢复为默认值</p>`,
+        title: "",
+        html: `<p style="margin-bottom:12px"> <b>${this.currentConfig.name}</b> </p>`,
         input: "password",
-        inputLabel: "请输入管理员密码",
-        inputPlaceholder: "密码",
+        inputLabel: "",
+        inputPlaceholder: "",
         inputAttributes: {
           autocapitalize: "off",
           autocorrect: "off"
         },
         showCancelButton: true,
-        confirmButtonText: "确认恢复",
-        cancelButtonText: "取消",
+        confirmButtonText: "",
+        cancelButtonText: "",
         confirmButtonColor: "#667eea",
         inputValidator: (value) => {
-          if (!value) return "请输入密码";
+          if (!value) return "";
         }
       });
 
@@ -212,8 +212,8 @@ export default {
         if (res.data.code === 200) {
           this.$swal.fire({
             icon: "success",
-            title: "恢复成功",
-            text: `${this.currentConfig.name} 已恢复默认提示词`,
+            title: "",
+            text: `${this.currentConfig.name} `,
             timer: 1500,
             showConfirmButton: false
           });
@@ -223,15 +223,15 @@ export default {
         } else {
           this.$swal.fire({
             icon: "error",
-            title: "恢复失败",
-            text: res.data.message || "请检查密码是否正确"
+            title: "",
+            text: res.data.message || ""
           });
         }
       } catch (e) {
         this.$swal.fire({
           icon: "error",
-          title: "恢复失败",
-          text: e.response?.data?.message || "请检查密码是否正确"
+          title: "",
+          text: e.response?.data?.message || ""
         });
       } finally {
         this.resetting = false;
@@ -239,21 +239,21 @@ export default {
     },
     async resetAllConfigs() {
       const { value: password } = await this.$swal.fire({
-        title: "恢复所有默认提示词",
-        html: `<p style="margin-bottom:12px">将把 <b>所有AI医生角色</b> 的配置恢复为默认值</p>`,
+        title: "",
+        html: `<p style="margin-bottom:12px"> <b>AI</b> </p>`,
         input: "password",
-        inputLabel: "请输入管理员密码",
-        inputPlaceholder: "密码",
+        inputLabel: "",
+        inputPlaceholder: "",
         inputAttributes: {
           autocapitalize: "off",
           autocorrect: "off"
         },
         showCancelButton: true,
-        confirmButtonText: "确认恢复",
-        cancelButtonText: "取消",
+        confirmButtonText: "",
+        cancelButtonText: "",
         confirmButtonColor: "#e6a23c",
         inputValidator: (value) => {
-          if (!value) return "请输入密码";
+          if (!value) return "";
         }
       });
 
@@ -265,8 +265,8 @@ export default {
         if (res.data.code === 200) {
           this.$swal.fire({
             icon: "success",
-            title: "恢复成功",
-            text: "所有角色已恢复默认提示词",
+            title: "",
+            text: "",
             timer: 1500,
             showConfirmButton: false
           });
@@ -278,15 +278,15 @@ export default {
         } else {
           this.$swal.fire({
             icon: "error",
-            title: "恢复失败",
-            text: res.data.message || "请检查密码是否正确"
+            title: "",
+            text: res.data.message || ""
           });
         }
       } catch (e) {
         this.$swal.fire({
           icon: "error",
-          title: "恢复失败",
-          text: e.response?.data?.message || "请检查密码是否正确"
+          title: "",
+          text: e.response?.data?.message || ""
         });
       } finally {
         this.resettingAll = false;

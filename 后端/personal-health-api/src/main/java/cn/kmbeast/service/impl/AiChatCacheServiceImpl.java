@@ -111,6 +111,26 @@ public class AiChatCacheServiceImpl implements AiChatCacheService {
         }
     }
 
+    /**
+     * SEC-03：会话归属校验。以 MySQL 中的 user_id 为准，
+     * 缓存命中也要保证缓存对象本身带有正确的 userId。
+     */
+    @Override
+    public boolean isOwnedBy(Integer conversationId, Integer userId) {
+        if (conversationId == null || userId == null) {
+            return false;
+        }
+        AiConversation conv = conversationCache.get(conversationId);
+        if (conv == null || conv.getUserId() == null) {
+            conv = conversationMapper.getById(conversationId);
+            if (conv != null) {
+                conversationCache.put(conversationId, conv);
+            }
+        }
+        // 会话不存在时同样返回 false，避免通过"存在/不存在"的响应差异探测他人会话ID
+        return conv != null && userId.equals(conv.getUserId());
+    }
+
     @Override
     public List<AiChatRecord> getMessages(Integer conversationId) {
         List<AiChatRecord> messages = messageCache.get(conversationId);

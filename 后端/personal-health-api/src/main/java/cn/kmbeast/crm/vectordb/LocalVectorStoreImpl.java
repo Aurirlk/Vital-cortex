@@ -38,6 +38,14 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
     private final Map<String, CollectionMetadata> metadataMap = new ConcurrentHashMap<>();
     private final Map<String, VectorBinaryStore> binaryStores = new ConcurrentHashMap<>();
 
+    /**
+     * RAG-04：内存索引的读写锁。写入路径（upsert/batchUpsert/delete/compact）
+     * 与读取路径（search）并发时，ConcurrentHashMap 只能保证单条 get/put 原子，
+     * 无法保证"遍历所有向量 + 读文档列表"这一复合操作的线程安全。
+     */
+    private final java.util.concurrent.locks.ReadWriteLock indexLock =
+            new java.util.concurrent.locks.ReentrantReadWriteLock();
+
     @PostConstruct
     public void init() {
         storeRoot = crmConfig.getVectorStorePath();
@@ -217,36 +225,39 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
             createCollection(collectionName);
         }
 
-        CollectionMetadata meta = metadataMap.get(collectionName);
-        int id = meta.getNextId();
-
+        indexLock.writeLock().lock();
         try {
-            binaryStores.get(collectionName).append(id, embedding);
+            CollectionMetadata meta = metadataMap.get(collectionName);
+            int id = meta.getNextId();
 
-            VectorEntity doc = VectorEntity.builder()
-                    .id(id)
-                    .content(content)
-                    .metadata(metadata)
-                    .embedding(embedding)
-                    .build();
-            documentsMap.get(collectionName).add(doc);
+            try {
+                binaryStores.get(collectionName).append(id, embedding);
 
-            vectorsMap.get(collectionName).add(embedding);
-            normsMap.get(collectionName).add(norm(embedding));
+                VectorEntity doc = VectorEntity.builder()
+                        .id(id)
+                        .content(content)
+                        .metadata(metadata)
+                        .embedding(embedding)
+                        .build();
+                documentsMap.get(collectionName).add(doc);
 
-            meta.setDocCount(meta.getDocCount() + 1);
-            meta.setNextId(id + 1);
-            meta.getIdIndex().add(id);
-            meta.setUpdatedAt(new Date());
-        } catch (Exception e) {
-            log.error("[VectorStore] upsert失败: collection={}, id={}", collectionName, id, e);
+                vectorsMap.get(collectionName).add(embedding);
+                normsMap.get(collectionName).add(norm(embedding));
+
+                meta.setDocCount(meta.getDocCount() + 1);
+                meta.setNextId(id + 1);
+                meta.getIdIndex().add(id);
+                meta.setUpdatedAt(new Date());
+            } catch (Exception e) {
+                log.error("[VectorStore] upsert失败: collection={}, id={}", collectionName, id, e);
+            }
+        } finally {
+            indexLock.writeLock().unlock();
         }
     }
 
     @Override
     public List<SearchResult> search(String collectionName, String query, int topK) {
-        if (!metadataMap.containsKey(collectionName)) return new ArrayList<>();
-
         float[] queryVec;
         try {
             queryVec = embeddingService.embed(query);
@@ -256,12 +267,19 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
         }
         if (queryVec == null) return new ArrayList<>();
 
-        List<float[]> allVectors = vectorsMap.get(collectionName);
-        List<Double> allNorms = normsMap.get(collectionName);
-        List<VectorEntity> docs = documentsMap.get(collectionName);
-        if (allVectors == null || docs == null) return new ArrayList<>();
+        indexLock.readLock().lock();
+        try {
+            if (!metadataMap.containsKey(collectionName)) return new ArrayList<>();
 
-        return cosineSearchTopK(queryVec, allVectors, allNorms, docs, topK);
+            List<float[]> allVectors = vectorsMap.get(collectionName);
+            List<Double> allNorms = normsMap.get(collectionName);
+            List<VectorEntity> docs = documentsMap.get(collectionName);
+            if (allVectors == null || docs == null) return new ArrayList<>();
+
+            return cosineSearchTopK(queryVec, allVectors, allNorms, docs, topK);
+        } finally {
+            indexLock.readLock().unlock();
+        }
     }
 
     private List<SearchResult> cosineSearchTopK(float[] queryVec, List<float[]> allVectors,
@@ -315,43 +333,53 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
 
     @Override
     public void delete(String collectionName, int id) {
-        CollectionMetadata meta = metadataMap.get(collectionName);
-        if (meta == null) return;
+        indexLock.writeLock().lock();
+        try {
+            CollectionMetadata meta = metadataMap.get(collectionName);
+            if (meta == null) return;
 
-        meta.getDeletedIds().add(id);
-        int index = id - 1;
-        List<float[]> vecs = vectorsMap.get(collectionName);
-        List<Double> norms = normsMap.get(collectionName);
-        if (vecs != null && index < vecs.size()) {
-            vecs.set(index, null);
-            if (norms != null && index < norms.size()) {
-                norms.set(index, 0.0);
+            meta.getDeletedIds().add(id);
+            int index = id - 1;
+            List<float[]> vecs = vectorsMap.get(collectionName);
+            List<Double> norms = normsMap.get(collectionName);
+            if (vecs != null && index < vecs.size()) {
+                vecs.set(index, null);
+                if (norms != null && index < norms.size()) {
+                    norms.set(index, 0.0);
+                }
             }
+            meta.setUpdatedAt(new Date());
+            persistMetadata(collectionName);
+            persistCollections();
+        } finally {
+            indexLock.writeLock().unlock();
         }
-        meta.setUpdatedAt(new Date());
-        persistMetadata(collectionName);
-        persistCollections();
     }
 
     @Override
     public void deleteCollection(String collectionName) {
-        metadataMap.remove(collectionName);
-        vectorsMap.remove(collectionName);
-        normsMap.remove(collectionName);
-        documentsMap.remove(collectionName);
-        binaryStores.remove(collectionName);
-
+        indexLock.writeLock().lock();
         try {
-            Path colDir = Paths.get(storeRoot, collectionName);
-            if (Files.exists(colDir)) {
-                Files.walk(colDir)
-                        .sorted(Comparator.reverseOrder())
-                        .forEach(p -> { try { Files.delete(p); } catch (Exception ignored) {} });
+            metadataMap.remove(collectionName);
+            vectorsMap.remove(collectionName);
+            normsMap.remove(collectionName);
+            documentsMap.remove(collectionName);
+            binaryStores.remove(collectionName);
+
+            try {
+                Path colDir = Paths.get(storeRoot, collectionName);
+                if (Files.exists(colDir)) {
+                    Files.walk(colDir)
+                            .sorted(Comparator.reverseOrder())
+                            .forEach(p -> { try { Files.delete(p); } catch (Exception ignored) {} });
+                }
+            } catch (Exception e) {
+                log.error("[VectorStore] 删除集合失败: {}", collectionName, e);
             }
-        } catch (Exception e) {
-            log.error("[VectorStore] 删除集合失败: {}", collectionName, e);
+            persistCollections();
+        } finally {
+            indexLock.writeLock().unlock();
         }
-        persistCollections();
     }
 
     @Override
@@ -448,8 +476,13 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
     }
 
     public void compact() {
-        for (String collectionName : metadataMap.keySet()) {
-            compactCollection(collectionName);
+        indexLock.writeLock().lock();
+        try {
+            for (String collectionName : metadataMap.keySet()) {
+                compactCollection(collectionName);
+            }
+        } finally {
+            indexLock.writeLock().unlock();
         }
     }
 
@@ -496,7 +529,13 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
         meta.setUpdatedAt(new Date());
 
         try {
+            // RAG-01 修复：重建向量文件前必须删除旧文件。
+            // 原实现直接 new VectorBinaryStore(同一路径) 后 append，
+            // 而 append 以 APPEND 模式打开——旧向量全部保留，新向量追加在尾部，
+            // readAll 会读到"旧数据+新数据"两份，docCount 却只认新数量，
+            // 导致索引错位、检索结果完全错乱，且文件体积永久翻倍。
             Path binPath = Paths.get(storeRoot, collectionName, "vectors.bin");
+            Files.deleteIfExists(binPath);
             VectorBinaryStore store = new VectorBinaryStore(binPath, DIMENSION);
             for (int i = 0; i < newVectors.size(); i++) {
                 store.append(i + 1, newVectors.get(i));

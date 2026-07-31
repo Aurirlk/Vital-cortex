@@ -1,7 +1,7 @@
 <template>
   <div class="news-save-container">
     <div v-if="newsSaveList.length === 0" class="empty-container">
-      <el-empty description="暂未收藏资讯"></el-empty>
+      <el-empty description=""></el-empty>
     </div>
     <div v-else class="news-save-grid">
       <div
@@ -19,7 +19,7 @@
           <h3 class="news-title">{{ news.name }}</h3>
           <div class="news-meta">
             <span class="news-tags">{{ news.tagName }}</span>
-            <span class="news-time">收藏于 {{ parseTime(news.createTime) }}</span>
+            <span class="news-time"> {{ parseTime(news.createTime) }}</span>
           </div>
         </div>
       </div>
@@ -42,7 +42,7 @@ export default {
       return timeAgo(time);
     },
     newsItemClick(newsSave) {
-      // 组装资讯
+      // 
       const news = {
         id: newsSave.newsId,
         name: newsSave.name,
@@ -54,7 +54,7 @@ export default {
       this.$router.push("/user/news-detail");
     },
     loadAllSaveNews() {
-      // 查询条件，带上ID
+      // ID
       const userInfo = sessionStorage.getItem("userInfo");
       const userInfoEntity = JSON.parse(userInfo);
       const newsSaveQueryDto = {

@@ -1,0 +1,100 @@
+# ============================================
+# 智康云健康管理系统 - Docker Compose 编排
+# ============================================
+
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  db:
+    image: mysql:8.0
+    container_name: zhikangyun-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?请通过环境变量 DB_ROOT_PASSWORD 设置 MySQL root 密码}
+      MYSQL_DATABASE: ${DB_NAME:-personal_health}
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_bin
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./Data/sql/deploy/init_database.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./Data/sql/forum_schema.sql:/docker-entrypoint-initdb.d/02-forum.sql
+      - ./Data/sql/appointment_schema.sql:/docker-entrypoint-initdb.d/03-appointment.sql
+      - ./Data/sql/extra_modules_schema.sql:/docker-entrypoint-initdb.d/04-extra.sql
+      - ./Data/sql/rbac_schema.sql:/docker-entrypoint-initdb.d/05-rbac.sql
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 后端服务
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: zhikangyun-backend
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:-personal_health}?characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
+      DB_USER: root
+      DB_PASS: ${DB_ROOT_PASSWORD:?请通过环境变量 DB_ROOT_PASSWORD 设置 MySQL root 密码}
+      SERVER_PORT: 21090
+      # ENG-02 整改：移除已泄露的 JWT_SECRET 兜底值。
+      # 后端启动时会校验密钥强度与黑名单，未配置或使用默认值将拒绝启动。
+      JWT_SECRET: ${JWT_SECRET:?请通过环境变量 JWT_SECRET 设置至少32字节的随机密钥}
+      CRM_API_KEY: ${CRM_API_KEY:?请通过环境变量 CRM_API_KEY 设置 CRM 接口密钥}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_PROVIDER: ${AI_PROVIDER:-deepseek}
+      # RAG-03：嵌入服务端点必须显式配置（DeepSeek 无 embeddings API）
+      EMBEDDING_API_URL: ${EMBEDDING_API_URL:-}
+      # MM-06：文件存储根目录指向持久化卷，避免容器重建丢失上传文件
+      FILE_STORAGE_ROOT: /app/data
+    ports:
+      - "${BACKEND_PORT:-21090}:21090"
+    volumes:
+      - backend_data:/app/data
+      - backend_logs:/app/logs
+      - backend_cache:/app/cache
+    networks:
+      - backend-net
+      - frontend-net
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./前端/personal-heath-view
+      dockerfile: Dockerfile
+    container_name: zhikangyun-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    networks:
+      - frontend-net
+    depends_on:
+      - backend
+
+# 数据卷
+volumes:
+  mysql_data:
+    driver: local
+  backend_data:
+    driver: local
+  backend_logs:
+    driver: local
+  backend_cache:
+    driver: local
+
+# 网络
+networks:
+  backend-net:
+    driver: bridge
+  frontend-net:
+    driver: bridge

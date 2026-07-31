@@ -1,0 +1,342 @@
+/* 
+ *  - Element Plus 
+ * 
+ *  smart-recruit-ai 
+ */
+
+@import './design-tokens.css';
+
+/* ====================  ==================== */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--xh-bg);
+  color: var(--xh-text-primary);
+  font-family: var(--xh-font-family);
+  font-size: var(--xh-font-size-base);
+  line-height: var(--xh-line-height-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--xh-text-link);
+  text-decoration: none;
+  transition: opacity var(--xh-transition-fast);
+}
+
+a:hover {
+  opacity: 0.8;
+}
+
+/* ==================== Card  ==================== */
+.el-card {
+  border: none !important;
+  border-radius: var(--xh-radius-md) !important;
+  box-shadow: var(--xh-shadow-sm) !important;
+  transition: all var(--xh-transition-base) !important;
+  overflow: hidden;
+}
+
+.el-card:hover {
+  box-shadow: var(--xh-shadow-md) !important;
+  transform: translateY(-2px);
+}
+
+.el-card__header {
+  border-bottom: 1px solid var(--xh-border-light) !important;
+  padding: var(--xh-space-base) !important;
+}
+
+.el-card__body {
+  padding: var(--xh-space-base) !important;
+}
+
+/* ==================== Button  ==================== */
+.el-button {
+  border-radius: var(--xh-radius-sm) !important;
+  font-weight: var(--xh-font-medium) !important;
+  transition: all var(--xh-transition-base) !important;
+  padding: 8px 20px !important;
+}
+
+.el-button--primary {
+  background: var(--xh-primary-gradient) !important;
+  border-color: var(--xh-primary) !important;
+  box-shadow: 0 2px 8px rgba(255, 36, 66, 0.3) !important;
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus {
+  background: linear-gradient(135deg, #ff4d64, #ff8c9a) !important;
+  border-color: var(--xh-primary-light) !important;
+  box-shadow: 0 4px 12px rgba(255, 36, 66, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+.el-button--success {
+  background: var(--xh-gradient-fresh) !important;
+  border-color: var(--xh-success) !important;
+}
+
+.el-button--warning {
+  background: var(--xh-gradient-warm) !important;
+  border-color: var(--xh-warning) !important;
+}
+
+.el-button--danger {
+  background: var(--xh-primary-gradient) !important;
+  border-color: var(--xh-error) !important;
+}
+
+.el-button--info {
+  background: var(--xh-gradient-blue) !important;
+  border-color: var(--xh-info) !important;
+}
+
+.el-button--text {
+  color: var(--xh-text-link) !important;
+}
+
+/* ==================== Input  ==================== */
+.el-input__wrapper {
+  border-radius: var(--xh-radius-sm) !important;
+  box-shadow: 0 0 0 1px var(--xh-border) !important;
+  transition: all var(--xh-transition-base) !important;
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--xh-border-dark) !important;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 2px var(--xh-primary-bg), 0 0 0 1px var(--xh-primary) !important;
+}
+
+/* ==================== Tag  ==================== */
+.el-tag {
+  border-radius: var(--xh-radius-full) !important;
+  border: none !important;
+  font-weight: var(--xh-font-medium) !important;
+  padding: 0 12px !important;
+}
+
+.el-tag--primary {
+  background: var(--xh-primary-bg) !important;
+  color: var(--xh-primary) !important;
+}
+
+.el-tag--success {
+  background: var(--xh-success-bg) !important;
+  color: var(--xh-success) !important;
+}
+
+.el-tag--warning {
+  background: var(--xh-warning-bg) !important;
+  color: var(--xh-warning) !important;
+}
+
+.el-tag--danger {
+  background: var(--xh-error-bg) !important;
+  color: var(--xh-error) !important;
+}
+
+.el-tag--info {
+  background: var(--xh-info-bg) !important;
+  color: var(--xh-info) !important;
+}
+
+/* ==================== Dialog  ==================== */
+.el-dialog {
+  border-radius: var(--xh-radius-lg) !important;
+  overflow: hidden;
+}
+
+.el-dialog__header {
+  padding: var(--xh-space-lg) !important;
+  border-bottom: 1px solid var(--xh-border-light);
+}
+
+.el-dialog__body {
+  padding: var(--xh-space-lg) !important;
+}
+
+.el-dialog__footer {
+  padding: var(--xh-space-base) var(--xh-space-lg) !important;
+  border-top: 1px solid var(--xh-border-light);
+}
+
+/* ==================== Table  ==================== */
+.el-table {
+  border-radius: var(--xh-radius-md) !important;
+  overflow: hidden;
+}
+
+.el-table th.el-table__cell {
+  background-color: var(--xh-bg-page) !important;
+  color: var(--xh-text-secondary) !important;
+  font-weight: var(--xh-font-semibold) !important;
+}
+
+.el-table td.el-table__cell {
+  border-bottom: 1px solid var(--xh-border-light) !important;
+}
+
+.el-table tr:hover > td {
+  background-color: var(--xh-bg-hover) !important;
+}
+
+/* ==================== Menu  ==================== */
+.el-menu {
+  border-right: none !important;
+}
+
+.el-menu-item,
+.el-sub-menu__title {
+  border-radius: var(--xh-radius-sm) !important;
+  margin: 2px 8px !important;
+  transition: all var(--xh-transition-base) !important;
+}
+
+.el-menu-item:hover,
+.el-sub-menu__title:hover {
+  background-color: var(--xh-primary-bg) !important;
+  color: var(--xh-primary) !important;
+}
+
+.el-menu-item.is-active {
+  background: var(--xh-primary-gradient) !important;
+  color: var(--xh-text-white) !important;
+  font-weight: var(--xh-font-semibold) !important;
+}
+
+/* ==================== Tab  ==================== */
+.el-tabs__item {
+  font-weight: var(--xh-font-medium) !important;
+  transition: color var(--xh-transition-base) !important;
+}
+
+.el-tabs__item.is-active {
+  color: var(--xh-primary) !important;
+  font-weight: var(--xh-font-semibold) !important;
+}
+
+.el-tabs__active-bar {
+  background: var(--xh-primary-gradient) !important;
+  border-radius: 2px !important;
+}
+
+/* ==================== Pagination  ==================== */
+.el-pagination .el-pager li {
+  border-radius: var(--xh-radius-sm) !important;
+  transition: all var(--xh-transition-base) !important;
+}
+
+.el-pagination .el-pager li.is-active {
+  background: var(--xh-primary-gradient) !important;
+  color: var(--xh-text-white) !important;
+}
+
+/* ==================== Form  ==================== */
+.el-form-item__label {
+  font-weight: var(--xh-font-medium) !important;
+  color: var(--xh-text-primary) !important;
+}
+
+/* ==================== Message  ==================== */
+.el-message {
+  border-radius: var(--xh-radius-md) !important;
+  box-shadow: var(--xh-shadow-lg) !important;
+}
+
+/* ====================  ==================== */
+.xh-card {
+  background: var(--xh-bg-card);
+  border-radius: var(--xh-radius-md);
+  box-shadow: var(--xh-shadow-sm);
+  padding: var(--xh-space-base);
+  transition: all var(--xh-transition-base);
+}
+
+.xh-card:hover {
+  box-shadow: var(--xh-shadow-md);
+  transform: translateY(-2px);
+}
+
+.xh-gradient-text {
+  background: var(--xh-primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.xh-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: var(--xh-radius-full);
+  font-size: var(--xh-font-size-sm);
+  font-weight: var(--xh-font-medium);
+}
+
+.xh-pill--primary {
+  background: var(--xh-primary-bg);
+  color: var(--xh-primary);
+}
+
+.xh-pill--success {
+  background: var(--xh-success-bg);
+  color: var(--xh-success);
+}
+
+.xh-pill--warning {
+  background: var(--xh-warning-bg);
+  color: var(--xh-warning);
+}
+
+.xh-pill--info {
+  background: var(--xh-info-bg);
+  color: var(--xh-info);
+}
+
+/*  */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.xh-animate-fadeInUp {
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+.xh-animate-fadeIn {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.xh-animate-scaleIn {
+  animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}

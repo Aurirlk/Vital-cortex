@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.PostMapper">
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO post (user_id, title, content, cover, tag_id, view_count, like_count,
+                          favorite_count, comment_count, share_count, hot_score, status, is_top, create_time)
+        VALUES (#{userId}, #{title}, #{content}, #{cover}, #{tagId}, #{viewCount}, #{likeCount},
+                #{favoriteCount}, #{commentCount}, #{shareCount}, #{hotScore}, #{status}, #{isTop}, #{createTime})
+    </insert>
+
+    <update id="update">
+        UPDATE post
+        <set>
+            <if test="title != null and title != ''">title = #{title},</if>
+            <if test="content != null and content != ''">content = #{content},</if>
+            <if test="cover != null">cover = #{cover},</if>
+            <if test="tagId != null">tag_id = #{tagId},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="isTop != null">is_top = #{isTop},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="batchDelete" parameterType="list">
+        DELETE FROM post WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <select id="query" resultMap="PostResultMap">
+        SELECT p.*, u.user_name, u.user_avatar, t.name AS tag_name
+        FROM post p
+        LEFT JOIN `user` u ON u.id = p.user_id
+        LEFT JOIN post_tag t ON t.id = p.tag_id
+        <where>
+            <if test="title != null and title != ''">AND p.title LIKE CONCAT('%', #{title}, '%')</if>
+            <if test="tagId != null">AND p.tag_id = #{tagId}</if>
+            <if test="userId != null">AND p.user_id = #{userId}</if>
+            <if test="status != null">AND p.status = #{status}</if>
+            <if test="isTop != null">AND p.is_top = #{isTop}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="startTime != null and endTime != null">AND p.create_time BETWEEN #{startTime} AND #{endTime}</if>
+        </where>
+        <choose>
+            <when test="orderBy == 'hot'">ORDER BY p.hot_score DESC, p.create_time DESC</when>
+            <otherwise>ORDER BY p.is_top DESC, p.create_time DESC</otherwise>
+        </choose>
+        <if test="current != null and size != null">LIMIT #{current}, #{size}</if>
+    </select>
+
+    <select id="queryCount" resultType="integer">
+        SELECT COUNT(*) FROM post p
+        <where>
+            <if test="title != null and title != ''">AND p.title LIKE CONCAT('%', #{title}, '%')</if>
+            <if test="tagId != null">AND p.tag_id = #{tagId}</if>
+            <if test="userId != null">AND p.user_id = #{userId}</if>
+            <if test="status != null">AND p.status = #{status}</if>
+            <if test="isTop != null">AND p.is_top = #{isTop}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="startTime != null and endTime != null">AND p.create_time BETWEEN #{startTime} AND #{endTime}</if>
+        </where>
+    </select>
+
+    <select id="getById" resultMap="PostResultMap">
+        SELECT p.*, u.user_name, u.user_avatar, t.name AS tag_name
+        FROM post p
+        LEFT JOIN `user` u ON u.id = p.user_id
+        LEFT JOIN post_tag t ON t.id = p.tag_id
+        WHERE p.id = #{id}
+    </select>
+
+    <update id="incrementViewCount">UPDATE post SET view_count = view_count + 1 WHERE id = #{id}</update>
+    <update id="incrementLikeCount">UPDATE post SET like_count = like_count + 1 WHERE id = #{id}</update>
+    <update id="decrementLikeCount">UPDATE post SET like_count = GREATEST(like_count - 1, 0) WHERE id = #{id}</update>
+    <update id="incrementFavoriteCount">UPDATE post SET favorite_count = favorite_count + 1 WHERE id = #{id}</update>
+    <update id="decrementFavoriteCount">UPDATE post SET favorite_count = GREATEST(favorite_count - 1, 0) WHERE id = #{id}</update>
+    <update id="incrementCommentCount">UPDATE post SET comment_count = comment_count + 1 WHERE id = #{id}</update>
+
+    <update id="updateHotScore">
+        UPDATE post SET hot_score = (view_count * 1 + like_count * 3 + favorite_count * 2 + comment_count * 4 + share_count * 5)
+        WHERE id = #{id}
+    </update>
+
+    <resultMap id="PostResultMap" type="cn.kmbeast.pojo.vo.PostVO">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="cover" property="cover"/>
+        <result column="tag_id" property="tagId"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="favorite_count" property="favoriteCount"/>
+        <result column="comment_count" property="commentCount"/>
+        <result column="share_count" property="shareCount"/>
+        <result column="hot_score" property="hotScore"/>
+        <result column="status" property="status"/>
+        <result column="is_top" property="isTop"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="user_name" property="userName"/>
+        <result column="user_avatar" property="userAvatar"/>
+        <result column="tag_name" property="tagName"/>
+    </resultMap>
+
+    <!-- 统计查询 -->
+    <select id="countToday" resultType="integer">
+        SELECT COUNT(*) FROM post WHERE DATE(create_time) = CURDATE()
+    </select>
+    <select id="topByHotScore" resultType="map">
+        SELECT id, title, hot_score as hotScore, view_count as viewCount, like_count as likeCount
+        FROM post WHERE status = 1
+        ORDER BY hot_score DESC LIMIT #{limit}
+    </select>
+    <select id="countByTag" resultType="map">
+        SELECT t.name as tag, COUNT(*) as count
+        FROM post p
+        JOIN post_tag t ON t.id = p.tag_id
+        WHERE p.status = 1
+        GROUP BY p.tag_id, t.name
+        ORDER BY count DESC
+    </select>
+    <select id="countByDays" resultType="map">
+        SELECT DATE(create_time) as date, COUNT(*) as count
+        FROM post WHERE create_time >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(create_time)
+        ORDER BY date ASC
+    </select>
+</mapper>

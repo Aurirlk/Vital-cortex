@@ -1,5 +1,5 @@
-﻿<template>
-  <el-row style="background-color: #ffffff; padding: 20px; border-radius: 12px">
+<template>
+  <el-row style="background-color: #ffffff; padding: 20px; border-radius: 12px; width: 100%; box-sizing: border-box">
     <el-row style="padding: 15px 20px; margin-left: 10px">
       <el-row :gutter="16" align="middle">
         <el-col :span="4">
@@ -7,7 +7,7 @@
             @change="changeNewsTag"
             size="default"
             v-model="newsQueryDto.tagId"
-            placeholder="资讯分类"
+            placeholder=""
             style="width: 100%"
           >
             <el-option
@@ -25,9 +25,9 @@
             style="width: 100%"
             v-model="searchTime"
             type="daterange"
-            range-separator="至"
-            start-placeholder="发布开始"
-            end-placeholder="发布结束"
+            range-separator=""
+            start-placeholder=""
+            end-placeholder=""
           >
           </el-date-picker>
         </el-col>
@@ -36,7 +36,7 @@
             size="default"
             style="width: 100%"
             v-model="newsQueryDto.name"
-            placeholder="资讯标题"
+            placeholder=""
             clearable
             @clear="handleFilterClear"
           >
@@ -63,7 +63,7 @@
             class="customer"
             type="info"
             @click="add()"
-            ><el-icon style="margin-right: 4px"><Plus /></el-icon>新增资讯</el-button
+            ><el-icon style="margin-right: 4px"><Plus /></el-icon></el-button
           >
         </el-col>
       </el-row>
@@ -75,7 +75,7 @@
         :data="tableData"
         style="width: 100%"
       >
-        <el-table-column prop="cover" width="80" label="首图">
+        <el-table-column prop="cover" width="80" label="">
           <template #default="{ row }">
             <img
               :src="row.cover"
@@ -83,7 +83,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="tagName" width="138" label="所属分类">
+        <el-table-column prop="tagName" width="138" label="">
           <template #default="{ row }">
             <span
               ><el-icon style="margin-right: 3px"><Discount /></el-icon>
@@ -91,7 +91,7 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="isTop" width="128" label="是否推荐">
+        <el-table-column prop="isTop" width="128" label="">
           <template #default="{ row }">
             <el-icon v-if="!row.isTop" style="margin-right: 5px"
               ><Warning
@@ -103,7 +103,7 @@
               v-if="!row.isTop"
               class="item"
               effect="dark"
-              content="未推荐资讯，不做推荐展示"
+              content=""
               placement="bottom-end"
             >
               <span
@@ -112,29 +112,29 @@
                   text-decoration: underline;
                   text-decoration-style: dashed;
                 "
-                >未推送</span
+                ></span
               >
             </el-tooltip>
-            <span v-else>已推送</span>
+            <span v-else></span>
           </template>
         </el-table-column>
-        <el-table-column prop="isBanner" width="128" label="轮播图">
+        <el-table-column prop="isBanner" width="128" label="">
           <template #default="{ row }">
             <el-tag :type="row.isBanner ? 'success' : 'info'" size="small">
-              {{ row.isBanner ? '是' : '否' }}
+              {{ row.isBanner ? '' : '' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column
           prop="createTime"
           width="168"
-          label="发布时间"
+          label=""
         ></el-table-column>
-        <el-table-column prop="name" label="标题"></el-table-column>
-        <el-table-column label="操作" width="120">
+        <el-table-column prop="name" label=""></el-table-column>
+        <el-table-column label="" width="120">
           <template #default="{ row }">
-            <span class="text-button" @click="handleEdit(row)">编辑</span>
-            <span class="text-button" @click="handleDelete(row)">删除</span>
+            <span class="text-button" @click="handleEdit(row)"></span>
+            <span class="text-button" @click="handleDelete(row)"></span>
           </template>
         </el-table-column>
       </el-table>
@@ -151,18 +151,19 @@
       <template #title>
         <div>
           <p class="dialog-title">
-            {{ !isOperation ? "新增资讯" : "修改资讯" }}
+            {{ !isOperation ? "" : "" }}
           </p>
         </div>
       </template>
       <div style="padding: 0 20px">
-        <!-- 封面 -->
+        <!--  -->
         <el-row style="margin-top: 10px">
-          <p>*封面</p>
+          <p>*</p>
           <div style="display: flex; align-items: flex-start; gap: 12px">
             <el-upload
               class="avatar-uploader"
               :action="$uploadUrl"
+            :headers="$uploadHeaders"
               :show-file-list="false"
               :on-success="handleAvatarSuccess"
             >
@@ -177,23 +178,23 @@
               size="small"
               style="margin-top: 90px"
               @click="showDefaultCoverDialog = true"
-            >选择默认图片</el-button>
+            ></el-button>
           </div>
         </el-row>
-        <!-- 标题 -->
+        <!--  -->
         <el-row>
-          <p>*标题</p>
+          <p>*</p>
           <input
             style="font-size: 32px; line-height: 45px"
             class="dialog-input"
             v-model="data.name"
-            placeholder="标题"
+            placeholder=""
           />
         </el-row>
-        <!-- 标签 -->
+        <!--  -->
         <el-row style="margin: 12px 0">
           <el-row>
-            <span class="dialog-hover">所属分类</span>
+            <span class="dialog-hover"></span>
           </el-row>
           <el-radio-group style="margin-top: 10px" v-model="data.tagId">
             <el-radio
@@ -204,10 +205,10 @@
             >
           </el-radio-group>
         </el-row>
-        <!-- 推荐 -->
+        <!--  -->
         <el-row style="margin: 12px 0">
           <el-row>
-            <span class="dialog-hover">是否推荐</span>
+            <span class="dialog-hover"></span>
           </el-row>
           <el-switch
             style="user-select: none; padding: 0 6px"
@@ -217,10 +218,10 @@
           >
           </el-switch>
         </el-row>
-        <!-- 轮播图 -->
+        <!--  -->
         <el-row style="margin: 12px 0">
           <el-row>
-            <span class="dialog-hover">是否轮播图</span>
+            <span class="dialog-hover"></span>
           </el-row>
           <el-switch
             style="user-select: none; padding: 0 6px"
@@ -231,7 +232,7 @@
           </el-switch>
         </el-row>
         <el-row>
-          <p>*正文描述</p>
+          <p>*</p>
           <Editor
             height="calc(100vh - 500px)"
             :receiveContent="data.content"
@@ -252,7 +253,7 @@
             class="customer"
             type="info"
             @click="addOperation()"
-            >新增</el-button
+            ></el-button
           >
           <el-button
             size="small"
@@ -265,20 +266,20 @@
             class="customer"
             type="info"
             @click="updateOperation()"
-            >修改</el-button
+            ></el-button
           >
           <el-button
             class="customer"
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="dialogUserOperaion = false"
-            >取消</el-button
+            ></el-button
           >
         </span>
       </template>
     </el-dialog>
-    <!-- 默认图片选择对话框 -->
-    <el-dialog v-model="showDefaultCoverDialog" title="选择默认封面" width="600px">
+    <!--  -->
+    <el-dialog v-model="showDefaultCoverDialog" title="" width="600px">
       <div style="display: flex; flex-wrap: wrap; gap: 12px; padding: 10px">
         <div
           v-for="(cover, index) in defaultCovers"
@@ -291,8 +292,8 @@
         </div>
       </div>
       <template #footer>
-        <el-button @click="showDefaultCoverDialog = false">取消</el-button>
-        <el-button type="primary" @click="showDefaultCoverDialog = false">确定</el-button>
+        <el-button @click="showDefaultCoverDialog = false"></el-button>
+        <el-button type="primary" @click="showDefaultCoverDialog = false"></el-button>
       </template>
     </el-dialog>
   </el-row>
@@ -316,17 +317,17 @@ export default {
       searchTime: [],
       selectedRows: [],
       status: null,
-      newsQueryDto: {}, // 搜索条件
+      newsQueryDto: {}, // 
       messsageContent: "",
       tagsList: [],
       showDefaultCoverDialog: false,
       defaultCovers: [
-        { name: "健康饮食", url: "https://picsum.photos/seed/health1/400/250" },
-        { name: "运动健身", url: "https://picsum.photos/seed/health2/400/250" },
-        { name: "医疗健康", url: "https://picsum.photos/seed/health3/400/250" },
-        { name: "心理健康", url: "https://picsum.photos/seed/health4/400/250" },
-        { name: "养生保健", url: "https://picsum.photos/seed/health5/400/250" },
-        { name: "健康生活", url: "https://picsum.photos/seed/health6/400/250" },
+        { name: "", url: "https://picsum.photos/seed/health1/400/250" },
+        { name: "", url: "https://picsum.photos/seed/health2/400/250" },
+        { name: "", url: "https://picsum.photos/seed/health3/400/250" },
+        { name: "", url: "https://picsum.photos/seed/health4/400/250" },
+        { name: "", url: "https://picsum.photos/seed/health5/400/250" },
+        { name: "", url: "https://picsum.photos/seed/health6/400/250" },
       ],
     };
   },
@@ -350,38 +351,38 @@ export default {
     onReceiveContent(html) {
       this.data.content = html;
     },
-    // 加载全部的资讯数据
+    // 
     loadAllTags() {
       this.$axios.post(`/tags/query`, {}).then((response) => {
         const { data } = response;
         if (data.code === 200) {
           this.tagsList = data.data;
-          this.tagsList.unshift({ name: "全部", id: null });
+          this.tagsList.unshift({ name: "", id: null });
         }
       });
     },
     handleAvatarSuccess(res, file) {
       if (res.code !== 200) {
-        this.$message.error(`资讯封面上传异常`);
+        this.$message.error(``);
         return;
       }
       this.data.cover = "";
-      this.$message.success(`资讯封面上传成功`);
+      this.$message.success(``);
       this.data.cover = res.data;
     },
-    // 多选框选中
+    // 
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 批量删除数据
+    // 
     async batchDelete() {
       if (!this.selectedRows.length) {
-        this.$message(`未选中任何数据`);
+        this.$message(``);
         return;
       }
       const confirmed = await this.$swalConfirm({
-        title: "删除资讯数据",
-        text: `删除后不可恢复，是否继续？`,
+        title: "",
+        text: ``,
         icon: "warning",
       });
       if (confirmed) {
@@ -390,7 +391,7 @@ export default {
           const response = await this.$axios.post(`/news/batchDelete`, ids);
           if (response.data.code === 200) {
             this.$swal.fire({
-              title: "删除提示",
+              title: "",
               text: response.data.msg,
               icon: "success",
               showConfirmButton: false,
@@ -401,13 +402,13 @@ export default {
           }
         } catch (e) {
           this.$swal.fire({
-            title: "错误提示",
+            title: "",
             text: e,
             icon: "error",
             showConfirmButton: false,
             timer: 2000,
           });
-          console.error(`资讯信息删除异常：`, e);
+          console.error(``, e);
         }
       }
     },
@@ -416,12 +417,12 @@ export default {
       this.searchTime = [];
       this.fetchFreshData();
     },
-    // 修改信息
+    // 
     async updateOperation() {
       try {
         const response = await this.$axios.put("/news/update", this.data);
         this.$swal.fire({
-          title: "资讯信息修改",
+          title: "",
           text: response.data.msg,
           icon: response.data.code === 200 ? "success" : "error",
           showConfirmButton: false,
@@ -433,11 +434,11 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
-        console.error("提交表单时出错", error);
-        this.$message.error("提交失败，请稍后再试！");
+        console.error("", error);
+        this.$message.error("");
       }
     },
-    // 信息新增
+    // 
     async addOperation() {
       try {
         const response = await this.$axios.post("/news/save", this.data);
@@ -450,8 +451,8 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
-        console.error("提交表单时出错", error);
-        this.$message.error("提交失败，请稍后再试！");
+        console.error("", error);
+        this.$message.error("");
       }
     },
     closeDialog() {
@@ -471,7 +472,7 @@ export default {
           startTime = `${startDate.split("T")[0]}T00:00:00`;
           endTime = `${endDate.split("T")[0]}T23:59:59`;
         }
-        // 请求参数
+        // 
         const params = {
           current: this.currentPage,
           size: this.pageSize,
@@ -484,7 +485,7 @@ export default {
         this.tableData = data.data;
         this.totalItems = data.total;
       } catch (error) {
-        console.error("查询资讯信息异常:", error);
+        console.error(":", error);
       }
     },
     add() {
@@ -544,15 +545,15 @@ export default {
 }
 
 .dialog-footer {
-  /* 使按钮水平居中*/
+  /* */
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* 如果需要调整按钮之间的间距 */
+/*  */
 .customer {
   margin: 0 8px;
-  /* 根据需要调整间距*/
+  /* */
 }
 </style>

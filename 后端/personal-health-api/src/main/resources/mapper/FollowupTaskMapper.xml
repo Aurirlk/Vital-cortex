@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.FollowupTaskMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO followup_task (patient_id, doctor_id, title, description, task_type, due_date, status, create_time)
+        VALUES (#{patientId}, #{doctorId}, #{title}, #{description}, #{taskType}, #{dueDate}, #{status}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE followup_task
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="dueDate != null">due_date = #{dueDate},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    <delete id="batchDelete">
+        DELETE FROM followup_task WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+    <select id="queryByPatientId" resultMap="TaskResultMap">
+        SELECT t.*, u.user_name AS patient_name, d.name AS doctor_name
+        FROM followup_task t
+        LEFT JOIN `user` u ON u.id = t.patient_id
+        LEFT JOIN hospital_doctor d ON d.id = t.doctor_id
+        WHERE t.patient_id = #{patientId} ORDER BY t.create_time DESC
+    </select>
+    <select id="queryByDoctorId" resultMap="TaskResultMap">
+        SELECT t.*, u.user_name AS patient_name, d.name AS doctor_name
+        FROM followup_task t
+        LEFT JOIN `user` u ON u.id = t.patient_id
+        LEFT JOIN hospital_doctor d ON d.id = t.doctor_id
+        WHERE t.doctor_id = #{doctorId} ORDER BY t.create_time DESC
+    </select>
+    <select id="getById" resultMap="TaskResultMap">
+        SELECT t.*, u.user_name AS patient_name, d.name AS doctor_name
+        FROM followup_task t
+        LEFT JOIN `user` u ON u.id = t.patient_id
+        LEFT JOIN hospital_doctor d ON d.id = t.doctor_id
+        WHERE t.id = #{id}
+    </select>
+    <resultMap id="TaskResultMap" type="cn.kmbeast.pojo.vo.FollowupTaskVO">
+        <id column="id" property="id"/>
+        <result column="patient_id" property="patientId"/>
+        <result column="doctor_id" property="doctorId"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="task_type" property="taskType"/>
+        <result column="due_date" property="dueDate"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="patient_name" property="patientName"/>
+        <result column="doctor_name" property="doctorName"/>
+    </resultMap>
+</mapper>

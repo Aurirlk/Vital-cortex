@@ -2,8 +2,8 @@
   <div
     style="
       box-sizing: border-box;
-      overflow-y: hidden;
-      overflow-x: hidden;
+      overflow-y: auto;
+      overflow-x: auto;
       padding: 10px;
     "
   >
@@ -35,7 +35,7 @@
         <div style="padding: 15px; box-sizing: border-box">
           <LineChart
             height="290px"
-            tag="存量用户"
+            tag=""
             @on-selected="userDatesSelected"
             :values="userValues"
             :date="userDates"
@@ -44,7 +44,7 @@
         <div style="padding: 15px; box-sizing: border-box">
           <LineChart
             height="290px"
-            tag="健康指标"
+            tag=""
             @on-selected="modelDatesSelected"
             :values="modelValues"
             :date="modelDates"
@@ -72,9 +72,9 @@ export default {
     };
   },
   created() {
-    // 数据较少，默认查365天
+    // 365
     this.userDatesSelected(365);
-    // 数据较少，默认查365天
+    // 365
     this.modelDatesSelected(365);
     this.loadPieCharts();
     this.loadMessages();
@@ -83,7 +83,7 @@ export default {
     time(createTime) {
       return timeAgo(createTime);
     },
-    // 加载资讯
+    // 
     loadMessages() {
       const messageQueryDto = {
         current: 1,

@@ -26,7 +26,8 @@ public class ExecuteSqlTool implements Tool {
         return "在本地 SQLite 数据库中执行只读 SQL 查询(SELECT)。chat_history 表结构: " +
                 "id(INTEGER), phone_number(TEXT), session_id(TEXT), role(TEXT), content(TEXT), " +
                 "intent_code(INTEGER), metadata(TEXT), created_at(DATETIME)。" +
-                "可用于查询用户的聊天历史、统计信息等";
+                "可用于查询当前用户的聊天历史、统计信息等。" +
+                "注意：查询 chat_history 时必须带 WHERE phone_number = '用户手机号' 条件";
     }
 
     @Override
@@ -38,7 +39,8 @@ public class ExecuteSqlTool implements Tool {
 
         Map<String, Object> sqlProp = new LinkedHashMap<>();
         sqlProp.put("type", "string");
-        sqlProp.put("description", "只读 SQL SELECT 语句，禁止 UPDATE/DELETE/INSERT/DROP/CREATE");
+        sqlProp.put("description", "只读 SQL SELECT 语句，禁止 UPDATE/DELETE/INSERT/DROP/CREATE；" +
+                "查 chat_history 必须限定 WHERE phone_number = '用户手机号'");
         properties.put("sql", sqlProp);
 
         schema.put("properties", properties);
@@ -57,7 +59,10 @@ public class ExecuteSqlTool implements Tool {
         }
 
         try {
-            List<Map<String, Object>> results = chatHistoryService.executeQuery(sql);
+            // SEC-04：LLM 生成的 SQL 必须落在当前会话用户自己的数据上，
+            // 由 SqlGuard 强制校验 phone_number 归属，越权/拖库查询直接失败
+            String tenantPhone = ToolContext.getString("phoneNumber");
+            List<Map<String, Object>> results = chatHistoryService.executeQuery(sql, tenantPhone);
             if (results.isEmpty()) {
                 return ToolResult.ok("查询结果为空");
             }
@@ -66,7 +71,7 @@ public class ExecuteSqlTool implements Tool {
             return ToolResult.error(e.getMessage());
         } catch (Exception e) {
             log.error("[ExecuteSqlTool] SQL执行失败", e);
-            return ToolResult.error("SQL执行失败: " + e.getMessage());
+            return ToolResult.error("SQL执行失败");
         }
     }
 }

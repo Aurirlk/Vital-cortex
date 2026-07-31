@@ -102,6 +102,11 @@ public class AiServiceImpl implements AiService {
             if (conversationId == null) {
                 AiConversation newConversation = chatCacheService.createConversation(userId, agentType, null);
                 conversationId = newConversation.getId();
+            } else if (!chatCacheService.isOwnedBy(conversationId, userId)) {
+                // SEC-03：conversationId 由前端传入。不校验归属的话，攻击者只需在聊天
+                // 请求里填别人的会话ID，就能把他人的问诊历史读进自己的模型上下文，
+                // 再让模型原样复述出来——比直接读接口更隐蔽。
+                throw new IllegalArgumentException("会话不存在或无权访问");
             }
 
             AiChatRecord userRecord = AiChatRecord.builder()
@@ -188,9 +193,13 @@ public class AiServiceImpl implements AiService {
             result.put("conversationId", String.valueOf(conversationId));
             return ApiResult.success(result);
 
+        } catch (IllegalArgumentException e) {
+            // 参数/越权类问题，直接回传原因，不掩盖为"服务异常"
+            log.warn("AI聊天请求被拒绝: userId={}, reason={}", userId, e.getMessage());
+            return ApiResult.error(e.getMessage());
         } catch (Exception e) {
             log.error("AI聊天请求异常", e);
-            return ApiResult.error("AI服务异常，请稍后重试：" + e.getMessage());
+            return ApiResult.error("AI服务异常，请稍后重试");
         }
     }
 
@@ -224,6 +233,11 @@ public class AiServiceImpl implements AiService {
             if (conversationId == null) {
                 AiConversation newConversation = chatCacheService.createConversation(userId, agentType, null);
                 conversationId = newConversation.getId();
+            } else if (!chatCacheService.isOwnedBy(conversationId, userId)) {
+                // SEC-03：conversationId 由前端传入。不校验归属的话，攻击者只需在聊天
+                // 请求里填别人的会话ID，就能把他人的问诊历史读进自己的模型上下文，
+                // 再让模型原样复述出来——比直接读接口更隐蔽。
+                throw new IllegalArgumentException("会话不存在或无权访问");
             }
 
             AiChatRecord userRecord = AiChatRecord.builder()

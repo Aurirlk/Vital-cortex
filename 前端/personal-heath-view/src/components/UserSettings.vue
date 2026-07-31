@@ -1,65 +1,65 @@
 <template>
   <div class="settings-container" :class="{ 'dark-mode': isDarkMode }">
     <div class="settings-header">
-      <h2>设置</h2>
+      <h2></h2>
     </div>
     
     <div class="settings-section">
-      <h3>外观设置</h3>
+      <h3></h3>
       <div class="setting-item">
         <div class="setting-info">
           <el-icon><Moon /></el-icon>
-          <span>深色模式</span>
+          <span></span>
         </div>
         <el-switch
           v-model="isDarkMode"
           @change="toggleDarkMode"
-          active-text="深色"
-          inactive-text="浅色"
+          active-text=""
+          inactive-text=""
         />
       </div>
     </div>
 
     <div class="settings-section">
-      <h3>显示设置</h3>
+      <h3></h3>
       <div class="setting-item">
         <div class="setting-info">
           <el-icon><View /></el-icon>
-          <span>显示轮播图白点</span>
+          <span></span>
         </div>
         <el-switch
           v-model="showBannerDots"
           @change="saveSettings"
-          active-text="显示"
-          inactive-text="隐藏"
+          active-text=""
+          inactive-text=""
         />
       </div>
       <div class="setting-item">
         <div class="setting-info">
           <el-icon><Timer /></el-icon>
-          <span>轮播图自动播放</span>
+          <span></span>
         </div>
         <el-switch
           v-model="autoPlayBanner"
           @change="saveSettings"
-          active-text="开启"
-          inactive-text="关闭"
+          active-text=""
+          inactive-text=""
         />
       </div>
     </div>
 
     <div class="settings-section">
-      <h3>通知设置</h3>
+      <h3></h3>
       <div class="setting-item">
         <div class="setting-info">
           <el-icon><Bell /></el-icon>
-          <span>消息通知</span>
+          <span></span>
         </div>
         <el-switch
           v-model="enableNotification"
           @change="saveSettings"
-          active-text="开启"
-          inactive-text="关闭"
+          active-text=""
+          inactive-text=""
         />
       </div>
     </div>

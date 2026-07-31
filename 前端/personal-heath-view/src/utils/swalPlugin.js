@@ -4,13 +4,13 @@ const swalPlugin = {
   install(app) {
     app.config.globalProperties.$swalConfirm = async function (options = {}) {
       const defaultOptions = {
-        title: "提示",
+        title: "",
         text: "",
         icon: "info",
         reverseButtons: true,
         showCancelButton: true,
-        confirmButtonText: "确认",
-        cancelButtonText: "取消",
+        confirmButtonText: "",
+        cancelButtonText: "",
         customClass: {
           confirmButton: "sweet-btn-primary",
         },

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.QuizExamQuestionMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO quiz_exam_question (exam_id, question_id, score, sort_order)
+        VALUES (#{examId}, #{questionId}, #{score}, #{sortOrder})
+    </insert>
+    <delete id="deleteByExamId">DELETE FROM quiz_exam_question WHERE exam_id = #{examId}</delete>
+    <select id="queryByExamId" resultType="cn.kmbeast.pojo.entity.QuizExamQuestion">
+        SELECT * FROM quiz_exam_question WHERE exam_id = #{examId} ORDER BY sort_order ASC
+    </select>
+</mapper>

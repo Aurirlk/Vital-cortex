@@ -8,25 +8,27 @@
       />
     </div>
     <div class="content-container">
+      <ModelBanner />
       <router-view class="route-container"></router-view>
     </div>
-    <!-- 个人中心 -->
+    <!--  -->
     <el-dialog :show-close="true" v-model="dialogOperaion" width="26%" class="user-center-dialog" :style="{ marginTop: '15vh' }">
       <template #title>
         <div style="padding: 25px 0 0 20px">
           <span style="font-size: 18px; font-weight: 800; color: #fff"
-            >个人中心</span
+            ></span
           >
         </div>
       </template>
       <el-row style="padding: 20px">
         <el-row style="width: 100%">
           <p style="font-size: 12px; padding: 3px 0; margin-bottom: 10px">
-            <span class="modelName">*头像</span>
+            <span class="modelName">*</span>
           </p>
           <el-upload
             class="avatar-uploader"
             :action="$uploadUrl"
+            :headers="$uploadHeaders"
             :show-file-list="false"
             :on-success="handleAvatarSuccess"
           >
@@ -36,24 +38,24 @@
         </el-row>
         <el-row style="width: 100%">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*用户名</span>
+            <span class="modelName">*</span>
           </p>
           <input
             class="modelInput"
             type="text"
             v-model="data.name"
-            placeholder="用户名"
+            placeholder=""
           />
         </el-row>
         <el-row style="width: 100%">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*个人邮箱</span>
+            <span class="modelName">*</span>
           </p>
           <input
             class="modelInput"
             type="text"
             v-model="data.email"
-            placeholder="邮箱"
+            placeholder=""
           />
         </el-row>
       </el-row>
@@ -63,59 +65,59 @@
             class="customer"
             size="small"
             @click="dialogOperaion = false"
-            >取 消</el-button
+            > </el-button
           >
           <el-button
             size="small"
             class="customer primary-btn"
             type="info"
             @click="updateUserInfo"
-            >修改</el-button
+            ></el-button
           >
         </span>
       </template>
     </el-dialog>
-    <!-- 重置密码 -->
+    <!--  -->
     <el-dialog :show-close="true" v-model="dialogRetPwdOperaion" width="26%">
       <template #title>
         <div style="padding: 25px 0 0 20px">
           <span style="font-size: 18px; font-weight: 800; color: #fff"
-            >重置密码</span
+            ></span
           >
         </div>
       </template>
       <el-row style="padding: 20px">
         <el-row style="width: 100%">
           <p style="font-size: 12px; padding: 3px 0; margin-bottom: 10px">
-            <span class="modelName">*原始密码</span>
+            <span class="modelName">*</span>
           </p>
           <input
             class="modelInput"
             type="password"
             v-model="pwdEntity.oldPwd"
-            placeholder="原始密码"
+            placeholder=""
           />
         </el-row>
         <el-row style="width: 100%">
           <p style="font-size: 12px; padding: 3px 0; margin-bottom: 10px">
-            <span class="modelName">*新密码</span>
+            <span class="modelName">*</span>
           </p>
           <input
             class="modelInput"
             type="password"
             v-model="pwdEntity.newPwd"
-            placeholder="新密码"
+            placeholder=""
           />
         </el-row>
         <el-row style="width: 100%">
           <p style="font-size: 12px; padding: 3px 0; margin-bottom: 10px">
-            <span class="modelName">*确认密码</span>
+            <span class="modelName">*</span>
           </p>
           <input
             class="modelInput"
             type="password"
             v-model="pwdEntity.againPwd"
-            placeholder="确认密码"
+            placeholder=""
           />
         </el-row>
       </el-row>
@@ -125,19 +127,19 @@
             class="customer"
             size="small"
             @click="dialogRetPwdOperaion = false"
-            >取 消</el-button
+            > </el-button
           >
           <el-button
             size="small"
             class="customer primary-btn"
             type="info"
             @click="updateUserPwd"
-            >修改</el-button
+            ></el-button
           >
         </span>
       </template>
     </el-dialog>
-    <!-- 记录健康指标 -->
+    <!--  -->
     <el-dialog v-model="healthModelConfigDialog" width="28%" :show-close="true">
       <template #title>
         <div>
@@ -150,7 +152,7 @@
               font-weight: 600;
             "
           >
-            记录健康指标
+            
           </p>
         </div>
       </template>
@@ -159,11 +161,11 @@
           <el-col :span="6">
             <span @click="addUserHealthHistory" class="submit-btn">
               <el-icon><CirclePlus /></el-icon>
-              确认提交
+              
             </span>
           </el-col>
           <el-col :span="18">
-            <label for="nutrition-select">选择健康指标</label>
+            <label for="nutrition-select"></label>
             <select
               id="nutrition-select"
               v-model="selecedHealthModelIndex"
@@ -195,7 +197,7 @@
                 class="modelInput"
                 type="text"
                 v-model="healthModel.input"
-                placeholder="数值"
+                placeholder=""
               />
 
               <span class="model-unit">{{ healthModel.modelUnit }}</span>
@@ -213,7 +215,7 @@
                   @click="removeHealthModel(healthModel)"
                 >
                   <el-icon><CircleClose /></el-icon>
-                  移除
+                  
                 </span>
               </div>
             </div>
@@ -221,7 +223,7 @@
         </el-row>
       </div>
     </el-dialog>
-    <!-- 设置对话框 -->
+    <!--  -->
     <el-dialog v-model="settingsDialog" width="40%" :show-close="true">
       <template #title>
         <div>
@@ -234,65 +236,65 @@
               font-weight: 600;
             "
           >
-            设置
+            
           </p>
         </div>
       </template>
       <div style="padding: 20px">
         <div class="settings-section">
-          <h3>外观设置</h3>
+          <h3></h3>
           <div class="setting-item">
             <div class="setting-info">
               <el-icon><Moon /></el-icon>
-              <span>深色模式</span>
+              <span></span>
             </div>
             <el-switch
               v-model="settings.isDarkMode"
               @change="toggleDarkMode"
-              active-text="深色"
-              inactive-text="浅色"
+              active-text=""
+              inactive-text=""
             />
           </div>
         </div>
         <div class="settings-section">
-          <h3>显示设置</h3>
+          <h3></h3>
           <div class="setting-item">
             <div class="setting-info">
               <el-icon><View /></el-icon>
-              <span>显示轮播图白点</span>
+              <span></span>
             </div>
             <el-switch
               v-model="settings.showBannerDots"
               @change="saveSettings"
-              active-text="显示"
-              inactive-text="隐藏"
+              active-text=""
+              inactive-text=""
             />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <el-icon><Timer /></el-icon>
-              <span>轮播图自动播放</span>
+              <span></span>
             </div>
             <el-switch
               v-model="settings.autoPlayBanner"
               @change="saveSettings"
-              active-text="开启"
-              inactive-text="关闭"
+              active-text=""
+              inactive-text=""
             />
           </div>
         </div>
         <div class="settings-section">
-          <h3>通知设置</h3>
+          <h3></h3>
           <div class="setting-item">
             <div class="setting-info">
               <el-icon><Bell /></el-icon>
-              <span>消息通知</span>
+              <span></span>
             </div>
             <el-switch
               v-model="settings.enableNotification"
               @change="saveSettings"
-              active-text="开启"
-              inactive-text="关闭"
+              active-text=""
+              inactive-text=""
             />
           </div>
         </div>
@@ -304,10 +306,12 @@
 import { clearToken } from "@/utils/storage.js";
 import router from "@/router";
 import UserMenu from "@/components/LevelMenu.vue";
+import ModelBanner from "@/components/ModelBanner.vue";
 export default {
   name: "UserMain",
   components: {
     UserMenu,
+    ModelBanner,
   },
   data() {
     return {
@@ -349,11 +353,11 @@ export default {
       const exists = this.isCheckHealthModelConfig.some(
         (item) => item.id === healthModel.id
       );
-      // 如果不存在，则添加新选的健康配置项
+      // 
       if (!exists) {
         this.isCheckHealthModelConfig.unshift(healthModel);
       } else {
-        console.log("指标项已经添加");
+        console.log("");
       }
     },
     updateUserPwd() {
@@ -372,7 +376,7 @@ export default {
           this.dialogOperaion = false;
           this.tokenCheckLoad();
           this.$swal.fire({
-            title: "修改个人信息",
+            title: "",
             text: data.msg,
             icon: "success",
             showConfirmButton: false,
@@ -382,24 +386,24 @@ export default {
       } catch (e) {
         this.dialogOperaion = false;
         this.$swal.fire({
-          title: "修改个人信息异常",
+          title: "",
           text: e,
           icon: "error",
           showConfirmButton: false,
           timer: 2000,
         });
-        console.error(`修改个人信息异常:${e}`);
+        console.error(`:${e}`);
       }
     },
     async resetPwd() {
       try {
         const { oldPwd, newPwd, againPwd } = this.pwdEntity;
         if (!oldPwd || !newPwd || !againPwd) {
-          this.$message(`任意项不为空`);
+          this.$message(``);
           return;
         }
         if (newPwd !== againPwd) {
-          this.$message(`前后密码输入不一致`);
+          this.$message(``);
           return;
         }
         const pwdDTO = {
@@ -411,7 +415,7 @@ export default {
         if (data.code === 200) {
           this.dialogRetPwdOperaion = false;
           this.$swal.fire({
-            title: "修改密码",
+            title: "",
             text: data.msg,
             icon: "success",
             showConfirmButton: false,
@@ -426,51 +430,51 @@ export default {
         }
       } catch (e) {
         this.dialogOperaion = false;
-        this.$message.error(e.response?.data?.msg || "修改密码异常");
-        console.error(`修改密码异常:${e}`);
+        this.$message.error(e.response?.data?.msg || "");
+        console.error(`:${e}`);
       }
     },
     handleAvatarSuccess(res, file) {
       if (res.code !== 200) {
-        this.$message.error(`头像上传异常`);
+        this.$message.error(``);
         return;
       }
-      this.$message.success(`头像上传成功`);
+      this.$message.success(``);
       this.data.url = res.data;
     },
-    // 监听菜单点击事件
+    // 
     eventListener(event) {
-      // 个人中心
+      // 
       if (event === "center") {
         this.dialogOperaion = !this.dialogOperaion;
       }
-      // 密码重置
+      // 
       else if (event === "resetPwd") {
         this.dialogRetPwdOperaion = true;
-        // 搜索页搜索
+        // 
       } else if (event === "search-detail") {
         this.$router.push("/user/search-detail");
       }
-      // 退出登录
+      // 
       else if (event === "loginOut") {
         this.loginOutOperation();
       }
-      // 健康指标记录
+      // 
       else if (event === "healthDataRecord") {
         this.$router.push("/record");
       }
-      // 设置
+      // 
       else if (event === "settings") {
         this.settingsDialog = true;
       }
     },
     removeFood(food) {
-      // 清空输入项
+      // 
       food.mgValue = "";
       this.isCheckFood = this.isCheckFood.filter((item) => item.id !== food.id);
     },
     removeHealthModel(healthModel) {
-      // 清空输入项
+      // 
       healthModel.input = "";
       this.isCheckHealthModelConfig = this.isCheckHealthModelConfig.filter(
         (item) => item.id !== healthModel.id
@@ -479,14 +483,14 @@ export default {
     foodChange() {
       const food = this.foodList[this.selecedFoodIndex - 1];
       const exists = this.isCheckFood.some((item) => item.id === food.id);
-      // 如果不存在，则添加新选的菜单
+      // 
       if (!exists) {
         this.isCheckFood.unshift(food);
       } else {
-        console.log("菜谱已经添加");
+        console.log("");
       }
     },
-    // 提交饮食记录
+    // 
     async addUserHealthHistory() {
       const healthModels = this.isCheckHealthModelConfig.map((entity) => {
         return {
@@ -504,18 +508,18 @@ export default {
           this.healthModelConfigDialog = false;
           this.isCheckHealthModelConfig = [];
           this.$swal.fire({
-            title: "记录健康指标",
-            text: "记录成功",
+            title: "",
+            text: "",
             icon: "success",
             showConfirmButton: false,
             timer: 1500,
           });
         }
       } catch (e) {
-        console.error(`记录健康指标异常`, e);
+        console.error(``, e);
       }
     },
-    // 提交饮食记录
+    // 
     async addDietHistory() {
       const foodIds = this.isCheckFood.map((entity) => entity.id).join(",");
       const foodNum = this.isCheckFood
@@ -532,7 +536,7 @@ export default {
           this.dietDialog = false;
           this.isCheckFood = [];
           this.$swal.fire({
-            title: "记录饮食，拥抱生活",
+            title: "",
             text: data.msg,
             icon: "success",
             showConfirmButton: false,
@@ -540,7 +544,7 @@ export default {
           });
         }
       } catch (e) {
-        console.error(`饮食新增异常：`, e);
+        console.error(``, e);
       }
     },
     async loadHealthModelConfigList() {
@@ -552,7 +556,7 @@ export default {
         const { data } = response;
         this.healthModelConfig = data.data;
       } catch (e) {
-        console.error(`查询健康配置异常：`, e);
+        console.error(``, e);
       }
     },
     async loadFoodList() {
@@ -561,22 +565,22 @@ export default {
         const { data } = response;
         this.foodList = data.data;
       } catch (e) {
-        console.error(`查询饮食配置异常：`, e);
+        console.error(``, e);
       }
     },
     async loginOutOperation() {
       const confirmed = await this.$swalConfirm({
-        title: "退出登录",
-        text: `退出登录后，需重新登录才能使用系统功能!`,
+        title: "",
+        text: `!`,
         icon: "warning",
       });
       if (confirmed) {
-        // 清除Token，路由至登录页
+        // Token
         clearToken();
         this.$router.push("/login");
       }
     },
-    // 设置相关方法
+    // 
     loadSettings() {
       const settings = localStorage.getItem("userSettings");
       if (settings) {
@@ -598,17 +602,14 @@ export default {
       this.saveSettings();
     },
     applyDarkMode() {
+      //  CSS  body 
       if (this.settings.isDarkMode) {
         document.documentElement.classList.add("dark");
-        document.body.style.backgroundColor = "#1a1a2e";
-        document.body.style.color = "#eee";
       } else {
         document.documentElement.classList.remove("dark");
-        document.body.style.backgroundColor = "#f5f7fa";
-        document.body.style.color = "#333";
       }
     },
-    // Token检验
+    // Token
     async tokenCheckLoad() {
       try {
         const res = await this.$axios.get('user/auth');
@@ -632,17 +633,17 @@ export default {
         if (roleRoute) {
           this.routers = roleRoute.children;
         } else {
-          console.error('未能找到对应角色的路由配置');
+          console.error('');
         }
       } catch (error) {
-        console.error('Token检验时发生错误:', error);
+        console.error('Token:', error);
       }
     },
   },
 };
 </script>
 <style lang="scss">
-/* 个人中心弹窗下移 */
+/*  */
 .user-center-dialog.el-dialog {
   margin-top: 18vh !important;
 }

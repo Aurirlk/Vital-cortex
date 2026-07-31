@@ -1,7 +1,7 @@
 <template>
   <el-row>
     <el-row v-if="newsData.length === 0">
-      <el-empty description="找不到相关资讯"></el-empty>
+      <el-empty description=""></el-empty>
     </el-row>
     <el-row v-else style="margin-top: 20px">
       <el-col
@@ -16,7 +16,7 @@
         <div style="font-size: 12px">
           <span class="news-tags">{{ news.tagName }}</span>
           <span style="margin-left: 10px"
-            >收藏于 {{ parseTime(news.createTime) }}</span
+            > {{ parseTime(news.createTime) }}</span
           >
         </div>
       </el-col>
@@ -79,7 +79,7 @@ export default {
         this.newsData = data.data;
         this.total = data.total;
       } catch (e) {
-        console.error(`搜索资讯列表加载异常：${e}`);
+        console.error(`${e}`);
       }
     },
   },
@@ -114,9 +114,9 @@ export default {
 
 .news-title {
   overflow: hidden;
-  /* 显示省略符号来代表被修剪的文本。 */
+  /*  */
   text-overflow: ellipsis;
-  /* 文本不换行 */
+  /*  */
   white-space: nowrap;
 }
 </style>

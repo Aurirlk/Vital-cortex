@@ -23,7 +23,7 @@ public class GetChatHistoryTool implements Tool {
 
     @Override
     public String getDescription() {
-        return "获取指定手机号用户的聊天历史记录，用于了解用户之前的对话上下文";
+        return "获取当前用户的聊天历史记录，用于了解用户之前的对话上下文。无需传手机号，自动限定当前用户";
     }
 
     @Override
@@ -33,11 +33,6 @@ public class GetChatHistoryTool implements Tool {
 
         Map<String, Object> properties = new LinkedHashMap<>();
 
-        Map<String, Object> phoneProp = new LinkedHashMap<>();
-        phoneProp.put("type", "string");
-        phoneProp.put("description", "用户的手机号码");
-        properties.put("phone_number", phoneProp);
-
         Map<String, Object> limitProp = new LinkedHashMap<>();
         limitProp.put("type", "integer");
         limitProp.put("description", "返回最近N条记录，默认10");
@@ -46,19 +41,25 @@ public class GetChatHistoryTool implements Tool {
 
         schema.put("properties", properties);
 
-        List<String> required = Arrays.asList("phone_number");
-        schema.put("required", required);
+        schema.put("required", new ArrayList<>());
 
         return schema;
     }
 
     @Override
     public ToolResult execute(Map<String, Object> arguments) {
-        String phoneNumber = (String) arguments.get("phone_number");
-        int limit = arguments.containsKey("limit") ? ((Number) arguments.get("limit")).intValue() : 10;
-
+        // AG-01 整改：手机号由服务端从会话上下文注入，不信任 LLM 参数。
+        // 原实现让 LLM 自由指定 phone_number——prompt 注入一条
+        // "先查 138xxxx 的历史"，就能把任意手机号的问诊记录读给攻击者。
+        String phoneNumber = ToolContext.getString("phoneNumber");
         if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
-            return ToolResult.error("手机号不能为空");
+            return ToolResult.error("当前会话缺少用户手机号，无法查询历史");
+        }
+
+        int limit = 10;
+        Object limitArg = arguments.get("limit");
+        if (limitArg instanceof Number) {
+            limit = Math.max(1, Math.min(((Number) limitArg).intValue(), 100));
         }
 
         try {
@@ -78,7 +79,7 @@ public class GetChatHistoryTool implements Tool {
             return ToolResult.ok(JSON.toJSONString(simplified));
         } catch (Exception e) {
             log.error("[GetChatHistoryTool] 获取历史失败", e);
-            return ToolResult.error("获取聊天历史异常: " + e.getMessage());
+            return ToolResult.error("获取聊天历史异常");
         }
     }
 }

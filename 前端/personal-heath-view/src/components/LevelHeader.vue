@@ -1,44 +1,29 @@
 <template>
   <div class="main">
-    <span>
+    <div class="header-left">
       <span class="operation-span" @click="operation">
         <el-icon v-if="!showFlag" class="i-folder"><Fold /></el-icon>
         <el-icon v-else class="i-folder"><Expand /></el-icon>
       </span>
-    </span>
-    <span>
       <span class="operation-span-tag">
-        后台&nbsp;&nbsp;/&nbsp;&nbsp;{{ tag == "" ? "元数据" : tag }}
+        &nbsp;&nbsp;/&nbsp;&nbsp;{{ tag == "" ? "" : tag }}
       </span>
-    </span>
-    <span class="user-block">
+    </div>
+    <div class="header-right">
       <el-dropdown class="user-dropdown">
-        <span
-          class="el-dropdown-link"
-          style="display: flex; align-items: center"
-        >
-          <el-avatar
-            :size="35"
-            :src="userInfo.url"
-            style="margin-top: 0"
-          ></el-avatar>
-          <span class="userName" style="margin-left: 5px; font-size: 16px">{{
-            userInfo.name
-          }}</span>
-          <el-icon style="margin-left: 5px"><ArrowDown /></el-icon>
+        <span class="el-dropdown-link">
+          <el-avatar :size="35" :src="userInfo.url"></el-avatar>
+          <span class="userName">{{ userInfo.name }}</span>
+          <el-icon style="margin-left: 4px"><ArrowDown /></el-icon>
         </span>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item :icon="UserFilled" @click="userCenterPanel"
-              >个人资料</el-dropdown-item
-            >
-            <el-dropdown-item :icon="Fold" @click="loginOut"
-              >退出登录</el-dropdown-item
-            >
+            <el-dropdown-item :icon="UserFilled" @click="userCenterPanel"></el-dropdown-item>
+            <el-dropdown-item :icon="Fold" @click="loginOut"></el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
-    </span>
+    </div>
   </div>
 </template>
 <script>
@@ -72,11 +57,11 @@ export default {
     },
   },
   methods: {
-    // 个人中心，传回父组件处理
+    // 
     userCenterPanel() {
       this.$emit("eventListener", "center");
     },
-    // 退出登录，传回父组件处理
+    // 
     loginOut() {
       this.$emit("eventListener", "loginOut");
     },
@@ -90,56 +75,81 @@ export default {
 </script>
 <style scoped lang="scss">
 .main {
-  padding: 15px 26px 15px 0;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: space-between;
   width: 100%;
-  position: relative;
-  background-color: rgb(255, 255, 255);
-  color: #666;
+  min-width: 100%;
+  height: 56px;
+  padding: 0 24px;
+  box-sizing: border-box;
+  background-color: #fff;
+  color: #333;
+  border-bottom: 1px solid #e8e8e8;
+}
 
-  .operation-span-tag {
-    padding: 9px 10px;
-    border-radius: 3px;
-    font-size: 16px;
-    user-select: none;
-    margin-top: 15px;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.operation-span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  color: #555;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: #f3f4f6;
+    color: #111;
   }
 
-  .operation-span:hover {
-    background-color: rgb(246, 246, 246);
+  .el-icon {
+    font-size: 18px;
   }
+}
 
-  .operation-span {
-    margin-top: 20px;
-    padding: 6px;
-    margin-left: 10px;
-    border-radius: 3px;
-    user-select: none;
+.operation-span-tag {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  user-select: none;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
 
-    .el-icon {
-      margin: 5px;
-      font-size: 20px;
-      color: #333;
+.user-dropdown {
+  .el-dropdown-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: background 0.2s;
+
+    &:hover {
+      background: #f3f4f6;
     }
   }
 
-  span {
-    color: #333;
-  }
-
-  .user-block {
-    position: absolute;
-    right: 35px;
-
-    .userName {
-      display: inline-block;
-      vertical-align: middle;
-      font-size: 14px;
-      cursor: pointer;
-      user-select: none;
-    }
+  .userName {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    user-select: none;
   }
 }
 </style>

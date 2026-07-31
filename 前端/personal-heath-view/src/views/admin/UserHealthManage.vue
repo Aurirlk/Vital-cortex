@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <el-row style="background-color: #ffffff; padding: 5px 0; border-radius: 5px">
     <el-row style="padding: 10px; margin-left: 10px">
       <el-row>
@@ -7,16 +7,16 @@
           style="width: 220px"
           v-model="searchTime"
           type="daterange"
-          range-separator="至"
-          start-placeholder="记录开启"
-          end-placeholder="记录结束"
+          range-separator=""
+          start-placeholder=""
+          end-placeholder=""
         >
         </el-date-picker>
         <el-input
           size="small"
           style="width: 188px; margin-left: 5px; margin-right: 6px"
           v-model="userHealthQueryDto.userId"
-          placeholder="用户ID"
+          placeholder="ID"
           clearable
           @clear="handleFilterClear"
         >
@@ -33,7 +33,7 @@
         @selection-change="handleSelectionChange"
         :data="tableData"
       >
-        <el-table-column prop="name" width="88" label="状态">
+        <el-table-column prop="name" width="88" label="">
           <template #default="{ row }">
             <el-icon v-if="!statusCheck(row)" style="margin-right: 5px"
               ><Warning
@@ -45,7 +45,7 @@
               v-if="!statusCheck(row)"
               class="item"
               effect="dark"
-              content="异常指标，提醒用户及时处理"
+              content=""
               placement="bottom-end"
             >
               <span
@@ -53,24 +53,24 @@
                   text-decoration: underline;
                   text-decoration-style: dashed;
                 "
-                >异常</span
+                ></span
               >
             </el-tooltip>
-            <span v-else>正常</span>
+            <span v-else></span>
           </template>
         </el-table-column>
-        <el-table-column prop="value" width="148" label="记录值" sortable>
+        <el-table-column prop="value" width="148" label="" sortable>
           <template #default="{ row }">
             <span>{{ row.value }}({{ row.unit }})</span>
           </template>
         </el-table-column>
-        <el-table-column prop="userName" label="记录用户"></el-table-column>
+        <el-table-column prop="userName" label=""></el-table-column>
         <el-table-column
           prop="valueRange"
           width="88"
-          label="阈值"
+          label=""
         ></el-table-column>
-        <el-table-column prop="name" width="140" label="模型图">
+        <el-table-column prop="name" width="140" label="">
           <template #default="{ row }">
             <span
               ><el-icon style="margin-right: 3px"><Document /></el-icon
@@ -78,27 +78,27 @@
             >
           </template>
         </el-table-column>
-        <el-table-column prop="unit" width="88" label="单位"></el-table-column>
+        <el-table-column prop="unit" width="88" label=""></el-table-column>
         <el-table-column
           prop="symbol"
           width="88"
-          label="符号"
+          label=""
         ></el-table-column>
         <el-table-column
           prop="userId"
           width="108"
-          label="用户ID"
+          label="ID"
           sortable
         ></el-table-column>
         <el-table-column
           prop="createTime"
           width="178"
-          label="记录时间"
+          label=""
           sortable
         ></el-table-column>
-        <el-table-column label="操作" width="80">
+        <el-table-column label="" width="80">
           <template #default="{ row }">
-            <span class="text-button" @click="handleDelete(row)">删除</span>
+            <span class="text-button" @click="handleDelete(row)"></span>
           </template>
         </el-table-column>
       </el-table>
@@ -115,16 +115,17 @@
       <template #title>
         <div>
           <p class="dialog-title">
-            {{ !isOperation ? "新增用户健康记录" : "编辑用户健康记录信息" }}
+            {{ !isOperation ? "" : "" }}
           </p>
         </div>
       </template>
       <div style="padding: 0 20px">
-        <!-- 图标 -->
+        <!--  -->
         <el-row style="margin-top: 20px">
           <el-upload
             class="avatar-uploader"
             :action="$uploadUrl"
+            :headers="$uploadHeaders"
             :show-file-list="false"
             :on-success="handleAvatarSuccess"
           >
@@ -136,10 +137,10 @@
             <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
           </el-upload>
         </el-row>
-        <!-- 配置名-->
+        <!-- -->
         <el-row style="padding: 0 20px 0 0">
           <p>
-            <span class="modelName">*配置名</span>
+            <span class="modelName">*</span>
           </p>
           <input
             class="input-title"
@@ -147,10 +148,10 @@
             style="border-radius: 5px; background-color: #f1f1f1"
           />
         </el-row>
-        <!-- 单位 -->
+        <!--  -->
         <el-row style="padding: 0 20px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*单位</span>
+            <span class="modelName">*</span>
           </p>
           <input
             class="input-title"
@@ -158,10 +159,10 @@
             style="border-radius: 5px; background-color: #f1f1f1"
           />
         </el-row>
-        <!-- 符号 -->
+        <!--  -->
         <el-row style="padding: 0 20px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*符号</span>
+            <span class="modelName">*</span>
           </p>
           <input
             class="input-title"
@@ -169,24 +170,24 @@
             style="border-radius: 5px; background-color: #f1f1f1"
           />
         </el-row>
-        <!-- 简介-->
+        <!-- -->
         <el-row style="padding: 0 20px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*简介</span>
+            <span class="modelName">*</span>
           </p>
           <el-input
             style="border-radius: 5px; background-color: #f1f1f1"
             type="textarea"
             :autosize="{ minRows: 2, maxRows: 3 }"
-            placeholder="简介"
+            placeholder=""
             v-model="data.detail"
           >
           </el-input>
         </el-row>
-        <!-- 简介-->
+        <!-- -->
         <el-row style="padding: 0 20px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*正常值范围</span>
+            <span class="modelName">*</span>
           </p>
           <el-slider v-model="valuesRange" range show-stops :max="1000">
           </el-slider>
@@ -201,7 +202,7 @@
             class="customer"
             type="info"
             @click="addOperation"
-            >新增</el-button
+            ></el-button
           >
           <el-button
             size="small"
@@ -210,14 +211,14 @@
             class="customer"
             type="info"
             @click="updateOperation"
-            >修改</el-button
+            ></el-button
           >
           <el-button
             class="customer"
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="dialogUserOperaion = false"
-            >取消</el-button
+            ></el-button
           >
         </span>
       </template>
@@ -234,11 +235,11 @@ export default {
       currentPage: 1,
       pageSize: 10,
       totalItems: 0,
-      dialogUserOperaion: false, // 开启      isOperation: false, // 开关标识新增或修改      tableData: [],
+      dialogUserOperaion: false, //       isOperation: false, //       tableData: [],
       searchTime: [],
       selectedRows: [],
       status: null,
-      userHealthQueryDto: {}, // 搜索条件
+      userHealthQueryDto: {}, // 
       messsageContent: "",
       tagsList: [],
       valuesRange: [10, 50],
@@ -264,11 +265,11 @@ export default {
     this.fetchFreshData();
   },
   methods: {
-    // 处理用户输入的值，是正常的还是异常的，给个状态
+    // 
     statusCheck(data) {
-      // 用户输入的值
+      // 
       const inputValue = data.value;
-      // 正常值范围
+      // 
       const valueRange = data.valueRange;
       if (valueRange !== null && inputValue !== null) {
         const aryValueRange = valueRange.split(",");
@@ -282,25 +283,25 @@ export default {
     },
     handleAvatarSuccess(res, file) {
       if (res.code !== 200) {
-        this.$message.error(`用户健康记录封面上传异常`);
+        this.$message.error(``);
         return;
       }
-      this.$message.success(`用户健康记录封面上传成功`);
+      this.$message.success(``);
       this.data.cover = res.data;
     },
-    // 多选框选中
+    // 
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 批量删除数据
+    // 
     async batchDelete() {
       if (!this.selectedRows.length) {
-        this.$message(`未选中任何数据`);
+        this.$message(``);
         return;
       }
       const confirmed = await this.$swalConfirm({
-        title: "删除用户健康记录数据",
-        text: `删除后不可恢复，是否继续？`,
+        title: "",
+        text: ``,
         icon: "warning",
       });
       if (confirmed) {
@@ -312,7 +313,7 @@ export default {
           );
           if (response.data.code === 200) {
             this.$swal.fire({
-              title: "删除提示",
+              title: "",
               text: response.data.msg,
               icon: "success",
               showConfirmButton: false,
@@ -323,13 +324,13 @@ export default {
           }
         } catch (e) {
           this.$swal.fire({
-            title: "错误提示",
+            title: "",
             text: e,
             icon: "error",
             showConfirmButton: false,
             timer: 2000,
           });
-          console.error(`用户健康记录信息删除异常：`, e);
+          console.error(``, e);
         }
       }
     },
@@ -338,7 +339,7 @@ export default {
       this.searchTime = [];
       this.fetchFreshData();
     },
-    // 修改信息
+    // 
     async updateOperation() {
       try {
         this.data.valueRange = this.valuesRange.join(",");
@@ -347,7 +348,7 @@ export default {
           this.data
         );
         this.$swal.fire({
-          title: "用户健康记录信息修改",
+          title: "",
           text: response.data.msg,
           icon: response.data.code === 200 ? "success" : "error",
           showConfirmButton: false,
@@ -359,11 +360,11 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
-        console.error("提交表单时出错", error);
-        this.$message.error("提交失败，请稍后再试！");
+        console.error("", error);
+        this.$message.error("");
       }
     },
-    // 信息新增
+    // 
     async addOperation() {
       try {
         // [20,252] ---> 20,252
@@ -378,8 +379,8 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
-        console.error("提交表单时出错", error);
-        this.$message.error("提交失败，请稍后再试！");
+        console.error("", error);
+        this.$message.error("");
       }
     },
     closeDialog() {
@@ -399,7 +400,7 @@ export default {
           startTime = `${startDate.split("T")[0]}T00:00:00`;
           endTime = `${endDate.split("T")[0]}T23:59:59`;
         }
-        // 请求参数
+        // 
         const params = {
           current: this.currentPage,
           size: this.pageSize,
@@ -412,7 +413,7 @@ export default {
         this.tableData = data.data;
         this.totalItems = data.total;
       } catch (error) {
-        console.error("查询用户健康记录信息异常:", error);
+        console.error(":", error);
       }
     },
     add() {
@@ -490,15 +491,15 @@ export default {
 }
 
 .dialog-footer {
-  /* 使按钮水平居中*/
+  /* */
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* 如果需要调整按钮之间的间距 */
+/*  */
 .customer {
   margin: 0 8px;
-  /* 根据需要调整间距*/
+  /* */
 }
 </style>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.PostReportMapper">
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO post_report (user_id, post_id, reply_id, reason, status, create_time)
+        VALUES (#{userId}, #{postId}, #{replyId}, #{reason}, #{status}, #{createTime})
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE post_report SET status = #{status}, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <select id="queryPending" resultType="cn.kmbeast.pojo.entity.PostReport">
+        SELECT * FROM post_report WHERE status = 0 ORDER BY create_time DESC
+    </select>
+
+    <select id="countPending" resultType="integer">
+        SELECT COUNT(*) FROM post_report WHERE status = 0
+    </select>
+</mapper>

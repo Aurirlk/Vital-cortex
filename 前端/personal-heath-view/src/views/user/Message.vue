@@ -3,7 +3,7 @@
     <div style="line-height: 70px; padding: 0 50px">
       <el-row>
         <el-col :span="6">
-          <Logo sysName="健康资讯" />
+          <Logo sysName="" />
         </el-col>
         <el-col :span="18">
           <span
@@ -27,7 +27,7 @@
     <div style="padding: 10px 50px">
       <div>
         <p style="font-size: 16px; padding: 10px 0">
-          消息中心
+          
           <span @click="clearMessage" class="clear-message">
             <el-icon><Open /></el-icon>
           </span>
@@ -100,19 +100,19 @@ export default {
     };
   },
   created() {
-    // 1. 拿到当前用户的信息
+    // 1. 
     this.getUserInfo();
-    // 2. 加载用户全部消息
+    // 2. 
     this.loadAllUsersMessage();
-    // 3. 加载全部的消息类型
+    // 3. 
     this.loadAllMessageType();
   },
   methods: {
-    // 将全部的消息设置未已读
+    // 
     async clearMessage() {
       const confirmed = await this.$swalConfirm({
-        title: "消息清除",
-        text: `是否将全部的消息设置为已读？`,
+        title: "",
+        text: ``,
         icon: "warning",
       });
       if (confirmed) {
@@ -132,12 +132,12 @@ export default {
         }
       });
     },
-    // 做回复的
+    // 
     replyEvalustions(message) {
       this.message = message;
       this.dialogEvaluationsOperation = true;
     },
-    // 消息类型选中
+    // 
     messageTypeSelected(messageType) {
       this.messageQueryDto.messageType = messageType;
       this.loadAllUsersMessage();
@@ -146,13 +146,13 @@ export default {
       const userInfo = sessionStorage.getItem("userInfo");
       this.userInfo = JSON.parse(userInfo);
     },
-    // 加载全部的消息类型
+    // 
     loadAllMessageType() {
       this.$axios.get("/message/types").then((response) => {
         const { data } = response;
         if (data.code === 200) {
           this.messageTypes = data.data;
-          const messageType = { type: null, detail: "全部消息" };
+          const messageType = { type: null, detail: "" };
           this.messageTypes.unshift(messageType);
           this.messageTypes.map((entity) => (entity.isCheck = false));
         }

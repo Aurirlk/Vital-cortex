@@ -161,7 +161,7 @@ public class PdfReportService {
             document.add(new Paragraph("\n"));
             document.add(new Paragraph("免责声明").setFontSize(14).setBold());
             document.add(new Paragraph(
-                    "本报告由AI健康管理系统自动生成，仅供参考。报告中的分析和建议不能替代专业医生的诊断和治疗建议。" +
+                    "本报告由AI健康管理员系统自动生成，仅供参考。报告中的分析和建议不能替代专业医生的诊断和治疗建议。" +
                     "如有健康问题，请及时咨询专业医生。")
                     .setFontSize(10)
                     .setFontColor(new DeviceGray(0.5f)));

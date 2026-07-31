@@ -1,13 +1,13 @@
 <template>
   <div class="assistant-page">
-    <!-- 左侧历史记录 -->
+    <!--  -->
     <div class="history-sidebar">
       <div class="sidebar-header">
-        <span class="sidebar-title">对话历史</span>
-        <el-button size="small" type="primary" @click="newChat" :icon="Plus">新对话</el-button>
+        <span class="sidebar-title"></span>
+        <el-button size="small" type="primary" @click="newChat" :icon="Plus"></el-button>
       </div>
       <div class="history-list">
-        <div v-if="conversations.length === 0" class="no-history">暂无历史记录</div>
+        <div v-if="conversations.length === 0" class="no-history"></div>
         <div
           v-for="conv in conversations"
           :key="conv.id"
@@ -16,7 +16,7 @@
         >
           <div class="history-title">{{ conv.title }}</div>
           <div class="history-meta">
-            <span>{{ conv.msgCount }}条</span>
+            <span>{{ conv.msgCount }}</span>
             <span>{{ conv.time }}</span>
           </div>
           <el-button class="history-del" size="small" type="danger" text @click.stop="delConv(conv.id)">
@@ -26,44 +26,44 @@
       </div>
     </div>
 
-    <!-- 右侧聊天区 -->
+    <!--  -->
     <div class="chat-panel">
       <div class="chat-header">
-        <span class="header-title">网站小助手</span>
-        <span class="header-desc">意图识别 · 智能分流</span>
+        <span class="header-title"></span>
+        <span class="header-desc"> · </span>
       </div>
 
       <div class="chat-messages" ref="chatMessages">
         <div v-if="messages.length === 0" class="chat-empty">
-          <p class="welcome-text">您好！我是网站小助手，可以帮您：</p>
+          <p class="welcome-text"></p>
           <div class="intent-cards">
             <div class="intent-card" @click="quickAsk('search')">
               <el-icon :size="20"><Search /></el-icon>
-              <span>病情查询</span>
-              <small>联网搜索</small>
+              <span></span>
+              <small></small>
             </div>
             <div class="intent-card" @click="quickAsk('doctor')">
               <el-icon :size="20"><UserFilled /></el-icon>
-              <span>医生推荐</span>
-              <small>快速跳转</small>
+              <span></span>
+              <small></small>
             </div>
             <div class="intent-card" @click="quickAsk('drug')">
               <el-icon :size="20"><FirstAidKit /></el-icon>
-              <span>药品介绍</span>
-              <small>药品数据库</small>
+              <span></span>
+              <small></small>
             </div>
             <div class="intent-card" @click="quickAsk('knowledge')">
               <el-icon :size="20"><Collection /></el-icon>
-              <span>健康知识</span>
-              <small>知识库搜索</small>
+              <span></span>
+              <small></small>
             </div>
           </div>
-          <p style="font-size:13px;color:#999;margin-top:16px;">或直接输入问题，系统会自动识别意图</p>
+          <p style="font-size:13px;color:#999;margin-top:16px;"></p>
         </div>
         <div v-for="(msg, i) in messages" :key="i" :class="['msg', msg.role]">
           <div class="msg-avatar"><el-icon v-if="msg.role==='user'"><User /></el-icon><el-icon v-else><ChatDotRound /></el-icon></div>
           <div class="msg-bubble">
-            <div v-if="msg.intent" class="msg-intent">识别为：{{ intentLabel(msg.intent) }}</div>
+            <div v-if="msg.intent" class="msg-intent">{{ intentLabel(msg.intent) }}</div>
             <div class="msg-content" v-html="msg.content"></div>
             <div v-if="msg.doctors" class="doctor-quick">
               <div v-for="d in msg.doctors" :key="d.key" class="doctor-quick-btn" @click="jumpToDoctor(d.key)">
@@ -80,9 +80,9 @@
       </div>
 
       <div class="chat-input">
-        <el-input v-model="input" placeholder="描述您的问题..." @keyup.enter="send" :disabled="loading" size="large">
+        <el-input v-model="input" placeholder="..." @keyup.enter="send" :disabled="loading" size="large">
           <template #append>
-            <el-button @click="send" :loading="loading" type="primary">发送</el-button>
+            <el-button @click="send" :loading="loading" type="primary"></el-button>
           </template>
         </el-input>
       </div>
@@ -105,18 +105,18 @@ export default {
       currentConvId: null,
       conversations: [],
       intents: {
-        search: ["发烧","头痛","咳嗽","胸闷","肚子痛","过敏","失眠","怎么治","症状","病因","检查"],
-        drug: ["药","胶囊","片","颗粒","价格","功效","说明书","布洛芬","阿莫西林","感冒灵"],
-        doctor: ["医生","挂号","看什么科","挂什么科","推荐医生","选哪个","选什么"],
-        knowledge: ["知识","科普","预防","养生","饮食","运动","调理","保健","营养"],
+        search: ["","","","","","","","","","",""],
+        drug: ["","","","","","","","","",""],
+        doctor: ["","","","","","",""],
+        knowledge: ["","","","","","","","",""],
       },
-      // 医生关键词匹配
+      // 
       doctorKeywords: {
-        doctor: { keywords: ["发烧","咳嗽","感冒","头痛","头晕","胸闷","肚子","疼痛","腹泻","失眠","乏力","检查","诊断","吃什么","怎么缓解","多久","传染"], name: "全科医生", icon: "🩺", desc: "症状分析、用药指导" },
-        nutritionist: { keywords: ["减肥","胖","瘦","营养","维生素","热量","卡路里","蛋白质","脂肪","碳水","糖尿病","血糖","降糖","食谱","增肌","减脂","饮食","吃什"], name: "营养师", icon: "🥗", desc: "膳食规划、营养指导" },
-        psychologist: { keywords: ["心情","焦虑","抑郁","失眠","压力","烦躁","紧张","害怕","孤独","难过","崩溃","不开心","心理咨询","情绪","想不开","睡不着","精神","崩溃"], name: "心理咨询", icon: "🛋️", desc: "情绪疏导、心理支持" },
-        analyst: { keywords: ["体检","报告","化验","指标","血常规","尿常规","肝功能","肾功能","血脂","尿酸","转氨酶","胆固醇","报告解读","指标偏高","指标偏低","异常"], name: "报告分析", icon: "📊", desc: "体检报告解读" },
-        general_assistant: { keywords: ["养生","保健","预防","科普","知识","健康","季节","疫苗","免疫力"], name: "全能助手", icon: "🧠", desc: "综合健康咨询" },
+        doctor: { keywords: ["","","","","","","","","","","","","","","","",""], name: "", icon: "🩺", desc: "" },
+        nutritionist: { keywords: ["","","","","","","","","","","","","","","","","",""], name: "", icon: "", desc: "" },
+        psychologist: { keywords: ["","","","","","","","","","","","","","","","","",""], name: "", icon: "", desc: "" },
+        analyst: { keywords: ["","","","","","","","","","","","","","","",""], name: "", icon: "", desc: "" },
+        general_assistant: { keywords: ["","","","","","","","",""], name: "", icon: "", desc: "" },
       },
     };
   },
@@ -124,7 +124,7 @@ export default {
     this.loadConversations();
   },
   methods: {
-    // ===== 历史记录 =====
+    // =====  =====
     loadConversations() {
       try {
         const saved = localStorage.getItem(STORAGE_KEY);
@@ -140,7 +140,7 @@ export default {
       }
       this.currentConvId = Date.now();
       this.messages = [];
-      const conv = { id: this.currentConvId, title: "新对话", msgCount: 0, time: this.now() };
+      const conv = { id: this.currentConvId, title: "", msgCount: 0, time: this.now() };
       this.conversations.unshift(conv);
       this.saveConversations();
     },
@@ -170,13 +170,13 @@ export default {
       this.saveConversations();
     },
 
-    // ===== 对话功能 =====
+    // =====  =====
     quickAsk(type) {
       const prompts = {
-        search: "我发烧咳嗽应该怎么办？",
-        doctor: "推荐合适的AI医生",
-        drug: "布洛芬缓释胶囊的价格和功效",
-        knowledge: "高血压日常饮食应该怎么调理？",
+        search: "",
+        doctor: "AI",
+        drug: "",
+        knowledge: "",
       };
       this.input = prompts[type] || "";
       this.send();
@@ -205,13 +205,13 @@ export default {
           const matched = this.matchDoctors(msg);
           aiMsg.doctors = matched.map(d => ({ key: d.key, name: d.name, icon: d.icon }));
           if (matched.length === 1) {
-            aiMsg.content = `<strong>根据您的情况，推荐：${matched[0].name}</strong><br>${matched[0].desc}<br>点击下方按钮直接跳转 👇`;
+            aiMsg.content = `<strong>${matched[0].name}</strong><br>${matched[0].desc}<br> `;
           } else {
-            aiMsg.content = `<strong>为您推荐 ${matched.length} 位最相关的AI医生：</strong><br>点击下方按钮直接跳转 👇`;
+            aiMsg.content = `<strong> ${matched.length} AI</strong><br> `;
           }
         } else {
           const body = this.buildRequestBody(msg, intent);
-          // 知识库查询先提取Dify关键词
+          // Dify
           if (intent === "knowledge") {
             try {
               const kwRes = await fetch("http://localhost:21090/api/personal-health/v1.0/ai/keywords/extract", {
@@ -219,16 +219,16 @@ export default {
               });
               const kwData = await kwRes.json();
               if (kwData.code === 200 && kwData.data?.length > 0) body.keywords = kwData.data;
-            } catch (e) { console.warn("Dify提取失败:", e); }
+            } catch (e) { console.warn("Dify:", e); }
           }
           const res = await fetch("http://localhost:21090/api/personal-health/v1.0/ai/chat", {
             method: "POST", headers, body: JSON.stringify(body),
           });
           const data = await res.json();
-          aiMsg.content = marked.parse(data.data?.reply || "暂无回复");
+          aiMsg.content = marked.parse(data.data?.reply || "");
         }
       } catch (e) {
-        aiMsg.content = "抱歉，服务异常：" + e.message;
+        aiMsg.content = "" + e.message;
       } finally {
         this.loading = false;
         this.scrollDown();
@@ -258,11 +258,11 @@ export default {
         return { key, ...d, score: hits };
       });
       const matched = scored.filter(d => d.score > 0).sort((a, b) => b.score - a.score);
-      // 有匹配返回前3，无匹配兜底返回全科医生
+      // 3
       return matched.length > 0 ? matched.slice(0, 3) : [scored.find(d => d.key === "doctor")];
     },
     intentLabel(intent) {
-      return { search: "病情查询（联网搜索）", drug: "药品查询", doctor: "医生推荐", knowledge: "健康知识" }[intent] || intent;
+      return { search: "", drug: "", doctor: "", knowledge: "" }[intent] || intent;
     },
     jumpToDoctor(key) {
       sessionStorage.setItem("navAssistantRole", key);
@@ -285,7 +285,7 @@ export default {
 <style scoped>
 .assistant-page { display: flex; height: calc(100vh - 130px); gap: 0; }
 
-/* 左侧历史 */
+/*  */
 .history-sidebar { width: 260px; background: #fff; border-right: 1px solid #f0f0f0; display: flex; flex-direction: column; flex-shrink: 0; }
 .sidebar-header { padding: 16px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
 .sidebar-title { font-size: 15px; font-weight: 600; color: #333; }
@@ -299,7 +299,7 @@ export default {
 .history-del { position: absolute; right: 8px; top: 8px; opacity: 0; }
 .history-item:hover .history-del { opacity: 1; }
 
-/* 右侧聊天 */
+/*  */
 .chat-panel { flex: 1; background: #fff; display: flex; flex-direction: column; min-width: 0; }
 .chat-header { padding: 16px 24px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; }
 .header-title { font-size: 18px; font-weight: 700; color: #333; }

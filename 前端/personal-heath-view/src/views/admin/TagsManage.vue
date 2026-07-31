@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <el-row style="background-color: #ffffff; padding: 5px 0; border-radius: 5px">
     <el-row style="padding: 10px; margin-left: 5px">
       <el-row>
@@ -6,7 +6,7 @@
           size="small"
           style="width: 188px; margin-left: 5px; margin-right: 6px"
           v-model="tagsQueryDto.name"
-          placeholder="标签名"
+          placeholder=""
           clearable
           @clear="handleFilterClear"
         >
@@ -26,18 +26,18 @@
             class="customer"
             type="info"
             @click="add()"
-            ><el-icon><Plus /></el-icon>新增标签</el-button
+            ><el-icon><Plus /></el-icon></el-button
           >
         </span>
       </el-row>
     </el-row>
     <el-row style="margin: 0 20px; border-top: 1px solid rgb(245, 245, 245)">
       <el-table row-key="id" :data="tableData" style="width: 100%">
-        <el-table-column prop="name" label="标签名"></el-table-column>
-        <el-table-column label="操作" width="120">
+        <el-table-column prop="name" label=""></el-table-column>
+        <el-table-column label="" width="120">
           <template #default="{ row }">
-            <span class="text-button" @click="handleEdit(row)">编辑</span>
-            <span class="text-button" @click="handleDelete(row)">删除</span>
+            <span class="text-button" @click="handleEdit(row)"></span>
+            <span class="text-button" @click="handleDelete(row)"></span>
           </template>
         </el-table-column>
       </el-table>
@@ -54,7 +54,7 @@
       <template #title>
         <div>
           <p class="dialog-title">
-            {{ !isOperation ? "新增标签" : "修改标签" }}
+            {{ !isOperation ? "" : "" }}
           </p>
         </div>
       </template>
@@ -64,7 +64,7 @@
             style="font-size: 34px"
             class="dialog-input"
             v-model="data.name"
-            placeholder="标签名"
+            placeholder=""
           />
         </el-row>
       </div>
@@ -81,7 +81,7 @@
             class="customer"
             type="info"
             @click="addOperation()"
-            >新增</el-button
+            ></el-button
           >
           <el-button
             size="small"
@@ -94,14 +94,14 @@
             class="customer"
             type="info"
             @click="updateOperation()"
-            >修改</el-button
+            ></el-button
           >
           <el-button
             class="customer"
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="cannel"
-            >取消</el-button
+            ></el-button
           >
         </span>
       </template>
@@ -125,7 +125,7 @@ export default {
       searchTime: [],
       selectedRows: [],
       status: null,
-      tagsQueryDto: {}, // 搜索条件
+      tagsQueryDto: {}, // 
     };
   },
   watch: {
@@ -147,26 +147,26 @@ export default {
     },
     handleAvatarSuccess(res, file) {
       if (res.code !== 200) {
-        this.$message.error(`标签头像上传异常`);
+        this.$message.error(``);
         return;
       }
-      this.$message.success(`标签头像上传成功`);
+      this.$message.success(``);
       this.data.userAvatar = res.data;
       console.log(this.data);
     },
-    // 多选框选中
+    // 
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 批量删除数据
+    // 
     async batchDelete() {
       if (!this.selectedRows.length) {
-        this.$message(`未选中任何数据`);
+        this.$message(``);
         return;
       }
       const confirmed = await this.$swalConfirm({
-        title: "删除标签数据",
-        text: `删除后不可恢复，是否继续？`,
+        title: "",
+        text: ``,
         icon: "warning",
       });
       if (confirmed) {
@@ -175,7 +175,7 @@ export default {
           const response = await this.$axios.post(`/tags/batchDelete`, ids);
           if (response.data.code === 200) {
             this.$swal.fire({
-              title: "删除提示",
+              title: "",
               text: response.data.msg,
               icon: "success",
               showConfirmButton: false,
@@ -186,7 +186,7 @@ export default {
             return;
           }
         } catch (e) {
-          console.error(`标签信息删除异常：`, e);
+          console.error(``, e);
         }
       }
     },
@@ -195,12 +195,12 @@ export default {
       this.searchTime = [];
       this.fetchFreshData();
     },
-    // 修改信息
+    // 
     async updateOperation() {
       try {
         const response = await this.$axios.put("/tags/update", this.data);
         this.$swal.fire({
-          title: "标签信息修改",
+          title: "",
           text: response.data.msg,
           icon: response.data.code === 200 ? "success" : "error",
           showConfirmButton: false,
@@ -211,11 +211,11 @@ export default {
           this.fetchFreshData();
         }
       } catch (error) {
-        console.error("提交表单时出错", error);
-        this.$message.error("提交失败，请稍后再试！");
+        console.error("", error);
+        this.$message.error("");
       }
     },
-    // 信息新增
+    // 
     async addOperation() {
       try {
         const response = await this.$axios.post("/tags/save", this.data);
@@ -227,13 +227,13 @@ export default {
           this.fetchFreshData();
         }
       } catch (error) {
-        console.error("提交表单时出错", error);
-        this.$message.error("提交失败，请稍后再试！");
+        console.error("", error);
+        this.$message.error("");
       }
     },
     async fetchFreshData() {
       try {
-        // 请求参数
+        // 
         const params = {
           current: this.currentPage,
           size: this.pageSize,
@@ -244,7 +244,7 @@ export default {
         this.tableData = data.data;
         this.totalItems = data.total;
       } catch (error) {
-        console.error("查询标签信息异常:", error);
+        console.error(":", error);
       }
     },
     add() {

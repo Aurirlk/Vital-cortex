@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.QuizExamMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO quiz_exam (title, description, duration_minutes, total_score, pass_score, difficulty, question_count, status, create_time)
+        VALUES (#{title}, #{description}, #{durationMinutes}, #{totalScore}, #{passScore}, #{difficulty}, #{questionCount}, #{status}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE quiz_exam
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="durationMinutes != null">duration_minutes = #{durationMinutes},</if>
+            <if test="totalScore != null">total_score = #{totalScore},</if>
+            <if test="passScore != null">pass_score = #{passScore},</if>
+            <if test="difficulty != null">difficulty = #{difficulty},</if>
+            <if test="questionCount != null">question_count = #{questionCount},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    <delete id="batchDelete">
+        DELETE FROM quiz_exam WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+    <select id="queryAll" resultType="cn.kmbeast.pojo.entity.QuizExam">
+        SELECT * FROM quiz_exam WHERE status = 1 ORDER BY create_time DESC
+    </select>
+    <select id="getById" resultType="cn.kmbeast.pojo.entity.QuizExam">
+        SELECT * FROM quiz_exam WHERE id = #{id}
+    </select>
+</mapper>

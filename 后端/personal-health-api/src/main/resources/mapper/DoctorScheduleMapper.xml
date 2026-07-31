@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.DoctorScheduleMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO doctor_schedule (doctor_id, schedule_date, time_slot, max_patients, booked_count, version, status, create_time)
+        VALUES (#{doctorId}, #{scheduleDate}, #{timeSlot}, #{maxPatients}, #{bookedCount}, #{version}, #{status}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE doctor_schedule
+        <set>
+            <if test="maxPatients != null">max_patients = #{maxPatients},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    <delete id="batchDelete">
+        DELETE FROM doctor_schedule WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+    <select id="queryByDoctorAndDate" resultType="cn.kmbeast.pojo.entity.DoctorSchedule">
+        SELECT * FROM doctor_schedule WHERE doctor_id = #{doctorId} AND schedule_date = #{date} AND status = 1
+    </select>
+    <select id="getById" resultType="cn.kmbeast.pojo.entity.DoctorSchedule">
+        SELECT * FROM doctor_schedule WHERE id = #{id}
+    </select>
+    <select id="queryAvailable" resultType="cn.kmbeast.pojo.entity.DoctorSchedule">
+        SELECT s.* FROM doctor_schedule s
+        JOIN hospital_doctor d ON d.id = s.doctor_id
+        WHERE d.department_id = #{departmentId} AND s.schedule_date = #{date}
+        AND s.status = 1 AND s.booked_count &lt; s.max_patients
+        ORDER BY s.time_slot ASC
+    </select>
+    <update id="incrementBookedCount">
+        UPDATE doctor_schedule SET booked_count = booked_count + 1, version = version + 1 WHERE id = #{id}
+    </update>
+    <update id="decrementBookedCount">
+        UPDATE doctor_schedule SET booked_count = GREATEST(booked_count - 1, 0), version = version + 1 WHERE id = #{id}
+    </update>
+</mapper>

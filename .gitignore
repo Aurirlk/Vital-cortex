@@ -27,16 +27,16 @@ dist/
 .DS_Store
 
 # ==================== 运行时数据 ====================
-# 向量数据库
+# 统一缓存目录（包含所有运行时数据）
+cache/
+
+# 旧版缓存目录（兼容）
 crm_data/
 vector_cache/
-
-# 聊天缓存
 chat_cache/
 chat_backup/
-
-# AI数据导出
 ai_data/
+chat_history/
 
 # 图片上传
 pic/
@@ -51,3 +51,30 @@ logs/
 .vscode/
 *.iml
 *.swp
+
+# ==================== 大文件 / 模型权重 (ENG-08) ====================
+# 以下内容体积大且为二进制，不应进入 Git 仓库。
+# 注意：已跟踪的文件需执行 git rm --cached 才会停止跟踪（见交接手册 11.x）
+dir/
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.gguf
+*.tar
+*.tar.gz
+*.zip
+*.7z
+
+# ==================== 密钥与配置 (SEC) ====================
+*.pem
+*.key
+*.keystore
+.env.local
+.env.production.local
+
+# 后端编译产物
+target/
+*.class
+# WorkBuddy 工作数据（不进仓库）
+.workbuddy/

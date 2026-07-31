@@ -142,6 +142,11 @@ public class AiController {
     @GetMapping(value = "/conversations/{conversationId}/messages")
     public Result<List<AiChatRecord>> getConversationMessages(
             @PathVariable("conversationId") Integer conversationId) {
+        // SEC-03：必须校验会话归属，否则改一个数字即可读取他人问诊记录
+        Integer userId = LocalThreadHolder.getUserId();
+        if (!chatCacheService.isOwnedBy(conversationId, userId)) {
+            return ApiResult.error("会话不存在或无权访问");
+        }
         List<AiChatRecord> messages = chatCacheService.getMessages(conversationId);
         return ApiResult.success(messages);
     }
@@ -156,6 +161,11 @@ public class AiController {
     @DeleteMapping(value = "/conversations/{conversationId}")
     public Result<Void> deleteConversation(
             @PathVariable("conversationId") Integer conversationId) {
+        // SEC-03：越权删除防护
+        Integer userId = LocalThreadHolder.getUserId();
+        if (!chatCacheService.isOwnedBy(conversationId, userId)) {
+            return ApiResult.error("会话不存在或无权访问");
+        }
         chatCacheService.deleteConversation(conversationId);
         return ApiResult.success("删除成功", (Void) null);
     }
@@ -169,6 +179,17 @@ public class AiController {
     @Protector
     @PostMapping(value = "/conversations/batchDelete")
     public Result<Void> batchDeleteConversations(@RequestBody List<Integer> conversationIds) {
+        if (conversationIds == null || conversationIds.isEmpty()) {
+            return ApiResult.error("请选择要删除的会话");
+        }
+        // SEC-03：逐个校验归属，任一不属于当前用户则整批拒绝，
+        // 不做"过滤掉非法项后继续执行"——那样会掩盖攻击行为
+        Integer userId = LocalThreadHolder.getUserId();
+        for (Integer id : conversationIds) {
+            if (!chatCacheService.isOwnedBy(id, userId)) {
+                return ApiResult.error("存在不存在或无权访问的会话，操作已取消");
+            }
+        }
         chatCacheService.batchDeleteConversations(conversationIds);
         return ApiResult.success("批量删除成功", (Void) null);
     }

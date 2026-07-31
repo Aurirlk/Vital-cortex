@@ -25,7 +25,7 @@
 </template>
 
 <script>
-// 标签渲染组件，接收渲染参数，点击后会向父组件反馈
+// 
 export default {
   name: "TagLine",
   data() {
@@ -40,7 +40,7 @@ export default {
     },
   },
   mounted() {
-    this.onClick({ name: "全部", id: null });
+    this.onClick({ name: "", id: null });
   },
   methods: {
     onClick(tag) {
@@ -48,7 +48,7 @@ export default {
       this.$emit("on-click", tag);
     },
     all() {
-      this.$emit("on-click", { id: null, name: "全部" });
+      this.$emit("on-click", { id: null, name: "" });
     },
   },
 };

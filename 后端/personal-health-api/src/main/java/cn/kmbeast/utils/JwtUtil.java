@@ -7,31 +7,90 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * JWT Token 工具类
- * 密钥和过期时间通过环境变量配置
+ *
+ * <p>安全约束（SEC-01 整改）：
+ * <ul>
+ *   <li>密钥不再提供任何硬编码兜底值，必须由外部注入（环境变量 {@code JWT_SECRET} 或配置项 {@code jwt.secret}）。</li>
+ *   <li>启动时强制校验：密钥非空、长度 ≥ 32 字节（HS256 要求 256 位）、且不在已泄露弱密钥黑名单中。</li>
+ *   <li>校验不通过直接抛异常终止启动，避免"带着可伪造的令牌上线"。</li>
+ * </ul>
+ *
+ * <p>本类是全系统唯一的 JWT 签发/校验入口。原 {@code JwtUtils} 静态类（硬编码密钥、
+ * 且 subject 语义与本类不兼容）已废弃，WebSocket 通过 {@link #getInstance()} 复用本实例。
  */
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret:${JWT_SECRET:***REMOVED***}}")
-    private String privateKey;
-
-    @Value("${jwt.expiration:${JWT_EXPIRATION:604800000}}")
-    private Long expiration;
+    /**
+     * 历史上已提交进代码仓库、必须视为公开泄露的密钥黑名单。
+     */
+    private static final List<String> LEAKED_SECRETS = Arrays.asList(
+            "***REMOVED***",
+            "changeme",
+            "secret",
+            "your-secret-key"
+    );
 
     /**
-     * 获取签名密钥
+     * HS256 要求密钥至少 256 位 = 32 字节。
      */
-    private SecretKey getSigningKey() {
-        // 确保密钥至少256位（32字节）
-        byte[] keyBytes = privateKey.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+    private static final int MIN_SECRET_BYTES = 32;
+
+    private static volatile JwtUtil instance;
+
+    @Value("${jwt.secret:}")
+    private String privateKey;
+
+    @Value("${jwt.expiration:604800000}")
+    private Long expiration;
+
+    private SecretKey signingKey;
+
+    @PostConstruct
+    public void init() {
+        if (privateKey == null || privateKey.trim().isEmpty()) {
+            throw new IllegalStateException(
+                    "JWT 密钥未配置，应用拒绝启动。请设置环境变量 JWT_SECRET（建议 64 位随机字符串），" +
+                            "或在 application-local.yml 中配置 jwt.secret。" +
+                            "生成方式：openssl rand -base64 48");
+        }
+        String trimmed = privateKey.trim();
+        if (LEAKED_SECRETS.contains(trimmed)) {
+            throw new IllegalStateException(
+                    "检测到使用了已泄露的默认 JWT 密钥，应用拒绝启动。该密钥曾提交进代码仓库，" +
+                            "任何人都可据此伪造管理员 Token。请立即更换 JWT_SECRET。");
+        }
+        byte[] keyBytes = trimmed.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "JWT 密钥强度不足：当前 " + keyBytes.length + " 字节，HS256 要求至少 "
+                            + MIN_SECRET_BYTES + " 字节。请更换更长的 JWT_SECRET。");
+        }
+        this.signingKey = Keys.hmacShaKeyFor(keyBytes);
+        instance = this;
+    }
+
+    /**
+     * 供非 Spring 托管场景（如 {@code @ServerEndpoint} WebSocket 端点）获取实例。
+     *
+     * @return 已完成初始化的单例
+     */
+    public static JwtUtil getInstance() {
+        JwtUtil ref = instance;
+        if (ref == null) {
+            throw new IllegalStateException("JwtUtil 尚未初始化，请确认 Spring 容器已启动完成");
+        }
+        return ref;
     }
 
     /**
@@ -45,12 +104,12 @@ public class JwtUtil {
         JwtBuilder jwtBuilder = Jwts.builder();
         return jwtBuilder
                 .id(UUID.randomUUID().toString())
-                .subject("用户认证")
+                .subject(String.valueOf(id))
                 .claim("id", id)
                 .claim("role", role)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSigningKey())
+                .signWith(signingKey)
                 .compact();
     }
 
@@ -61,14 +120,31 @@ public class JwtUtil {
      * @return Claims 或 null（如果token无效）
      */
     public Claims fromToken(String token) {
+        if (token == null || token.trim().isEmpty()) {
+            return null;
+        }
         try {
             return Jwts.parser()
-                    .verifyWith(getSigningKey())
+                    .verifyWith(signingKey)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * 从 token 中提取用户 ID。
+     *
+     * @param token JWT
+     * @return 用户ID，token 无效时返回 null
+     */
+    public Integer getUserId(String token) {
+        Claims claims = fromToken(token);
+        if (claims == null) {
+            return null;
+        }
+        return claims.get("id", Integer.class);
     }
 }

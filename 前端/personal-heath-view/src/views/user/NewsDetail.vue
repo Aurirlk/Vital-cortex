@@ -14,7 +14,7 @@
               @click="saveNewsOperation"
               class="customer"
               size="small"
-              >{{ !saveFlag ? "立即收藏" : "取消收藏" }}</el-button
+              >{{ !saveFlag ? "" : "" }}</el-button
             >
           </div>
           <div class="news-detail-content" v-html="sanitizeHtml(newsInfo.content)"></div>
@@ -26,7 +26,7 @@
     </el-col>
     <el-col :span="6">
       <div class="sidebar-card">
-        <h3 class="sidebar-title">资讯推荐</h3>
+        <h3 class="sidebar-title"></h3>
         <el-col
           @click="newsItemClick(news)"
           :span="24"
@@ -92,14 +92,14 @@ export default {
         })
         .catch(() => {});
     },
-    // 收藏或取消收藏操作
+    // 
     saveNewsOperation() {
       this.$axios
         .post("/news-save/operation", { newsId: this.newsInfo.id })
         .then((response) => {
           const { data } = response;
           if (data.code === 200) {
-            this.$message.success(!this.saveFlag ? "收藏成功" : "取消收藏成功");
+            this.$message.success(!this.saveFlag ? "" : "");
             this.saveFlag = !this.saveFlag;
           }
         })
@@ -116,16 +116,16 @@ export default {
       const newInfo = sessionStorage.getItem("newsInfo");
       if (newInfo) {
         const parsed = JSON.parse(newInfo);
-        // 如果没有content字段，填充默认内容以便v-html能渲染
+        // contentv-html
         if (!parsed.content) {
           parsed.content = `
             <p style="font-size:16px;line-height:1.8;color:#4a5568;">
-              ${parsed.name || "暂无内容"}
+              ${parsed.name || ""}
             </p>
             <p style="font-size:14px;line-height:1.8;color:#718096;margin-top:16px;">
-              这是一篇关于${
-                parsed.tagName || "健康"
-              }的文章。更多内容请等待后端API接入后查看。
+              ${
+                parsed.tagName || ""
+              }API
             </p>
           `;
         }

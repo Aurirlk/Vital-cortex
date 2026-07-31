@@ -29,7 +29,7 @@
     </el-row>
     <el-row :gutter="16">
       <el-row v-if="newsList.length === 0" style="width: 100%">
-        <el-empty description="暂无资讯"></el-empty>
+        <el-empty description=""></el-empty>
       </el-row>
       <el-col
         class="new-item"
@@ -72,17 +72,17 @@ export default {
     this.loadAllTopNews();
   },
   methods: {
-    // 轮播图点击事件回传
+    // 
     onBannerClick(banner) {
       sessionStorage.setItem("newsInfo", JSON.stringify(banner));
       this.$router.push("/user/news-detail");
     },
-    // 健康资讯列表的项点击事件
+    // 
     newsItemClick(news) {
       sessionStorage.setItem("newsInfo", JSON.stringify(news));
       this.$router.push("/user/news-detail");
     },
-    // 转换时间
+    // 
     parseTime(time) {
       return timeAgo(time);
     },
@@ -95,7 +95,7 @@ export default {
         const { data } = response;
         if (data.code === 200) {
           this.tagsList = data.data;
-          this.tagsList.unshift({ name: '全部', id: null });
+          this.tagsList.unshift({ name: '', id: null });
         }
       }).catch(() => {});
     },

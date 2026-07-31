@@ -1,9 +1,9 @@
 <template>
   <header class="header">
-    <!-- 左侧：Logo + 导航菜单 -->
+    <!-- Logo +  -->
     <div class="header-left">
       <div class="logo-area">
-        <Logo sysName="健康资讯" />
+        <Logo sysName="" />
       </div>
       <nav class="nav-menu">
         <template v-for="(item, index) in menus" :key="index">
@@ -23,35 +23,35 @@
       </nav>
     </div>
 
-    <!-- 右侧：搜索 + 指标记录 + 铃铛 + 个人主页 -->
+    <!--  +  +  +  -->
     <div class="header-right">
-      <!-- 搜索框 -->
+      <!--  -->
       <div class="search-box">
         <input
           class="search-input"
-          placeholder="搜索..."
+          placeholder="..."
           @keyup.enter="search"
           v-model="filterText"
         />
-        <span class="search-btn" @click="search">搜索</span>
+        <span class="search-btn" @click="search"></span>
       </div>
 
-      <!-- 指标记录按钮 -->
+      <!--  -->
       <button class="record-btn" @click="healthDataRecord">
         <svg class="record-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
         </svg>
-        <span>指标记录</span>
+        <span></span>
       </button>
 
-      <!-- 铃铛 -->
+      <!--  -->
       <div class="bell-area" @click="messageCenter">
         <el-badge :hidden="noReadMsg === 0" :value="noReadMsg">
           <el-icon class="bell-icon"><Bell /></el-icon>
         </el-badge>
       </div>
 
-      <!-- 个人主页 -->
+      <!--  -->
       <div class="user-area">
         <el-dropdown trigger="click">
           <div class="user-trigger">
@@ -61,10 +61,10 @@
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item :icon="User" @click="userCenterPanel">个人中心</el-dropdown-item>
-              <el-dropdown-item :icon="WarningFilled" @click="resetPwd">修改密码</el-dropdown-item>
-              <el-dropdown-item :icon="Setting" @click="openSettings">设置</el-dropdown-item>
-              <el-dropdown-item :icon="Back" @click="loginOut">退出登录</el-dropdown-item>
+              <el-dropdown-item :icon="User" @click="userCenterPanel"></el-dropdown-item>
+              <el-dropdown-item :icon="WarningFilled" @click="resetPwd"></el-dropdown-item>
+              <el-dropdown-item :icon="Setting" @click="openSettings"></el-dropdown-item>
+              <el-dropdown-item :icon="Back" @click="loginOut"></el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>

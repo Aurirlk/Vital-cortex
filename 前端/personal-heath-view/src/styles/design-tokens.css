@@ -1,0 +1,158 @@
+/* 
+ *  - 
+ * Design Tokens: 
+ *  smart-recruit-ai 
+ */
+
+/* ====================  ==================== */
+:root {
+  /*  -  smart-recruit-ai */
+  --xh-primary: #0050cb;
+  --xh-primary-light: #4a90d9;
+  --xh-primary-dark: #0d3b6e;
+  --xh-primary-bg: rgba(0, 80, 203, 0.06);
+  --xh-primary-gradient: linear-gradient(135deg, #0050cb, #0066ff);
+  
+  /*  - AI  */
+  --xh-secondary: #632ce5;
+  --xh-secondary-light: #8b5cf6;
+  --xh-secondary-bg: rgba(99, 44, 229, 0.06);
+  
+  /*  */
+  --xh-success: #10b981;
+  --xh-success-bg: rgba(16, 185, 129, 0.06);
+  --xh-warning: #f59e0b;
+  --xh-warning-bg: rgba(245, 158, 11, 0.06);
+  --xh-error: #ef4444;
+  --xh-error-bg: rgba(239, 68, 68, 0.06);
+  --xh-info: #3b82f6;
+  --xh-info-bg: rgba(59, 130, 246, 0.06);
+  
+  /*  */
+  --xh-bg: #f7f9fc;
+  --xh-bg-page: #f2f4f7;
+  --xh-bg-card: #ffffff;
+  --xh-bg-hover: #f8fafc;
+  --xh-bg-active: #eef4ff;
+  --xh-bg-mask: rgba(15, 23, 42, 0.5);
+  
+  /*  */
+  --xh-text-primary: #191c1e;
+  --xh-text-secondary: #475569;
+  --xh-text-muted: #647084;
+  --xh-text-white: #ffffff;
+  --xh-text-link: #0050cb;
+  
+  /*  */
+  --xh-border: #d8deea;
+  --xh-border-soft: #e6ebf2;
+  --xh-border-dark: #c8d8f3;
+  
+  /*  smart-recruit-ai */
+  --xh-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.03);
+  --xh-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+  --xh-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.05);
+  --xh-shadow-lg: 0 18px 48px rgba(15, 23, 42, 0.08);
+  --xh-shadow-xl: 0 24px 64px rgba(15, 23, 42, 0.1);
+  
+  /*  */
+  --xh-gradient-primary: linear-gradient(135deg, #0050cb, #0066ff);
+  --xh-gradient-purple: linear-gradient(135deg, #632ce5, #8b5cf6);
+  --xh-gradient-success: linear-gradient(135deg, #10b981, #34d399);
+  --xh-gradient-warm: linear-gradient(135deg, #f59e0b, #fbbf24);
+  --xh-gradient-hero: linear-gradient(135deg, #0050cb 0%, #632ce5 100%);
+  
+  /*  8px smart-recruit-ai */
+  --xh-radius-xs: 4px;
+  --xh-radius-sm: 6px;
+  --xh-radius-md: 8px;
+  --xh-radius-lg: 12px;
+  --xh-radius-xl: 16px;
+  --xh-radius-full: 9999px;
+  
+  /*  */
+  --xh-space-xs: 4px;
+  --xh-space-sm: 8px;
+  --xh-space-md: 12px;
+  --xh-space-base: 16px;
+  --xh-space-lg: 20px;
+  --xh-space-xl: 24px;
+  --xh-space-2xl: 32px;
+  --xh-space-3xl: 48px;
+  
+  /*  */
+  --xh-font-family: Inter, 'PingFang SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --xh-font-size-xs: 11px;
+  --xh-font-size-sm: 12px;
+  --xh-font-size-base: 14px;
+  --xh-font-size-md: 16px;
+  --xh-font-size-lg: 18px;
+  --xh-font-size-xl: 20px;
+  --xh-font-size-2xl: 24px;
+  --xh-font-size-3xl: 32px;
+  --xh-font-size-4xl: 44px;
+  
+  /*  */
+  --xh-font-regular: 400;
+  --xh-font-medium: 500;
+  --xh-font-semibold: 600;
+  --xh-font-bold: 700;
+  --xh-font-extrabold: 800;
+  
+  /*  */
+  --xh-line-height-tight: 1.15;
+  --xh-line-height-normal: 1.5;
+  --xh-line-height-relaxed: 1.75;
+  
+  /*  */
+  --xh-transition-fast: 0.15s ease;
+  --xh-transition-base: 0.25s ease;
+  --xh-transition-slow: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  
+  /*  */
+  --xh-max-width: 1440px;
+  --xh-header-height: 72px;
+  --xh-sidebar-width: 240px;
+  --xh-sidebar-collapsed: 64px;
+}
+
+/* ====================  smart-recruit-ai ==================== */
+@media (max-width: 1024px) {
+  :root {
+    --xh-sidebar-width: 0px;
+  }
+}
+
+@media (max-width: 780px) {
+  :root {
+    --xh-space-xl: 18px;
+    --xh-space-2xl: 24px;
+    --xh-space-3xl: 32px;
+  }
+}
+
+/* ====================  ==================== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}

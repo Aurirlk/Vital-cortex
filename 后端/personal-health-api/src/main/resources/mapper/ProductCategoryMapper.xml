@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.ProductCategoryMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO product_category (name, parent_id, icon, sort_order, status, create_time)
+        VALUES (#{name}, #{parentId}, #{icon}, #{sortOrder}, #{status}, #{createTime})
+    </insert>
+    <select id="queryAll" resultType="cn.kmbeast.pojo.entity.ProductCategory">
+        SELECT * FROM product_category WHERE status = 1 ORDER BY sort_order ASC
+    </select>
+</mapper>

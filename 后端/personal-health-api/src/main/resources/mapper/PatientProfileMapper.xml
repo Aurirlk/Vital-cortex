@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.PatientProfileMapper">
+
+    <!-- 根据用户ID获取画像 -->
+    <select id="getByUserId" resultMap="PatientProfileResultMap">
+        SELECT * FROM patient_profile WHERE user_id = #{userId}
+    </select>
+
+    <!-- 插入用户画像 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO patient_profile (
+            user_id, gender, age, birth_date,
+            height, weight, bmi,
+            chronic_diseases, allergies, medications, surgeries, family_history,
+            lifestyle, health_goals,
+            fasting_blood_glucose, postprandial_blood_glucose,
+            total_cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol,
+            systolic_pressure, diastolic_pressure, resting_heart_rate,
+            last_update_time, create_time
+        ) VALUES (
+            #{userId}, #{gender}, #{age}, #{birthDate},
+            #{height}, #{weight}, #{bmi},
+            #{chronicDiseases}, #{allergies}, #{medications}, #{surgeries}, #{familyHistory},
+            #{lifestyle}, #{healthGoals},
+            #{fastingBloodGlucose}, #{postprandialBloodGlucose},
+            #{totalCholesterol}, #{triglycerides}, #{hdlCholesterol}, #{ldlCholesterol},
+            #{systolicPressure}, #{diastolicPressure}, #{restingHeartRate},
+            #{lastUpdateTime}, #{createTime}
+        )
+    </insert>
+
+    <!-- 更新用户画像 -->
+    <update id="update">
+        UPDATE patient_profile
+        <set>
+            <if test="gender != null and gender != ''">
+                gender = #{gender},
+            </if>
+            <if test="age != null">
+                age = #{age},
+            </if>
+            <if test="birthDate != null">
+                birth_date = #{birthDate},
+            </if>
+            <if test="height != null">
+                height = #{height},
+            </if>
+            <if test="weight != null">
+                weight = #{weight},
+            </if>
+            <if test="bmi != null">
+                bmi = #{bmi},
+            </if>
+            <if test="chronicDiseases != null">
+                chronic_diseases = #{chronicDiseases},
+            </if>
+            <if test="allergies != null">
+                allergies = #{allergies},
+            </if>
+            <if test="medications != null">
+                medications = #{medications},
+            </if>
+            <if test="surgeries != null">
+                surgeries = #{surgeries},
+            </if>
+            <if test="familyHistory != null">
+                family_history = #{familyHistory},
+            </if>
+            <if test="lifestyle != null">
+                lifestyle = #{lifestyle},
+            </if>
+            <if test="healthGoals != null">
+                health_goals = #{healthGoals},
+            </if>
+            <if test="fastingBloodGlucose != null">
+                fasting_blood_glucose = #{fastingBloodGlucose},
+            </if>
+            <if test="postprandialBloodGlucose != null">
+                postprandial_blood_glucose = #{postprandialBloodGlucose},
+            </if>
+            <if test="totalCholesterol != null">
+                total_cholesterol = #{totalCholesterol},
+            </if>
+            <if test="triglycerides != null">
+                triglycerides = #{triglycerides},
+            </if>
+            <if test="hdlCholesterol != null">
+                hdl_cholesterol = #{hdlCholesterol},
+            </if>
+            <if test="ldlCholesterol != null">
+                ldl_cholesterol = #{ldlCholesterol},
+            </if>
+            <if test="systolicPressure != null">
+                systolic_pressure = #{systolicPressure},
+            </if>
+            <if test="diastolicPressure != null">
+                diastolic_pressure = #{diastolicPressure},
+            </if>
+            <if test="restingHeartRate != null">
+                resting_heart_rate = #{restingHeartRate},
+            </if>
+        </set>
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 插入或更新用户画像（Upsert） -->
+    <insert id="insertOrUpdate">
+        INSERT INTO patient_profile (
+            user_id, gender, age, birth_date,
+            height, weight, bmi,
+            chronic_diseases, allergies, medications, surgeries, family_history,
+            lifestyle, health_goals,
+            fasting_blood_glucose, postprandial_blood_glucose,
+            total_cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol,
+            systolic_pressure, diastolic_pressure, resting_heart_rate,
+            last_update_time, create_time
+        ) VALUES (
+            #{userId}, #{gender}, #{age}, #{birthDate},
+            #{height}, #{weight}, #{bmi},
+            #{chronicDiseases}, #{allergies}, #{medications}, #{surgeries}, #{familyHistory},
+            #{lifestyle}, #{healthGoals},
+            #{fastingBloodGlucose}, #{postprandialBloodGlucose},
+            #{totalCholesterol}, #{triglycerides}, #{hdlCholesterol}, #{ldlCholesterol},
+            #{systolicPressure}, #{diastolicPressure}, #{restingHeartRate},
+            #{lastUpdateTime}, #{createTime}
+        )
+        ON DUPLICATE KEY UPDATE
+            gender = IF(#{gender} IS NOT NULL, #{gender}, gender),
+            age = IF(#{age} IS NOT NULL, #{age}, age),
+            birth_date = IF(#{birthDate} IS NOT NULL, #{birthDate}, birth_date),
+            height = IF(#{height} IS NOT NULL, #{height}, height),
+            weight = IF(#{weight} IS NOT NULL, #{weight}, weight),
+            bmi = IF(#{bmi} IS NOT NULL, #{bmi}, bmi),
+            chronic_diseases = IF(#{chronicDiseases} IS NOT NULL, #{chronicDiseases}, chronic_diseases),
+            allergies = IF(#{allergies} IS NOT NULL, #{allergies}, allergies),
+            medications = IF(#{medications} IS NOT NULL, #{medications}, medications),
+            surgeries = IF(#{surgeries} IS NOT NULL, #{surgeries}, surgeries),
+            family_history = IF(#{familyHistory} IS NOT NULL, #{familyHistory}, family_history),
+            lifestyle = IF(#{lifestyle} IS NOT NULL, #{lifestyle}, lifestyle),
+            health_goals = IF(#{healthGoals} IS NOT NULL, #{healthGoals}, health_goals),
+            fasting_blood_glucose = IF(#{fastingBloodGlucose} IS NOT NULL, #{fastingBloodGlucose}, fasting_blood_glucose),
+            postprandial_blood_glucose = IF(#{postprandialBloodGlucose} IS NOT NULL, #{postprandialBloodGlucose}, postprandial_blood_glucose),
+            total_cholesterol = IF(#{totalCholesterol} IS NOT NULL, #{totalCholesterol}, total_cholesterol),
+            triglycerides = IF(#{triglycerides} IS NOT NULL, #{triglycerides}, triglycerides),
+            hdl_cholesterol = IF(#{hdlCholesterol} IS NOT NULL, #{hdlCholesterol}, hdl_cholesterol),
+            ldl_cholesterol = IF(#{ldlCholesterol} IS NOT NULL, #{ldlCholesterol}, ldl_cholesterol),
+            systolic_pressure = IF(#{systolicPressure} IS NOT NULL, #{systolicPressure}, systolic_pressure),
+            diastolic_pressure = IF(#{diastolicPressure} IS NOT NULL, #{diastolicPressure}, diastolic_pressure),
+            resting_heart_rate = IF(#{restingHeartRate} IS NOT NULL, #{restingHeartRate}, resting_heart_rate),
+            last_update_time = NOW()
+    </insert>
+
+    <!-- 删除用户画像 -->
+    <delete id="deleteByUserId">
+        DELETE FROM patient_profile WHERE user_id = #{userId}
+    </delete>
+
+    <!-- 结果映射 -->
+    <resultMap id="PatientProfileResultMap" type="cn.kmbeast.pojo.entity.PatientProfile">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="gender" property="gender"/>
+        <result column="age" property="age"/>
+        <result column="birth_date" property="birthDate"/>
+        <result column="height" property="height"/>
+        <result column="weight" property="weight"/>
+        <result column="bmi" property="bmi"/>
+        <result column="chronic_diseases" property="chronicDiseases"/>
+        <result column="allergies" property="allergies"/>
+        <result column="medications" property="medications"/>
+        <result column="surgeries" property="surgeries"/>
+        <result column="family_history" property="familyHistory"/>
+        <result column="lifestyle" property="lifestyle"/>
+        <result column="health_goals" property="healthGoals"/>
+        <result column="fasting_blood_glucose" property="fastingBloodGlucose"/>
+        <result column="postprandial_blood_glucose" property="postprandialBloodGlucose"/>
+        <result column="total_cholesterol" property="totalCholesterol"/>
+        <result column="triglycerides" property="triglycerides"/>
+        <result column="hdl_cholesterol" property="hdlCholesterol"/>
+        <result column="ldl_cholesterol" property="ldlCholesterol"/>
+        <result column="systolic_pressure" property="systolicPressure"/>
+        <result column="diastolic_pressure" property="diastolicPressure"/>
+        <result column="resting_heart_rate" property="restingHeartRate"/>
+        <result column="last_update_time" property="lastUpdateTime"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+</mapper>

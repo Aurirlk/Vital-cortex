@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.VisitRecordMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO visit_record (appointment_id, patient_id, doctor_id, chief_complaint, present_illness,
+                                  diagnosis, prescription, examination_results, follow_up_plan, create_time)
+        VALUES (#{appointmentId}, #{patientId}, #{doctorId}, #{chiefComplaint}, #{presentIllness},
+                #{diagnosis}, #{prescription}, #{examinationResults}, #{followUpPlan}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE visit_record
+        <set>
+            <if test="chiefComplaint != null">chief_complaint = #{chiefComplaint},</if>
+            <if test="presentIllness != null">present_illness = #{presentIllness},</if>
+            <if test="diagnosis != null">diagnosis = #{diagnosis},</if>
+            <if test="prescription != null">prescription = #{prescription},</if>
+            <if test="examinationResults != null">examination_results = #{examinationResults},</if>
+            <if test="followUpPlan != null">follow_up_plan = #{followUpPlan},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    <select id="getByAppointmentId" resultType="cn.kmbeast.pojo.entity.VisitRecord">
+        SELECT * FROM visit_record WHERE appointment_id = #{appointmentId}
+    </select>
+</mapper>

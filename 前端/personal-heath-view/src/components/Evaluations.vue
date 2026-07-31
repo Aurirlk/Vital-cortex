@@ -1,7 +1,7 @@
 <template>
   <div style="width: 100%">
     <el-row style="margin: 5px 0">
-      <h2 class="commentHeader">评论&nbsp;{{ evaluationsCount }}</h2>
+      <h2 class="commentHeader">&nbsp;{{ evaluationsCount }}</h2>
       <el-row style="margin: 15px 0">
         <el-col :span="2">
           <el-avatar :src="userData.userAvatar"></el-avatar>
@@ -18,7 +18,7 @@
             <textarea
               class="comment-parent-input"
               v-model="content"
-              placeholder="请友好交流"
+              placeholder=""
               @focus="onFocus"
               @blur="onBlur"
             ></textarea>
@@ -35,7 +35,7 @@
                 class="comment-clike"
                 size="small"
                 type="primary"
-                >评论</el-button
+                ></el-button
               >
             </div>
           </div>
@@ -63,7 +63,7 @@
               >{{ comment.userName }}</span
             >
             <span v-if="comment.userId == userId" class="my-body-tag"
-              >我自己</span
+              ></span
             >
           </el-col>
         </el-row>
@@ -80,11 +80,11 @@
               comment.time
             }}</span>
             <el-popconfirm
-              confirm-button-text="好的"
-              cancel-button-text="不删了"
+              confirm-button-text=""
+              cancel-button-text=""
               :icon="InfoFilled"
               icon-color="red"
-              title="删除该条评论？"
+              title=""
               v-if="comment.userId == userId"
               @confirm="deleteComment(comment)"
             >
@@ -99,7 +99,7 @@
                   "
                 >
                   <el-icon><Delete /></el-icon>
-                  删除
+                  
                 </span>
               </template>
             </el-popconfirm>
@@ -114,7 +114,7 @@
               "
             >
               <el-icon><ChatDotRound /></el-icon>
-              回复<span v-if="comment.childTotal != 0"
+              <span v-if="comment.childTotal != 0"
                 >({{ comment.childTotal }})</span
               >
             </span>
@@ -130,11 +130,11 @@
             >
               <el-icon v-if="!comment.upvoteFlag"><Discount /></el-icon>
               <el-icon v-else style="color: #1e80ff"><Discount /></el-icon
-              >&nbsp;{{ comment.upvoteFlag ? comment.upvoteCount : "点赞" }}
+              >&nbsp;{{ comment.upvoteFlag ? comment.upvoteCount : "" }}
             </span>
           </el-col>
         </el-row>
-        <!-- 父级评论的回复按钮和输入框-->
+        <!-- -->
         <el-row v-if="comment.showReplyInput" style="padding: 10px 0">
           <el-col :span="22" :offset="2">
             <div
@@ -160,13 +160,13 @@
                   class="comment-clike"
                   size="small"
                   type="primary"
-                  >评论</el-button
+                  ></el-button
                 >
               </div>
             </div>
           </el-col>
         </el-row>
-        <!-- 子级评论 -->
+        <!--  -->
         <el-row
           v-for="(commentChild, index) in comment.commentChildVOS"
           :key="index"
@@ -186,7 +186,7 @@
                   commentChild.userName
                 }}</span>
                 <span v-if="commentChild.userId == userId" class="my-body-tag"
-                  >我自己</span
+                  ></span
                 >
                 <span
                   v-if="commentChild.replierName != null"
@@ -197,7 +197,7 @@
                     font-size: 12px;
                   "
                 >
-                  回复
+                  
                 </span>
                 <el-avatar
                   v-if="commentChild.replierName != null"
@@ -213,7 +213,7 @@
                 <span
                   v-if="commentChild.replierId == userId"
                   class="my-body-tag"
-                  >我自己</span
+                  ></span
                 >
                 <span
                   style="
@@ -233,11 +233,11 @@
                   commentChild.time
                 }}</span>
                 <el-popconfirm
-                  confirm-button-text="好的"
-                  cancel-button-text="不删了"
+                  confirm-button-text=""
+                  cancel-button-text=""
                   :icon="InfoFilled"
                   icon-color="red"
-                  title="删除该条评论？"
+                  title=""
                   v-if="commentChild.userId == userId"
                   @confirm="deleteComment(commentChild)"
                 >
@@ -252,7 +252,7 @@
                       "
                     >
                       <el-icon><Delete /></el-icon>
-                      删除
+                      
                     </span>
                   </template>
                 </el-popconfirm>
@@ -267,7 +267,7 @@
                   "
                 >
                   <el-icon><ChatDotRound /></el-icon>
-                  回复
+                  
                 </span>
                 <span
                   @click="upvote(commentChild)"
@@ -284,11 +284,11 @@
                   /></el-icon>
                   <el-icon v-else style="color: #1e80ff"><Discount /></el-icon
                   >&nbsp;{{
-                    commentChild.upvoteFlag ? commentChild.upvoteCount : "点赞"
+                    commentChild.upvoteFlag ? commentChild.upvoteCount : ""
                   }}
                 </span>
               </el-row>
-              <!-- 子级评论的回复按钮和输入框-->
+              <!-- -->
               <el-row
                 v-if="commentChild.replyInputStatus"
                 style="padding: 10px 0"
@@ -317,7 +317,7 @@
                         class="comment-clike"
                         size="small"
                         type="primary"
-                        >评论</el-button
+                        ></el-button
                       >
                     </div>
                   </div>
@@ -328,10 +328,10 @@
         </el-row>
       </el-row>
     </el-row>
-    <!-- 举报反馈对话框-->
+    <!-- -->
     <el-dialog
       style="user-select: none; border-radius: 5px"
-      title="我要举报"
+      title=""
       v-model="dialogVisibleReport"
       width="30%"
     >
@@ -365,9 +365,9 @@
       <template #footer>
         <span class="dialog-footer">
           <button class="cannel-btn" @click="dialogVisibleReport = false">
-            取消
+            
           </button>
-          <button class="yes-btn" @click="operationReport">确定举报</button>
+          <button class="yes-btn" @click="operationReport"></button>
         </span>
       </template>
     </el-dialog>
@@ -439,21 +439,21 @@ export default {
       this.userData = JSON.parse(userInfo);
       this.userId = this.userData.id;
     },
-    // 点赞/取消点赞
+    // /
     upvote(comment) {
       let upvoteList = comment.upvoteList ? comment.upvoteList.split(",") : [];
       if (upvoteList.length) {
-        // 界面反映
+        // 
         if (comment.upvoteFlag) {
-          // 取消点赞
+          // 
           let index = upvoteList.indexOf(this.userData.id.toString());
           if (index !== -1) {
-            upvoteList.splice(index, 1); // 移除用户ID
+            upvoteList.splice(index, 1); // ID
           }
         } else {
-          // 点赞
+          // 
           if (!upvoteList.includes(this.userData.userId.toString())) {
-            upvoteList.push(this.userData.userId.toString()); // 添加用户ID
+            upvoteList.push(this.userData.userId.toString()); // ID
           }
         }
       }
@@ -465,14 +465,14 @@ export default {
         .put(`evaluations/update`, evalustions)
         .then((res) => {
           if (res.data.code == 200) {
-            comment.upvoteList = upvoteList.join(","); // 更新upvoteList字符串            comment.upvoteFlag = !comment.upvoteFlag; // 切换点赞状态标志            comment.upvoteCount += 1;
+            comment.upvoteList = upvoteList.join(","); // upvoteList            comment.upvoteFlag = !comment.upvoteFlag; //             comment.upvoteCount += 1;
           }
         })
         .catch((err) => {
-          console.error(`点赞状态设置异常-> `, err);
+          console.error(`-> `, err);
         });
     },
-    // 确定举报
+    // 
     operationReport() {
       let reportItem = [];
       this.reports.forEach((entity) => {
@@ -482,7 +482,7 @@ export default {
         }
       });
       if (!reportItem.length) {
-        this.$message(`请选中举报项`);
+        this.$message(``);
         return;
       }
       this.$axios
@@ -493,15 +493,15 @@ export default {
           this.dialogVisibleReport = false;
           if (res.data.code == 200) {
             this.$swal.fire({
-              title: "举报操作",
-              text: "举报成功",
+              title: "",
+              text: "",
               icon: "success",
               showConfirmButton: false,
               timer: 1100,
             });
           } else {
             this.$swal.fire({
-              title: "举报操作",
+              title: "",
               text: res.data.msg,
               icon: "error",
               showConfirmButton: false,
@@ -510,10 +510,10 @@ export default {
           }
         })
         .catch((err) => {
-          console.error(`评论举报异常 -> `, err);
+          console.error(` -> `, err);
         });
     },
-    // 选中举报项
+    // 
     reportItemClick(itemChild) {
       this.reports.forEach((entity) => {
         entity.list.forEach((child) => {
@@ -543,7 +543,7 @@ export default {
           }
         })
         .catch((err) => {
-          console.error(`举报项加载失败-> `, err);
+          console.error(`-> `, err);
         });
     },
     reportComment(comment) {
@@ -552,7 +552,7 @@ export default {
       this.comment = comment;
     },
     deleteComment(comment) {
-      // 删除评论
+      // 
       this.$axios
         .delete(`evaluations/delete/${comment.id}`)
         .then((res) => {
@@ -562,13 +562,13 @@ export default {
           }
         })
         .catch((err) => {
-          console.error(`评论异常 -> `, err);
+          console.error(` -> `, err);
         });
     },
     onFocus() {
       this.isFocused = true;
     },
-    // 输入框失去焦点
+    // 
     onBlur() {
       if (this.content === "") {
         this.isFocused = false;
@@ -579,8 +579,8 @@ export default {
     commentClick() {
       if (this.content == "") {
         this.$swal.fire({
-          title: "内容提示",
-          text: "评论内容为空",
+          title: "",
+          text: "",
           icon: "success",
           showConfirmButton: false,
           timer: 800,
@@ -598,8 +598,8 @@ export default {
           if (res.data.code == 200) {
             this.content = "";
             this.$swal.fire({
-              title: "评论操作",
-              text: "评论成功",
+              title: "",
+              text: "",
               icon: "success",
               showConfirmButton: false,
               timer: 1100,
@@ -609,7 +609,7 @@ export default {
             }, 1100);
           } else {
             this.$swal.fire({
-              title: "评论异常",
+              title: "",
               text: res.data.msg,
               icon: "error",
               showConfirmButton: false,
@@ -618,28 +618,28 @@ export default {
           }
         })
         .catch((err) => {
-          console.error(`评论异常 -> `, err);
+          console.error(` -> `, err);
         });
     },
-    // 父级评论回复点击
+    // 
     toggleReplyInput(comment) {
-      this.replyText = `回复${comment.userName}...`;
+      this.replyText = `${comment.userName}...`;
       if (comment.showReplyInput == null) {
         comment.showReplyInput = false;
       }
       comment.showReplyInput = !comment.showReplyInput;
     },
-    // 子级评论回复点击
+    // 
     toggleReplyInput1(comment) {
       if (comment.replyInputStatus == null) {
         comment.replyInputStatus = false;
       }
       comment.replyInputStatus = !comment.replyInputStatus;
     },
-    // 父级评论回复提交
+    // 
     submitReply(comment) {
       if (this.replyContent == "") {
-        this.$message(`评论内容不能为空`);
+        this.$message(``);
         return;
       }
       const evaluationsDTO = {
@@ -655,19 +655,19 @@ export default {
             this.replyContent = "";
             comment.showReplyInput = false;
             this.$swal.fire({
-              title: "回复操作",
-              text: "回复成功",
+              title: "",
+              text: "",
               icon: "success",
               showConfirmButton: false,
               timer: 1300,
             });
             setTimeout(() => {
-              // 重新加载评论列表
+              // 
               this.loadCommentList();
             }, 1300);
           } else {
             this.$swal.fire({
-              title: "评论异常",
+              title: "",
               text: res.data.msg,
               icon: "error",
               showConfirmButton: false,
@@ -676,13 +676,13 @@ export default {
           }
         })
         .catch((err) => {
-          console.error(`评论异常 -> `, err);
+          console.error(` -> `, err);
         });
     },
-    // 子级评论回复提交
+    // 
     submitReply1(comment) {
       if (this.replyChildContent == "") {
-        this.$message(`评论内容不能为空`);
+        this.$message(``);
         return;
       }
       const evaluationsDTO = {
@@ -699,19 +699,19 @@ export default {
             this.content = "";
             comment.replyInputStatus = false;
             this.$swal.fire({
-              title: "回复操作",
-              text: "回复成功",
+              title: "",
+              text: "",
               icon: "success",
               showConfirmButton: false,
               timer: 1300,
             });
             setTimeout(() => {
-              // 重新加载评论列表
+              // 
               this.loadCommentList();
             }, 1300);
           } else {
             this.$swal.fire({
-              title: "评论异常",
+              title: "",
               text: res.data.msg,
               icon: "error",
               showConfirmButton: false,
@@ -720,13 +720,13 @@ export default {
           }
         })
         .catch((err) => {
-          console.error(`评论异常 -> `, err);
+          console.error(` -> `, err);
         });
     },
     goBack() {
-      // 返回上一页      this.$router.go(-1);
+      //       this.$router.go(-1);
     },
-    // 加载评论列表
+    // 
     loadCommentList() {
       this.$axios
         .get(`evaluations/list/${this.contentId}/${this.contentType}`)
@@ -734,11 +734,11 @@ export default {
           if (res.data.code == 200) {
             this.commentList = res.data.data.data;
             this.evaluationsCount = res.data.data.evaluationsCount;
-            // 父级评论
+            // 
             this.commentList.forEach((entity) => {
-              // 时间转换
+              // 
               entity.time = timeAgo(entity.createTime);
-              // 子级评论
+              // 
               entity.commentChildVOS.forEach(
                 (entity) => (entity.time = timeAgo(entity.createTime))
               );
@@ -746,7 +746,7 @@ export default {
           }
         })
         .catch((err) => {
-          console.error(`评论查询异常异常 -> `, err);
+          console.error(` -> `, err);
         });
     },
   },

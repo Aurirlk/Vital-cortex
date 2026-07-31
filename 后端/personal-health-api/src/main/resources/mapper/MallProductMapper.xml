@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.MallProductMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO mall_product (category_id, name, description, cover, price, original_price, stock, sales_count, unit, status, is_hot, is_new, create_time)
+        VALUES (#{categoryId}, #{name}, #{description}, #{cover}, #{price}, #{originalPrice}, #{stock}, #{salesCount}, #{unit}, #{status}, #{isHot}, #{isNew}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE mall_product
+        <set>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="cover != null">cover = #{cover},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="originalPrice != null">original_price = #{originalPrice},</if>
+            <if test="stock != null">stock = #{stock},</if>
+            <if test="unit != null">unit = #{unit},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="isHot != null">is_hot = #{isHot},</if>
+            <if test="isNew != null">is_new = #{isNew},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+    <delete id="batchDelete">
+        DELETE FROM mall_product WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+    <select id="query" resultMap="ProductResultMap">
+        SELECT p.*, pc.name AS category_name
+        FROM mall_product p
+        LEFT JOIN product_category pc ON pc.id = p.category_id
+        <where>
+            <if test="categoryId != null">AND p.category_id = #{categoryId}</if>
+            <if test="name != null and name != ''">AND p.name LIKE CONCAT('%', #{name}, '%')</if>
+            <if test="status != null">AND p.status = #{status}</if>
+            <if test="isHot != null">AND p.is_hot = #{isHot}</if>
+            <if test="isNew != null">AND p.is_new = #{isNew}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (p.name LIKE CONCAT('%', #{keyword}, '%') OR p.description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="startTime != null and endTime != null">AND p.create_time BETWEEN #{startTime} AND #{endTime}</if>
+        </where>
+        ORDER BY p.create_time DESC
+        <if test="current != null and size != null">LIMIT #{current}, #{size}</if>
+    </select>
+    <select id="queryCount" resultType="integer">
+        SELECT COUNT(*) FROM mall_product p
+        <where>
+            <if test="categoryId != null">AND p.category_id = #{categoryId}</if>
+            <if test="name != null and name != ''">AND p.name LIKE CONCAT('%', #{name}, '%')</if>
+            <if test="status != null">AND p.status = #{status}</if>
+            <if test="isHot != null">AND p.is_hot = #{isHot}</if>
+            <if test="isNew != null">AND p.is_new = #{isNew}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (p.name LIKE CONCAT('%', #{keyword}, '%') OR p.description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="startTime != null and endTime != null">AND p.create_time BETWEEN #{startTime} AND #{endTime}</if>
+        </where>
+    </select>
+    <select id="getById" resultMap="ProductResultMap">
+        SELECT p.*, pc.name AS category_name FROM mall_product p
+        LEFT JOIN product_category pc ON pc.id = p.category_id WHERE p.id = #{id}
+    </select>
+    <update id="incrementSalesCount">
+        UPDATE mall_product SET sales_count = sales_count + #{quantity} WHERE id = #{id}
+    </update>
+    <update id="decrementStock">
+        UPDATE mall_product SET stock = stock - #{quantity} WHERE id = #{id} AND stock >= #{quantity}
+    </update>
+    <resultMap id="ProductResultMap" type="cn.kmbeast.pojo.vo.MallProductVO">
+        <id column="id" property="id"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="cover" property="cover"/>
+        <result column="price" property="price"/>
+        <result column="original_price" property="originalPrice"/>
+        <result column="stock" property="stock"/>
+        <result column="sales_count" property="salesCount"/>
+        <result column="unit" property="unit"/>
+        <result column="status" property="status"/>
+        <result column="is_hot" property="isHot"/>
+        <result column="is_new" property="isNew"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="category_name" property="categoryName"/>
+    </resultMap>
+
+    <!-- 统计查询 -->
+    <select id="topBySales" resultType="map">
+        SELECT id, name, sales_count as salesCount, price
+        FROM mall_product WHERE status = 1
+        ORDER BY sales_count DESC LIMIT #{limit}
+    </select>
+    <select id="countByCategory" resultType="map">
+        SELECT pc.name as category, COUNT(*) as count
+        FROM mall_product p
+        JOIN product_category pc ON pc.id = p.category_id
+        WHERE p.status = 1
+        GROUP BY p.category_id, pc.name
+        ORDER BY count DESC
+    </select>
+</mapper>

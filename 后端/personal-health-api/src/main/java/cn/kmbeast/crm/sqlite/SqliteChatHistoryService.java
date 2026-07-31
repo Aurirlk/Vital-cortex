@@ -5,10 +5,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.*;
 
+/**
+ * CRM 聊天历史存储服务。
+ *
+ * <p>AG-02 整改：连接改为从连接池获取、用完即还（try-with-resources），
+ * 不再持有长期共享的裸 Connection。
+ *
+ * <p>SEC-04 整改：{@link #executeQuery} 由 {@link SqlGuard} 统一校验，
+ * 支持按当前会话手机号强制租户隔离。
+ */
 @Slf4j
 @Service
 public class SqliteChatHistoryService {
@@ -23,7 +33,8 @@ public class SqliteChatHistoryService {
                             String content, Integer intentCode, Map<String, Object> metadata) {
         String sql = "INSERT INTO chat_history (phone_number, session_id, role, content, intent_code, metadata) " +
                 "VALUES (?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement ps = connectionManager.getReadWriteConnection().prepareStatement(sql)) {
+        try (Connection conn = connectionManager.getReadWriteConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, phoneNumber);
             ps.setString(2, sessionId);
             ps.setString(3, role);
@@ -40,7 +51,8 @@ public class SqliteChatHistoryService {
         String sql = "SELECT id, phone_number, session_id, role, content, intent_code, metadata, created_at " +
                 "FROM chat_history WHERE phone_number = ? ORDER BY id DESC LIMIT ?";
         List<Map<String, Object>> results = new ArrayList<>();
-        try (PreparedStatement ps = connectionManager.getReadOnlyConnection().prepareStatement(sql)) {
+        try (Connection conn = connectionManager.getReadOnlyConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, phoneNumber);
             ps.setInt(2, Math.min(limit, 100));
             try (ResultSet rs = ps.executeQuery()) {
@@ -58,7 +70,7 @@ public class SqliteChatHistoryService {
                 }
             }
         } catch (Exception e) {
-            log.error("[CRM-SQLite] 查询历史失败", e);
+            log.error("[CRM-SQLite] 查询历史失败: phone={}", phoneNumber, e);
         }
         Collections.reverse(results);
         return results;
@@ -66,33 +78,31 @@ public class SqliteChatHistoryService {
 
     public boolean isNewUser(String phoneNumber) {
         String sql = "SELECT COUNT(*) FROM chat_history WHERE phone_number = ?";
-        try (PreparedStatement ps = connectionManager.getReadOnlyConnection().prepareStatement(sql)) {
+        try (Connection conn = connectionManager.getReadOnlyConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, phoneNumber);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return rs.getInt(1) == 0;
             }
         } catch (Exception e) {
-            log.error("[CRM-SQLite] 检查新用户失败", e);
+            log.error("[CRM-SQLite] 检查新用户失败: phone={}", phoneNumber, e);
         }
         return true;
     }
 
-    public List<Map<String, Object>> executeQuery(String sql) {
-        String upper = sql.trim().toUpperCase();
-        if (!upper.startsWith("SELECT") && !upper.startsWith("WITH")) {
-            throw new IllegalArgumentException("仅允许只读查询(SELECT)");
-        }
-        if (upper.contains("DROP") || upper.contains("DELETE") ||
-                upper.contains("UPDATE") || upper.contains("INSERT") ||
-                upper.contains("ALTER") || upper.contains("CREATE") ||
-                upper.contains("ATTACH") || upper.contains("DETACH") ||
-                upper.contains("PRAGMA") || upper.contains("REINDEX") ||
-                upper.contains("VACUUM")) {
-            throw new IllegalArgumentException("仅允许只读查询(SELECT)");
-        }
+    /**
+     * 执行只读查询（已通过只读校验 + 可选租户隔离）。
+     *
+     * @param sql                查询语句
+     * @param tenantPhoneNumber  强制租户隔离用的手机号；传 null 表示管理员全量查询（不做隔离）
+     */
+    public List<Map<String, Object>> executeQuery(String sql, String tenantPhoneNumber) {
+        SqlGuard.validateReadOnly(sql);
+        SqlGuard.enforceTenantIsolation(sql, tenantPhoneNumber);
 
         List<Map<String, Object>> results = new ArrayList<>();
-        try (PreparedStatement ps = connectionManager.getReadOnlyConnection().prepareStatement(sql)) {
+        try (Connection conn = connectionManager.getReadOnlyConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setMaxRows(MAX_QUERY_ROWS);
             ps.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             try (ResultSet rs = ps.executeQuery()) {
@@ -105,43 +115,46 @@ public class SqliteChatHistoryService {
                     results.add(row);
                 }
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("[CRM-SQLite] SQL查询失败: {}", sql, e);
-            throw new RuntimeException("SQL查询失败: " + e.getMessage());
+            log.error("[CRM-SQLite] SQL查询失败", e);
+            throw new RuntimeException("SQL查询失败");
         }
         return results;
     }
 
     public int getTotalMessages(String phoneNumber) {
         String sql = "SELECT COUNT(*) FROM chat_history WHERE phone_number = ?";
-        try (PreparedStatement ps = connectionManager.getReadOnlyConnection().prepareStatement(sql)) {
+        try (Connection conn = connectionManager.getReadOnlyConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, phoneNumber);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return rs.getInt(1);
             }
         } catch (Exception e) {
-            log.error("[CRM-SQLite] 统计消息数失败", e);
+            log.error("[CRM-SQLite] 统计消息数失败: phone={}", phoneNumber, e);
         }
         return 0;
     }
 
     public Map<String, Object> getStats() {
         Map<String, Object> stats = new LinkedHashMap<>();
-        try {
+        try (Connection conn = connectionManager.getReadOnlyConnection()) {
             String totalSql = "SELECT COUNT(*) as total FROM chat_history";
-            try (PreparedStatement ps = connectionManager.getReadOnlyConnection().prepareStatement(totalSql);
+            try (PreparedStatement ps = conn.prepareStatement(totalSql);
                  ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) stats.put("total_messages", rs.getInt("total"));
             }
 
             String userSql = "SELECT COUNT(DISTINCT phone_number) as users FROM chat_history";
-            try (PreparedStatement ps = connectionManager.getReadOnlyConnection().prepareStatement(userSql);
+            try (PreparedStatement ps = conn.prepareStatement(userSql);
                  ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) stats.put("total_users", rs.getInt("users"));
             }
 
             String sessionSql = "SELECT COUNT(DISTINCT session_id) as sessions FROM chat_history";
-            try (PreparedStatement ps = connectionManager.getReadOnlyConnection().prepareStatement(sessionSql);
+            try (PreparedStatement ps = conn.prepareStatement(sessionSql);
                  ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) stats.put("total_sessions", rs.getInt("sessions"));
             }

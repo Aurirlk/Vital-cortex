@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.NotificationMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notification (user_id, title, content, type, is_read, related_id, create_time)
+        VALUES (#{userId}, #{title}, #{content}, #{type}, #{isRead}, #{relatedId}, #{createTime})
+    </insert>
+    <update id="markAsRead">UPDATE notification SET is_read = 1 WHERE id = #{id}</update>
+    <update id="markAllAsRead">UPDATE notification SET is_read = 1 WHERE user_id = #{userId} AND is_read = 0</update>
+    <select id="queryByUserId" resultType="cn.kmbeast.pojo.entity.Notification">
+        SELECT * FROM notification WHERE user_id = #{userId} ORDER BY create_time DESC
+    </select>
+    <select id="countUnread" resultType="integer">
+        SELECT COUNT(*) FROM notification WHERE user_id = #{userId} AND is_read = 0
+    </select>
+</mapper>

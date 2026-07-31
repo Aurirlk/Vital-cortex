@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.ShoppingCartMapper">
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO shopping_cart (user_id, product_id, quantity, create_time)
+        VALUES (#{userId}, #{productId}, #{quantity}, #{createTime})
+    </insert>
+    <update id="update">
+        UPDATE shopping_cart SET quantity = #{quantity} WHERE id = #{id}
+    </update>
+    <delete id="delete">DELETE FROM shopping_cart WHERE id = #{id}</delete>
+    <delete id="deleteByUserAndProduct">DELETE FROM shopping_cart WHERE user_id = #{userId} AND product_id = #{productId}</delete>
+    <select id="queryByUserId" resultMap="CartResultMap">
+        SELECT c.*, p.name AS product_name, p.cover AS product_cover, p.price AS product_price, p.stock
+        FROM shopping_cart c
+        JOIN mall_product p ON p.id = c.product_id
+        WHERE c.user_id = #{userId} ORDER BY c.create_time DESC
+    </select>
+    <select id="getByUserAndProduct" resultType="cn.kmbeast.pojo.entity.ShoppingCart">
+        SELECT * FROM shopping_cart WHERE user_id = #{userId} AND product_id = #{productId}
+    </select>
+    <resultMap id="CartResultMap" type="cn.kmbeast.pojo.vo.ShoppingCartVO">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="product_id" property="productId"/>
+        <result column="quantity" property="quantity"/>
+        <result column="create_time" property="createTime"/>
+        <result column="product_name" property="productName"/>
+        <result column="product_cover" property="productCover"/>
+        <result column="product_price" property="productPrice"/>
+        <result column="stock" property="stock"/>
+    </resultMap>
+</mapper>

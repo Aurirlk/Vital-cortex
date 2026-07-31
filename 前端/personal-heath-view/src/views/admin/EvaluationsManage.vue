@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <el-row
     style="background-color: #ffffff; padding: 10px 0; border-radius: 5px"
   >
@@ -9,16 +9,16 @@
           style="width: 220px"
           v-model="searchTime"
           type="daterange"
-          range-separator="至"
-          start-placeholder="评论开启"
-          end-placeholder="评论结束"
+          range-separator=""
+          start-placeholder=""
+          end-placeholder=""
         >
         </el-date-picker>
         <el-input
           size="small"
           style="width: 188px; margin-left: 5px; margin-right: 6px"
           v-model="evalustionsQueryDto.content"
-          placeholder="评论内容"
+          placeholder=""
           clearable
           @clear="handleFilterClear"
         >
@@ -36,7 +36,7 @@
         :data="tableData"
         style="width: 100%"
       >
-        <el-table-column prop="content" label="文本">
+        <el-table-column prop="content" label="">
           <template #default="{ row }">
             <el-tooltip
               class="item"
@@ -48,7 +48,7 @@
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column prop="upvoteList" width="60" label="点赞">
+        <el-table-column prop="upvoteList" width="60" label="">
           <template #default="{ row }">
             <span
               v-if="row.upvoteList !== null"
@@ -58,27 +58,27 @@
             <span v-else style="font-size: 16px; font-weight: bolder">0</span>
           </template>
         </el-table-column>
-        <el-table-column prop="contentType" width="100" label="挂载类型">
+        <el-table-column prop="contentType" width="100" label="">
           <template #default="{ row }">
             <span>{{ row.contentType }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" width="168" label="评论时间">
+        <el-table-column prop="createTime" width="168" label="">
           <template #default="{ row }">
             <span>{{ row.createTime }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="userName" width="120" label="评论者">
+        <el-table-column prop="userName" width="120" label="">
           <template #default="{ row }">
             <span v-html="highlightKeyword(row.userName)"></span>
           </template>
         </el-table-column>
-        <el-table-column prop="replierName" width="120" label="被评论者">
+        <el-table-column prop="replierName" width="120" label="">
           <template #default="{ row }">
             <span v-html="highlightKeyword(row.replierName)"></span>
           </template>
         </el-table-column>
-        <el-table-column prop="parentId" width="120" label="层级">
+        <el-table-column prop="parentId" width="120" label="">
           <template #default="{ row }">
             <el-icon v-if="row.parentId === null" style="margin-right: 5px"
               ><Warning
@@ -89,14 +89,14 @@
             <span
               v-if="row.parentId === null"
               style="text-decoration: underline; text-decoration-style: dashed"
-              >父级</span
+              ></span
             >
-            <span v-else>子级</span>
+            <span v-else></span>
           </template>
         </el-table-column>
-        <el-table-column label="数据操作" width="100px" fixed="right">
+        <el-table-column label="" width="100px" fixed="right">
           <template #default="{ row }">
-            <span class="text-button" @click="handleDelete(row)">删除</span>
+            <span class="text-button" @click="handleDelete(row)"></span>
           </template>
         </el-table-column>
       </el-table>
@@ -109,11 +109,11 @@
         :total="totalItems"
       ></el-pagination>
     </el-row>
-    <!-- 举报面板 -->
+    <!--  -->
     <el-dialog title="" :show-close="false" v-model="reportDialog" width="35%">
       <template #title>
         <div style="padding: 25px 0 0 20px">
-          <span style="font-size: 18px; font-weight: 800">举报详情</span>
+          <span style="font-size: 18px; font-weight: 800"></span>
         </div>
       </template>
       <el-row style="padding: 10px 20px 20px 20px">
@@ -123,7 +123,7 @@
         <el-col :span="12">
           <el-row class="main">
             <div v-if="!reportsDate.length">
-              <span class="count">暂无数据</span>
+              <span class="count"></span>
             </div>
             <el-col
               :span="6"
@@ -148,7 +148,7 @@
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="reportDialog = false"
-            >取消</el-button
+            ></el-button
           >
         </span>
       </template>
@@ -177,7 +177,7 @@ export default {
       selectedRows: [],
       html: {},
       fileList: [],
-      dynamicTags: ["健康", "养生"],
+      dynamicTags: ["", ""],
       inputVisible: false,
       inputValue: "",
       coverDialog: false,
@@ -248,13 +248,13 @@ export default {
     handleEvaluationsClose() {
       this.commentDialog = false;
     },
-    // 查看评论列表
+    // 
     commentList(news) {
       this.data = news;
       this.commentDialog = true;
       this.loadEvaluationsList();
     },
-    // 加载评论数据列表
+    // 
     async loadEvaluationsList() {
       try {
         const response = await this.$axios.get(
@@ -263,10 +263,10 @@ export default {
         this.evaluationsList = response.data.data.data;
         this.count = response.data.data.count;
       } catch (error) {
-        console.error(`加载评论列表异常：`, error);
+        console.error(``, error);
       }
     },
-    // 查看封面图
+    // 
     showPic(news) {
       this.data = news;
       this.coverDialog = true;
@@ -296,19 +296,19 @@ export default {
       this.data = {};
       this.commentDialog = false;
     },
-    // 多选框选中
+    // 
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 批量删除数据
+    // 
     async batchDelete() {
       if (!this.selectedRows.length) {
-        this.$message(`未选中任何数据`);
+        this.$message(``);
         return;
       }
       const confirmed = await this.$swalConfirm({
-        title: "删除评论数据",
-        text: `删除后不可恢复，是否继续？`,
+        title: "",
+        text: ``,
         icon: "warning",
       });
       if (confirmed) {
@@ -320,7 +320,7 @@ export default {
           );
           if (response.data.code === 200) {
             this.$swal.fire({
-              title: "删除提示",
+              title: "",
               text: response.data.msg,
               icon: "success",
               showConfirmButton: false,
@@ -331,17 +331,17 @@ export default {
           }
         } catch (e) {
           this.$swal.fire({
-            title: "错误提示",
+            title: "",
             text: e,
             icon: "error",
             showConfirmButton: false,
             timer: 2000,
           });
-          console.error(`评论信息删除异常：`, e);
+          console.error(``, e);
         }
       }
     },
-    // 关键词高亮显示
+    // 
     highlightKeyword(text) {
       if (text == null) {
         return;
@@ -375,8 +375,8 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
-        console.error("提交表单时出错", error);
-        this.$message.error("提交失败，请稍后再试！");
+        console.error("", error);
+        this.$message.error("");
       }
     },
     async addOperation() {
@@ -392,15 +392,15 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
-        console.error("提交表单时出错", error);
-        this.$message.error("提交失败，请稍后再试！");
+        console.error("", error);
+        this.$message.error("");
       }
     },
-    // 关闭表单
+    // 
     closeDialog() {
       this.dialogOperaion = false;
     },
-    // 清除表单数据
+    // 
     clearFormData() {
       this.data = {};
       this.html = "";
@@ -417,7 +417,7 @@ export default {
           startTime = `${startDate.split("T")[0]}T00:00:00`;
           endTime = `${endDate.split("T")[0]}T23:59:59`;
         }
-        // 请求参数
+        // 
         const params = {
           current: this.currentPage,
           size: this.pageSize,
@@ -425,13 +425,13 @@ export default {
           endTime: endTime,
           ...this.evalustionsQueryDto,
         };
-        // 使用await等待请求完成
+        // await
         let response = await this.$axios.post("/evaluations/query", params);
         const { data } = response;
         this.tableData = data.data;
         this.totalItems = data.total;
       } catch (error) {
-        // 错误处理
+        // 
         console.error("Fetch data failed:", error);
       }
     },

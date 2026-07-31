@@ -33,9 +33,14 @@ public class JwtInterceptor implements HandlerInterceptor {
         }
 
         String requestURI = request.getRequestURI();
-        // 登录、注册、文件上传等请求不做拦截
-        if (requestURI.contains("/login") || requestURI.contains("/error")
-                || requestURI.contains("/file") || requestURI.contains("/register")) {
+        // MM-05 整改：原白名单用 contains 宽松匹配，且整段放行了 "/file"，
+        // 导致 /file/upload 匿名可用（任意人可刷盘）。现收敛为精确后缀匹配，
+        // 仅保留 /file/getFile —— 前端以 <img src> 直接引用，无法携带 token 头，
+        // 其安全性由 122 位随机文件名（capability URL）承担。
+        if (requestURI.endsWith("/user/login")
+                || requestURI.endsWith("/user/register")
+                || requestURI.endsWith("/file/getFile")
+                || requestURI.endsWith("/error")) {
             return true;
         }
 
@@ -44,20 +49,30 @@ public class JwtInterceptor implements HandlerInterceptor {
 
         // 解析不成功，直接返回错误
         if (claims == null) {
-            Result<String> error = ApiResult.error("身份认证异常，请先登录");
-            response.setContentType("application/json;charset=UTF-8");
-            Writer stream = response.getWriter();
-            stream.write(JSONObject.toJSONString(error));
-            stream.flush();
-            stream.close();
+            writeUnauthorized(response, "身份认证异常，请先登录");
             return false;
         }
 
         Integer userId = claims.get("id", Integer.class);
         Integer roleId = claims.get("role", Integer.class);
+        if (userId == null) {
+            writeUnauthorized(response, "身份认证异常，请重新登录");
+            return false;
+        }
         // 将用户信息放入ThreadLocal
         LocalThreadHolder.setUserId(userId, roleId);
         return true;
+    }
+
+    private void writeUnauthorized(HttpServletResponse response, String message) throws Exception {
+        // 原实现返回 HTTP 200 + 业务错误码，前端难以统一拦截跳转登录，这里补上 401
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json;charset=UTF-8");
+        Result<String> error = ApiResult.error(message);
+        Writer stream = response.getWriter();
+        stream.write(JSONObject.toJSONString(error));
+        stream.flush();
+        stream.close();
     }
 
     @Override

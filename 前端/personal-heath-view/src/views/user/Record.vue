@@ -8,9 +8,9 @@
             style="cursor: pointer; display: inline-block; padding: 0 20px 0 0"
           >
             <el-icon><ArrowLeft /></el-icon>
-            返回首页
+            
           </span>
-          健康记录
+          
         </p>
       </div>
     </div>
@@ -29,8 +29,8 @@
             @tab-click="handleClick"
             style="margin-right: 40px"
           >
-            <el-tab-pane label="全局模型" name="first"></el-tab-pane>
-            <el-tab-pane label="我的模型" name="second"></el-tab-pane>
+            <el-tab-pane label="" name="first"></el-tab-pane>
+            <el-tab-pane label="" name="second"></el-tab-pane>
           </el-tabs>
           <div style="padding: 20px 0 30px 0">
             <span
@@ -43,16 +43,16 @@
                 color: #fff;
               "
             >
-              新增模型
+              
               <el-icon><Right /></el-icon>
             </span>
           </div>
           <div>
-            <span style="margin-right: 20px">配置名</span>
+            <span style="margin-right: 20px"></span>
             <el-input
               style="width: 148px"
               v-model="userHealthModel.name"
-              placeholder="输入处"
+              placeholder=""
               clearable
               @clear="handleFilterClear"
             >
@@ -66,7 +66,7 @@
               "
               type="primary"
               @click="searModel"
-              >搜索</el-button
+              ></el-button
             >
           </div>
           <div
@@ -87,7 +87,7 @@
               <el-tooltip
                 class="item"
                 effect="dark"
-                :content="'该项配置【' + model.name + '】，点击即可选中'"
+                :content="'' + model.name + ''"
                 placement="bottom"
               >
                 <el-row style="padding: 20px 0">
@@ -111,13 +111,13 @@
                           @click="updateModel(model)"
                           v-if="!model.isGlobal"
                           style="margin-left: 10px; color: #333"
-                          >修改</span
+                          ></span
                         >
                         <span
                           @click="deleteModel(model)"
                           v-if="!model.isGlobal"
                           style="margin-left: 10px; color: red"
-                          >删除</span
+                          ></span
                         >
                       </div>
                     </div>
@@ -130,16 +130,16 @@
         <el-col :span="18">
           <div style="padding: 0 150px; box-sizing: border-box">
             <div style="padding: 15px 0; font-size: 24px">
-              数据录入面板
+              
               <span
                 @click="clearData"
                 style="font-size: 14px; margin-left: 20px"
-                >重置</span
+                ></span
               >
             </div>
             <el-row>
               <el-row v-if="selectedModel.length === 0">
-                <el-empty description="快选中模型记录吧"></el-empty>
+                <el-empty description=""></el-empty>
               </el-row>
               <el-row>
                 <el-col
@@ -152,7 +152,7 @@
                     type="text"
                     v-model="model.value"
                     class="input-model"
-                    :placeholder="'正常值范围：' + model.valueRange"
+                    :placeholder="'' + model.valueRange"
                   />
                 </el-col>
               </el-row>
@@ -169,7 +169,7 @@
                 color: #fff;
               "
             >
-              立即记录
+              
               <el-icon><Right /></el-icon>
             </span>
           </div>
@@ -180,17 +180,18 @@
       <template #title>
         <div>
           <p class="dialog-title">
-            {{ !isOperation ? "健康模型新增" : "健康模型修改" }}
+            {{ !isOperation ? "" : "" }}
           </p>
         </div>
       </template>
       <div style="padding: 0 20px">
-        <p>*图标</p>
-        <!-- 图标 -->
+        <p>*</p>
+        <!--  -->
         <el-row style="margin-top: 10px">
           <el-upload
             class="avatar-uploader"
             :action="$uploadUrl"
+            :headers="$uploadHeaders"
             :show-file-list="false"
             :on-success="handleAvatarSuccess"
           >
@@ -202,51 +203,51 @@
             <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
           </el-upload>
         </el-row>
-        <!-- 配置名 -->
+        <!--  -->
         <el-row style="padding: 0 10px 0 0">
           <p>
-            <span class="modelName">*配置名</span>
+            <span class="modelName">*</span>
           </p>
-          <input class="input-title" v-model="data.name" placeholder="请输入" />
+          <input class="input-title" v-model="data.name" placeholder="" />
         </el-row>
-        <!-- 单位 -->
+        <!--  -->
         <el-row style="padding: 0 10px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*单位</span>
+            <span class="modelName">*</span>
           </p>
-          <input class="input-title" v-model="data.unit" placeholder="请输入" />
+          <input class="input-title" v-model="data.unit" placeholder="" />
         </el-row>
-        <!-- 符号 -->
+        <!--  -->
         <el-row style="padding: 0 10px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*符号</span>
+            <span class="modelName">*</span>
           </p>
           <input
             class="input-title"
             v-model="data.symbol"
-            placeholder="请输入"
+            placeholder=""
           />
         </el-row>
-        <!-- 正常值 -->
+        <!--  -->
         <el-row style="padding: 0 20px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*阈值（格式：最小值,最大值）</span>
+            <span class="modelName">*,</span>
           </p>
           <input
             class="input-title"
             v-model="data.valueRange"
-            placeholder="请输入"
+            placeholder=""
           />
         </el-row>
-        <!-- 简介 -->
+        <!--  -->
         <el-row style="padding: 0 10px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*简介</span>
+            <span class="modelName">*</span>
           </p>
           <el-input
             type="textarea"
             :autosize="{ minRows: 2, maxRows: 3 }"
-            placeholder="简介"
+            placeholder=""
             v-model="data.detail"
           >
           </el-input>
@@ -261,7 +262,7 @@
             class="customer"
             type="info"
             @click="addOperation"
-            >新增</el-button
+            ></el-button
           >
           <el-button
             size="small"
@@ -270,14 +271,14 @@
             class="customer"
             type="info"
             @click="updateOperation"
-            >修改</el-button
+            ></el-button
           >
           <el-button
             class="customer"
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="cannel()"
-            >取消</el-button
+            ></el-button
           >
         </span>
       </template>
@@ -307,8 +308,8 @@ export default {
   methods: {
     async clearData() {
       const confirmed = await this.$swalConfirm({
-        title: "重置数据？",
-        text: `重置之后需要重新输入,是否继续`,
+        title: "",
+        text: `,`,
         icon: "warning",
       });
       if (confirmed) {
@@ -321,7 +322,7 @@ export default {
       this.isOperation = false;
       this.cover = "";
     },
-    // 发送修改请求
+    // 
     updateOperation() {
       this.$axios
         .put("/health-model-config/update", this.data)
@@ -332,49 +333,49 @@ export default {
             this.isOperation = false;
             this.data = {};
             this.$swal.fire({
-              title: "模型修改",
-              text: "模型修改成功",
+              title: "",
+              text: "",
               icon: "success",
               showConfirmButton: false,
               timer: 1000,
             });
-            // 继续加载最新的模型数据
+            // 
             this.getAllModelConfig();
           }
         });
     },
-    // 修改自己配置的模型
+    // 
     updateModel(model) {
       this.data = model;
       this.dialogUserOperaion = true;
       this.isOperation = true;
     },
-    // 删除自己配置的模型
+    // 
     async deleteModel(model) {
       const confirmed = await this.$swalConfirm({
-        title: "删除模型【" + model.name + "】",
-        text: `删除后不可恢复，是否继续？`,
+        title: "" + model.name + "",
+        text: ``,
         icon: "warning",
       });
       if (confirmed) {
         const ids = [];
         ids.push(model.id);
-        // 写删除请求
+        // 
         this.$axios
           .post("/health-model-config/batchDelete", ids)
           .then((response) => {
             const { data } = response;
             if (data.code === 200) {
               this.$swal.fire({
-                title: "模型删除",
-                text: "模型删除成功",
+                title: "",
+                text: "",
                 icon: "success",
                 showConfirmButton: false,
                 timer: 1000,
               });
-              // 继续加载最新的模型数据
+              // 
               this.getAllModelConfig();
-              // 如果已经选中对应的模型，从列表中删除对应的项
+              // 
               this.selectedModel = this.selectedModel.filter(
                 (entity) => entity.id !== model.id
               );
@@ -385,7 +386,7 @@ export default {
     goBack() {
       this.$router.push("/user/news-record");
     },
-    // 记录值
+    // 
     toRecord() {
       const userHealths = this.selectedModel.map((entity) => {
         return {
@@ -397,11 +398,11 @@ export default {
         const { data } = response;
         if (data.code === 200) {
           this.$notify({
-            title: "记录操作",
-            message: "记录成功",
+            title: "",
+            message: "",
             type: "success",
           });
-          // 两秒后跳转出去
+          // 
           setTimeout(() => {
             this.$router.push("/user/news-record");
           }, 2000);
@@ -413,7 +414,7 @@ export default {
         (entity) => entity.id === model.id
       );
       if (!saveFlag) {
-        // 不存在则添加
+        // 
         this.selectedModel.push(model);
       }
     },
@@ -426,10 +427,10 @@ export default {
     },
     handleAvatarSuccess(res, file) {
       if (res.code !== 200) {
-        this.$message.error(`健康模型封面上传异常`);
+        this.$message.error(``);
         return;
       }
-      this.$message.success(`健康模型封面上传成功`);
+      this.$message.success(``);
       this.data.cover = res.data;
     },
     getUser() {
@@ -453,8 +454,8 @@ export default {
           this.data = {};
         }
       } catch (error) {
-        console.error("提交表单时出错:", error);
-        this.$message.error("提交失败，请稍后再试！");
+        console.error(":", error);
+        this.$message.error("");
       }
     },
     addModel() {
@@ -463,7 +464,7 @@ export default {
     handleClick(pane) {
       // Element Plus 2.x: tab-click receives { props, paneName, index, ... }
       const tabName = pane.paneName || pane.props?.name || this.activeName;
-      // 先去清空条件
+      // 
       this.userHealthModel = {};
       if (tabName === "first") {
         this.userHealthModel.isGlobal = true;

@@ -1,5 +1,6 @@
 package cn.kmbeast.controller;
 
+import cn.kmbeast.aop.Protector;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.utils.IdFactoryUtil;
@@ -11,10 +12,26 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 /**
  * 文件前端控制器
+ *
+ * <p>本轮整改（MM-05 / MM-07 / ENG）：
+ * <ul>
+ *   <li>上传接口移出鉴权白名单并加 {@code @Protector}，杜绝匿名上传刷盘；</li>
+ *   <li>文件名改用完整 UUID，消除枚举与静默覆盖；</li>
+ *   <li>保存改为原子写入，不再"先 delete 再 createNewFile"；</li>
+ *   <li>返回 URL 不再硬编码 {@code http://localhost:port}，改为可配置的对外基础地址；</li>
+ *   <li>修正 {@code sanitizeFileName} 中写错的 {@code ..} 过滤正则。</li>
+ * </ul>
+ *
+ * <p><b>遗留风险（已记录到交接手册）</b>：{@code /file/getFile} 仍保持匿名可访问，
+ * 因为前端以 {@code <img src>} 直接引用、无法携带请求头。当前依靠 122 位随机文件名
+ * 构成 capability URL。彻底方案是改为带签名与有效期的临时 URL，或前端改用带鉴权的
+ * blob 拉取，需要前端配合改造，不在本次 P0 范围内。
  */
 @Slf4j
 @RestController
@@ -28,6 +45,13 @@ public class FileController {
     private String PORT;
 
     /**
+     * 对外暴露的基础地址。生产环境必须配置为网关/域名，例如 https://health.example.com。
+     * 留空时退化为 http://localhost:{port}，仅适用于本地开发。
+     */
+    @Value("${my-server.public-base-url:}")
+    private String publicBaseUrl;
+
+    /**
      * 允许的文件类型
      */
     private static final Set<String> ALLOWED_EXTENSIONS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
@@ -37,62 +61,75 @@ public class FileController {
     )));
 
     /**
-     * 文件上传
+     * 文件上传（需登录）
      */
+    @Protector
     @PostMapping("/upload")
     public Result<Map<String, String>> uploadFile(@RequestParam("file") MultipartFile multipartFile) {
+        if (multipartFile == null || multipartFile.isEmpty()) {
+            return ApiResult.error("上传文件不能为空");
+        }
         try {
             String fileName = generateSafeFileName(multipartFile);
             if (saveFile(multipartFile, fileName)) {
                 Map<String, String> data = new HashMap<>();
-                data.put("url", "http://localhost:" + PORT + API + "/file/getFile?fileName=" + fileName);
+                data.put("url", buildFileUrl(fileName));
                 return ApiResult.success(data);
             }
             return ApiResult.error("文件上传失败");
+        } catch (IllegalArgumentException e) {
+            return ApiResult.error(e.getMessage());
         } catch (Exception e) {
             log.error("文件上传异常", e);
-            return ApiResult.error("文件上传异常: " + e.getMessage());
+            return ApiResult.error("文件上传异常");
         }
     }
 
     /**
-     * 视频上传
+     * 视频上传（需登录）
      */
+    @Protector
     @PostMapping("/video/upload")
     public Result<Map<String, String>> videoUpload(@RequestParam("file") MultipartFile multipartFile) {
         return uploadFile(multipartFile);
     }
 
     /**
-     * 查看图片资源（修复路径穿越漏洞）
+     * 查看图片资源（防路径穿越）
      */
     @GetMapping("/getFile")
     public void getImage(@RequestParam("fileName") String imageName,
                          HttpServletResponse response) throws IOException {
         // 1. 清理文件名，防止路径穿越
         String safeFileName = sanitizeFileName(imageName);
+        if (safeFileName.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "文件名非法");
+            return;
+        }
 
         // 2. 获取文件目录
-        File fileDir = new File(PathUtils.getClassLoadRootPath() + "/pic");
+        File fileDir = new File(PathUtils.getClassLoadRootPath(), "pic");
         File image = new File(fileDir, safeFileName);
 
         // 3. 验证文件路径是否在允许的目录内（防止路径穿越）
-        if (!image.getCanonicalPath().startsWith(fileDir.getCanonicalPath())) {
+        String canonicalDir = fileDir.getCanonicalPath() + File.separator;
+        if (!image.getCanonicalPath().startsWith(canonicalDir)) {
             log.warn("路径穿越攻击被拦截: {}", imageName);
             response.sendError(HttpServletResponse.SC_FORBIDDEN, "禁止访问");
             return;
         }
 
         // 4. 检查文件是否存在
-        if (!image.exists()) {
+        if (!image.isFile()) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "文件不存在");
             return;
         }
 
         // 5. 返回文件
-        try (FileInputStream fis = new FileInputStream(image);
+        response.setContentLengthLong(image.length());
+        try (InputStream fis = Files.newInputStream(image.toPath());
              OutputStream os = response.getOutputStream()) {
-            byte[] buffer = new byte[4096];
+            byte[] buffer = new byte[8192];
             int bytesRead;
             while ((bytesRead = fis.read(buffer)) != -1) {
                 os.write(buffer, 0, bytesRead);
@@ -102,7 +139,17 @@ public class FileController {
     }
 
     /**
-     * 生成安全的文件名（UUID + 原始文件名）
+     * 拼接对外可访问的文件 URL
+     */
+    private String buildFileUrl(String fileName) {
+        String base = (publicBaseUrl == null || publicBaseUrl.trim().isEmpty())
+                ? "http://localhost:" + PORT
+                : publicBaseUrl.trim().replaceAll("/+$", "");
+        return base + API + "/file/getFile?fileName=" + fileName;
+    }
+
+    /**
+     * 生成安全的文件名（完整 UUID + 扩展名）
      */
     private String generateSafeFileName(MultipartFile file) {
         String originalName = file.getOriginalFilename();
@@ -117,43 +164,54 @@ public class FileController {
         }
         // 验证文件类型
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
-            throw new IllegalArgumentException("不支持的文件类型: " + extension);
+            throw new IllegalArgumentException("不支持的文件类型");
         }
         return IdFactoryUtil.getFileId() + extension;
     }
 
     /**
-     * 清理文件名，防止路径穿越
+     * 清理文件名，防止路径穿越。
+     *
+     * <p>原实现的正则为 {@code "\\\\.\\\\."}，在 Java 字符串转义后等价于正则 {@code \\.\\.}，
+     * 匹配的是「反斜杠 + 任意字符 + 反斜杠 + 任意字符」，根本没过滤到 {@code ..}。
+     * 这里改为循环剔除，防止 {@code ....//} 这类"删一次还剩一个"的绕过。
      */
     private String sanitizeFileName(String fileName) {
         if (fileName == null) {
             return "";
         }
-        // 保留中文字符、字母、数字、连字符、下划线、点号、斜杠（支持子文件夹）
-        return fileName.replaceAll("\\\\.\\\\.", "")  // 防止 ..
-                       .replaceAll("[^a-zA-Z0-9\\-_./\\u4e00-\\u9fa5]", "");
+        String cleaned = fileName.replace('\\', '/');
+        // 循环剔除，避免 "....//" → "../" 的单次替换绕过
+        while (cleaned.contains("..")) {
+            cleaned = cleaned.replace("..", "");
+        }
+        // 仅保留中文、字母、数字、连字符、下划线、点号、斜杠
+        cleaned = cleaned.replaceAll("[^a-zA-Z0-9\\-_./\\u4e00-\\u9fa5]", "");
+        // 去掉开头的斜杠，避免被当作绝对路径
+        cleaned = cleaned.replaceAll("^/+", "");
+        return cleaned;
     }
 
     /**
-     * 保存文件到磁盘
+     * 保存文件到磁盘（原子写入）
      */
     private boolean saveFile(MultipartFile multipartFile, String fileName) throws IOException {
-        File fileDir = new File(PathUtils.getClassLoadRootPath() + "/pic");
-        if (!fileDir.exists()) {
-            if (!fileDir.mkdirs()) {
-                return false;
-            }
+        File fileDir = new File(PathUtils.getClassLoadRootPath(), "pic");
+        if (!fileDir.exists() && !fileDir.mkdirs()) {
+            log.error("创建文件目录失败: {}", fileDir.getAbsolutePath());
+            return false;
         }
-        File file = new File(fileDir, fileName);
-        if (file.exists()) {
-            if (!file.delete()) {
-                return false;
-            }
-        }
-        if (file.createNewFile()) {
-            multipartFile.transferTo(file);
+        File target = new File(fileDir, fileName);
+        File temp = File.createTempFile("upload-", ".tmp", fileDir);
+        try {
+            multipartFile.transferTo(temp);
+            Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
             return true;
+        } finally {
+            if (temp.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                temp.delete();
+            }
         }
-        return false;
     }
 }

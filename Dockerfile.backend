@@ -1,0 +1,57 @@
+# ============================================
+# 智康云后端 - 多阶段构建 Dockerfile
+# ============================================
+
+# 阶段1: 构建
+FROM maven:3.8-openjdk-17 AS builder
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn package -DskipTests -B
+
+# 阶段2: 运行
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+
+# 创建非root用户
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# 安装必要工具
+RUN apk add --no-cache tzdata curl
+ENV TZ=Asia/Shanghai
+
+# 复制构建产物
+COPY --from=builder /app/target/*.jar app.jar
+
+# 创建日志和数据目录
+RUN mkdir -p /app/logs /app/data /app/cache && \
+    chown -R appuser:appgroup /app
+
+# 切换到非root用户
+USER appuser
+
+# 暴露端口
+EXPOSE 21090
+
+# 健康检查
+# ENG-04：后端没有 /health 端点（那是 /crm/health，且需认证）；Spring Boot Actuator
+# 未集成时根路径也没有健康信息。直接检查端口存活，避免健康检查永远失败导致容器被反复重启。
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD curl -sf -o /dev/null http://localhost:21090/api/personal-health/v1.0/user/login || exit 1
+
+# 启动命令 - 支持环境变量注入
+# ENG-03 整改：原 ENTRYPOINT 是 exec 形式（JSON 数组），
+# 其中的 ${VAR} 不会被 shell 展开，JVM 收到的将是字面量
+# "${DB_URL:-jdbc:mysql://localhost:3306/personal_health}"，连接必然失败。
+# 改为 shell 形式（bash -c）让变量展开生效。
+ENTRYPOINT ["sh", "-c", "exec java \
+  \"-Dspring.datasource.url=${DB_URL:-jdbc:mysql://localhost:3306/personal_health}\" \
+  \"-Dspring.datasource.username=${DB_USER:-root}\" \
+  \"-Dspring.datasource.password=${DB_PASS}\" \
+  \"-Dserver.port=${SERVER_PORT:-21090}\" \
+  \"-Dfile.storage.root=${FILE_STORAGE_ROOT:-/app/data}\" \
+  \"-Dcrm.api-key=${CRM_API_KEY}\" \
+  \"-XX:+UseG1GC\" \
+  \"-XX:MaxRAMPercentage=75.0\" \
+  -jar app.jar"]

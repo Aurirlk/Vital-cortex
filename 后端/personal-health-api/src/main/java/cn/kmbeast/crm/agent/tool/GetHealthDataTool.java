@@ -87,6 +87,7 @@ public class GetHealthDataTool implements Tool {
                     return ToolResult.ok(formatHealthProfile(healthData));
                 case "recent":
                     int days = arguments.containsKey("days") ? ((Number) arguments.get("days")).intValue() : 30;
+                    days = Math.max(1, Math.min(days, 365));
                     return ToolResult.ok(formatRecentRecords(healthData, days));
                 case "abnormal":
                     return ToolResult.ok(formatAbnormalIndicators(healthData));
@@ -163,6 +164,10 @@ public class GetHealthDataTool implements Tool {
 
     /**
      * 格式化最近记录
+     *
+     * <p>AG-03 整改：原实现中 days 参数只是拼进了标题文案，
+     * 实际没有按日期过滤，也没有按时间排序——"最近N天"名存实亡。
+     * 现按 recordTime 倒序排列，并只保留 days 天内的记录。
      */
     private String formatRecentRecords(JSONObject data, int days) {
         StringBuilder sb = new StringBuilder();
@@ -175,10 +180,36 @@ public class GetHealthDataTool implements Tool {
             return sb.toString();
         }
 
-        // 按时间倒序排列，取最近的记录
+        // 截止时间 = 今天 00:00 往前推 days 天
+        Calendar cutoff = Calendar.getInstance();
+        cutoff.add(Calendar.DAY_OF_YEAR, -days);
+        cutoff.set(Calendar.HOUR_OF_DAY, 0);
+        cutoff.set(Calendar.MINUTE, 0);
+        cutoff.set(Calendar.SECOND, 0);
+        cutoff.set(Calendar.MILLISECOND, 0);
+        long cutoffMillis = cutoff.getTimeInMillis();
+
         List<JSONObject> recentRecords = new ArrayList<>();
         for (int i = 0; i < records.size(); i++) {
-            recentRecords.add(records.getJSONObject(i));
+            JSONObject record = records.getJSONObject(i);
+            String recordTime = record.getString("recordTime");
+            if (recordTime == null) {
+                continue;
+            }
+            long ts = parseRecordTime(recordTime);
+            if (ts >= cutoffMillis) {
+                recentRecords.add(record);
+            }
+        }
+
+        // 按时间倒序（新的在前）
+        recentRecords.sort((a, b) ->
+                Long.compare(parseRecordTime(b.getString("recordTime")),
+                        parseRecordTime(a.getString("recordTime"))));
+
+        if (recentRecords.isEmpty()) {
+            sb.append("最近").append(days).append("天内没有健康记录\n");
+            return sb.toString();
         }
 
         int count = 0;
@@ -192,6 +223,32 @@ public class GetHealthDataTool implements Tool {
         }
 
         return sb.toString();
+    }
+
+    /**
+     * 解析记录时间字符串为毫秒时间戳。
+     * 兼容 "yyyy-MM-dd HH:mm:ss"、"yyyy-MM-dd HH:mm"、"yyyy-MM-dd"。
+     * 解析失败返回 0（视为最早，排最后）。
+     */
+    private long parseRecordTime(String recordTime) {
+        if (recordTime == null || recordTime.trim().isEmpty()) {
+            return 0L;
+        }
+        String normalized = recordTime.trim().replace('T', ' ');
+        java.text.SimpleDateFormat[] formats = {
+                new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss"),
+                new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm"),
+                new java.text.SimpleDateFormat("yyyy-MM-dd")
+        };
+        for (java.text.SimpleDateFormat fmt : formats) {
+            try {
+                return fmt.parse(normalized).getTime();
+            } catch (java.text.ParseException ignored) {
+                // 尝试下一种格式
+            }
+        }
+        log.warn("[GetHealthDataTool] 无法解析记录时间: {}", recordTime);
+        return 0L;
     }
 
     /**
