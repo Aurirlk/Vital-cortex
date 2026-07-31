@@ -10,6 +10,28 @@
 
 ---
 
+## 📚 项目文档导航
+
+> 项目开发过程中的全部文档（满足结课报告 7 大模块要求），已扁平化至 `docs/` 根目录。架构级改进以 `DELIVERY.md` 为权威说明。
+
+| 文档           | 路径                                      | 说明                                           |
+| ------------ | --------------------------------------- | -------------------------------------------- |
+| 需求分析         | `docs/requirements-analysis.md` | 功能需求、用例图、流程图                                 |
+| 数据库设计        | `docs/database-design.md`           | ER 图、建表 SQL、字段说明                             |
+| 后端开发         | `docs/backend-development.md`        | 接口设计、核心代码、架构说明                               |
+| 前端开发         | `docs/frontend-development.md`      | 页面设计、组件说明、路由设计                               |
+| 测试文档         | `docs/test-report.md`                | 测试用例（49条，含25单测）、测试报告                         |
+| Linux部署      | `docs/linux-deployment.md`        | 环境搭建、部署命令、常见问题                               |
+| AI工具使用       | `docs/ai-tool-usage-record.md`      | AI工具使用记录（≥500字）                              |
+| **AI 智能体架构** | `docs/agent-architecture.md`              | **v5.1 新增** Multi-Agent/ReAct/Provider工厂/熔断器 |
+| **RAG 检索增强** | `docs/rag-subsystem.md`                   | **v5.1 新增** ingestion管线/混合检索/RAGAS           |
+| **安全加固设计**   | `docs/security-hardening.md`        | **v5.1 新增** JWT/CRM Key/SqlGuard/XSS/脱敏      |
+| 项目状态         | `docs/project-status.md`                     | 功能清单、完成状态                                    |
+| 开发指南         | `docs/development-guidelines.md`             | 防坑指南、编码规范                                    |
+| 用户交付手册       | `DELIVERY.md`                        | 部署/配置/安全/已知限制（v1.1，架构改进权威说明）                 |
+
+---
+
 ## 技术栈
 
 | 层级  | 技术                                            |
@@ -637,6 +659,236 @@ npm run dev
 - ✅ 优化AI配置管理界面
 
 - ✅ 完善厂商配置信息
+
+---
+
+## 系统架构图
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        前端 (Vue 3)                         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │ 用户端   │  │ 管理端   │  │ 商家端   │  │ 医生端   │  │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    后端 (Spring Boot)                        │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │                   Controller 层                       │  │
+│  │  User | Drug | News | AI | Appointment | Quiz | ...  │  │
+│  └──────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │                    Service 层                         │  │
+│  │  Business Logic | AI Service | Export | Cache        │  │
+│  └──────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │                    CRM Agent 系统                     │  │
+│  │  ReAct Agent | Tools | VectorDB | SQLite | Workflow  │  │
+│  └──────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │                    Core 核心模块                      │  │
+│  │  Agent | Provider | RAG | Emotion | Guard | Voice    │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      数据层                                 │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │  MySQL   │  │  SQLite  │  │  JSON    │  │  Redis   │  │
+│  │ 主数据库 │  │ 聊天记录 │  │ AI数据   │  │  缓存    │  │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    外部 AI 服务                              │
+│  DeepSeek | 通义千问 | Kimi | GLM | 文心一言 | 豆包 | ...  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 编译状态
+
+- ✅ 后端编译：BUILD SUCCESS
+- ✅ 前端构建：BUILD SUCCESS
+- ✅ 无编码损坏
+
+---
+
+## 已知缺陷与限制清单
+
+> 本表为历史缺陷台账，状态随版本推进更新。架构级改进详情见 `DELIVERY.md` §8。
+
+### 已解决（v5.1 完成）
+
+| 编号    | 原缺陷          | 现状                                                                                    |
+| ----- | ------------ | ------------------------------------------------------------------------------------- |
+| D-005 | 缺少单元测试       | ✅ 已补 25 个用例（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl），`mvn test` 通过 |
+| D-009 | 部分接口缺少输入验证   | ✅ CRM 接口加 `CrmApiKeyInterceptor`；`SqlGuard` 只读守卫 + 租户隔离；AI 输出 DOMPurify 净化            |
+| D-001 | 部分 SQL 脚本未执行 | ⚠️ 已补充 `Data/sql/ai_usage_schema.sql`（token 成本表），其余业务表脚本仍建议部署时执行                      |
+
+### 仍待处理（保留项）
+
+| 编号    | 缺陷                 | 影响        | 位置              |
+| ----- | ------------------ | --------- | --------------- |
+| D-002 | admin 账号可能被锁定      | 无法登录管理后台  | `user` 表        |
+| D-003 | 旧页面 UI 风格不统一       | 视觉不一致     | `views/`        |
+| D-004 | WebSocket 未实际部署测试  | 消息通知可能不可用 | `websocket/`    |
+| D-006 | Redis 缓存未完全集成      | 热点数据无缓存   | `service/impl/` |
+| D-007 | Prometheus 监控未完全集成 | 无系统健康监控   | `config/`       |
+| D-008 | 前端样式不完全统一          | 部分页面样式不一致 | `views/`        |
+| D-010 | 错误日志不够详细           | 调试困难      | `service/impl/` |
+
+### 架构级遗留项（见 `DELIVERY.md` §8.2）
+
+- **Spring Boot 3 迁移**：当前 2.7.18（2023-11 EOL），需独立改造周期（javax→jakarta 等）
+- **等保三级测评 / 渗透测试**：未开展，商用前置
+- **API Key 存储**：环境变量注入；管理端配置项建议信封加密
+- **God Class 拆分**：`AiServiceImpl` 职责过载，已抽离 Provider 层，后续按会话/检索/评测/用量拆 4 服务
+- **服务端 ASR/TTS**：未实现（语音走浏览器原生 Web Speech API）
+- **向量库规模**：本地文件实现全量扫描，>10 万块时建议迁移 pgvector/Milvus + HNSW
+- **知识图谱**：Neo4j 代码模块已就绪，但尚未接入主 RAG 链路（GraphRAG 属新项目）
+
+---
+
+## 改进目标（路线图）
+
+### 短期（1-2 周）
+
+| 优先级 | 目标              | 说明        |
+| --- | --------------- | --------- |
+| P0  | 执行所有 SQL 脚本     | 确保扩展模块表存在 |
+| P0  | 测试 WebSocket 功能 | 确保消息通知可用  |
+| P1  | 统一前端样式          | 小红书风格 UI  |
+
+### 中期（1-2 月）
+
+| 优先级 | 目标               | 说明          |
+| --- | ---------------- | ----------- |
+| P1  | 旧页面 UI 重构        | 首页、AI分析、药品等 |
+| P1  | 完善单元测试           | 覆盖率 ≥ 70%   |
+| P2  | 集成 Redis 缓存      | 热点数据缓存      |
+| P2  | 集成 Prometheus 监控 | 系统健康监控      |
+
+### 长期（3-6 月）
+
+| 优先级 | 目标                 | 说明           |
+| --- | ------------------ | ------------ |
+| P2  | Spring Boot 3.x 升级 | 使用 Spring AI |
+| P3  | 移动端适配              | 响应式设计完善      |
+| P3  | 微信小程序              | 核心功能移植       |
+
+---
+
+## FAQ 常见问题
+
+### Q1: 无法登录怎么办？
+
+A: 检查 `user` 表的 `is_login` 字段，确保为 0。如果是 1，执行：
+
+```sql
+UPDATE user SET is_login = 0 WHERE user_account = 'admin';
+```
+
+### Q2: AI 对话无响应怎么办？
+
+A: 检查以下配置：
+
+1. `ai_config` 表是否有正确的 API Key
+2. AI 厂商服务是否可用
+3. 网络是否正常
+
+### Q3: 药品搜索无结果怎么办？
+
+A: 检查 `ai_data/drugs.json` 文件是否存在且有数据。如果不存在，执行数据导出：
+
+```bash
+POST /data-export/drugs
+```
+
+### Q4: 扩展模块功能不可用怎么办？
+
+A: 执行对应的 SQL 脚本：
+
+```sql
+source Data/sql/forum_schema.sql;
+source Data/sql/appointment_schema.sql;
+source Data/sql/extra_modules_schema.sql;
+source Data/sql/rbac_schema.sql;
+```
+
+### Q5: 前端页面空白怎么办？
+
+A: 检查以下几点：
+
+1. 后端是否启动（默认端口 21090）
+2. 前端 API 地址是否正确（`utils/request.js`）
+3. 浏览器控制台是否有错误
+
+### Q6: 如何重置 admin 密码？
+
+A: 在 MySQL 命令行执行：
+
+```sql
+UPDATE user SET user_pwd = '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH' WHERE user_account = 'admin';
+UPDATE user SET is_login = 0 WHERE user_account = 'admin';
+```
+
+---
+
+## 关键文件索引
+
+### 后端核心文件
+
+| 文件                                        | 说明         |
+| ----------------------------------------- | ---------- |
+| `controller/AiController.java`            | AI 对话接口    |
+| `controller/UserController.java`          | 用户接口       |
+| `controller/DrugController.java`          | 药品接口       |
+| `controller/NewsController.java`          | 资讯接口       |
+| `controller/AppointmentController.java`   | 医生预约接口     |
+| `controller/QuizController.java`          | 健康测验接口     |
+| `controller/MallController.java`          | 健康商城接口     |
+| `controller/FollowupController.java`      | 患者随访接口     |
+| `service/impl/AiServiceImpl.java`         | AI 核心服务    |
+| `config/AiConfig.java`                    | AI 多厂商配置   |
+| `crm/agent/tool/SearchDrugTool.java`      | AI 药品搜索工具  |
+| `crm/agent/tool/SearchKnowledgeTool.java` | AI 知识库检索工具 |
+| `crm/agent/tool/WebSearchTool.java`       | AI 联网搜索工具  |
+
+### 前端核心文件
+
+| 文件                                  | 说明        |
+| ----------------------------------- | --------- |
+| `views/user/AiAnalysis.vue`         | AI 健康分析页面 |
+| `views/user/Assistant.vue`          | 网站小助手页面   |
+| `views/user/Appointment.vue`        | 医生预约页面    |
+| `views/user/Quiz.vue`               | 健康测验页面    |
+| `views/user/Mall.vue`               | 健康商城页面    |
+| `views/admin/Dashboard.vue`         | 管理端仪表盘    |
+| `views/admin/AppointmentManage.vue` | 预约管理页面    |
+| `views/admin/QuizManage.vue`         | 测验管理页面    |
+| `views/admin/MallManage.vue`         | 商城管理页面    |
+
+### 配置文件
+
+| 文件                         | 说明          |
+| -------------------------- | ----------- |
+| `application.yml`          | 后端配置文件      |
+| `pom.xml`                  | Maven 依赖配置  |
+| `package.json`             | 前端依赖配置      |
+| `router/index.js`          | 前端路由配置      |
+| `styles/design-tokens.css` | 设计系统 tokens |
+
+### 数据文件
+
+| 文件                   | 说明           |
+| -------------------- | ------------ |
+| `ai_data/drugs.json` | AI 药品数据（55条） |
+| `chat_backup/`       | 会话备份目录       |
+| `Data/sql/`          | SQL 脚本目录     |
 
 ---
 
