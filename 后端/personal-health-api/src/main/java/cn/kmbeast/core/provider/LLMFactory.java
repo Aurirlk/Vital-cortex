@@ -7,24 +7,22 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * LLM 工厂
- * 管理和切换不同的 LLM 供应商
+ * LLM factory (legacy, deprecated).
+ *
+ * @deprecated RAG-12 / SEC-08: dead code superseded by {@link LLMProviderFactory}.
+ * Kept only for binary compatibility; never referenced by the business layer.
+ * Register/get are adapted to the new {@link LLMProvider} contract ({@code getId()}).
  */
 @Slf4j
 @Component
-/**
- * @deprecated RAG-12: dead code - zero references in the codebase, not wired into business.
- * Do not present this as existing RAG capability in reviews. Decide to activate or delete
- * when the ingestion pipeline lands. Confirm zero references before deleting.
- */
 @Deprecated
 public class LLMFactory {
 
     private final Map<String, LLMProvider> providers = new ConcurrentHashMap<>();
 
     public void registerProvider(LLMProvider provider) {
-        providers.put(provider.getProviderName(), provider);
-        log.info("Registered LLM provider: {}", provider.getProviderName());
+        providers.put(provider.getId(), provider);
+        log.info("Registered LLM provider: {}", provider.getId());
     }
 
     public LLMProvider getProvider(String name) {
@@ -32,9 +30,6 @@ public class LLMFactory {
     }
 
     public LLMProvider getDefaultProvider() {
-        return providers.values().stream()
-                .filter(LLMProvider::isAvailable)
-                .findFirst()
-                .orElse(null);
+        return providers.values().stream().findFirst().orElse(null);
     }
 }

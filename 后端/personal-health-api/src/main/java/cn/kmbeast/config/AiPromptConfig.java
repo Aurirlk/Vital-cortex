@@ -13,6 +13,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class AiPromptConfig {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AiPromptConfig.class);
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -205,6 +207,84 @@ public class AiPromptConfig {
 
         // 初始化当前配置为默认配置
         PRESETS.putAll(DEFAULT_PRESETS);
+        // SEC-16：尝试从外部文件加载提示词覆盖（配置目录可写，重启不丢）
+        loadExternalOverrides();
+    }
+
+    /**
+     * SEC-16 整改：提示词外部化。
+     * <p>默认配置文件路径：系统属性 {@code ai.prompts.file} 或
+     * {@code ./config/prompts.json}。文件格式：
+     * <pre>
+     * {
+     *   "version": "1",
+     *   "updatedAt": "2026-07-31 12:00:00",
+     *   "presets": {
+     *     "doctor": {"systemPrompt": "...", "temperature": 0.3, "topP": 0.5}
+     *   }
+     * }
+     * </pre>
+     * 修改文件或通过管理端热更新后，重启不再丢失（写回同一文件）。
+     */
+    private static final java.io.File PROMPTS_FILE = new java.io.File(
+            System.getProperty("ai.prompts.file", "./config/prompts.json"));
+
+    private static void loadExternalOverrides() {
+        try {
+            if (!PROMPTS_FILE.exists()) {
+                return;
+            }
+            String json = new String(java.nio.file.Files.readAllBytes(PROMPTS_FILE.toPath()),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            com.alibaba.fastjson2.JSONObject root = com.alibaba.fastjson2.JSON.parseObject(json);
+            if (root == null || root.getJSONObject("presets") == null) {
+                log.warn("[Prompt] 提示词文件格式不正确: {}", PROMPTS_FILE.getAbsolutePath());
+                return;
+            }
+            com.alibaba.fastjson2.JSONObject presets = root.getJSONObject("presets");
+            int loaded = 0;
+            for (String role : presets.keySet()) {
+                com.alibaba.fastjson2.JSONObject pc = presets.getJSONObject(role);
+                if (pc == null) continue;
+                PRESETS.put(role, new PresetConfig(
+                        pc.getString("systemPrompt"),
+                        pc.getDouble("temperature"),
+                        pc.getDouble("topP")));
+                loaded++;
+            }
+            log.info("[Prompt] 已从外部文件加载 {} 个角色提示词: {}", loaded, PROMPTS_FILE.getAbsolutePath());
+        } catch (Exception e) {
+            log.warn("[Prompt] 外部提示词加载失败，使用内置默认: {}", e.getMessage());
+        }
+    }
+
+    /** 热更新写回外部文件，保证重启不丢（SEC-16） */
+    private static void persistExternalOverrides() {
+        try {
+            java.io.File parent = PROMPTS_FILE.getParentFile();
+            if (parent != null && !parent.exists()) {
+                parent.mkdirs();
+            }
+            com.alibaba.fastjson2.JSONObject root = new com.alibaba.fastjson2.JSONObject();
+            root.put("version", "1");
+            root.put("updatedAt", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date()));
+            com.alibaba.fastjson2.JSONObject presets = new com.alibaba.fastjson2.JSONObject();
+            for (Map.Entry<String, PresetConfig> e : PRESETS.entrySet()) {
+                PresetConfig pc = e.getValue();
+                if (pc == null) continue;
+                com.alibaba.fastjson2.JSONObject item = new com.alibaba.fastjson2.JSONObject();
+                item.put("systemPrompt", pc.getSystemPrompt());
+                item.put("temperature", pc.getTemperature());
+                item.put("topP", pc.getTopP());
+                presets.put(e.getKey(), item);
+            }
+            root.put("presets", presets);
+            java.nio.file.Files.write(PROMPTS_FILE.toPath(),
+                    root.toJSONString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            log.info("[Prompt] 提示词配置已写回: {}", PROMPTS_FILE.getAbsolutePath());
+        } catch (Exception e) {
+            log.warn("[Prompt] 提示词配置写回失败: {}", e.getMessage());
+        }
     }
 
     public static PresetConfig getConfig(String role) {
@@ -225,6 +305,8 @@ public class AiPromptConfig {
 
     public static void updateConfig(String role, PresetConfig config) {
         PRESETS.put(role, config);
+        // SEC-16：热更新写回外部文件，重启不丢
+        persistExternalOverrides();
     }
 
     /**

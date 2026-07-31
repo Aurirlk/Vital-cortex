@@ -1,0 +1,55 @@
+# ============================================================
+# 智康云 - 生产环境配置示例（ENG-09）
+# 使用方式：SPRING_PROFILES_ACTIVE=prod 启动，或 docker-compose 注入
+# 敏感值全部从环境变量注入，本文件不含任何真实密钥
+# ============================================================
+
+server:
+  port: 21090
+  servlet:
+    context-path: /api/personal-health/v1.0
+
+my-server:
+  api-context-path: /api/personal-health/v1.0
+  # 对外访问基础地址：必须改为真实域名，否则上传文件返回的 URL 指向 localhost
+  public-base-url: ${PUBLIC_BASE_URL:https://health.example.com}
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://db:3306/personal_health?characterEncoding=utf8&useSSL=true&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true}
+    username: ${DB_USER:root}
+    password: ${DB_PASS}
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+  redis:
+    host: ${REDIS_HOST:redis}
+    port: 6379
+    database: 0
+    timeout: 5000ms
+
+# 日志（生产：文件滚动 + 错误独立归档，见 logback-spring.xml）
+logging:
+  file:
+    path: /app/logs
+
+# ============================================================
+# 安全密钥（生产必须通过环境变量注入，缺失即拒绝启动）
+# ============================================================
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 604800000
+
+crm:
+  api-key: ${CRM_API_KEY}
+  embedding:
+    api-url: ${EMBEDDING_API_URL}
+    model: ${EMBEDDING_MODEL:text-embedding-3-small}
+
+# 文件存储根：PathUtils 读取系统属性 file.storage.root / 环境变量 FILE_STORAGE_ROOT，
+# 请在启动参数注入（Dockerfile 已配置 -Dfile.storage.root=/app/data），此处无需配置

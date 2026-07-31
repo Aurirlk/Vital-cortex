@@ -356,6 +356,36 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
         }
     }
 
+    /**
+     * RAG-19：按元数据匹配删除（文章删除 → 向量库联动清理）。
+     * 从 documentsMap 反向找到匹配的向量 id，逐个 delete。
+     */
+    @Override
+    public int deleteByMetadata(String collectionName, String metadataKey, Object metadataValue) {
+        List<VectorEntity> docs = documentsMap.get(collectionName);
+        if (docs == null || metadataKey == null) {
+            return 0;
+        }
+        String expect = String.valueOf(metadataValue);
+        List<Integer> ids = new ArrayList<>();
+        for (VectorEntity doc : docs) {
+            if (doc.getMetadata() != null) {
+                Object v = doc.getMetadata().get(metadataKey);
+                if (v != null && expect.equals(String.valueOf(v))) {
+                    ids.add(doc.getId());
+                }
+            }
+        }
+        for (Integer id : ids) {
+            delete(collectionName, id);
+        }
+        if (!ids.isEmpty()) {
+            log.info("[VectorStore] 按元数据删除: collection={}, key={}, value={}, count={}",
+                    collectionName, metadataKey, metadataValue, ids.size());
+        }
+        return ids.size();
+    }
+
     @Override
     public void deleteCollection(String collectionName) {
         indexLock.writeLock().lock();

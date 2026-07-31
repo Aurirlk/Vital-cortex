@@ -3,6 +3,7 @@ package cn.kmbeast.service.impl;
 import cn.kmbeast.config.AiConfig;
 import cn.kmbeast.config.AiPromptConfig;
 import cn.kmbeast.crm.agent.tool.AiSessionContext;
+import cn.kmbeast.crm.rag.HybridRetriever;
 import cn.kmbeast.mapper.AiChatRecordMapper;
 import cn.kmbeast.mapper.NewsMapper;
 import cn.kmbeast.pojo.api.ApiResult;
@@ -63,6 +64,15 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private DifyWorkflowService difyWorkflowService;
+
+    @Resource
+    private cn.kmbeast.crm.rag.HybridRetriever hybridRetriever;
+
+    @Resource
+    private cn.kmbeast.mapper.AiUsageMapper aiUsageMapper;
+
+    @Resource
+    private cn.kmbeast.core.provider.LLMProviderFactory llmProviderFactory;
 
     private OkHttpClient httpClient;
 
@@ -339,17 +349,11 @@ public class AiServiceImpl implements AiService {
                         ? chatRequest.getRepetitionPenalty() - 1.0 : 0.0);
             }
 
-            Request request = new Request.Builder()
-                    .url(apiUrl)
-                    .addHeader("Authorization", "Bearer " + apiKey)
-                    .addHeader("Content-Type", "application/json")
-                    .addHeader("Accept", "text/event-stream")
-                    .post(RequestBody.create(requestBody.toJSONString(), JSON_MEDIA_TYPE))
-                    .build();
-
             StringBuilder fullReply = new StringBuilder();
 
-            try (Response response = httpClient.newCall(request).execute()) {
+            // SEC-08: 流式调用走 LLMProvider 工厂（熔断 + 重试 + 厂商切换）
+            try (Response response = llmProviderFactory.getProvider().stream(
+                    requestBody.toJSONString(), apiUrl, apiKey)) {
                 log.info("[AI] API响应状态: code={}, agentType={}", response.code(), agentType);
                 
                 if (!response.isSuccessful()) {
@@ -476,6 +480,40 @@ public class AiServiceImpl implements AiService {
         return ApiResult.success(result);
     }
 
+    /**
+     * SEC-12：健康档案出境脱敏。
+     * 移除联系方式类字段（phone/idCard/email/address/idCardNo 等），
+     * 姓名打码保留姓氏，仅保留健康指标数据用于 AI 分析。
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> maskProfileForExternal(Map<String, Object> profile) {
+        if (profile == null) {
+            return null;
+        }
+        Map<String, Object> masked = new LinkedHashMap<>(profile);
+        Object userInfoObj = masked.get("userInfo");
+        if (userInfoObj instanceof Map) {
+            Map<String, Object> userInfo = new LinkedHashMap<>((Map<String, Object>) userInfoObj);
+            for (String key : new String[]{"phone", "phoneNumber", "idCard", "idCardNo",
+                    "email", "address", "idCardNumber", "identityCard"}) {
+                userInfo.remove(key);
+            }
+            // 姓名打码：保留姓氏，名字用 * 代替
+            Object nameObj = userInfo.get("userName");
+            if (nameObj != null) {
+                String name = String.valueOf(nameObj).trim();
+                if (name.length() > 1) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(name.charAt(0));
+                    for (int i = 1; i < name.length(); i++) sb.append('*');
+                    userInfo.put("userName", sb.toString());
+                }
+            }
+            masked.put("userInfo", userInfo);
+        }
+        return masked;
+    }
+
     private String buildHealthContext(Integer userId) {
         try {
             StringBuilder context = new StringBuilder();
@@ -486,8 +524,10 @@ public class AiServiceImpl implements AiService {
             if (profileResult != null && profileResult.getCode() == 200) {
                 Map<String, Object> profile = (Map<String, Object>) profileResult.getData();
                 if (profile != null) {
-                    // 直接将整个profile转为JSON字符串
-                    String profileJson = JSON.toJSONString(profile, com.alibaba.fastjson2.JSONWriter.Feature.PrettyFormat);
+                    // SEC-12 整改：健康档案含姓名等可识别信息，发往第三方 AI 厂商前
+                    // 必须脱敏——剥离联系方式类字段，姓名打码，仅保留健康指标。
+                    Map<String, Object> masked = maskProfileForExternal(profile);
+                    String profileJson = JSON.toJSONString(masked, com.alibaba.fastjson2.JSONWriter.Feature.PrettyFormat);
                     context.append("```json\n").append(profileJson).append("\n```\n\n");
                     
                     // 添加使用说明
@@ -537,42 +577,59 @@ public class AiServiceImpl implements AiService {
                 }
             }
             
-            List<NewsVO> articles = newsMapper.ragSearch(keywordList, RAG_ARTICLE_LIMIT);
+            // RAG-10 整改：从纯 LIKE 升级为 向量+LIKE 混合检索（RRF 融合）。
+            // 向量路提供语义召回（症状描述→文章），LIKE 路保证专业术语精准。
+            List<HybridRetriever.RetrievedDoc> docs;
+            try {
+                docs = hybridRetriever.search(userMessage, keywordList, RAG_ARTICLE_LIMIT);
+            } catch (Exception e) {
+                log.warn("[RAG] 混合检索异常，回退纯 LIKE: {}", e.getMessage());
+                List<NewsVO> articles = newsMapper.ragSearch(keywordList, RAG_ARTICLE_LIMIT);
+                docs = new ArrayList<>();
+                if (articles != null) {
+                    for (NewsVO a : articles) {
+                        if (a.getId() != null) {
+                            docs.add(new HybridRetriever.RetrievedDoc(a.getId(),
+                                    a.getName() != null ? a.getName() : "",
+                                    a.getTagName() != null ? a.getTagName() : "",
+                                    a.getContent() != null ? a.getContent() : "",
+                                    1.0, "keyword"));
+                        }
+                    }
+                }
+            }
 
-            if (articles == null || articles.isEmpty()) return "";
+            if (docs == null || docs.isEmpty()) return "";
 
             StringBuilder context = new StringBuilder();
             context.append("\n\n【相关知识库文章参考（RAG）】\n");
             context.append("以下是从本站知识库检索到的相关文章，请严格基于以下文章内容回答用户：\n\n");
 
-            for (int i = 0; i < articles.size(); i++) {
-                NewsVO article = articles.get(i);
-                context.append("文章").append(i + 1).append(": 《").append(article.getName()).append("》");
-                if (article.getTagName() != null) {
-                    context.append(" [").append(article.getTagName()).append("]");
+            for (int i = 0; i < docs.size(); i++) {
+                HybridRetriever.RetrievedDoc doc = docs.get(i);
+                // RAG-13：带文章ID的结构化引用，回答须按 [ID] 标注出处
+                context.append("文章").append(i + 1).append(": [ID:").append(doc.articleId)
+                        .append("]《").append(doc.title).append("》");
+                if (doc.tag != null && !doc.tag.isEmpty()) {
+                    context.append(" [").append(doc.tag).append("]");
                 }
-                context.append("\n");
+                context.append("（来源:").append(doc.source).append("）\n");
 
-                String content = article.getContent();
-                if (content != null) {
-                    // RAG-11 整改：原实现 substring(0,300) 硬截断，
-                    // 可能从句子中间切断，且正文中与问题相关的部分若在
-                    // 300 字之后则永远不可召回。改为按句子分块、优先
-                    // 保留含关键词的片段，兼顾相关性与长度控制。
-                    String summary = extractRelevantChunk(content, keywordList, RAG_CONTENT_MAX_LENGTH);
+                if (doc.content != null && !doc.content.isEmpty()) {
+                    String summary = extractRelevantChunk(doc.content, keywordList, RAG_CONTENT_MAX_LENGTH);
                     context.append("文章内容: ").append(summary).append("\n\n");
                 }
             }
 
             context.append("【重要要求】\n");
-            context.append("1. 必须基于以上文章内容回答，在回答中引用文章标题。\n");
+            context.append("1. 必须基于以上文章内容回答，引用时标注 [ID:x]（x 为文章编号）。\n");
             context.append("2. 用自己的话总结文章核心观点，不要直接复制。\n");
             context.append("3. 如果文章中没有相关答案，明确告知用户\"本站暂无相关文章\"。\n");
             context.append("4. 回答末尾列出\"📚 相关文章推荐\"，包含文章标题和分类。\n");
 
             context.append("请参考以上文章内容，结合用户健康数据，给出专业建议。可以在回复末尾附带相关文章推荐。\n");
 
-            log.info("[RAG] 检索到 {} 篇相关文章, keywords={}", articles.size(), keywords);
+            log.info("[RAG] 混合检索到 {} 篇相关文章, keywords={}", docs.size(), keywordList);
             return context.toString();
         } catch (Exception e) {
             log.warn("[RAG] 文章检索失败: {}", e.getMessage());
@@ -739,26 +796,46 @@ public class AiServiceImpl implements AiService {
         return messages;
     }
 
+    /**
+     * ENG-10：AI token 用量落库（ai_usage 表，见 Data/sql/ai_usage_schema.sql）。
+     * 异步写入不阻塞主流程；表不存在时静默降级为日志。
+     */
+    private void recordUsage(int promptTokens, int completionTokens, int totalTokens, String scene) {
+        try {
+            cn.kmbeast.pojo.entity.AiUsage usage = new cn.kmbeast.pojo.entity.AiUsage();
+            Integer uid = null;
+            try {
+                uid = cn.kmbeast.context.LocalThreadHolder.getUserId();
+            } catch (Exception ignored) {
+            }
+            usage.setUserId(uid);
+            usage.setScene(scene);
+            usage.setModel(aiConfig.getModel());
+            usage.setPromptTokens(promptTokens);
+            usage.setCompletionTokens(completionTokens);
+            usage.setTotalTokens(totalTokens);
+            aiUsageMapper.insert(usage);
+        } catch (Exception e) {
+            log.debug("[AI] token 用量落库失败（表不存在或不可用）: {}", e.getMessage());
+        }
+    }
+
     private String callDeepSeekApi(String requestBody) throws IOException {
         return callDeepSeekApi(requestBody, aiConfig.getApiUrl(), aiConfig.getApiKey());
     }
 
     private String callDeepSeekApi(String requestBody, String apiUrl, String apiKey) throws IOException {
-        Request request = new Request.Builder()
-                .url(apiUrl)
-                .addHeader("Authorization", "Bearer " + apiKey)
-                .addHeader("Content-Type", "application/json")
-                .post(RequestBody.create(requestBody, JSON_MEDIA_TYPE))
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                String errorBody = response.body() != null ? response.body().string() : "Unknown error";
-                log.error("DeepSeek API调用失败: code={}, body={}", response.code(), errorBody);
-                throw new IOException("AI服务响应异常: HTTP " + response.code());
-            }
-
-            String responseBody = response.body().string();
+        // SEC-08: route through LLMProviderFactory - vendor switch + circuit breaker + retry
+        String responseBody;
+        try {
+            responseBody = llmProviderFactory.getProvider().chat(requestBody, apiUrl, apiKey);
+        } catch (IllegalStateException e) {
+            log.warn("[AI] LLM 不可用(熔断): {}", e.getMessage());
+            throw new IOException("AI 服务暂时不可用（熔断中），请稍后重试");
+        } catch (IOException e) {
+            log.error("LLM API调用失败: {}", e.getMessage());
+            throw e;
+        }
             JSONObject jsonResponse = JSON.parseObject(responseBody);
 
             if (jsonResponse.containsKey("error")) {
@@ -773,16 +850,17 @@ public class AiServiceImpl implements AiService {
 
                 if (jsonResponse.containsKey("usage")) {
                     JSONObject usage = jsonResponse.getJSONObject("usage");
-                    log.info("Token使用: prompt={}, completion={}, total={}",
-                            usage.getInteger("prompt_tokens"),
-                            usage.getInteger("completion_tokens"),
-                            usage.getInteger("total_tokens"));
+                    int prompt = usage.getInteger("prompt_tokens");
+                    int completion = usage.getInteger("completion_tokens");
+                    int total = usage.getInteger("total_tokens");
+                    log.info("Token使用: prompt={}, completion={}, total={}", prompt, completion, total);
+                    // ENG-10：token 成本落库（失败不影响主流程）
+                    recordUsage(prompt, completion, total, "chat");
                 }
 
                 return content;
             }
             throw new IOException("AI服务返回为空");
-        }
     }
 
     /**

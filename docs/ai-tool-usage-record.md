@@ -72,6 +72,32 @@ AI 工具能够生成美观、符合设计规范的前端页面。生成的代�
 **效果评价**:
 AI 工具能够快速生成结构清晰、内容完整的文档。生成的文档格式规范，语言专业，可直接用于项目交付。通过 AI 辅助，文档编写时间从预估的 3 天缩短到 0.5 天，效率提升约 6 倍。
 
+### 2.5 AI 智能体子系统开发（v5.1 新增）
+
+**使用工具**: Claude / OpenCode（智能体编排、架构设计、代码生成、安全审查）
+
+**应用场景**:
+- **多角色 Agent 编排**：基于 6 类健康角色（通用/健康分析/用药/饮食/运动/心理），由 `AgentCoordinator` 按意图路由，意图词表外部化到配置，避免硬编码。
+- **ReAct 推理引擎**：用 OpenAI function calling 实现「推理-行动」循环（`BaseReActAgent` / `ReActAgent`），工具调用轨迹落库，含循环检测与末轮总结。
+- **混合 RAG 管线**：`KnowledgeIngestionService`（ChunkUtil 分块 → Embedding → 本地向量库）+ `HybridRetriever`（向量语义 + MySQL LIKE 关键词，RRF 融合）；评测接入真实 RAGAS 指标。
+- **Provider 抽象 + 熔断**：`LLMProviderFactory` 支持 DeepSeek / 通义 / 本地 vLLM 热切换，`CircuitBreaker` 异常率熔断。
+- **安全护栏**：`SqlGuard`（SQL 只读 + 租户隔离）、`CrmApiKeyInterceptor`（/crm/** fail-closed）、JWT 密钥外部化、PII 脱敏、前端 DOMPurify。
+
+**效果评价**:
+AI 工具在「多文件联动改造 + 安全加固」类复杂任务上表现突出——先生成审查手册（`../DELIVERY.md`）梳理 P0~P2 与架构级项，再逐项落地修复并补 25 个单元测试。其中 `SqlGuardTest` 真实暴露 3 个可绕过漏洞，经回归验证已闭环。
+
+### 2.6 企业级安全代码审查（v5.1）
+
+**使用工具**: AI 智能体 + 企业级代码审查工作流（对标 LangGraph / RAGAS / OWASP 方法论）
+
+**应用场景**:
+- 四路并行审查 Agent 系统 / 多模态 / 架构 / 对标项，汇总 57+ 项问题并分级（P0/P1/P2/架构级）。
+- 聚焦 SQL 注入、IDOR 越权、密钥硬编码、SSE 资源泄漏、XSS 等医疗系统高危面。
+- 修复后产出可交付的 `../DELIVERY.md` 用户手册。
+
+**效果评价**:
+AI 驱动的分级审查 + 自动补测试，使安全加固从「经验式排查」转为「清单式闭环」，显著降低遗留漏洞。
+
 ## 3. AI 工具使用技巧
 
 ### 3.1 提示词设计

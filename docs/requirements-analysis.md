@@ -25,9 +25,22 @@
 | 健康测验 | 题库浏览、在线答题、自动评分、成绩报告 | 高 |
 | 健康商城 | 商品浏览、购物车、下单、模拟支付 | 高 |
 | 患者随访 | 任务查看、打卡、记录查看 | 高 |
-| AI 健康分析 | 6 种 AI 角色，支持联网搜索、知识库 RAG | 高 |
+| AI 健康分析 | 6 种 AI 角色（Multi-Agent 编排），支持联网搜索、混合知识库 RAG、工具调用（SQL 只读查询/健康模型计算） | 高 |
 | 药品订阅 | 浏览药品信息，订阅关注的药品 | 中 |
 | 个人中心 | 个人信息、统计、服务菜单、账号设置 | 中 |
+
+### 2.5 AI 智能体子系统（v5.1 新增）
+
+| 功能模块 | 功能描述 | 优先级 |
+|----------|----------|--------|
+| 多角色编排 | 6 类 Agent（通用/健康分析/用药/饮食/运动/心理）由协调器按意图路由 | 高 |
+| ReAct 推理 | 基于 OpenAI function calling 的推理-行动循环，工具调用轨迹落库 | 高 |
+| 混合 RAG | 本地向量语义检索 + MySQL LIKE 关键词检索，RRF 融合重排 | 高 |
+| 知识 ingestion | 文档分块(ChunkUtil) → 嵌入 → 写入本地向量库，支持增量更新 | 高 |
+| 工具护栏 | SqlGuard 词法校验，仅允许只读 SELECT + 强制租户隔离，禁止危险语句 | 高 |
+| Provider 抽象 | LLMProvider 工厂 + 熔断器，支持 DeepSeek/通义/本地 vLLM 多模型热切换 | 高 |
+| RAG 评测 | 真实 RAGAS 指标（faithfulness / context precision / answer relevancy） | 中 |
+| CRM 网关 | `/crm/**` 机器对机器接口，API Key fail-closed 鉴权，仅放行健康检查 | 高 |
 
 ### 2.2 管理端功能
 
@@ -67,9 +80,13 @@
 - 支持 100+ 并发用户
 
 ### 3.2 安全需求
-- JWT 认证
+- JWT 认证（密钥必须由环境变量 `JWT_SECRET` 外部注入，启动强校验，禁止硬编码兜底）
 - 密码 BCrypt 加密
-- API 权限控制
+- API 权限控制（RBAC，用户端 JWT + 管理员端 + `/crm/**` API Key fail-closed 鉴权）
+- SQL 只读护栏（SqlGuard：仅允许 SELECT，强制租户隔离，拦截 DROP/UPDATE/DELETE/等等危险语句）
+- 前端 XSS 防护（AI 富文本输出经 DOMPurify 清洗）
+- PII 脱敏（手机号、API Key 等敏感字段输出前脱敏）
+- LLM 调用熔断（CircuitBreaker：异常率超阈值自动熔断，防止厂商故障拖垮主流程）
 
 ### 3.3 兼容性需求
 - 支持 Chrome、Firefox、Safari、Edge 最新版

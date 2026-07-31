@@ -168,7 +168,7 @@ personal-heath-view/
 ```javascript
 // utils/request.js
 const request = axios.create({
-  baseURL: "http://localhost:21090/api/personal-health/v1.0",
+  baseURL: URL_API,            // 统一收敛到 localhost:21090（避免硬编码多份地址）
   timeout: 30000,
 });
 
@@ -180,6 +180,18 @@ request.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// 响应拦截器 - 统一处理 401 失效登录
+request.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response && err.response.status === 401) {
+      clearToken();
+      router.replace("/login");
+    }
+    return Promise.reject(err);
+  }
+);
 ```
 
 ### 5.2 API 调用示例
@@ -199,6 +211,14 @@ await request.put("mall/product/update", productData);
 // DELETE 请求
 await request.delete(`mall/cart/${itemId}`);
 ```
+
+### 5.3 AI 健康分析页（AiAnalysis.vue，v5.1 安全增强）
+- **语音播报/识别**：原 TTS/ASR 空壳已替换为浏览器原生 **Web Speech API**（`SpeechSynthesis` / `SpeechRecognition`），无需后端语音服务；录音增加 `isRecording` 取消标志，避免组件卸载后继续回调。
+- **XSS 防护**：AI 返回的富文本/Markdown 经 **DOMPurify** 清洗后再渲染，杜绝注入。
+- **SSE 流式**：`/ai/chat/stream` 使用 `EventSource`/`fetch` 流式接收，错误时断开连接释放资源。
+
+### 5.4 客服悬浮球（CustomerServiceBall.vue，v5.1 安全增强）
+- 请求注入鉴权头 `token`，并在组件卸载/重新请求时调用 `AbortController.abort()` 取消旧请求，避免竞态与内存泄漏。
 
 ## 6. 样式规范
 

@@ -123,4 +123,13 @@
             n.create_time DESC
         LIMIT #{limit}
     </select>
+
+    <!-- RAG ingestion：全量文章（用于向量库灌数） -->
+    <select id="selectAllForRag" resultMap="BaseResultMap">
+        SELECT n.*, t.name AS tag_name
+        FROM news n
+        LEFT JOIN tags t ON t.id = n.tag_id
+        WHERE n.content IS NOT NULL AND n.content != ''
+        ORDER BY n.id ASC
+    </select>
 </mapper>

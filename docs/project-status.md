@@ -1,13 +1,13 @@
 # 智康云健康管理系统 - 项目状态报告
 
-> 更新时间：2026-07-24
-> 版本：v5.0
+> 更新时间：2026-07-31
+> 版本：v5.1
 
 ---
 
 ## 项目概述
 
-智康云是一个 AI 驱动的全栈健康管理平台，被医院收购后进行了全面升级。
+智康云是一个 AI 驱动的全栈健康管理平台，被医院收购后进行了全面升级。v5.1 完成了 AI 智能体（Multi-Agent / ReAct）、混合 RAG、LLM Provider 工厂与韧性、以及安全合规的架构级重构，详见根目录 `../DELIVERY.md`。
 
 ## 功能模块清单
 
@@ -117,7 +117,7 @@
 | CI/CD | .github/workflows/ci.yml | ✅ |
 | 环境变量 | .env.example | ✅ |
 
-### 文档（7 份）
+### 文档（8 份 + 根目录交付手册）
 
 | 文档 | 文件 | 状态 |
 |------|------|------|
@@ -128,9 +128,22 @@
 | 测试文档 | test-report.md | ✅ |
 | Linux 部署 | linux-deployment.md | ✅ |
 | AI 工具使用 | ai-tool-usage-record.md | ✅ |
-| 开发指南 | development-guidelines.md | ✅ 新增 |
+| 开发指南 | development-guidelines.md | ✅ |
+| 用户交付手册 | `../DELIVERY.md`（根目录） | ✅ v1.1 新增 |
 
 ---
+
+## v5.1 架构级改进（2026-07-31）
+
+| 领域 | 交付 |
+|------|------|
+| Multi-Agent | `AgentCoordinator` 意图词表外部化，6 专科角色路由 |
+| ReAct Agent | OpenAI function calling 驱动，工具调用轨迹落库（检查点/审计） |
+| Provider 工厂 | `LLMProviderFactory` + `DeepSeekProvider` / `LocalVllmProvider`，运行时切换厂商 |
+| 熔断器 | `CircuitBreaker` 429/5xx 重试与快速失败 |
+| 混合 RAG | ingestion 管线 + 向量/MySQL LIKE 的 RRF 融合 + 真实 RAGAS 评测 + 引用溯源 |
+| 安全 | JWT 外部密钥+启动强校验、CRM API Key fail-closed、`SqlGuard` 只读守卫+租户隔离、DOMPurify、PII 脱敏、token 成本落库 |
+| 测试 | 25 个单元测试通过（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl） |
 
 ## 编译状态
 
@@ -142,13 +155,19 @@
 
 ## 已知限制
 
-| 限制 | 说明 |
-|------|------|
-| Spring Boot 3.x | 编码损坏导致升级失败，需新会话处理 |
-| Spring AI | 依赖 Spring Boot 3.x |
-| WebSocket 测试 | 代码已写但未实际部署测试 |
-| PWA 测试 | manifest.json 已创建但未测试安装 |
-| 旧页面 UI | 部分旧页面未按小红书风格重构 |
+| 限制 | 说明 | 状态 |
+|------|------|------|
+| Spring Boot 3.x 迁移 | 2.7.18 已于 2023-11 EOL，需独立改造周期（javax→jakarta、Spring Security 6、MyBatis 适配） | 待排期 |
+| Spring AI | 依赖 Spring Boot 3.x | 待迁移后 |
+| 等保三级测评 | 系统含敏感健康信息，商用前置 | 未开展 |
+| 渗透测试 | OWASP Top10 + 越权专项，建议第三方执行 | 未开展 |
+| API Key 存储 | 环境变量注入；管理端配置项建议信封加密（KMS） | 已部分 |
+| 服务端 ASR/TTS | 语音走浏览器原生 Web Speech API，未实现服务端 | 规划中 |
+| 知识图谱 | Neo4j 代码模块就绪，未接入主 RAG 链路（GraphRAG 属新项目） | 规划中 |
+| 单元测试 | 已补 25 用例；覆盖率仍偏低，目标 ≥70% | ✅ 已启动 |
+| WebSocket 测试 | 代码已写但未实际部署测试 | 待验证 |
+| PWA 测试 | manifest.json 已创建但未测试安装 | 待验证 |
+| 旧页面 UI | 部分旧页面未按统一风格重构 | 待优化 |
 
 ---
 
@@ -156,6 +175,7 @@
 
 - **后端文件**: 200+ 个 Java 文件
 - **前端文件**: 50+ 个 Vue 文件
-- **SQL 文件**: 8 个
-- **文档**: 8 份
+- **SQL 文件**: 12 个（`Data/sql/` 下，含新增 `ai_usage_schema.sql`）
+- **文档**: 15 份（docs/ 下 14 份 + 根目录 `../DELIVERY.md` 用户交付手册）
 - **总代码行数**: 约 30,000+ 行
+- **单元测试**: 25 个用例（v5.1 新增）

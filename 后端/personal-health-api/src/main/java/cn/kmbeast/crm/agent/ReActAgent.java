@@ -18,6 +18,7 @@ public class ReActAgent extends BaseReActAgent {
         List<Map<String, Object>> messages = buildInitialMessages(userMessages);
 
         List<String> allToolsUsed = new ArrayList<>();
+        List<Map<String, Object>> toolDetails = new ArrayList<>();
         int maxRounds = crmConfig.getMaxReactRounds();
 
         for (int round = 1; round <= maxRounds; round++) {
@@ -76,18 +77,26 @@ public class ReActAgent extends BaseReActAgent {
                 }
 
                 for (int i = 0; i < calls.size(); i++) {
-                    allToolsUsed.add(calls.get(i).getName());
-                    addToolResultMessage(messages, calls.get(i), results[i]);
+                    ToolCall call = calls.get(i);
+                    allToolsUsed.add(call.getName());
+                    // AG-05：记录工具调用轨迹（参数 + 结果状态），随响应落库审计
+                    Map<String, Object> detail = new LinkedHashMap<>();
+                    detail.put("tool", call.getName());
+                    detail.put("args", call.getArguments() != null ? call.getArguments().toString() : "");
+                    detail.put("success", results[i] != null && results[i].isSuccess());
+                    toolDetails.add(detail);
+                    addToolResultMessage(messages, call, results[i]);
                 }
             } else {
-                return ReActResponse.text(response.getContent(), allToolsUsed);
+                return ReActResponse.builder().content(response.getContent())
+                        .toolsUsed(allToolsUsed).toolDetails(toolDetails).build();
             }
         }
 
         // AG-04 整改：轮次耗尽不再直接丢弃已获取的工具结果。
         // 末轮调用一次无工具的 LLM，基于已收集的全部上下文做总结回答。
         log.info("[ReAct] 达到轮次上限({})，进行末轮强制总结", maxRounds);
-        return summarizeFinalAnswer(messages, allToolsUsed, maxRounds);
+        return summarizeFinalAnswer(messages, allToolsUsed, maxRounds, toolDetails);
     }
 
     /**
@@ -109,7 +118,8 @@ public class ReActAgent extends BaseReActAgent {
      * AG-04：无工具的末轮总结调用。
      */
     private ReActResponse summarizeFinalAnswer(List<Map<String, Object>> messages,
-                                               List<String> allToolsUsed, int maxRounds) {
+                                               List<String> allToolsUsed, int maxRounds,
+                                               List<Map<String, Object>> toolDetails) {
         Map<String, Object> systemNote = new LinkedHashMap<>();
         systemNote.put("role", "system");
         systemNote.put("content",
@@ -120,10 +130,12 @@ public class ReActAgent extends BaseReActAgent {
 
         try {
             String summary = callLLMPlain(finalMessages);
-            return ReActResponse.text(summary, allToolsUsed);
+            return ReActResponse.builder().content(summary)
+                    .toolsUsed(allToolsUsed).toolDetails(toolDetails).build();
         } catch (Exception e) {
             log.error("[ReAct] 末轮总结调用失败", e);
-            return ReActResponse.text("已收集到相关信息但总结失败，请重新提问。", allToolsUsed);
+            return ReActResponse.builder().content("已收集到相关信息但总结失败，请重新提问。")
+                    .toolsUsed(allToolsUsed).toolDetails(toolDetails).build();
         }
     }
 }

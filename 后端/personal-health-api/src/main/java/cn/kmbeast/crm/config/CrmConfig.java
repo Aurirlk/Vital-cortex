@@ -49,6 +49,14 @@ public class CrmConfig {
     @Value("${crm.react.max-rounds:5}")
     private int maxReactRounds;
 
+    /**
+     * AG-11：意图识别词表外部化配置（JSON）。
+     * 格式：{"doctor":["症状","发烧"],"nutritionist":["饮食","减肥"],...}
+     * 未配置时使用 AgentCoordinator 内置默认词表。
+     */
+    @Value("${crm.intent.keywords:}")
+    private String intentKeywordsJson;
+
     @Value("${crm.react.temperature:0.3}")
     private double reactTemperature;
 

@@ -8,8 +8,11 @@
 | Spring Boot | 2.7.18 | 应用框架 |
 | MyBatis | 3.5.x | ORM 框架 |
 | MySQL | 8.0 | 关系型数据库 |
-| JWT | - | 身份认证 |
+| JDK | 17（编译 target 1.8 兼容） | 运行环境（验证环境 17） |
+| JWT | - | 身份认证（密钥外部注入） |
 | Lombok | - | 代码简化 |
+| OpenAI Java SDK | - | LLM function calling（ReAct Agent） |
+| SQLite JDBC | - | CRM 只读沙箱（SqlGuard 隔离） |
 
 ### 1.2 项目结构
 ```
@@ -26,7 +29,15 @@ personal-health-api/
 │   │   └── vo/                 # 视图对象
 │   ├── service/                # 业务逻辑接口
 │   │   └── impl/               # 业务逻辑实现
-│   └── utils/                  # 工具类
+│   ├── core/
+│   │   ├── agent/              # Multi-Agent 协调器 + ReAct Agent
+│   │   └── provider/           # LLMProvider 工厂 + 熔断器 + DeepSeek/LocalVllm
+│   ├── crm/
+│   │   ├── config/             # CRM API Key 配置 + 启动强校验
+│   │   ├── controller/         # /crm/** 网关（fail-closed 鉴权）
+│   │   ├── sqlite/             # SqlGuard（SQL 只读护栏 + 租户隔离）
+│   │   └── rag/                # 混合检索 HybridRetriever / ChunkUtil / 向量库
+│   └── utils/                  # 工具类（含 JwtUtil 外部密钥）
 ├── src/main/resources/
 │   ├── mapper/                 # MyBatis XML 映射文件
 │   └── application.yml         # 应用配置
@@ -159,6 +170,37 @@ ApiResult.error("错误信息")
 | POST | /followup/checkin | 任务打卡 | 用户 |
 | GET | /followup/task/{taskId}/records | 获取打卡记录 | 用户 |
 
+### 3.6 AI 智能体模块（v5.1 新增）
+
+#### 3.6.1 用户侧 AI `/ai`
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| POST | /ai/chat | 同步对话 | 用户 |
+| POST | /ai/chat/stream | SSE 流式对话 | 用户 |
+| POST | /ai/keywords/extract | 医学关键词提取 | 用户 |
+| GET | /ai/conversations | 会话列表 | 用户 |
+| GET | /ai/conversations/{id}/messages | 会话消息 | 用户 |
+| POST | /ai/conversations/batchDelete | 删除会话 | 用户 |
+| GET | /ai/health/profile | 健康档案问答 | 用户 |
+| GET | /ai/health/records | 健康记录问答 | 用户 |
+
+#### 3.6.2 多角色 Agent `/agent`
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| GET | /agent/roles | 角色清单 | 用户 |
+| POST | /agent/identify | 意图识别路由 | 用户 |
+| GET | /agent/preferences/{userId} | 偏好读取 | 用户 |
+| POST | /agent/preferences/{userId} | 偏好写入 | 用户 |
+
+#### 3.6.3 CRM 网关 `/crm`（机器对机器，API Key）
+| 方法 | 路径 | 说明 | 权限 |
+|------|------|------|------|
+| GET | /crm/health | 健康检查（唯一免鉴权端点，供容器 healthcheck） | 开放 |
+| POST | /crm/chat | CRM 问诊历史查询/任意 SQL 执行 | API Key（fail-closed） |
+| /crm/vectordb/** | 向量库管理 | API Key |
+
+> `/crm/**` 不走 JWT，统一由 `CrmApiKeyInterceptor` 拦截；密钥未配置时应用**拒绝启动**（fail-closed）。
+
 ## 4. 核心代码说明
 
 ### 4.1 预约挂号（并发安全）
@@ -201,23 +243,65 @@ if (question.getQuestionType() < 3) {
 }
 ```
 
-## 5. 数据库配置
+### 4.4 LLM Provider 工厂 + 熔断器
+```java
+// 按配置名选择 provider，异常率超阈值自动熔断
+LLMProvider provider = LLMProviderFactory.get(providerName);   // deepseek / local / zhikangyun-local
+String reply = CircuitBreaker.withBreaker("llm-" + providerName, () ->
+        provider.chat(messages, temperature));
+```
 
+### 4.5 SQL 只读护栏（SqlGuard）
+```java
+// /crm SQL 执行前强制校验：仅允许 SELECT + 租户隔离，拦截危险语句
+SqlGuard.check(sql, currentUserPhone);
+// 拒绝：DROP / DELETE / UPDATE / INSERT / 多语句 / 注释绕过；
+// 强制注入 WHERE phone = ? 限制数据范围（租户隔离）
+```
+
+### 4.6 混合 RAG 检索
+```java
+// 语义向量召回 + MySQL LIKE 关键词召回，RRF 融合重排
+List<Chunk> hits = hybridRetriever.retrieve(query, topK);
+// KnowledgeIngestionService：ChunkUtil 分块 → EmbeddingService → 写入本地向量库
+```
+
+## 5. 配置与安全要点
+
+### 5.1 数据库配置
 ```yaml
 spring:
   datasource:
     url: jdbc:mysql://localhost:3306/personal_health?characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
     username: root
-    password: 1234
+    password: ${DB_PASSWORD}     # 生产环境通过环境变量注入，勿硬编码
     driver-class-name: com.mysql.cj.jdbc.Driver
 ```
+
+### 5.2 密钥与 AI 配置（必须外部注入）
+```yaml
+jwt:
+  secret: ${JWT_SECRET}          # 环境变量注入，启动强校验（≥32 字节，禁止硬编码兜底）
+  expiration: 604800000          # 7 天
+crm:
+  api-key: ${CRM_API_KEY}        # 未配置则应用拒绝启动（fail-closed）
+ai:
+  provider: ${AI_PROVIDER:deepseek}
+  api-key: ${AI_API_KEY}
+  local-vllm-base: http://localhost:8000/v1   # 本地微调模型（可选）
+```
+
+> 详见 `tech-qa.md` 与根目录 `../README.md` 的「AI 智能体架构」「系统安全」章节。
 
 ## 6. 启动命令
 
 ```bash
 cd 后端/personal-health-api
+export JWT_SECRET="<64位随机字符串>"
+export DB_PASSWORD="<你的密码>"
 mvn spring-boot:run
 ```
 
 默认端口: 21090
 API 基础路径: /api/personal-health/v1.0
+所需 JDK: 17（编译 target 兼容 1.8）

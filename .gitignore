@@ -81,3 +81,5 @@ target/
 # JVM 崩溃转储（ENG-12）
 hs_err_pid*.log
 replay_pid*.log
+# 编译产物备份目录
+target_bak*

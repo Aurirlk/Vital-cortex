@@ -15,12 +15,15 @@
 | 层级  | 技术                                            |
 | --- | --------------------------------------------- |
 | 前端  | Vue 3 + Element Plus + ECharts + Vue Router   |
-| 后端  | Spring Boot 2.7.18 + MyBatis + MySQL + SQLite |
-| AI  | 12 个国内厂商（DeepSeek、通义千问、Kimi、GLM 等）            |
-| 向量库 | 本地文件向量数据库（余弦相似度检索）                            |
-| 认证  | JWT（用户端）+ API Key（管理员端）                       |
+| 后端  | Spring Boot 2.7.18 + MyBatis + MySQL 8 + SQLite（CRM 对话历史） |
+| AI  | 12 个国内厂商（DeepSeek、通义千问、Kimi、GLM 等）+ 本地 vLLM 微调模型（可选） |
+| 向量库 | 本地文件向量数据库（余弦相似度）+ MySQL LIKE，**RRF 混合检索** |
+| 认证  | JWT（用户端，密钥外部注入，7 天有效期）+ CRM API Key（机器接口，fail-closed） |
+| 智能体 | Multi-Agent 协调器 + ReAct Agent（OpenAI function calling + 工具轨迹落库） |
+| RAG | 文章 ingestion 管线（分块→嵌入→入库）+ 向量/MySQL 混合检索 + 真实 RAGAS 评测 + 引用溯源 |
+| 韧性  | LLM Provider 工厂 + 轻量熔断器（429/5xx 重试与快速失败）  |
+| 安全  | SqlGuard 只读 SQL 守卫（词法校验 + 租户隔离）+ DOMPurify XSS 净化 + PII 出境脱敏 |
 | PDF | iText + JFreeChart（健康报告生成）                    |
-| RAG | AI 关键词提取 + MySQL LIKE 搜索 + 向量语义检索             |
 
 ---
 
@@ -109,16 +112,87 @@
 
 ---
 
+## AI 智能体架构（Multi-Agent + ReAct + 混合 RAG）
+
+系统 AI 能力由三层构成，覆盖从意图路由到工具增强推理再到知识检索的完整链路。
+
+### 1. Multi-Agent 协调（AgentCoordinator）
+
+`AgentCoordinator` 作为 Supervisor 中枢，基于**外部化意图词表**将用户问题路由到最合适的专科 Agent：
+
+```
+用户输入 → AgentCoordinator（意图识别）
+   ├── 全科医生 Agent  → 症状分析 + 分诊建议
+   ├── 营养师 Agent    → 饮食规划
+   ├── 心理咨询师 Agent → 情绪疏导
+   ├── 报告分析师 Agent → 体检报告解读
+   ├── 健康助手 Agent   → 通用健康咨询
+   └── 全能助手 (default) → 兜底
+```
+
+> 意图词表已外部化到 `CrmConfig`，便于运维调整而不改代码。
+
+### 2. ReAct Agent（工具增强推理）
+
+对话中通过 **OpenAI function calling**（非正则解析）驱动 ReAct 循环，支持最多 5 轮自主决策，调用 6 个本地工具：
+
+| 工具                 | 数据来源                            | 说明              |
+| ------------------ | ------------------------------- | --------------- |
+| `search_drug`      | `ai_data/drugs.json`            | 药品搜索，返回名称/价格/厂商 |
+| `get_health_data`  | `ai_data/health/user_{id}.json` | 用户健康指标查询        |
+| `search_knowledge` | 向量数据库 + MySQL                   | 知识库语义检索（混合）     |
+| `web_search`       | 博查/Tavily/DuckDuckGo            | 联网搜索最新信息        |
+| `get_chat_history` | SQLite                          | 查询聊天历史          |
+| `execute_sql`      | SQLite（只读 + 租户隔离）               | 只读 SQL 查询       |
+
+每一轮工具调用的**参数、结果、状态**都会随会话落库，支持审计回放（检查点能力已落地）。
+
+### 3. 混合 RAG 检索
+
+文章在发布时经 **ingestion 管线**（分块 `ChunkUtil` → 嵌入 `EmbeddingService` → 入库 `KnowledgeIngestionService`）自动灌入向量库；检索时采用**向量（余弦相似度）+ MySQL LIKE 双路召回，RRF 融合排序**，回答附引用溯源：
+
+```
+文章发布 → 分块 → 嵌入 → 向量库入库（ingestion 自动联动）
+                          ↓
+用户提问 → 向量召回 + MySQL LIKE 召回 → RRF 融合 Top-K
+                          ↓
+              注入 AI 上下文（带引用）→ 基于文章生成回答
+                          ↓
+              RAGAS 评测（真实检索 + LLM 打分：精确度/忠实度/相关性）
+```
+
+> RAG 质量看板（`/admin/ragMonitor`）展示真实 RAGAS 指标，替代了原先的模拟数据。
+
+### 4. LLM Provider 工厂与韧性
+
+通过 `LLMProviderFactory` 在运行时切换厂商，自带轻量熔断器与 429/5xx 重试：
+
+- `DeepSeekProvider` — 云端 DeepSeek
+- `LocalVllmProvider` — 自部署微调模型 `HealthPulse-Qwen2.5-7B`（vLLM，OpenAI 兼容，默认 `:8000`）
+- `CircuitBreaker` — 故障快速失败、半开探测恢复
+
+### 5. 安全加固（本轮完成）
+
+| 项 | 实现 |
+|----|------|
+| 登录令牌 | JWT 密钥**外部注入**，启动强校验（空密钥/弱密钥直接拒绝启动），默认 7 天有效期 |
+| 机器接口 | `/crm/**` 由 `CrmApiKeyInterceptor` 做 API Key 认证，fail-closed |
+| SQL 注入 | `SqlGuard` 只读词法校验 + 关键词黑名单 + 禁子查询 + **租户隔离**（只能查本会话手机号数据） |
+| XSS | AI 输出经 DOMPurify 白名单净化 |
+| 数据出境 | 健康档案发送第三方 AI 前自动**脱敏**（剔除姓名/手机号等 PII） |
+| 成本可观测 | 每次调用 token 用量落库（`ai_usage` 表） |
+| 单元测试 | 25 个用例（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl），`mvn test` 可跑 |
+
+---
+
 ## RAG 知识库检索流程
 
 ```
-用户输入 → AI意图识别 → 提取关键词（AI模型+本地降级）
-                           ↓
-                    MySQL LIKE 搜索（标题优先 + 内容匹配）
-                           ↓
-                    返回 Top6 篇文章（标题匹配优先排序）
-                           ↓
-                    注入 AI 上下文 → 基于文章生成回答
+用户提问 → 向量召回（余弦相似度）+ MySQL LIKE 召回
+                    ↓
+              RRF 融合排序 → Top-K 文章
+                    ↓
+              注入 AI 上下文（带引用溯源）→ 基于文章生成回答
 ```
 
 ---
@@ -224,7 +298,7 @@ AI配置 → MySQL（明文存储，管理员后台管理）
 
 ### 环境要求
 
-- JDK 1.8+
+- JDK 17（推荐；构建与测试均在该版本验证。pom 当前 `source/target=1.8`，但核心模块已用 Java 9+ 语法，实际需 11+ 才能编译）
 - Maven 3.6+
 - Node.js 16+
 - MySQL 5.7+ / 8.x
@@ -440,15 +514,42 @@ npm run dev
 
 ## 注意事项
 
-1. **Java 8 兼容** — 代码不使用 `var`、`Map.of()` 等 Java 9+ 特性
-2. **AI 配置** — 通过管理员后台配置 API Key，保存到 MySQL，重启不丢失
-3. **数据导出** — 药品和健康数据需先调用导出接口，AI 工具才能读取
-4. **敏感文件** — `.gitignore` 已排除 `application.yml`、`ai_data/`、`chat_backup/` 等
-5. **关键词提取** — AI 内置医学 NLP Prompt，非医学查询返回"无"
+1. **运行环境** — 开发与验证环境为 **JDK 17**（Spring Boot 2.7.18 支持 Java 8–21）。注意：`pom.xml` 当前 `source/target` 仍为 `1.8`，但部分核心模块（graph / rag 评测）已使用 `var`、`Map.of()` 等 Java 9+ 语法，建议将 `source/target` 升至 `17` 以获得一致构建。
+2. **密钥必须外部注入** — `JWT_SECRET`、`CRM_API_KEY`、`EMBEDDING_API_URL` 等缺失或强度不足时后端**拒绝启动**，请勿使用硬编码密钥。
+3. **AI 配置** — 通过管理员后台配置 API Key，持久化到 MySQL，重启不丢失（生产建议信封加密）。
+4. **数据导出** — 药品和健康数据需先调用导出接口，AI 工具才能读取。
+5. **敏感文件** — `.gitignore` 已排除 `application.yml`、`ai_data/`、`chat_backup/`、`dir/`（模型权重）等。
+6. **合规提醒** — 平台涉及敏感健康信息，商用前建议完成等保三级测评与个人信息保护影响评估。详见 `DELIVERY.md`。
 
 ---
 
 ## 更新日志
+
+### v5.1 (2026-07-31) — 架构级改进与加固
+
+**AI 智能体**
+- ✅ Multi-Agent 协调器（`AgentCoordinator`）意图词表外部化，6 专科角色路由
+- ✅ ReAct Agent 改为 OpenAI function calling 驱动，工具调用轨迹落库（检查点/审计）
+- ✅ LLM Provider 工厂 + 熔断器（`DeepSeekProvider` / `LocalVllmProvider` / `CircuitBreaker`），429/5xx 重试与快速失败
+- ✅ 本地微调模型 `HealthPulse-Qwen2.5-7B`（vLLM :8000，OpenAI 兼容）可一键切换
+
+**RAG**
+- ✅ 文章 ingestion 管线（分块→嵌入→入库），发布自动联动灌数
+- ✅ 向量（余弦）+ MySQL LIKE 双路召回，RRF 融合，回答带引用溯源
+- ✅ 真实 RAGAS 评测管线（精确度/忠实度/相关性），替代原模拟数据
+
+**安全**
+- ✅ JWT 密钥外部注入 + 启动强校验（空/弱密钥拒绝启动），7 天有效期
+- ✅ CRM 接口 API Key 认证（`CrmApiKeyInterceptor`，fail-closed）
+- ✅ `SqlGuard` 只读 SQL 守卫 + 租户隔离（仅查本会话数据）
+- ✅ AI 输出 DOMPurify 净化、出境前 PII 脱敏、token 用量落库（`ai_usage`）
+
+**工程**
+- ✅ 25 个单元测试（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl）通过
+- ✅ Docker 镜像去默认密码、非 root 运行、healthcheck；CI 去 `continue-on-error`
+- ✅ 后端 `pom.xml` 编码属性修正、测试依赖补全；规范化损坏换行符
+
+> 完整交付与后续规划见根目录 `DELIVERY.md`。
 
 ### v4.1 (2026-06-03)
 

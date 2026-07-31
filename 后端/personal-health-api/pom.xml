@@ -30,6 +30,13 @@
 
     <!--依赖-->
     <dependencies>
+        <!-- 测试依赖（JUnit 5 + Mockito）：此前缺失，导致既有测试类从未编译运行 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>

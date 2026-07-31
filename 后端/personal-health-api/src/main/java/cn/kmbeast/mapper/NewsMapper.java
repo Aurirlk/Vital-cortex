@@ -31,4 +31,9 @@ public interface NewsMapper {
      */
     List<NewsVO> ragSearch(@Param("keywords") List<String> keywords, @Param("limit") int limit);
 
+    /**
+     * RAG ingestion — 全量文章（用于向量库灌数，RAG-04）
+     */
+    List<NewsVO> selectAllForRag();
+
 }

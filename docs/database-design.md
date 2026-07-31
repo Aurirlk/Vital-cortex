@@ -68,6 +68,17 @@ followup_task (随访任务)
   └── followup_record (打卡记录)
 ```
 
+### 2.7 AI 与智能体模块
+```
+ai_usage (AI token 用量记录)
+  └── user (用户ID 关联，可为空)
+
+crm_sqlite (CRM 只读沙箱，SQLite 文件，非 MySQL)
+  └── 由 SqlGuard 强制约束：仅 SELECT + 租户隔离，禁止写操作
+```
+> 说明：AI 相关的向量召回数据（本地向量库）以 JSON 文件持久化在后端数据目录，**不落 MySQL**；
+> CRM 网关的 SQL 执行走独立的 SQLite 沙箱库，与主业务 MySQL 隔离。
+
 ## 3. 表结构详细设计
 
 ### 3.1 核心业务表
@@ -288,6 +299,22 @@ followup_task (随访任务)
 | status | TINYINT(1) | 状态(0:待完成,1:进行中,2:已完成,3:已逾期) |
 | create_time | DATETIME | 创建时间 |
 
+### 3.7 AI 与智能体表
+
+#### ai_usage (AI Token 用量记录表)
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT, PK, AUTO_INCREMENT | 主键 |
+| user_id | INT | 用户ID（可为空，非登录态调用） |
+| scene | VARCHAR(50) | 场景：chat/stream/keyword/websearch/rag_eval |
+| model | VARCHAR(100) | 模型名 |
+| prompt_tokens | INT | 输入 token 数 |
+| completion_tokens | INT | 输出 token 数 |
+| total_tokens | INT | 总 token 数 |
+| create_time | DATETIME | 创建时间 |
+
+> 初始化脚本：`Data/sql/ai_usage_schema.sql`
+
 ## 4. 索引设计
 
 ### 4.1 主键索引
@@ -330,3 +357,10 @@ source Data/sql/extra_modules_schema.sql;
 - 默认标签: 饮食健康、运动健身、心理健康、疾病预防、养生保健
 - 默认科室: 内科、外科、儿科、妇产科、眼科、耳鼻喉科、皮肤科、中医科、骨科、神经内科
 - 默认商品分类: 药品、医疗器械、保健品、健康食品、健身器材
+
+### 5.4 AI 模块初始化
+```sql
+-- AI token 用量表（v5.1 新增）
+source Data/sql/ai_usage_schema.sql;
+```
+> 向量库与 SQLite 沙箱为文件型存储，无需 SQL 初始化；首次启动由后端自动建库。

@@ -59,13 +59,17 @@ public final class SqlGuard {
         if (SEMICOLON.matcher(sql).find()) {
             throw new IllegalArgumentException("only a single read-only query is allowed; multi-statement is forbidden");
         }
-        String stripped = COMMENT.matcher(sql).replaceAll(" ");
-        String upper = stripped.toUpperCase();
+        // Fix: strip comments WITHOUT leaving a space, otherwise DR/**/OP becomes "DR OP"
+        // and the DROP keyword check is bypassed while SQLite still parses it as DROP.
+        String stripped = COMMENT.matcher(sql).replaceAll("");
+        // Fix: mask string literals BEFORE keyword checks, so LIKE '%update%' is not a false positive.
+        String masked = STRING_LITERAL.matcher(stripped).replaceAll("''");
+        String upper = masked.toUpperCase();
         if (!upper.startsWith("SELECT") && !upper.startsWith("WITH")) {
             throw new IllegalArgumentException("read-only SELECT queries only");
         }
         for (String kw : BLOCKED_KEYWORDS) {
-            if (containsKeyword(stripped, kw)) {
+            if (containsKeyword(masked, kw)) {
                 throw new IllegalArgumentException("forbidden keyword: " + kw.toLowerCase());
             }
         }
@@ -127,19 +131,21 @@ public final class SqlGuard {
     }
 
     /**
-     * Roughly detect subqueries: count paren depth after masking string literals -
-     * depth beyond 1 (e.g. {@code WHERE id IN (SELECT ...)}) is rejected.
+     * Detect subqueries: after masking string literals, a query that contains more than one
+     * SELECT / WITH keyword is considered to contain a nested query and is rejected.
+     * (WITH-CTE single statements are allowed by the leading-keyword check but a second
+     * SELECT inside them is still a subquery - reject.)
      */
     private static boolean isSingleStatement(String maskedSql) {
-        int depth = 0;
-        for (char c : maskedSql.toCharArray()) {
-            if (c == '(') {
-                depth++;
-                if (depth > 1) {
+        Matcher m = WORD.matcher(maskedSql);
+        int selectCount = 0;
+        while (m.find()) {
+            String word = m.group().toUpperCase();
+            if ("SELECT".equals(word) || "WITH".equals(word)) {
+                selectCount++;
+                if (selectCount > 1) {
                     return false;
                 }
-            } else if (c == ')') {
-                depth--;
             }
         }
         return true;

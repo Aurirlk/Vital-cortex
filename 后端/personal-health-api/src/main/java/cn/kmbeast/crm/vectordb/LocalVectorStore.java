@@ -17,6 +17,16 @@ public interface LocalVectorStore {
 
     void delete(String collectionName, int id);
 
+    /**
+     * 按元数据键值删除匹配的向量（RAG-19：文章删除时联动清理向量库）。
+     *
+     * @param collectionName 集合名
+     * @param metadataKey    元数据键（如 article_id）
+     * @param metadataValue  匹配值（String 形式比较）
+     * @return 删除的向量条数
+     */
+    int deleteByMetadata(String collectionName, String metadataKey, Object metadataValue);
+
     void deleteCollection(String collectionName);
 
     Map<String, Object> getStats();

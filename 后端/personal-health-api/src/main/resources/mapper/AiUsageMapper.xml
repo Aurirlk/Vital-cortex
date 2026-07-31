@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.AiUsageMapper">
+
+    <insert id="insert" parameterType="cn.kmbeast.pojo.entity.AiUsage" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_usage (user_id, scene, model, prompt_tokens, completion_tokens, total_tokens, create_time)
+        VALUES (#{userId}, #{scene}, #{model}, #{promptTokens}, #{completionTokens}, #{totalTokens}, NOW())
+    </insert>
+
+</mapper>

@@ -91,6 +91,11 @@ public class SeaChatWorkflow {
 
             Map<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("tools_used", toolsUsed);
+            // AG-05：工具调用轨迹（含参数与结果状态）落库，供审计与恢复
+            if (reActResponse != null && reActResponse.getToolDetails() != null
+                    && !reActResponse.getToolDetails().isEmpty()) {
+                metadata.put("tool_details", reActResponse.getToolDetails());
+            }
             metadata.put("session_id", sessionId);
             if (!chatHistoryService.saveMessage(phoneNumber, sessionId, "assistant", aiReply, null, metadata)) {
                 log.warn("[CRM] AI回答保存失败: phone={}", phoneNumber);
