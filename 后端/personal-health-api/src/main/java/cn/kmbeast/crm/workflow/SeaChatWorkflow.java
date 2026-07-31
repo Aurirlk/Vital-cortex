@@ -60,8 +60,10 @@ public class SeaChatWorkflow {
             sessionId = UUID.randomUUID().toString();
         }
 
-        chatHistoryService.saveMessage(phoneNumber, sessionId, "user", query, null, null);
-
+        // AG-10：保存失败不再静默，记录告警（不阻塞主流程）
+        if (!chatHistoryService.saveMessage(phoneNumber, sessionId, "user", query, null, null)) {
+            log.warn("[CRM] 用户消息保存失败: phone={}", phoneNumber);
+        }
         Integer userId = resolveUserId(phoneNumber);
 
         try {
@@ -90,7 +92,9 @@ public class SeaChatWorkflow {
             Map<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("tools_used", toolsUsed);
             metadata.put("session_id", sessionId);
-            chatHistoryService.saveMessage(phoneNumber, sessionId, "assistant", aiReply, null, metadata);
+            if (!chatHistoryService.saveMessage(phoneNumber, sessionId, "assistant", aiReply, null, metadata)) {
+                log.warn("[CRM] AI回答保存失败: phone={}", phoneNumber);
+            }
 
             return CrmChatResponse.builder()
                     .reply(aiReply)

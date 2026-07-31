@@ -104,6 +104,7 @@
 
 <script>
 import { getToken } from "@/utils/storage.js";
+import { URL_API } from "@/utils/request.js";
 import { marked } from "marked";
 
 marked.setOptions({ breaks: true, gfm: true });
@@ -149,7 +150,7 @@ export default {
         const token = getToken();
         const headers = { "Content-Type": "application/json" };
         if (token) headers["token"] = token;
-        const res = await fetch("http://localhost:21090/api/personal-health/v1.0/ai/chat", {
+        const res = await fetch(URL_API + "/ai/chat", {
           method: "POST", headers,
           body: JSON.stringify({ message: this.symptomInput, role: "doctor", enableWebSearch: true, enableKnowledgeBase: false, enableHealthData: false }),
         });
@@ -176,7 +177,7 @@ export default {
         const token = getToken();
         const headers = { "Content-Type": "application/json" };
         if (token) headers["token"] = token;
-        const res = await fetch("http://localhost:21090/api/personal-health/v1.0/ai/chat", {
+        const res = await fetch(URL_API + "/ai/chat", {
           method: "POST", headers,
           body: JSON.stringify({ message: "" + this.drugInput, role: "consultant", enableWebSearch: false, enableKnowledgeBase: false, enableHealthData: false }),
         });
@@ -200,7 +201,7 @@ export default {
         // 
         let keywords = null;
         try {
-          const kwRes = await fetch("http://localhost:21090/api/personal-health/v1.0/ai/keywords/extract", {
+          const kwRes = await fetch(URL_API + "/ai/keywords/extract", {
             method: "POST", headers,
             body: JSON.stringify({ message: this.knowledgeInput }),
           });
@@ -208,7 +209,7 @@ export default {
           if (kwData.code === 200 && kwData.data) keywords = kwData.data;
         } catch (e) {}
         // AI
-        const res = await fetch("http://localhost:21090/api/personal-health/v1.0/ai/chat", {
+        const res = await fetch(URL_API + "/ai/chat", {
           method: "POST", headers,
           body: JSON.stringify({ message: this.knowledgeInput, role: "general_assistant", enableKnowledgeBase: true, enableHealthData: false, keywords }),
         });

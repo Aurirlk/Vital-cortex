@@ -87,7 +87,9 @@ public class CrmChatController {
             sessionId = UUID.randomUUID().toString();
         }
 
-        chatHistoryService.saveMessage(phoneNumber, sessionId, "user", query, null, null);
+        if (!chatHistoryService.saveMessage(phoneNumber, sessionId, "user", query, null, null)) {
+            log.warn("[CRM] 用户消息保存失败: phone={}", phoneNumber);
+        }
 
         Integer userId = null;
         try {
@@ -131,8 +133,10 @@ public class CrmChatController {
             if (answerCollector.length() > 0) {
                 Map<String, Object> metadata = new LinkedHashMap<>();
                 metadata.put("session_id", sessionId);
-                chatHistoryService.saveMessage(phoneNumber, sessionId, "assistant",
-                        answerCollector.toString(), null, metadata);
+                if (!chatHistoryService.saveMessage(phoneNumber, sessionId, "assistant",
+                        answerCollector.toString(), null, metadata)) {
+                    log.warn("[CRM] AI回答保存失败: phone={}", phoneNumber);
+                }
             }
 
             writer.close();

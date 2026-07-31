@@ -12,6 +12,12 @@ import java.util.Map;
  */
 @Slf4j
 @Component
+/**
+ * @deprecated RAG-12: dead code - zero references in the codebase, not wired into business.
+ * Do not present this as existing RAG capability in reviews. Decide to activate or delete
+ * when the ingestion pipeline lands. Confirm zero references before deleting.
+ */
+@Deprecated
 public class RAGManager {
 
     /**

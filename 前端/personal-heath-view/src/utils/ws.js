@@ -1,4 +1,5 @@
 import { getToken } from './storage'
+import { URL_API } from './request'
 
 /**
  * WebSocket 
@@ -18,7 +19,10 @@ export function connectWs() {
   const token = getToken()
   if (!token) return
 
-  const wsUrl = `ws://localhost:21091/ws/notification/${token}`
+  // ENG-07 整改：从 URL_API 推导 WS 地址，支持 VUE_APP_WS_BASE 覆盖。
+  // 原硬编码 ws://localhost:21091 在生产环境（https 域名 + 反代）必然失败。
+  const wsBase = process.env.VUE_APP_WS_BASE || deriveWsBase()
+  const wsUrl = `${wsBase}/ws/notification/${token}`
   ws = new WebSocket(wsUrl)
 
   ws.onopen = () => {
@@ -111,4 +115,22 @@ function scheduleReconnect() {
     console.log('[WebSocket] ...')
     connectWs()
   }, 5000)
+}
+
+/**
+ * 从 URL_API（http(s)://host:port/api/...）推导 WebSocket 基础地址。
+ * 端口规则：http→ws、https→wss，端口默认 80/443 时省略。
+ * 后端 WebSocket 端点固定部署在 21091 端口时，请用 VUE_APP_WS_BASE 显式指定。
+ */
+function deriveWsBase() {
+  try {
+    const url = new URL(URL_API)
+    const isHttps = url.protocol === 'https:'
+    const scheme = isHttps ? 'wss' : 'ws'
+    // 端口取 URL_API 的端口（与 HTTP 同域反代场景下 WS 走同一端口反代规则）
+    const port = url.port ? `:${url.port}` : ''
+    return `${scheme}://${url.hostname}${port}`
+  } catch (e) {
+    return 'ws://localhost:21091'
+  }
 }

@@ -14,9 +14,8 @@ import request from '@/utils/request'
 
 export function useApi() {
   const api = request
-  const uploadUrl =
-    (process.env.VUE_APP_API_BASE ||
-      'http://localhost:21090/api/personal-health/v1.0') + '/file/upload'
+  // ENG-07 整改：不再重复拼 localhost，直接复用 request.js 的 URL_API（env 可配置）
+  const uploadUrl = request.defaults.baseURL + '/file/upload'
 
   return { api, uploadUrl }
 }

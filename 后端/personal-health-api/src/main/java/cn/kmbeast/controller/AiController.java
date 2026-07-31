@@ -99,19 +99,41 @@ public class AiController {
         Integer userId = LocalThreadHolder.getUserId();
         log.info("[AI Controller] 用户ID: {}", userId);
 
+        PrintWriter writer = null;
         try {
-            PrintWriter writer = response.getWriter();
+            writer = response.getWriter();
+            // lambda 只能引用 effectively-final 变量，取副本供回调使用
+            final PrintWriter w = writer;
 
             AiService.StreamCallback callback = (eventName, jsonData) -> {
-                writer.write("event: " + eventName + "\n");
-                writer.write("data: " + jsonData + "\n\n");
-                writer.flush();
+                // SEC-10：客户端断开检测——write/checkError 任一失败立即中断流式输出，
+                // 避免长连接堆积耗尽 Tomcat 线程。
+                if (w.checkError()) {
+                    throw new RuntimeException("SSE client disconnected");
+                }
+                w.write("event: " + eventName + "\n");
+                w.write("data: " + jsonData + "\n\n");
+                w.flush();
             };
 
             aiService.chatStream(chatRequest, userId, callback);
-            writer.close();
+        } catch (RuntimeException e) {
+            if (e.getMessage() != null && e.getMessage().contains("SSE client disconnected")) {
+                log.info("[AI Controller] 客户端断开连接: userId={}", userId);
+            } else {
+                log.error("AI流式响应异常", e);
+            }
         } catch (IOException e) {
             log.error("AI流式响应异常", e);
+        } finally {
+            // SEC-10 整改：writer 关闭移入 finally，异常路径也会释放
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (Exception ignored) {
+                    // 客户端已断开时 close 可能抛异常，忽略即可
+                }
+            }
         }
     }
 

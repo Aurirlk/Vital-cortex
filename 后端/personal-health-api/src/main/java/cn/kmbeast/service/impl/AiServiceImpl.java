@@ -366,36 +366,40 @@ public class AiServiceImpl implements AiService {
                     return;
                 }
 
-                BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8));
-                String line;
-                int chunkCount = 0;
+                // SEC-10 整改：BufferedReader 用 try-with-resources，
+                // 原实现手动 reader.close() 不在 finally，readLine 抛异常时流不关闭
+                //（虽然 Response 关闭会兜底，但显式管理更可靠）。
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(response.body().byteStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    int chunkCount = 0;
 
-                while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("data: ")) {
-                        String json = line.substring(6);
-                        if ("[DONE]".equals(json)) break;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.startsWith("data: ")) {
+                            String json = line.substring(6);
+                            if ("[DONE]".equals(json)) break;
 
-                        JSONObject chunk = JSON.parseObject(json);
-                        JSONArray choices = chunk.getJSONArray("choices");
-                        if (choices != null && !choices.isEmpty()) {
-                            JSONObject delta = choices.getJSONObject(0).getJSONObject("delta");
-                            if (delta.containsKey("content")) {
-                                String content = delta.getString("content");
-                                if (content != null && !content.isEmpty()) {
-                                    fullReply.append(content);
-                                    chunkCount++;
-                                    callback.onEvent("answer_chunk", JSON.toJSONString(
-                                            buildMap("content", content, "done", false)));
+                            JSONObject chunk = JSON.parseObject(json);
+                            JSONArray choices = chunk.getJSONArray("choices");
+                            if (choices != null && !choices.isEmpty()) {
+                                JSONObject delta = choices.getJSONObject(0).getJSONObject("delta");
+                                if (delta.containsKey("content")) {
+                                    String content = delta.getString("content");
+                                    if (content != null && !content.isEmpty()) {
+                                        fullReply.append(content);
+                                        chunkCount++;
+                                        callback.onEvent("answer_chunk", JSON.toJSONString(
+                                                buildMap("content", content, "done", false)));
+                                    }
                                 }
+                                String finishReason = choices.getJSONObject(0).getString("finish_reason");
+                                if ("stop".equals(finishReason)) break;
                             }
-                            String finishReason = choices.getJSONObject(0).getString("finish_reason");
-                            if ("stop".equals(finishReason)) break;
                         }
                     }
+                    log.info("[AI] 流式响应完成: agentType={}, chunkCount={}, replyLength={}",
+                            agentType, chunkCount, fullReply.length());
                 }
-                reader.close();
-                log.info("[AI] 流式响应完成: agentType={}, chunkCount={}, replyLength={}", agentType, chunkCount, fullReply.length());
             }
 
             AiChatRecord aiRecord = AiChatRecord.builder()
@@ -415,6 +419,12 @@ public class AiServiceImpl implements AiService {
             callback.onEvent("answer_done", JSON.toJSONString(doneData));
 
         } catch (Exception e) {
+            // SEC-10：客户端断开导致的异常不回调 error（回调本身已不可用），
+            // 避免在 catch 块里二次抛异常逃逸到容器。
+            if (e.getMessage() != null && e.getMessage().contains("SSE client disconnected")) {
+                log.info("[AI] 客户端断开连接，终止流式输出: userId={}", userId);
+                return;
+            }
             log.error("AI流式聊天异常", e);
             callback.onEvent("error", JSON.toJSONString(
                     buildMap("message", "AI服务异常: " + e.getMessage())));
@@ -531,8 +541,6 @@ public class AiServiceImpl implements AiService {
 
             if (articles == null || articles.isEmpty()) return "";
 
-            if (articles == null || articles.isEmpty()) return "";
-
             StringBuilder context = new StringBuilder();
             context.append("\n\n【相关知识库文章参考（RAG）】\n");
             context.append("以下是从本站知识库检索到的相关文章，请严格基于以下文章内容回答用户：\n\n");
@@ -547,9 +555,11 @@ public class AiServiceImpl implements AiService {
 
                 String content = article.getContent();
                 if (content != null) {
-                    String summary = content.length() > RAG_CONTENT_MAX_LENGTH
-                            ? content.substring(0, RAG_CONTENT_MAX_LENGTH) + "..."
-                            : content;
+                    // RAG-11 整改：原实现 substring(0,300) 硬截断，
+                    // 可能从句子中间切断，且正文中与问题相关的部分若在
+                    // 300 字之后则永远不可召回。改为按句子分块、优先
+                    // 保留含关键词的片段，兼顾相关性与长度控制。
+                    String summary = extractRelevantChunk(content, keywordList, RAG_CONTENT_MAX_LENGTH);
                     context.append("文章内容: ").append(summary).append("\n\n");
                 }
             }
@@ -773,6 +783,60 @@ public class AiServiceImpl implements AiService {
             }
             throw new IOException("AI服务返回为空");
         }
+    }
+
+    /**
+     * RAG-11：按句子分块提取与关键词相关的片段，替代整文硬截断。
+     * 优先拼接含关键词的句子；不足上限时补相邻句子；仍不足则回退开头截断。
+     */
+    private String extractRelevantChunk(String content, List<String> keywords, int maxLen) {
+        if (content == null || content.isEmpty()) return "";
+        if (content.length() <= maxLen) return content;
+
+        // 按中文句子分隔符切分（保留分隔符，避免截断半句）
+        List<String> sentences = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        for (char c : content.toCharArray()) {
+            current.append(c);
+            if (c == '。' || c == '！' || c == '？' || c == '；' || c == '\n') {
+                sentences.add(current.toString());
+                current.setLength(0);
+            }
+        }
+        if (current.length() > 0) sentences.add(current.toString());
+        if (sentences.isEmpty()) {
+            return content.substring(0, Math.min(maxLen, content.length())) + "...";
+        }
+
+        // 命中关键词的句子优先
+        List<String> hit = new ArrayList<>();
+        List<String> miss = new ArrayList<>();
+        for (String s : sentences) {
+            boolean matched = false;
+            if (keywords != null) {
+                for (String kw : keywords) {
+                    if (kw != null && kw.trim().length() >= 2 && s.contains(kw.trim())) {
+                        matched = true;
+                        break;
+                    }
+                }
+            }
+            (matched ? hit : miss).add(s);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (String s : hit) {
+            if (sb.length() + s.length() > maxLen) break;
+            sb.append(s);
+        }
+        for (String s : miss) {
+            if (sb.length() + s.length() > maxLen) break;
+            sb.append(s);
+        }
+        if (sb.length() > 0) {
+            return sb.length() >= content.length() ? sb.toString() : sb + "...";
+        }
+        return content.substring(0, Math.min(maxLen, content.length())) + "...";
     }
 
     private Map<String, Object> buildMap(Object... keyValues) {

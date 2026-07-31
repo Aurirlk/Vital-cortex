@@ -99,6 +99,7 @@
 
 <script>
 import { getToken } from "@/utils/storage.js";
+import { URL_API } from "@/utils/request.js";
 
 export default {
   name: "CustomerServiceBall",
@@ -138,7 +139,7 @@ export default {
       try {
         const token = getToken();
         const response = await fetch(
-          "http://localhost:21090/api/personal-health/v1.0/user/chat/stream",
+          URL_API + "/user/chat/stream",
           {
             method: "POST",
             headers: {

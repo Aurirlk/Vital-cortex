@@ -388,6 +388,7 @@
 </template>
 <script>
 import { getToken } from "@/utils/storage.js";
+import { URL_API } from "@/utils/request.js";
 import { marked } from "marked";
 
 //  marked
@@ -430,7 +431,7 @@ export default {
       audioChunks: [],
       voiceCancelled: false,
       // 
-      uploadUrl: "http://localhost:21090/api/personal-health/v1.0/file/upload",
+      uploadUrl: URL_API + "/file/upload",
       uploadHeaders: {},
       // 
       genMode: "balanced",
@@ -830,8 +831,8 @@ export default {
 
         // 
         const apiUrl = this.enableStream
-          ? "http://localhost:21090/api/personal-health/v1.0/ai/chat/stream"
-          : "http://localhost:21090/api/personal-health/v1.0/ai/chat";
+          ? URL_API + "/ai/chat/stream"
+          : URL_API + "/ai/chat";
 
         if (this.enableStream) {
           // 
@@ -1004,7 +1005,7 @@ export default {
           },
         };
 
-        const response = await fetch("http://localhost:21090/api/personal-health/v1.0/ai/chat/stream", {
+        const response = await fetch(URL_API + "/ai/chat/stream", {
           method: "POST",
           headers: headers,
           body: JSON.stringify(requestBody),

@@ -92,6 +92,7 @@
 
 <script>
 import { getToken } from "@/utils/storage.js";
+import { URL_API } from "@/utils/request.js";
 import { marked } from "marked";
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -214,14 +215,14 @@ export default {
           // Dify
           if (intent === "knowledge") {
             try {
-              const kwRes = await fetch("http://localhost:21090/api/personal-health/v1.0/ai/keywords/extract", {
+              const kwRes = await fetch(URL_API + "/ai/keywords/extract", {
                 method: "POST", headers, body: JSON.stringify({ message: msg }),
               });
               const kwData = await kwRes.json();
               if (kwData.code === 200 && kwData.data?.length > 0) body.keywords = kwData.data;
             } catch (e) { console.warn("Dify:", e); }
           }
-          const res = await fetch("http://localhost:21090/api/personal-health/v1.0/ai/chat", {
+          const res = await fetch(URL_API + "/ai/chat", {
             method: "POST", headers, body: JSON.stringify(body),
           });
           const data = await res.json();

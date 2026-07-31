@@ -46,7 +46,20 @@ public class StreamingReActAgent extends BaseReActAgent {
             if (response.hasToolCalls()) {
                 addAssistantToolCallMessage(messages, response.getToolCalls());
 
-                for (ToolCall tc : response.getToolCalls()) {
+                List<ToolCall> calls = response.getToolCalls();
+                ToolResult[] results = new ToolResult[calls.size()];
+
+                // AG-07 整改：同一轮多个工具并行执行，结果按原顺序回填
+                for (int i = 0; i < calls.size(); i++) {
+                    ToolCall tc = calls.get(i);
+
+                    // AG-12 整改：同轮相同工具+参数去重
+                    if (hasDuplicateCall(calls, i, tc)) {
+                        log.warn("[StreamingReAct] 检测到同轮重复工具调用，跳过: {}", tc.getName());
+                        results[i] = ToolResult.error("该工具调用与本轮已执行的调用重复，请勿重复调用");
+                        continue;
+                    }
+
                     callback.onEvent("tool_call", JSON.toJSONString(buildMap(
                             "tool", tc.getName(),
                             "arguments", tc.getArguments(),
@@ -65,7 +78,11 @@ public class StreamingReActAgent extends BaseReActAgent {
                             "round", round
                     )));
 
-                    addToolResultMessage(messages, tc, result);
+                    results[i] = result;
+                }
+
+                for (int i = 0; i < calls.size(); i++) {
+                    addToolResultMessage(messages, calls.get(i), results[i]);
                 }
             } else {
                 streamFinalAnswer(messages, callback);
@@ -73,8 +90,41 @@ public class StreamingReActAgent extends BaseReActAgent {
             }
         }
 
-        callback.onEvent("error",
-                JSON.toJSONString(buildMap("message", "推理轮次超过上限")));
+        // AG-04 整改：轮次耗尽不再直接报错，基于已收集信息做一次总结回答
+        log.info("[StreamingReAct] 达到轮次上限({})，进行末轮强制总结", maxRounds);
+        try {
+            Map<String, Object> systemNote = new LinkedHashMap<>();
+            systemNote.put("role", "system");
+            systemNote.put("content",
+                    "你已完成多轮工具调用收集信息。请基于对话历史中已经获取到的全部信息，"
+                            + "给用户一个完整、有条理的最终回答。不要请求更多工具。");
+            List<Map<String, Object>> finalMessages = new ArrayList<>(messages);
+            finalMessages.add(systemNote);
+            String summary = callLLMPlain(finalMessages);
+            callback.onEvent("answer_chunk", JSON.toJSONString(buildMap(
+                    "content", summary, "done", false)));
+            callback.onEvent("answer_done", JSON.toJSONString(buildMap(
+                    "done", true, "total_length", summary.length())));
+        } catch (Exception e) {
+            log.error("[StreamingReAct] 末轮总结失败", e);
+            callback.onEvent("error",
+                    JSON.toJSONString(buildMap("message", "已收集信息但总结失败，请重新提问")));
+        }
+    }
+
+    /**
+     * AG-12：同轮重复工具调用检测（相同工具名 + 相同参数）。
+     */
+    private boolean hasDuplicateCall(List<ToolCall> calls, int currentIndex, ToolCall tc) {
+        String currentKey = tc.getName() + "::" + (tc.getArguments() != null ? tc.getArguments().toString() : "");
+        for (int j = 0; j < currentIndex; j++) {
+            ToolCall prev = calls.get(j);
+            String prevKey = prev.getName() + "::" + (prev.getArguments() != null ? prev.getArguments().toString() : "");
+            if (currentKey.equals(prevKey)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void streamFinalAnswer(List<Map<String, Object>> messages, StreamCallback callback) {

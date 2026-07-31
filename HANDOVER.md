@@ -25,7 +25,7 @@
 10. [关键文件索引](#10-关键文件索引)
 11. [**企业级代码审查报告（2026-07-31）**](#11-企业级代码审查报告2026-07-31) ⚠️ **含 13 项 P0 级问题，优先阅读**
 12. [**多模态子系统专项审查（TTS/ASR/图片/文件）**](#12-多模态子系统专项审查ttsasr图片文件) ⚠️ **含 6 项 P0 级问题**
-13. [**修复记录（2026-07-31）**](#13-修复记录2026-07-31) ✅ **全部 P0（19 项）已完成**，状态与遗留事项见本章
+13. [**修复记录（2026-07-31）**](#13-修复记录2026-07-31) ✅ **P0（19 项）+ P1（11 项）已完成**，状态与遗留事项见本章
 
 ---
 
@@ -1022,13 +1022,39 @@ public class TTSFactory {
 
 ### 13.6 遗留事项（接手人必读）
 
-1. **`git rm --cached dir/` 未执行**（涉及约 30GB 历史对象，需你确认后手动操作；`.gitignore` 已就位，新 clone 不会带入）。
+1. **`dir/` 已解除 Git 跟踪（2026-07-31 执行）**：`git rm -r --cached dir/` 完成，文件保留在磁盘，`.gitignore` 已排除。**但推送需你本机执行**：GitHub 认证不在本会话环境内，请在终端运行 `git push origin main`（远端当前无 dir/ 历史，push 不会携带模型文件）。
 2. **JWT/CRM 密钥已改环境变量注入，上线前必须设置**：`JWT_SECRET`（≥32字节随机）、`CRM_API_KEY`（≥24字符）、`EMBEDDING_API_URL`（可用 embeddings 服务）。本地开发示例已写入被 gitignore 的 `application-local.yml`。
 3. **AI API Key 明文存储（SEC-05）未修**：密钥从配置注入，但 `ai_config` 表若存明文仍需加密改造——属于数据库改造，未纳入本轮。
 4. **MM-05 遗留**：`/file/getFile` 仍匿名可访问（`<img src>` 无法带 token 头），靠 122 位随机文件名兜底；彻底方案是带签名时效 URL，需前端配合。
 5. **语音后端未实现**：本轮把前端降级为浏览器 Web Speech API，`core/voice/` 空壳保留；若需服务端 ASR/TTS（如医疗级识别、电话通道），按 12.5 落地。
 6. **测试仍未补齐**：后端无有效测试类（CI 的 `mvn test` 实际空跑），RAG 守卫、租户隔离、JWT 校验等关键路径建议优先补单测。
 7. 修复过程中发现并处理了两处审查时未覆盖的问题：WebSocket 全用户共用 SESSION key（串消息）、pom 编码属性笔误导致全量编译失败。
+
+### 13.7 P1 修复记录（2026-07-31 追加）
+
+> 本轮修复以「改动小、收益高、可编译验证」为筛选标准，完成 11 项 P1；架构级改造
+> （Spring Boot 3 升级、RAG ingestion 管线、God Class 拆分等）维持原计划不在此列。
+> 后端 `mvn compile` BUILD SUCCESS，前端 8 个改动文件语法校验通过。
+
+| 编号 | 修复内容 | 关键文件 |
+|------|----------|----------|
+| AG-04 | 轮次耗尽不再丢弃工具结果：末轮调用一次无工具 LLM（`callLLMPlain`）基于已收集上下文强制总结 | `ReActAgent.java`<br>`StreamingReActAgent.java`<br>`BaseReActAgent.java` |
+| AG-06 | 工具线程池 `newCachedThreadPool`（无界）改有界池（2/8/16 + AbortPolicy）；`future.get` 超时后 `cancel(true)` 中断慢工具 | `BaseReActAgent.java` |
+| AG-07 | 同一轮多个 tool_calls 并行执行（`CountDownLatch` 收口），结果按原顺序回填保证 tool_call_id 对应 | `ReActAgent.java` |
+| AG-08 | LLM 调用对 429/5xx 指数退避重试（3 次，400ms→5s 封顶）；JSON/参数错误不重试直接抛 | `BaseReActAgent.java` |
+| AG-10 | `saveMessage` 返回 boolean，失败不再静默——调用方（Controller/Workflow）记录告警日志 | `SqliteChatHistoryService.java`<br>`CrmChatController.java`<br>`SeaChatWorkflow.java` |
+| AG-12 | 同轮相同工具+相同参数去重：重复调用直接标记失败，防止模型原地打转烧 token | `ReActAgent.java`<br>`StreamingReActAgent.java` |
+| AG-13 | System Prompt 错别字修正："体重管理员"→"体重管理"、"压力管理员"→"压力管理" | `BaseReActAgent.java` |
+| SEC-10 | SSE 资源释放：`BufferedReader` 改 try-with-resources；`AiController` 的 `writer.close()` 移入 finally；`writer.checkError()` 客户端断连检测，断开即中断并优雅退出（不再二次回调/逃逸） | `AiServiceImpl.java`<br>`AiController.java` |
+| SEC-14 | 复核确认异常原文不回传：全局 `Exception` 兜底返回"系统异常"，SQL 执行错误已收敛为固定文案 | `GlobalExceptionHandler.java`（复核） |
+| RAG-11 | 知识注入由 `substring(0,300)` 硬截断改为按句子分块、优先保留含关键词片段（`extractRelevantChunk`）；删除 544 行重复判空 | `AiServiceImpl.java` |
+| RAG-12 | 零引用死代码（`RAGManager`/`HybridSearcher`/`Reranker`/`LLMFactory`）加 `@Deprecated` + javadoc 警示，防止被当作已具备能力；未删除（保留至 ingestion 落地后决策） | `core/rag/*`、`core/provider/LLMFactory.java` |
+| ENG-07 | 前端 14 处���编码 `localhost:21090/21091` 全部收敛到 `URL_API`（env 可配置）；`ws.js` 从 `URL_API` 推导 WS 地址并支持 `VUE_APP_WS_BASE`；`useApi.js` ��用 `request.defaults.baseURL` | 前端 6 个文件 |
+| SEC-06 | 剩余项：限流与失败审计未接入（需框架级支持），恒定时间比较与默认值拒绝已在 P0 完成 | — |
+
+**本轮未做（维持原计划）**：SEC-05 密钥加密存储、SEC-09 熔断（Resilience4j）、SEC-12 健康数据加密出境脱敏、
+SEC-07/08 架构拆分、AG-05 检查点、AG-09 流式化、AG-11 意图识别改造、RAG-07~10 索引/混合检索、
+ENG-06 Spring Boot 3 升级。
 
 ---
 
@@ -1104,7 +1130,7 @@ source Data/sql/extra_modules_schema.sql;
 
 ---
 
-**文档版本**: v2.2
+**文档版本**: v2.3
 **最后更新**: 2026-07-31
 **编写人**: Sisyphus (AI Agent)
 
@@ -1116,3 +1142,4 @@ source Data/sql/extra_modules_schema.sql;
 | v2.0 | 2026-07-31 | 新增第 11 章企业级代码审查报告（57 项问题：P0×13 / P1×26 / P2×18）；重写第 7 章已知缺陷；第 8 章改进目标重新定级 |
 | v2.1 | 2026-07-31 | 新增第 12 章多模态子系统专项审查（25 项问题：P0×6 / P1×12 / P2×7），覆盖 TTS/ASR/VAD 空壳、语音接口契约断裂、图片多模态失效、文件上传匿名越权；累计问题 82 项（P0×19 / P1×38 / P2×25） |
 | v2.2 | 2026-07-31 | **首轮 P0 修复完成**：新增第 13 章修复记录；11.8 整改路线图标注状态。全部 19 项 P0 + 多数 P1 已完成（安全攻击链、Agent、RAG、多模态、工程化），后端编译通过；遗留 6 项见 13.6 |
+| v2.3 | 2026-07-31 | **P1 修复（13.7）+ Git 仓库清理**：完成 11 项 P1（AG-04/06/07/08/10/12/13、SEC-10/14、RAG-11/12、ENG-07）；`dir/` 30GB 模型权重解除 Git 跟踪（待你本地 push）；模型卡生成（dir/merged_model/.../README.md） |

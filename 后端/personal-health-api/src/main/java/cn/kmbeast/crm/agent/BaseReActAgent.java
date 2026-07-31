@@ -16,6 +16,7 @@ import okhttp3.*;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -33,13 +34,26 @@ public abstract class BaseReActAgent {
 
     protected OkHttpClient httpClient;
 
-    private final ExecutorService toolExecutor = Executors.newCachedThreadPool(r -> {
-        Thread t = new Thread(r, "crm-tool");
-        t.setDaemon(true);
-        return t;
-    });
-
+    /**
+     * AG-06 整改：原实现用 {@code newCachedThreadPool()}——线程数无上限，
+     * 慢工具可无限堆积线程。改为有界池（核心 2 / 最大 8 / 队列 16），
+     * 超出即触发饱和策略：直接丢弃并返回错误，避免打满线程。
+     */
+    protected final ExecutorService toolExecutor = new ThreadPoolExecutor(
+            2, 8, 60L, TimeUnit.SECONDS,
+            new ArrayBlockingQueue<>(16),
+            r -> {
+                Thread t = new Thread(r, "crm-tool");
+                t.setDaemon(true);
+                return t;
+            },
+            new ThreadPoolExecutor.AbortPolicy());
     protected static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
+
+    /** AG-08：LLM 调用重试（429 / 5xx 指数退避） */
+    private static final int LLM_MAX_RETRIES = 3;
+    private static final long LLM_BASE_BACKOFF_MS = 400;
+    private static final long LLM_MAX_BACKOFF_MS = 5000;
 
     private static final String DEFAULT_SYSTEM_PROMPT =
             "你是一个健康管理员 CRM 系统的 AI 助手，名叫\"小健\"。\n\n" +
@@ -53,8 +67,8 @@ public abstract class BaseReActAgent {
             "当用户有健康问题需要专业咨询时，推荐用户使用AI医生功能。\n" +
             "我们有以下AI医生角色：\n" +
             "- **全科医生**：症状分析、分诊建议、用药指导\n" +
-            "- **营养师**：饮食规划、营养搭配、体重管理员\n" +
-            "- **心理咨询师**：情绪疏导、压力管理员、心理支持\n" +
+            "- **营养师**：饮食规划、营养搭配、体重管理\n" +
+            "- **心理咨询师**：情绪疏导、压力管理、心理支持\n" +
             "- **报告分析师**：体检报告解读、异常指标分析\n" +
             "- **全能助手**：综合健康咨询\n" +
             "告知用户可以在\"AI健康分析\"页面选择对应角色进行咨询。\n\n" +
@@ -135,12 +149,13 @@ public abstract class BaseReActAgent {
         if (tool == null) {
             return ToolResult.error("未知工具: " + tc.getName());
         }
+        Future<ToolResult> future = null;
         try {
             // 捕获当前线程的ToolContext，在线程池中恢复
             final String phone = ToolContext.getString("phoneNumber");
             final Integer userId = ToolContext.getInt("userId");
 
-            Future<ToolResult> future = toolExecutor.submit(() -> {
+            future = toolExecutor.submit(() -> {
                 // 在线程池线程中设置ToolContext
                 ToolContext.setPhoneAndUserId(phone, userId);
                 try {
@@ -152,12 +167,20 @@ public abstract class BaseReActAgent {
             long timeout = crmConfig.getToolTimeoutSeconds();
             return future.get(timeout, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
-            log.warn("[ReAct] 工具执行超时: {}, timeout={}s", tc.getName(), crmConfig.getToolTimeoutSeconds());
+            // AG-06 整改：超时必须 cancel(true) 中断工具线程，
+            // 否则慢工具在后台继续执行（可能反复调用外部 API、继续消耗资源）。
+            if (future != null) {
+                future.cancel(true);
+            }
+            log.warn("[ReAct] 工具执行超时并已取消: {}, timeout={}s", tc.getName(), crmConfig.getToolTimeoutSeconds());
             return ToolResult.error("工具执行超时(" + crmConfig.getToolTimeoutSeconds() + "s): " + tc.getName());
         } catch (ExecutionException e) {
             log.error("[ReAct] 工具执行异常: {}", tc.getName(), e.getCause());
             return ToolResult.error("工具执行异常: " +
                     (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
+        } catch (RejectedExecutionException e) {
+            log.warn("[ReAct] 工具线程池已满，拒绝执行: {}", tc.getName());
+            return ToolResult.error("工具执行队列已满，请稍后重试: " + tc.getName());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return ToolResult.error("工具执行被中断: " + tc.getName());
@@ -165,77 +188,194 @@ public abstract class BaseReActAgent {
     }
 
     protected ReActResponse callLLMWithTools(List<Map<String, Object>> messages) {
-        try {
-            JSONObject body = new JSONObject();
-            body.put("model", aiConfig.getModel());
-            body.put("messages", messages);
-            body.put("temperature", crmConfig.getReactTemperature());
-            body.put("tools", toolRegistry.buildToolsArray());
-            body.put("tool_choice", "auto");
+        CrmException lastError = null;
+        for (int attempt = 0; attempt < LLM_MAX_RETRIES; attempt++) {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("model", aiConfig.getModel());
+                body.put("messages", messages);
+                body.put("temperature", crmConfig.getReactTemperature());
+                body.put("tools", toolRegistry.buildToolsArray());
+                body.put("tool_choice", "auto");
 
-            Request request = new Request.Builder()
-                    .url(aiConfig.getApiUrl())
-                    .addHeader("Authorization", "Bearer " + aiConfig.getApiKey())
-                    .addHeader("Content-Type", "application/json")
-                    .post(RequestBody.create(body.toJSONString(), JSON_MEDIA_TYPE))
-                    .build();
+                Request request = new Request.Builder()
+                        .url(aiConfig.getApiUrl())
+                        .addHeader("Authorization", "Bearer " + aiConfig.getApiKey())
+                        .addHeader("Content-Type", "application/json")
+                        .post(RequestBody.create(body.toJSONString(), JSON_MEDIA_TYPE))
+                        .build();
 
-            try (Response response = httpClient.newCall(request).execute()) {
-                if (!response.isSuccessful()) {
-                    String errorBody = "";
-                    try {
-                        if (response.body() != null) errorBody = response.body().string();
-                    } catch (Exception ignored) {}
-                    throw CrmException.aiUnavailable("HTTP " + response.code() + " " + errorBody);
-                }
-
-                if (response.body() == null) {
-                    throw CrmException.aiUnavailable("AI服务返回为空");
-                }
-
-                String respBody = response.body().string();
-                JSONObject json = JSON.parseObject(respBody);
-
-                if (json.containsKey("error")) {
-                    throw CrmException.aiUnavailable(
-                            json.getJSONObject("error").getString("message"));
-                }
-
-                JSONArray choices = json.getJSONArray("choices");
-                if (choices == null || choices.isEmpty()) {
-                    throw CrmException.aiUnavailable("返回choices为空");
-                }
-
-                JSONObject choice = choices.getJSONObject(0);
-                JSONObject message = choice.getJSONObject("message");
-
-                if (message.containsKey("tool_calls") && message.get("tool_calls") != null) {
-                    JSONArray callArray = message.getJSONArray("tool_calls");
-                    List<ToolCall> toolCalls = new ArrayList<>();
-                    for (int i = 0; i < callArray.size(); i++) {
-                        JSONObject tc = callArray.getJSONObject(i);
-                        JSONObject func = tc.getJSONObject("function");
-                        ToolCall toolCall = ToolCall.builder()
-                                .id(tc.getString("id"))
-                                .name(func.getString("name"))
-                                .arguments(JSON.parseObject(func.getString("arguments"), Map.class))
-                                .build();
-                        toolCalls.add(toolCall);
+                try (Response response = httpClient.newCall(request).execute()) {
+                    if (!response.isSuccessful()) {
+                        String errorBody = "";
+                        try {
+                            if (response.body() != null) errorBody = response.body().string();
+                        } catch (Exception ignored) {}
+                        // AG-08 整改：429（限流）与 5xx（服务端故障）指数退避重试，
+                        // 4xx（参数/鉴权错误）重试无意义，直接抛出。
+                        if ((response.code() == 429 || response.code() >= 500)
+                                && attempt < LLM_MAX_RETRIES - 1) {
+                            long waitMs = Math.min(
+                                    LLM_BASE_BACKOFF_MS * (1L << attempt), LLM_MAX_BACKOFF_MS);
+                            log.warn("[ReAct] LLM 返回 {}，{}ms 后重试 ({}/{})",
+                                    response.code(), waitMs, attempt + 1, LLM_MAX_RETRIES);
+                            sleep(waitMs);
+                            continue;
+                        }
+                        throw CrmException.aiUnavailable("HTTP " + response.code() + " " + errorBody);
                     }
-                    return ReActResponse.toolCalls(toolCalls);
-                }
 
-                String content = message.getString("content");
-                if (content != null && !content.isEmpty()) {
-                    return ReActResponse.text(content);
-                }
+                    if (response.body() == null) {
+                        throw CrmException.aiUnavailable("AI服务返回为空");
+                    }
 
-                throw CrmException.aiUnavailable("LLM返回空内容");
+                    String respBody = response.body().string();
+                    JSONObject json = JSON.parseObject(respBody);
+
+                    if (json.containsKey("error")) {
+                        throw CrmException.aiUnavailable(
+                                json.getJSONObject("error").getString("message"));
+                    }
+
+                    JSONArray choices = json.getJSONArray("choices");
+                    if (choices == null || choices.isEmpty()) {
+                        throw CrmException.aiUnavailable("返回choices为空");
+                    }
+
+                    JSONObject choice = choices.getJSONObject(0);
+                    JSONObject message = choice.getJSONObject("message");
+
+                    if (message.containsKey("tool_calls") && message.get("tool_calls") != null) {
+                        JSONArray callArray = message.getJSONArray("tool_calls");
+                        List<ToolCall> toolCalls = new ArrayList<>();
+                        for (int i = 0; i < callArray.size(); i++) {
+                            JSONObject tc = callArray.getJSONObject(i);
+                            JSONObject func = tc.getJSONObject("function");
+                            ToolCall toolCall = ToolCall.builder()
+                                    .id(tc.getString("id"))
+                                    .name(func.getString("name"))
+                                    .arguments(JSON.parseObject(func.getString("arguments"), Map.class))
+                                    .build();
+                            toolCalls.add(toolCall);
+                        }
+                        return ReActResponse.toolCalls(toolCalls);
+                    }
+
+                    String content = message.getString("content");
+                    if (content != null && !content.isEmpty()) {
+                        return ReActResponse.text(content);
+                    }
+
+                    throw CrmException.aiUnavailable("LLM返回空内容");
+                }
+            } catch (CrmException e) {
+                // 仅对可重试状态码做退避（上面 continue 分支），其余直接抛出
+                lastError = e;
+                if (!isRetryableStatus(e)) {
+                    throw e;
+                }
+            } catch (IOException e) {
+                lastError = CrmException.aiUnavailable("网络异常: " + e.getMessage());
+                if (attempt < LLM_MAX_RETRIES - 1) {
+                    long waitMs = Math.min(
+                            LLM_BASE_BACKOFF_MS * (1L << attempt), LLM_MAX_BACKOFF_MS);
+                    log.warn("[ReAct] LLM 网络异常，{}ms 后重试 ({}/{}): {}",
+                            waitMs, attempt + 1, LLM_MAX_RETRIES, e.getMessage());
+                    sleep(waitMs);
+                }
+            } catch (Exception e) {
+                // JSON 解析/参数错误：重试无意义，直接抛
+                throw CrmException.aiUnavailable(e.getMessage());
             }
-        } catch (CrmException e) {
-            throw e;
-        } catch (Exception e) {
-            throw CrmException.aiUnavailable(e.getMessage());
+        }
+        throw lastError != null ? lastError : CrmException.aiUnavailable("LLM 调用失败");
+    }
+
+    /**
+     * 判定 CrmException 是否属于可重试状态码（429/5xx）。
+     */
+    private boolean isRetryableStatus(CrmException e) {
+        String msg = e.getMessage();
+        return msg != null && (msg.contains("HTTP 429") || msg.contains("HTTP 5")
+                || msg.contains("HTTP 50") || msg.contains("HTTP 51")
+                || msg.contains("HTTP 52") || msg.contains("HTTP 53"));
+    }
+
+    /**
+     * AG-04：不带 tools 的普通 LLM 调用，用于轮次耗尽后的强制总结。
+     * 复用 callLLMWithTools 的重试与解析逻辑，仅去掉 tools 字段。
+     */
+    protected String callLLMPlain(List<Map<String, Object>> messages) {
+        CrmException lastError = null;
+        for (int attempt = 0; attempt < LLM_MAX_RETRIES; attempt++) {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("model", aiConfig.getModel());
+                body.put("messages", messages);
+                body.put("temperature", crmConfig.getReactTemperature());
+
+                Request request = new Request.Builder()
+                        .url(aiConfig.getApiUrl())
+                        .addHeader("Authorization", "Bearer " + aiConfig.getApiKey())
+                        .addHeader("Content-Type", "application/json")
+                        .post(RequestBody.create(body.toJSONString(), JSON_MEDIA_TYPE))
+                        .build();
+
+                try (Response response = httpClient.newCall(request).execute()) {
+                    if (!response.isSuccessful()) {
+                        String errorBody = "";
+                        try {
+                            if (response.body() != null) errorBody = response.body().string();
+                        } catch (Exception ignored) {}
+                        if ((response.code() == 429 || response.code() >= 500)
+                                && attempt < LLM_MAX_RETRIES - 1) {
+                            long waitMs = Math.min(
+                                    LLM_BASE_BACKOFF_MS * (1L << attempt), LLM_MAX_BACKOFF_MS);
+                            sleep(waitMs);
+                            continue;
+                        }
+                        throw CrmException.aiUnavailable("HTTP " + response.code() + " " + errorBody);
+                    }
+                    if (response.body() == null) {
+                        throw CrmException.aiUnavailable("AI服务返回为空");
+                    }
+                    String respBody = response.body().string();
+                    JSONObject json = JSON.parseObject(respBody);
+                    JSONArray choices = json.getJSONArray("choices");
+                    if (choices == null || choices.isEmpty()) {
+                        throw CrmException.aiUnavailable("返回choices为空");
+                    }
+                    JSONObject message = choices.getJSONObject(0).getJSONObject("message");
+                    String content = message.getString("content");
+                    if (content != null && !content.isEmpty()) {
+                        return content;
+                    }
+                    throw CrmException.aiUnavailable("LLM返回空内容");
+                }
+            } catch (CrmException e) {
+                lastError = e;
+                if (!isRetryableStatus(e)) {
+                    throw e;
+                }
+            } catch (IOException e) {
+                lastError = CrmException.aiUnavailable("网络异常: " + e.getMessage());
+                if (attempt < LLM_MAX_RETRIES - 1) {
+                    long waitMs = Math.min(
+                            LLM_BASE_BACKOFF_MS * (1L << attempt), LLM_MAX_BACKOFF_MS);
+                    sleep(waitMs);
+                }
+            } catch (Exception e) {
+                throw CrmException.aiUnavailable(e.getMessage());
+            }
+        }
+        throw lastError != null ? lastError : CrmException.aiUnavailable("LLM 调用失败");
+    }
+
+    private void sleep(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

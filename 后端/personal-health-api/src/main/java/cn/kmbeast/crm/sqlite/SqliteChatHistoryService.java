@@ -29,8 +29,16 @@ public class SqliteChatHistoryService {
     private static final int MAX_QUERY_ROWS = 200;
     private static final int QUERY_TIMEOUT_SECONDS = 10;
 
-    public void saveMessage(String phoneNumber, String sessionId, String role,
-                            String content, Integer intentCode, Map<String, Object> metadata) {
+    /**
+     * 保存一条消息。
+     *
+     * <p>AG-10 整改：原实现 catch 后仅 log 即吞掉异常，调用方无法感知聊天记录丢失。
+     * 现改为返回 boolean，失败时由调用方决定处理（记录告警，不阻塞主流程）。
+     *
+     * @return true 保存成功；false 保存失败（调用方应记录审计日志）
+     */
+    public boolean saveMessage(String phoneNumber, String sessionId, String role,
+                               String content, Integer intentCode, Map<String, Object> metadata) {
         String sql = "INSERT INTO chat_history (phone_number, session_id, role, content, intent_code, metadata) " +
                 "VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = connectionManager.getReadWriteConnection();
@@ -42,8 +50,11 @@ public class SqliteChatHistoryService {
             if (intentCode != null) ps.setInt(5, intentCode); else ps.setNull(5, java.sql.Types.INTEGER);
             ps.setString(6, metadata != null ? JSON.toJSONString(metadata) : null);
             ps.executeUpdate();
+            return true;
         } catch (Exception e) {
-            log.error("[CRM-SQLite] 保存消息失败", e);
+            log.error("[CRM-SQLite] 保存消息失败: phone={}, session={}, role={}",
+                    phoneNumber, sessionId, role, e);
+            return false;
         }
     }
 
