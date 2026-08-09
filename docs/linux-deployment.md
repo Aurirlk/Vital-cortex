@@ -102,7 +102,7 @@ ai:
   api-key: ${AI_API_KEY}
 ```
 
-> ⚠️ 生产环境务必通过环境变量注入 `JWT_SECRET` / `DB_PASSWORD` / `CRM_API_KEY` / `AI_API_KEY`，
+> 生产环境务必通过环境变量注入 `JWT_SECRET` / `DB_PASSWORD` / `CRM_API_KEY` / `AI_API_KEY`，
 > 严禁写入明文到仓库或镜像层。
 
 ### 3.4 启动后端

@@ -5,17 +5,17 @@
 
 基于 **Spring Boot 3.5 + Java 17 + Vue 3** 构建的 AI 健康平台，集成 AI 智能问诊、药品订阅、健康数据追踪、知识库双路 RAG 检索、联网搜索、社区互动等功能。支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理（药品查询、健康数据读取、知识检索、联网搜索、SQL 查询）。
 
-## ✨ 核心能力
+## 核心能力
 
 | 能力 | 说明 |
 | --- | --- |
-| 🤖 **Multi-Agent 健康问诊** | 医生/营养师/药师等角色协调器 + ReAct Agent（OpenAI function calling），工具轨迹落库，可观测可回放 |
-| 🔍 **双路 RAG 检索** | 向量语义（bge-m3）× Neo4j 知识图谱双路召回 + RRF 融合，回答带 `[ID]` 引用溯源 + RAGAS 评测 |
-| 🛡️ **三层防幻觉** | `SynthesisGuard` 质量门（端水/重复检测）+ `OutputValidator` 合规门（剂量敏感/免责声明）+ `SignalDetector` 安全门（紧急就医提示） |
-| 🖼️ **多模态交互** | 图片进上下文（VIP 512K / 普通 128K 分级窗口 + 预算管理）；语音 ASR/TTS Provider 化（设计就绪） |
-| 🔐 **企业级安全** | 会话版本号（锁定/登出/改密即旧 Token 失效）、JWT 外部注入、fail-closed 接口、SqlGuard 防注入、Sentinel 限流熔断 |
-| 📊 **全链路可观测** | MDC traceId/userId 日志关联 + Prometheus/Grafana 指标看板 + Loki 日志聚合 + Alertmanager 告警 |
-| 🧩 **多厂商 AI 接入** | DeepSeek/通义/Kimi/GLM/豆包/MiniMax 等 12 家，Provider 工厂 + 熔断 + 自动重试，管理员界面热切换 |
+| **Multi-Agent 健康问诊** | 医生/营养师/药师等角色协调器 + ReAct Agent（OpenAI function calling），工具轨迹落库，可观测可回放 |
+| **双路 RAG 检索** | 向量语义（bge-m3）× Neo4j 知识图谱双路召回 + RRF 融合，回答带 `[ID]` 引用溯源 + RAGAS 评测 |
+| **三层防幻觉** | `SynthesisGuard` 质量门（端水/重复检测）+ `OutputValidator` 合规门（剂量敏感/免责声明）+ `SignalDetector` 安全门（紧急就医提示） |
+| **多模态交互** | 图片进上下文（VIP 512K / 普通 128K 分级窗口 + 预算管理）；语音 ASR/TTS Provider 化（设计就绪） |
+| **企业级安全** | 会话版本号（锁定/登出/改密即旧 Token 失效）、JWT 外部注入、fail-closed 接口、SqlGuard 防注入、Sentinel 限流熔断 |
+| **全链路可观测** | MDC traceId/userId 日志关联 + Prometheus/Grafana 指标看板 + Loki 日志聚合 + Alertmanager 告警 |
+| **多厂商 AI 接入** | DeepSeek/通义/Kimi/GLM/豆包/MiniMax 等 12 家，Provider 工厂 + 熔断 + 自动重试，管理员界面热切换 |
 
 ---
 
@@ -23,7 +23,7 @@
 
 ---
 
-## 📚 项目文档导航
+## 项目文档导航
 
 > 项目开发过程中的全部文档（满足结课报告 7 大模块要求），已扁平化至 `docs/` 根目录。架构级改进以 `DELIVERY.md` 为权威说明。
 
@@ -580,53 +580,53 @@ npm run dev
 ### v5.3 (2026-08-09) — Spring Boot 3 升级 + 双路 RAG 打通 + 限流
 
 **框架升级**
-- ✅ **Spring Boot 2.7.18 → 3.5.16**（OpenRewrite 自动化迁移：javax→jakarta 全量、mybatis 3.0.3、mysql-connector-j），Java 17 编译目标对齐
-- ✅ 修复升级隐藏坑：`spring.data.redis` 前缀迁移、`logging.file.path` 迁移瑕疵、SQLite + HikariCP 6 的 `setReadOnly` 兼容问题
+- **Spring Boot 2.7.18 → 3.5.16**（OpenRewrite 自动化迁移：javax→jakarta 全量、mybatis 3.0.3、mysql-connector-j），Java 17 编译目标对齐
+- 修复升级隐藏坑：`spring.data.redis` 前缀迁移、`logging.file.path` 迁移瑕疵、SQLite + HikariCP 6 的 `setReadOnly` 兼容问题
 
 **AI 能力**
-- ✅ **GraphRAG 接入主检索链路**：Neo4j 实体抽取（真实图谱实体匹配 + 缓存）→ 关系查询 → 注入上下文，与向量路构成双路召回
-- ✅ **SynthesisGuard 三层防幻觉接线**：质量门 + 合规门（免责声明/遵医嘱）+ 安全门（紧急就医），chat/chatStream 输出端统一生效
-- ✅ **图片多模态 Phase A/B**：OpenAI 视觉格式消息组装、TokenBudgetManager 预算管控（VIP 512K/普通 128K 分级 + 模型上限取 min）
-- ✅ **Embedding 接入**：硅基流动 bge-m3（独立密钥，与 LLM 厂商分离），向量检索链路可用
+- **GraphRAG 接入主检索链路**：Neo4j 实体抽取（真实图谱实体匹配 + 缓存）→ 关系查询 → 注入上下文，与向量路构成双路召回
+- **SynthesisGuard 三层防幻觉接线**：质量门 + 合规门（免责声明/遵医嘱）+ 安全门（紧急就医），chat/chatStream 输出端统一生效
+- **图片多模态 Phase A/B**：OpenAI 视觉格式消息组装、TokenBudgetManager 预算管控（VIP 512K/普通 128K 分级 + 模型上限取 min）
+- **Embedding 接入**：硅基流动 bge-m3（独立密钥，与 LLM 厂商分离），向量检索链路可用
 
 **工程化**
-- ✅ **Sentinel 限流**：登录 10QPS / AI 对话 5QPS / 上传 20QPS，blockHandler 兜底（含 SSE 流式）
-- ✅ 补齐历史欠账：重建 `PostServiceImpl`（19 方法）/ `SystemConfigServiceImpl`（7 方法）
+- **Sentinel 限流**：登录 10QPS / AI 对话 5QPS / 上传 20QPS，blockHandler 兜底（含 SSE 流式）
+- 补齐历史欠账：重建 `PostServiceImpl`（19 方法）/ `SystemConfigServiceImpl`（7 方法）
 
 ### v5.2 (2026-08-01) — 多模态设计与账号锁定
 
 **方案定稿（docs/defect-roadmap.md）**
-- ✅ 1.1 语音 ASR/TTS Provider 化设计（与 AiConfig 同构，未配置回退 Web Speech）
-- ✅ 1.2 图片进上下文 + VIP 分级窗口设计（128K/512K）
-- ✅ 1.3 账号锁定即失效 + 会话版本号设计
+- 1.1 语音 ASR/TTS Provider 化设计（与 AiConfig 同构，未配置回退 Web Speech）
+- 1.2 图片进上下文 + VIP 分级窗口设计（128K/512K）
+- 1.3 账号锁定即失效 + 会话版本号设计
 
 **v5.2 已实现**
-- ✅ 1.3 会话版本号机制：锁定/登出/改密 → 旧 Token 立即失效；账号禁用返回 4010，前端强制退出
-- ✅ 1.2 VIP 分级：`is_vip`/`vip_expire_time` 字段 + 128K/512K 预算档位 + 图片数量分级
+- 1.3 会话版本号机制：锁定/登出/改密 → 旧 Token 立即失效；账号禁用返回 4010，前端强制退出
+- 1.2 VIP 分级：`is_vip`/`vip_expire_time` 字段 + 128K/512K 预算档位 + 图片数量分级
 
 ### v5.1 (2026-07-31) — 架构级改进与加固
 
 **AI 智能体**
-- ✅ Multi-Agent 协调器（`AgentCoordinator`）意图词表外部化，6 专科角色路由
-- ✅ ReAct Agent 改为 OpenAI function calling 驱动，工具调用轨迹落库（检查点/审计）
-- ✅ LLM Provider 工厂 + 熔断器（`DeepSeekProvider` / `LocalVllmProvider` / `CircuitBreaker`），429/5xx 重试与快速失败
-- ✅ 本地微调模型 `HealthPulse-Qwen2.5-7B`（vLLM :8000，OpenAI 兼容）可一键切换
+- Multi-Agent 协调器（`AgentCoordinator`）意图词表外部化，6 专科角色路由
+- ReAct Agent 改为 OpenAI function calling 驱动，工具调用轨迹落库（检查点/审计）
+- LLM Provider 工厂 + 熔断器（`DeepSeekProvider` / `LocalVllmProvider` / `CircuitBreaker`），429/5xx 重试与快速失败
+- 本地微调模型 `HealthPulse-Qwen2.5-7B`（vLLM :8000，OpenAI 兼容）可一键切换
 
 **RAG**
-- ✅ 文章 ingestion 管线（分块→嵌入→入库），发布自动联动灌数
-- ✅ 向量（余弦）+ MySQL LIKE 双路召回，RRF 融合，回答带引用溯源
-- ✅ 真实 RAGAS 评测管线（精确度/忠实度/相关性），替代原模拟数据
+- 文章 ingestion 管线（分块→嵌入→入库），发布自动联动灌数
+- 向量（余弦）+ MySQL LIKE 双路召回，RRF 融合，回答带引用溯源
+- 真实 RAGAS 评测管线（精确度/忠实度/相关性），替代原模拟数据
 
 **安全**
-- ✅ JWT 密钥外部注入 + 启动强校验（空/弱密钥拒绝启动），7 天有效期
-- ✅ CRM 接口 API Key 认证（`CrmApiKeyInterceptor`，fail-closed）
-- ✅ `SqlGuard` 只读 SQL 守卫 + 租户隔离（仅查本会话数据）
-- ✅ AI 输出 DOMPurify 净化、出境前 PII 脱敏、token 用量落库（`ai_usage`）
+- JWT 密钥外部注入 + 启动强校验（空/弱密钥拒绝启动），7 天有效期
+- CRM 接口 API Key 认证（`CrmApiKeyInterceptor`，fail-closed）
+- `SqlGuard` 只读 SQL 守卫 + 租户隔离（仅查本会话数据）
+- AI 输出 DOMPurify 净化、出境前 PII 脱敏、token 用量落库（`ai_usage`）
 
 **工程**
-- ✅ 25 个单元测试（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl）通过
-- ✅ Docker 镜像去默认密码、非 root 运行、healthcheck；CI 去 `continue-on-error`
-- ✅ 后端 `pom.xml` 编码属性修正、测试依赖补全；规范化损坏换行符
+- 25 个单元测试（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl）通过
+- Docker 镜像去默认密码、非 root 运行、healthcheck；CI 去 `continue-on-error`
+- 后端 `pom.xml` 编码属性修正、测试依赖补全；规范化损坏换行符
 
 > 完整交付与后续规划见根目录 `DELIVERY.md`。
 
@@ -634,88 +634,88 @@ npm run dev
 
 **新功能：**
 
-- ✅ 网站小助手：独立对话页面 + 4 类意图识别（病情查询/医生推荐/药品介绍/健康知识）
-- ✅ 病情查询：联网搜索最新医疗信息
-- ✅ 医生推荐：关键词智能匹配，推荐最相关的 1-3 位 AI 医生
-- ✅ 药品介绍：调用 55 种药品数据库
-- ✅ 健康知识：AI + 知识库 RAG 检索，强制基于文章回答
-- ✅ AI 关键词提取：内置医学 NLP Prompt，优化 RAG 搜索精准度
+- 网站小助手：独立对话页面 + 4 类意图识别（病情查询/医生推荐/药品介绍/健康知识）
+- 病情查询：联网搜索最新医疗信息
+- 医生推荐：关键词智能匹配，推荐最相关的 1-3 位 AI 医生
+- 药品介绍：调用 55 种药品数据库
+- 健康知识：AI + 知识库 RAG 检索，强制基于文章回答
+- AI 关键词提取：内置医学 NLP Prompt，优化 RAG 搜索精准度
 
 **优化：**
 
-- ✅ 搜索结果卡片布局优化（span=4→6，图片高度增加）
-- ✅ AI 医生角色图标统一为 Element Plus 矢量图标
-- ✅ RAG 文章数量从 3 篇提升到 6 篇，标题匹配优先排序
-- ✅ AI 配置持久化到 MySQL（删除 AES 加密，改为明文存储）
-- ✅ 历史会话用户隔离存储（chat_backup/history_speak/{userId}/）
+- 搜索结果卡片布局优化（span=4→6，图片高度增加）
+- AI 医生角色图标统一为 Element Plus 矢量图标
+- RAG 文章数量从 3 篇提升到 6 篇，标题匹配优先排序
+- AI 配置持久化到 MySQL（删除 AES 加密，改为明文存储）
+- 历史会话用户隔离存储（chat_backup/history_speak/{userId}/）
 
 **修复：**
 
-- ✅ 修复 Vue 响应式丢失导致 AI 回复空白的问题（splice 替换）
-- ✅ 修复分页查询偏移量重复计算
-- ✅ 修复药品数据未注入 AI 上下文的问题
-- ✅ 移除 Dify 外部 API 依赖，关键词提取完全本地化
+- 修复 Vue 响应式丢失导致 AI 回复空白的问题（splice 替换）
+- 修复分页查询偏移量重复计算
+- 修复药品数据未注入 AI 上下文的问题
+- 移除 Dify 外部 API 依赖，关键词提取完全本地化
 - 移除了那个bug居多的悬浮球
 
 ### v4.0 (2026-06-02)
 
 **新功能：**
 
-- ✅ 健康助手悬浮球（可拖拽移动，快捷咨询）
+- 健康助手悬浮球（可拖拽移动，快捷咨询）
 
-- ✅ 健康数据 JSON 导入导出
+- 健康数据 JSON 导入导出
 
-- ✅ AI 配置持久化到 MySQL（AES加密，重启不丢失）
+- AI 配置持久化到 MySQL（AES加密，重启不丢失）
 
-- ✅ SaaS 风格功能按钮栏（联网搜索、深度思考、知识库、健康数据）
+- SaaS 风格功能按钮栏（联网搜索、深度思考、知识库、健康数据）
 
-- ✅ Markdown 渲染支持
+- Markdown 渲染支持
 
-- ✅ 数据导出服务（药品、健康指标导出为JSON供AI读取）
+- 数据导出服务（药品、健康指标导出为JSON供AI读取）
 
-- ✅ 会话元数据记录（联网搜索、知识库等状态）
+- 会话元数据记录（联网搜索、知识库等状态）
 
 - 增加了dify的关键词搜索功能
 
 **优化：**
 
-- ✅ 数据流重构：MySQL为主存储，JSON为备份/导出
+- 数据流重构：MySQL为主存储，JSON为备份/导出
 
-- ✅ AI工具从JSON文件读取数据（药品、健康指标）
+- AI工具从JSON文件读取数据（药品、健康指标）
 
-- ✅ 对话缓存机制优化
+- 对话缓存机制优化
 
-- ✅ 用户界面布局优化（三栏布局：角色+聊天+设置）
+- 用户界面布局优化（三栏布局：角色+聊天+设置）
 
-- ✅ 生成设置移至右侧边栏
+- 生成设置移至右侧边栏
 
 **安全：**
 
-- ✅ API Key 加密存储到数据库
+- API Key 加密存储到数据库
 
-- ✅ .gitignore 排除敏感文件
+- .gitignore 排除敏感文件
 
 ### v3.0 (2026-06-01)
 
 **新功能：**
 
-- ✅ 多AI厂商支持（12个国内厂商）
+- 多AI厂商支持（12个国内厂商）
 
-- ✅ 联网搜索多引擎支持（6种搜索引擎）
+- 联网搜索多引擎支持（6种搜索引擎）
 
-- ✅ DeepSeek v4模型支持
+- DeepSeek v4模型支持
 
-- ✅ AI厂商一键切换
+- AI厂商一键切换
 
-- ✅ 联网搜索配置独立界面
+- 联网搜索配置独立界面
 
 **优化：**
 
-- ✅ 更新DeepSeek模型为v4版本
+- 更新DeepSeek模型为v4版本
 
-- ✅ 优化AI配置管理界面
+- 优化AI配置管理界面
 
-- ✅ 完善厂商配置信息
+- 完善厂商配置信息
 
 ---
 
@@ -768,9 +768,9 @@ npm run dev
 
 ## 编译状态
 
-- ✅ 后端编译：**BUILD SUCCESS**（Spring Boot 3.5.16 + Java 17，352 源文件）
-- ✅ 前端构建：BUILD SUCCESS
-- ✅ 无编码损坏
+- 后端编译：**BUILD SUCCESS**（Spring Boot 3.5.16 + Java 17，352 源文件）
+- 前端构建：BUILD SUCCESS
+- 无编码损坏
 
 ---
 
@@ -782,19 +782,19 @@ npm run dev
 
 | 编号    | 原缺陷          | 现状                                                                                    |
 | ----- | ------------ | ------------------------------------------------------------------------------------- |
-| D-005 | 缺少单元测试       | ✅ 已补 25 个用例（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl），`mvn test` 通过 |
-| D-009 | 部分接口缺少输入验证   | ✅ CRM 接口加 `CrmApiKeyInterceptor`；`SqlGuard` 只读守卫 + 租户隔离；AI 输出 DOMPurify 净化            |
-| D-001 | 部分 SQL 脚本未执行 | ⚠️ 已补充 `Data/sql/ai_usage_schema.sql`（token 成本表），其余业务表脚本仍建议部署时执行                      |
-| D-002 | admin 账号可能被锁定 | ✅ 修复 `init_database.sql`/`mock_business_data.sql` 种子账号 `is_login 1→0`；`UserServiceImpl.backUpdate` 增加防锁死守卫（保护当前用户 & 最后一名可登录管理员） |
-| D-003 | 旧页面 UI 风格不统一 | ✅ 主品牌色统一为 `#0050cb`（品牌蓝），激活 `design-tokens.css` 令牌体系；登录页/个人页硬编码色收敛为品牌蓝（其余页面分阶收敛，见路线图） |
-| D-004 | WebSocket 未实际部署测试 | ✅ 全链路打通：`ws.js` 保留 context-path 推导 + 指数退避；`Login.vue`/`main.js` 登录态自动建连；后端 `WebSocketServer` 补 `@OnMessage` 心跳回包；`NotificationServiceImpl.save` 入库后 `sendToUser` 实时推送（`type=notification` 对齐 `NotificationBell`） |
-| D-006 | Redis 缓存未完全集成 | ✅ 引入 `RedisConfig`（Jackson2Json + 10min TTL）；`TagsServiceImpl`/`DrugServiceImpl` 加 `@Cacheable`/`@CacheEvict`；`docker-compose` 增 `redis` 服务 |
-| D-007 | Prometheus 监控未完全集成 | ✅ `InterceptorConfig` 放行 `/actuator/**`；`application.yml` 去掉 `roles: ADMIN` 且 Redis health 默认关闭；新增 `deploy/prometheus.yml` 抓取 `backend:21090`，`docker-compose` 增 `prometheus` 服务 |
-| D-008 | 前端样式不完全统一 | ✅ 主色收敛品牌蓝（见 D-003）；`main.js` 全局加载 `design-tokens.css`；移除 `Login.vue`/`UserProfile.vue` 冗余 `@import` |
-| D-010 | 错误日志不够详细 | ✅ 新增 `TraceIdFilter`（MDC `traceId`/`userId` + 响应头 `X-Trace-Id`）；`JwtInterceptor` 注入 `userId`；`logback` 模式含 `[traceId=%X{traceId} userId=%X{userId}]`；`GlobalExceptionHandler` 返回追踪 ID 便于定位 |
-| D-011 | **PostService/SystemConfigService 实现缺失** | ✅ Boot 3 升级后启动暴露：接口长期存在但实现类从未编写。重建 `PostServiceImpl`（19 方法：发帖/点赞/收藏/回复/关注/举报/热门/搜索）、`SystemConfigServiceImpl`（7 方法：分组配置/敏感掩码/管理员密码验证） |
-| D-012 | **SQLite + HikariCP 兼容** | ✅ Boot 3（HikariCP 6）升级后 `config.setReadOnly(true)` 与 sqlite-jdbc 冲突导致启动失败；移除 JDBC 只读标志（SQLite 只读需在创建连接时指定） |
-| D-013 | **Embedding 服务缺失** | ✅ 接入硅基流动 bge-m3（独立密钥，与 LLM 厂商 DeepSeek 分离）；DeepSeek 无 embeddings API 的历史坑闭环 |
+| D-005 | 缺少单元测试       | 已补 25 个用例（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl），`mvn test` 通过 |
+| D-009 | 部分接口缺少输入验证   | CRM 接口加 `CrmApiKeyInterceptor`；`SqlGuard` 只读守卫 + 租户隔离；AI 输出 DOMPurify 净化            |
+| D-001 | 部分 SQL 脚本未执行 | 已补充 `Data/sql/ai_usage_schema.sql`（token 成本表），其余业务表脚本仍建议部署时执行                      |
+| D-002 | admin 账号可能被锁定 | 修复 `init_database.sql`/`mock_business_data.sql` 种子账号 `is_login 1→0`；`UserServiceImpl.backUpdate` 增加防锁死守卫（保护当前用户 & 最后一名可登录管理员） |
+| D-003 | 旧页面 UI 风格不统一 | 主品牌色统一为 `#0050cb`（品牌蓝），激活 `design-tokens.css` 令牌体系；登录页/个人页硬编码色收敛为品牌蓝（其余页面分阶收敛，见路线图） |
+| D-004 | WebSocket 未实际部署测试 | 全链路打通：`ws.js` 保留 context-path 推导 + 指数退避；`Login.vue`/`main.js` 登录态自动建连；后端 `WebSocketServer` 补 `@OnMessage` 心跳回包；`NotificationServiceImpl.save` 入库后 `sendToUser` 实时推送（`type=notification` 对齐 `NotificationBell`） |
+| D-006 | Redis 缓存未完全集成 | 引入 `RedisConfig`（Jackson2Json + 10min TTL）；`TagsServiceImpl`/`DrugServiceImpl` 加 `@Cacheable`/`@CacheEvict`；`docker-compose` 增 `redis` 服务 |
+| D-007 | Prometheus 监控未完全集成 | `InterceptorConfig` 放行 `/actuator/**`；`application.yml` 去掉 `roles: ADMIN` 且 Redis health 默认关闭；新增 `deploy/prometheus.yml` 抓取 `backend:21090`，`docker-compose` 增 `prometheus` 服务 |
+| D-008 | 前端样式不完全统一 | 主色收敛品牌蓝（见 D-003）；`main.js` 全局加载 `design-tokens.css`；移除 `Login.vue`/`UserProfile.vue` 冗余 `@import` |
+| D-010 | 错误日志不够详细 | 新增 `TraceIdFilter`（MDC `traceId`/`userId` + 响应头 `X-Trace-Id`）；`JwtInterceptor` 注入 `userId`；`logback` 模式含 `[traceId=%X{traceId} userId=%X{userId}]`；`GlobalExceptionHandler` 返回追踪 ID 便于定位 |
+| D-011 | **PostService/SystemConfigService 实现缺失** | Boot 3 升级后启动暴露：接口长期存在但实现类从未编写。重建 `PostServiceImpl`（19 方法：发帖/点赞/收藏/回复/关注/举报/热门/搜索）、`SystemConfigServiceImpl`（7 方法：分组配置/敏感掩码/管理员密码验证） |
+| D-012 | **SQLite + HikariCP 兼容** | Boot 3（HikariCP 6）升级后 `config.setReadOnly(true)` 与 sqlite-jdbc 冲突导致启动失败；移除 JDBC 只读标志（SQLite 只读需在创建连接时指定） |
+| D-013 | **Embedding 服务缺失** | 接入硅基流动 bge-m3（独立密钥，与 LLM 厂商 DeepSeek 分离）；DeepSeek 无 embeddings API 的历史坑闭环 |
 
 ### 仍待处理（保留项）
 
@@ -804,13 +804,13 @@ npm run dev
 
 ### 架构级遗留项（见 `DELIVERY.md` §8.2）
 
-- ✅ **Spring Boot 3 迁移**：v5.3 已完成（3.5.16 + Java 17，javax→jakarta 全量）
+- **Spring Boot 3 迁移**：v5.3 已完成（3.5.16 + Java 17，javax→jakarta 全量）
 - **等保三级测评 / 渗透测试**：未开展，商用前置
 - **API Key 存储**：环境变量注入；管理端配置项建议信封加密
 - **God Class 拆分**：`AiServiceImpl` 职责过载，已抽离 Provider 层，后续按会话/检索/评测/用量拆 4 服务
 - **服务端 ASR/TTS**：未实现（语音走浏览器原生 Web Speech API；Provider 化设计已定稿，见 `docs/multimodal-design.md`）
 - **向量库规模**：本地文件实现全量扫描，已规划迁移 pgvector + HNSW（10 万级甜蜜区）
-- ✅ **知识图谱**：GraphRAG 已接入主检索链路（Neo4j 实体抽取 → 关系查询 → 双路召回，见 v5.3）
+- **知识图谱**：GraphRAG 已接入主检索链路（Neo4j 实体抽取 → 关系查询 → 双路召回，见 v5.3）
 
 ---
 
@@ -973,6 +973,6 @@ MIT License
 
 <div align="center">
 
-**⭐ 如果这个项目对你有帮助，请给个 Star！⭐**
+**如果这个项目对你有帮助，请给个 Star！**
 
 </div>

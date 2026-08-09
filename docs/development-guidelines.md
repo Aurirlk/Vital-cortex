@@ -1,6 +1,6 @@
 # 智康云 - 开发防坑指南
 
-## ⚠️ 编码损坏问题（血泪教训）
+## 编码损坏问题（血泪教训）
 
 ### 问题描述
 在尝试 Spring Boot 3.x 升级时，使用 PowerShell 的 `-replace` 操作符批量替换 Java 文件中的中文字符，导致 **238 个文件的 UTF-8 编码被损坏**。
@@ -13,7 +13,7 @@ PowerShell 的字符串操作会破坏 UTF-8 多字节中文字符的编码，�
 
 ### 防范措施
 
-#### ❌ 禁止操作
+#### 禁止操作
 ```powershell
 # 禁止：使用 PowerShell -replace 替换中文
 $content -replace '旧中文', '新中文'
@@ -22,7 +22,7 @@ $content -replace '旧中文', '新中文'
 Set-Content $file -Value $content
 ```
 
-#### ✅ 推荐操作
+#### 推荐操作
 ```python
 # 推荐：使用 Python 处理中文内容
 with open(filepath, 'r', encoding='utf-8') as f:
@@ -83,7 +83,7 @@ def fix_java_file(filepath):
 
 ---
 
-## 📁 项目结构保护
+## 项目结构保护
 
 ### 核心目录（禁止删除）
 - `后端/personal-health-api/src/main/java/cn/kmbeast/core/` - 核心模块
@@ -104,7 +104,7 @@ git push
 
 ---
 
-## 🔧 依赖管理
+## 依赖管理
 
 ### pom.xml 关键依赖
 ```xml
@@ -124,7 +124,7 @@ git checkout HEAD -- 后端/personal-health-api/pom.xml
 
 ---
 
-## 📋 任务执行规范
+## 任务执行规范
 
 ### 批量文件操作
 1. **优先使用 Python** 而非 PowerShell
@@ -141,7 +141,7 @@ npm run build && echo "Frontend OK"
 
 ---
 
-## 🚨 紧急恢复流程
+## 紧急恢复流程
 
 ### 1. 后端文件损坏
 ```bash

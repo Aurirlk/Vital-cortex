@@ -111,7 +111,7 @@ RETURN d.name, type(r), e.name
 
 ### Q: 项目中 GraphRAG 的当前状态？
 
-> ⚠️ **当前（v5.1）GraphRAG / Neo4j 为规划与实验性模块，尚未接入主 RAG 链路。**
+> **当前（v5.1）GraphRAG / Neo4j 为规划与实验性模块，尚未接入主 RAG 链路。**
 
 - 代码侧已具备 `core/graph/` 模块（`Neo4jClient`、`Neo4jConfig`、`KnowledgeGraphService`、`GraphRAG`），可对接 Neo4j 做实体抽取与子图查询；
 - 但线上问答主链路仍以**混合 RAG（本地向量库 + MySQL LIKE，RRF 融合）**为主；

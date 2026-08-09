@@ -255,15 +255,15 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 
 | 项 | 状态 |
 |----|------|
-| RAG 质量评测 | ✅ 真实 RAGAS 评测管线已接入（真实检索 + LLM 打分，替代原模拟数据） |
-| 向量库灌数 | ✅ 文章 → 分块 → 嵌入 → 入库 ingestion 管线已落地，文章 CRUD 自动联动 |
-| 混合检索 | ✅ 向量 + MySQL LIKE 的 RRF 融合检索，回答带引用溯源 |
-| Agent 检查点 | ✅ 工具调用轨迹（参数/结果状态）随会话落库，可审计回放 |
-| LLM 厂商切换 | ✅ Provider 工厂（deepseek / zhikangyun-local），运行时可切换 |
-| 熔断保护 | ✅ 轻量熔断器 + 429/5xx 重试，LLM 故障快速失败 |
-| 健康数据脱敏 | ✅ 出境前自动剔除 PII |
-| 成本落库 | ✅ token 用量入 `ai_usage` 表（需执行 `Data/sql/ai_usage_schema.sql`） |
-| 单测 | ✅ 25 个用例（SqlGuard/ChunkUtil/ToolArgsValidator/DrugServiceImpl），`mvn test` 可跑 |
+| RAG 质量评测 | 真实 RAGAS 评测管线已接入（真实检索 + LLM 打分，替代原模拟数据） |
+| 向量库灌数 | 文章 → 分块 → 嵌入 → 入库 ingestion 管线已落地，文章 CRUD 自动联动 |
+| 混合检索 | 向量 + MySQL LIKE 的 RRF 融合检索，回答带引用溯源 |
+| Agent 检查点 | 工具调用轨迹（参数/结果状态）随会话落库，可审计回放 |
+| LLM 厂商切换 | Provider 工厂（deepseek / zhikangyun-local），运行时可切换 |
+| 熔断保护 | 轻量熔断器 + 429/5xx 重试，LLM 故障快速失败 |
+| 健康数据脱敏 | 出境前自动剔除 PII |
+| 成本落库 | token 用量入 `ai_usage` 表（需执行 `Data/sql/ai_usage_schema.sql`） |
+| 单测 | 25 个用例（SqlGuard/ChunkUtil/ToolArgsValidator/DrugServiceImpl），`mvn test` 可跑 |
 
 ### 8.2 剩余限制（需外部资源或专门开发周期）
 

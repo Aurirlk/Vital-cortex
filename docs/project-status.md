@@ -15,44 +15,44 @@
 
 | 功能 | 页面文件 | 后端接口 | 状态 |
 |------|----------|----------|------|
-| 健康资讯 | Home.vue | /news | ✅ |
-| 论坛社区 | 整合到资讯 | /post | ✅ 新增 |
-| 医生预约 | Appointment.vue | /appointment | ✅ 新增 |
-| 健康测验 | Quiz.vue | /quiz | ✅ 新增 |
-| 健康商城 | Mall.vue | /mall | ✅ 新增 |
-| 患者随访 | Followup.vue | /followup | ✅ 新增 |
-| AI 健康分析 | AiAnalysis.vue | /ai | ✅ |
-| 药品订阅 | Drug.vue | /drug | ✅ |
-| 个人中心 | UserProfile.vue | /user | ✅ 新增 |
-| 网站小助手 | Assistant.vue | /ai | ✅ |
-| 健康指标 | UserHealthModel.vue | /user-health | ✅ |
-| 消息中心 | Message.vue | /message | ✅ |
-| 搜索 | Search.vue | /news | ✅ |
-| 我的收藏 | NewsSave.vue | /news-save | ✅ |
-| 资讯详情 | NewsDetail.vue | /news | ✅ |
-| 健康报告 | Report.vue | /report | ✅ |
+| 健康资讯 | Home.vue | /news | |
+| 论坛社区 | 整合到资讯 | /post | 新增 |
+| 医生预约 | Appointment.vue | /appointment | 新增 |
+| 健康测验 | Quiz.vue | /quiz | 新增 |
+| 健康商城 | Mall.vue | /mall | 新增 |
+| 患者随访 | Followup.vue | /followup | 新增 |
+| AI 健康分析 | AiAnalysis.vue | /ai | |
+| 药品订阅 | Drug.vue | /drug | |
+| 个人中心 | UserProfile.vue | /user | 新增 |
+| 网站小助手 | Assistant.vue | /ai | |
+| 健康指标 | UserHealthModel.vue | /user-health | |
+| 消息中心 | Message.vue | /message | |
+| 搜索 | Search.vue | /news | |
+| 我的收藏 | NewsSave.vue | /news-save | |
+| 资讯详情 | NewsDetail.vue | /news | |
+| 健康报告 | Report.vue | /report | |
 
 ### 管理端功能（19 个页面）
 
 | 功能 | 页面文件 | 状态 |
 |------|----------|------|
-| 仪表盘（5模块） | Dashboard.vue | ✅ 重构 |
-| 用户管理 | UserManage.vue | ✅ |
-| 资讯管理 | NewsManage.vue | ✅ |
-| 预约管理 | AppointmentManage.vue | ✅ 新增 |
-| 测验管理 | QuizManage.vue | ✅ 新增 |
-| 商城管理 | MallManage.vue | ✅ 新增 |
-| 随访管理 | FollowupManage.vue | ✅ 新增 |
-| AI 配置 | AiAnalysis.vue | ✅ |
-| AI 医生管理 | AiDoctorManage.vue | ✅ |
-| 药品管理 | DrugManage.vue | ✅ |
-| 评论管理 | EvaluationsManage.vue | ✅ |
-| 消息管理 | MessageManage.vue | ✅ |
-| 资讯分类 | TagsManage.vue | ✅ |
-| 健康模型 | HealthModelConfigManage.vue | ✅ |
-| 健康记录 | UserHealthManage.vue | ✅ |
-| 系统配置 | SystemConfigManage.vue | ✅ |
-| RAG 监控 | RagMonitor.vue | ✅ 新增 |
+| 仪表盘（5模块） | Dashboard.vue | 重构 |
+| 用户管理 | UserManage.vue | |
+| 资讯管理 | NewsManage.vue | |
+| 预约管理 | AppointmentManage.vue | 新增 |
+| 测验管理 | QuizManage.vue | 新增 |
+| 商城管理 | MallManage.vue | 新增 |
+| 随访管理 | FollowupManage.vue | 新增 |
+| AI 配置 | AiAnalysis.vue | |
+| AI 医生管理 | AiDoctorManage.vue | |
+| 药品管理 | DrugManage.vue | |
+| 评论管理 | EvaluationsManage.vue | |
+| 消息管理 | MessageManage.vue | |
+| 资讯分类 | TagsManage.vue | |
+| 健康模型 | HealthModelConfigManage.vue | |
+| 健康记录 | UserHealthManage.vue | |
+| 系统配置 | SystemConfigManage.vue | |
+| RAG 监控 | RagMonitor.vue | 新增 |
 | 审核管理 | 待添加 | ⏳ 待开发 |
 
 ### 后端 API（29 个 Controller）
@@ -80,15 +80,15 @@
 
 | 模块 | 表数 | 状态 |
 |------|------|------|
-| 核心业务 | 15 | ✅ |
-| 论坛 | 7 | ✅ 新增 |
-| 预约 | 5 | ✅ 新增 |
-| 测验 | 6 | ✅ 新增 |
-| 商城 | 6 | ✅ 新增 |
-| 随访 | 2 | ✅ 新增 |
-| RBAC | 4 | ✅ 新增 |
-| 审核 | 1 | ✅ 新增 |
-| 通知 | 1 | ✅ 新增 |
+| 核心业务 | 15 | |
+| 论坛 | 7 | 新增 |
+| 预约 | 5 | 新增 |
+| 测验 | 6 | 新增 |
+| 商城 | 6 | 新增 |
+| 随访 | 2 | 新增 |
+| RBAC | 4 | 新增 |
+| 审核 | 1 | 新增 |
+| 通知 | 1 | 新增 |
 
 ### core/ 模块（33 个文件）
 
@@ -111,25 +111,25 @@
 
 | 组件 | 文件 | 状态 |
 |------|------|------|
-| Docker | Dockerfile.backend, 前端/Dockerfile | ✅ |
-| Nginx | 前端/nginx.conf | ✅ |
-| Compose | docker-compose.yml | ✅ |
-| CI/CD | .github/workflows/ci.yml | ✅ |
-| 环境变量 | .env.example | ✅ |
+| Docker | Dockerfile.backend, 前端/Dockerfile | |
+| Nginx | 前端/nginx.conf | |
+| Compose | docker-compose.yml | |
+| CI/CD | .github/workflows/ci.yml | |
+| 环境变量 | .env.example | |
 
 ### 文档（8 份 + 根目录交付手册）
 
 | 文档 | 文件 | 状态 |
 |------|------|------|
-| 需求分析 | requirements-analysis.md | ✅ |
-| 数据库设计 | database-design.md | ✅ |
-| 后端开发 | backend-development.md | ✅ |
-| 前端开发 | frontend-development.md | ✅ |
-| 测试文档 | test-report.md | ✅ |
-| Linux 部署 | linux-deployment.md | ✅ |
-| AI 工具使用 | ai-tool-usage-record.md | ✅ |
-| 开发指南 | development-guidelines.md | ✅ |
-| 用户交付手册 | `../DELIVERY.md`（根目录） | ✅ v1.1 新增 |
+| 需求分析 | requirements-analysis.md | |
+| 数据库设计 | database-design.md | |
+| 后端开发 | backend-development.md | |
+| 前端开发 | frontend-development.md | |
+| 测试文档 | test-report.md | |
+| Linux 部署 | linux-deployment.md | |
+| AI 工具使用 | ai-tool-usage-record.md | |
+| 开发指南 | development-guidelines.md | |
+| 用户交付手册 | `../DELIVERY.md`（根目录） | v1.1 新增 |
 
 ---
 
@@ -147,9 +147,9 @@
 
 ## 编译状态
 
-- ✅ 后端编译：BUILD SUCCESS
-- ✅ 前端构建：BUILD SUCCESS
-- ✅ 无编码损坏
+- 后端编译：BUILD SUCCESS
+- 前端构建：BUILD SUCCESS
+- 无编码损坏
 
 ---
 
@@ -164,7 +164,7 @@
 | API Key 存储 | 环境变量注入；管理端配置项建议信封加密（KMS） | 已部分 |
 | 服务端 ASR/TTS | 语音走浏览器原生 Web Speech API，未实现服务端 | 规划中 |
 | 知识图谱 | Neo4j 代码模块就绪，未接入主 RAG 链路（GraphRAG 属新项目） | 规划中 |
-| 单元测试 | 已补 25 用例；覆盖率仍偏低，目标 ≥70% | ✅ 已启动 |
+| 单元测试 | 已补 25 用例；覆盖率仍偏低，目标 ≥70% | 已启动 |
 | WebSocket 测试 | 代码已写但未实际部署测试 | 待验证 |
 | PWA 测试 | manifest.json 已创建但未测试安装 | 待验证 |
 | 旧页面 UI | 部分旧页面未按统一风格重构 | 待优化 |
