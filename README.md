@@ -566,8 +566,8 @@ npm run dev
 
 ## 注意事项
 
-1. **运行环境** — 开发与验证环境为 **JDK 17**（Spring Boot 2.7.18 支持 Java 8–21）。注意：`pom.xml` 当前 `source/target` 仍为 `1.8`，但部分核心模块（graph / rag 评测）已使用 `var`、`Map.of()` 等 Java 9+ 语法，建议将 `source/target` 升至 `17` 以获得一致构建。
-2. **密钥必须外部注入** — `JWT_SECRET`、`CRM_API_KEY`、`EMBEDDING_API_URL` 等缺失或强度不足时后端**拒绝启动**，请勿使用硬编码密钥。
+1. **运行环境** — 开发与验证环境为 **JDK 17 + Spring Boot 3.5.16**（pom `source/target=17`），与 IDEA 语言级别、JAVA_HOME 三者对齐；升级 Boot 3 时已通过 OpenRewrite 完成 javax→jakarta 全量迁移。
+2. **密钥必须外部注入** — `JWT_SECRET`、`CRM_API_KEY`、`EMBEDDING_API_KEY` 等缺失或强度不足时后端**拒绝启动**，请勿使用硬编码密钥。
 3. **AI 配置** — 通过管理员后台配置 API Key，持久化到 MySQL，重启不丢失（生产建议信封加密）。
 4. **数据导出** — 药品和健康数据需先调用导出接口，AI 工具才能读取。
 5. **敏感文件** — `.gitignore` 已排除 `application.yml`、`ai_data/`、`chat_backup/`、`dir/`（模型权重）等。
