@@ -318,7 +318,7 @@ INSERT IGNORE INTO `system_config` (`config_group`, `config_key`, `config_value`
 ('ai', 'reasoner-api-key', '', '深度思考Key', 1, 'string', ''),
 ('ai', 'bocha-api-key', '', '博查搜索Key', 1, 'string', ''),
 ('ai', 'max-tokens', '4096', '最大Token数', 0, 'number', '4096'),
-('jwt', 'secret', '***REMOVED***', 'JWT密钥', 1, 'string', ''),
+('jwt', 'secret', 'CHANGE_ME_JWT_SECRET_AT_LEAST_32BYTES', 'JWT密钥(生产必须用环境变量JWT_SECRET覆盖)', 1, 'string', 'CHANGE_ME_JWT_SECRET_AT_LEAST_32BYTES'),
 ('jwt', 'expiration', '604800000', 'JWT过期时间(ms)', 0, 'number', '604800000'),
 ('admin', 'password', 'admin123', '管理员密码', 1, 'string', 'admin123');
 

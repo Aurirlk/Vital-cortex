@@ -33,9 +33,11 @@ public class JwtUtil {
 
     /**
      * 历史上已提交进代码仓库、必须视为公开泄露的密钥黑名单。
+     * 注：早期版本中硬编码的 JWT 兜底密钥（曾在 b50acc7 提交中出现）已随
+     * 2026-08 历史重写（git-filter-repo）从仓库中清除，故不再列入黑名单；
+     * 若部署端仍使用该旧值，会因长度/强度校验被拒绝启动。
      */
     private static final List<String> LEAKED_SECRETS = Arrays.asList(
-            "***REMOVED***",
             "changeme",
             "secret",
             "your-secret-key"
