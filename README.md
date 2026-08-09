@@ -1,12 +1,25 @@
-# 智康云 — 个人健康管理系统
+# VitalCortex — AI-Native 个人健康智能体平台
 
-> AI 驱动的全栈健康管理平台，让健康数据会说话，让 AI 医生常在身边。
+> 从 0 到 1 落地的 AI 应用工程实践：Multi-Agent 健康问诊 × 双路 RAG 检索 × 多模态交互 × 企业级安全加固。
+> 让健康数据会说话，让 AI 医生常在身边。
 
-基于 Vue 3 + Spring Boot 构建，集成 AI 智能问诊、药品订阅、健康数据追踪、知识库 RAG 检索、联网搜索等功能。系统支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理（药品查询、健康数据读取、知识检索、联网搜索、SQL查询）。
+基于 **Spring Boot 3.5 + Java 17 + Vue 3** 构建的 AI 健康平台，集成 AI 智能问诊、药品订阅、健康数据追踪、知识库双路 RAG 检索、联网搜索、社区互动等功能。支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理（药品查询、健康数据读取、知识检索、联网搜索、SQL 查询）。
+
+## ✨ 核心能力
+
+| 能力 | 说明 |
+| --- | --- |
+| 🤖 **Multi-Agent 健康问诊** | 医生/营养师/药师等角色协调器 + ReAct Agent（OpenAI function calling），工具轨迹落库，可观测可回放 |
+| 🔍 **双路 RAG 检索** | 向量语义（bge-m3）× Neo4j 知识图谱双路召回 + RRF 融合，回答带 `[ID]` 引用溯源 + RAGAS 评测 |
+| 🛡️ **三层防幻觉** | `SynthesisGuard` 质量门（端水/重复检测）+ `OutputValidator` 合规门（剂量敏感/免责声明）+ `SignalDetector` 安全门（紧急就医提示） |
+| 🖼️ **多模态交互** | 图片进上下文（VIP 512K / 普通 128K 分级窗口 + 预算管理）；语音 ASR/TTS Provider 化（设计就绪） |
+| 🔐 **企业级安全** | 会话版本号（锁定/登出/改密即旧 Token 失效）、JWT 外部注入、fail-closed 接口、SqlGuard 防注入、Sentinel 限流熔断 |
+| 📊 **全链路可观测** | MDC traceId/userId 日志关联 + Prometheus/Grafana 指标看板 + Loki 日志聚合 + Alertmanager 告警 |
+| 🧩 **多厂商 AI 接入** | DeepSeek/通义/Kimi/GLM/豆包/MiniMax 等 12 家，Provider 工厂 + 熔断 + 自动重试，管理员界面热切换 |
 
 ---
 
-**致谢：** 非常感谢 B 站大佬 **[程序员晨星](https://space.bilibili.com/1759570621)** 提供的前后端项目教程支持！本项目是在B站大佬程序员晨星分享的代码教程的基础上，增加 AI 智能问诊、CRM ReAct Agent、药品订阅、向量知识库等一系列Agent功能迭代生成的项目，同时优化了前端和后端界面，让网页更加美观和减少了项目运行的部分冗余项。
+*项目源于 [程序员晨星](https://space.bilibili.com/1759570621) 的前后端教程，在其基础上迭代了 AI 智能问诊、CRM ReAct Agent、双路 RAG、多模态、安全加固等 Agent 能力，并持续重构为 AI-Native 架构。*
 
 ---
 
@@ -39,14 +52,18 @@
 | 层级  | 技术                                            |
 | --- | --------------------------------------------- |
 | 前端  | Vue 3 + Element Plus + ECharts + Vue Router   |
-| 后端  | Spring Boot 2.7.18 + MyBatis + MySQL 8 + SQLite（CRM 对话历史） |
+| 后端  | **Spring Boot 3.5.16 + Java 17** + MyBatis + MySQL 8 + Redis + SQLite（CRM 对话历史） |
 | AI  | 12 个国内厂商（DeepSeek、通义千问、Kimi、GLM 等）+ 本地 vLLM 微调模型（可选） |
-| 向量库 | 本地文件向量数据库（余弦相似度）+ MySQL LIKE，**RRF 混合检索** |
-| 认证  | JWT（用户端，密钥外部注入，7 天有效期）+ CRM API Key（机器接口，fail-closed） |
+| 向量库 | 本地向量库（余弦相似度，规划迁移 pgvector HNSW）+ **bge-m3 嵌入（硅基流动）** + MySQL LIKE，**RRF 混合检索** |
+| 知识图谱 | **Neo4j GraphRAG**（实体抽取 → 关系查询 → 注入上下文，双路召回已接入主链路） |
+| 认证  | JWT（会话版本号，锁定/登出/改密即失效）+ CRM API Key（机器接口，fail-closed） |
 | 智能体 | Multi-Agent 协调器 + ReAct Agent（OpenAI function calling + 工具轨迹落库） |
-| RAG | 文章 ingestion 管线（分块→嵌入→入库）+ 向量/MySQL 混合检索 + 真实 RAGAS 评测 + 引用溯源 |
-| 韧性  | LLM Provider 工厂 + 轻量熔断器（429/5xx 重试与快速失败）  |
-| 安全  | SqlGuard 只读 SQL 守卫（词法校验 + 租户隔离）+ DOMPurify XSS 净化 + PII 出境脱敏 |
+| RAG | 文章 ingestion 管线（分块→嵌入→入库）+ 向量/图谱/MySQL 混合检索 + RAGAS 评测 + 引用溯源 |
+| 防幻觉 | **SynthesisGuard 三层防线**：质量门 + 合规门 + 安全门（已接入 chat/chatStream 输出端） |
+| 多模态 | 图片进上下文（VIP 512K/普通 128K 分级窗口，TokenBudgetManager 预算管控） |
+| 韧性  | LLM Provider 工厂 + 轻量熔断器（429/5xx 重试与快速失败）+ **Sentinel 限流**（登录/AI/上传） |
+| 安全  | SqlGuard 只读 SQL 守卫（词法校验 + 租户隔离）+ DOMPurify XSS 净化 + PII 出境脱敏 + 上传魔数校验 |
+| 可观测 | MDC traceId/userId + **Prometheus/Grafana/Loki/Alertmanager 监控告警栈**（docker-compose 一键起） |
 | PDF | iText + JFreeChart（健康报告生成）                    |
 
 ---
@@ -549,6 +566,33 @@ npm run dev
 
 ## 更新日志
 
+### v5.3 (2026-08-09) — Spring Boot 3 升级 + 双路 RAG 打通 + 限流
+
+**框架升级**
+- ✅ **Spring Boot 2.7.18 → 3.5.16**（OpenRewrite 自动化迁移：javax→jakarta 全量、mybatis 3.0.3、mysql-connector-j），Java 17 编译目标对齐
+- ✅ 修复升级隐藏坑：`spring.data.redis` 前缀迁移、`logging.file.path` 迁移瑕疵、SQLite + HikariCP 6 的 `setReadOnly` 兼容问题
+
+**AI 能力**
+- ✅ **GraphRAG 接入主检索链路**：Neo4j 实体抽取（真实图谱实体匹配 + 缓存）→ 关系查询 → 注入上下文，与向量路构成双路召回
+- ✅ **SynthesisGuard 三层防幻觉接线**：质量门 + 合规门（免责声明/遵医嘱）+ 安全门（紧急就医），chat/chatStream 输出端统一生效
+- ✅ **图片多模态 Phase A/B**：OpenAI 视觉格式消息组装、TokenBudgetManager 预算管控（VIP 512K/普通 128K 分级 + 模型上限取 min）
+- ✅ **Embedding 接入**：硅基流动 bge-m3（独立密钥，与 LLM 厂商分离），向量检索链路可用
+
+**工程化**
+- ✅ **Sentinel 限流**：登录 10QPS / AI 对话 5QPS / 上传 20QPS，blockHandler 兜底（含 SSE 流式）
+- ✅ 补齐历史欠账：重建 `PostServiceImpl`（19 方法）/ `SystemConfigServiceImpl`（7 方法）
+
+### v5.2 (2026-08-01) — 多模态设计与账号锁定
+
+**方案定稿（docs/defect-roadmap.md）**
+- ✅ 1.1 语音 ASR/TTS Provider 化设计（与 AiConfig 同构，未配置回退 Web Speech）
+- ✅ 1.2 图片进上下文 + VIP 分级窗口设计（128K/512K）
+- ✅ 1.3 账号锁定即失效 + 会话版本号设计
+
+**v5.2 已实现**
+- ✅ 1.3 会话版本号机制：锁定/登出/改密 → 旧 Token 立即失效；账号禁用返回 4010，前端强制退出
+- ✅ 1.2 VIP 分级：`is_vip`/`vip_expire_time` 字段 + 128K/512K 预算档位 + 图片数量分级
+
 ### v5.1 (2026-07-31) — 架构级改进与加固
 
 **AI 智能体**
@@ -713,7 +757,7 @@ npm run dev
 
 ## 编译状态
 
-- ✅ 后端编译：BUILD SUCCESS
+- ✅ 后端编译：**BUILD SUCCESS**（Spring Boot 3.5.16 + Java 17，352 源文件）
 - ✅ 前端构建：BUILD SUCCESS
 - ✅ 无编码损坏
 
@@ -737,6 +781,9 @@ npm run dev
 | D-007 | Prometheus 监控未完全集成 | ✅ `InterceptorConfig` 放行 `/actuator/**`；`application.yml` 去掉 `roles: ADMIN` 且 Redis health 默认关闭；新增 `deploy/prometheus.yml` 抓取 `backend:21090`，`docker-compose` 增 `prometheus` 服务 |
 | D-008 | 前端样式不完全统一 | ✅ 主色收敛品牌蓝（见 D-003）；`main.js` 全局加载 `design-tokens.css`；移除 `Login.vue`/`UserProfile.vue` 冗余 `@import` |
 | D-010 | 错误日志不够详细 | ✅ 新增 `TraceIdFilter`（MDC `traceId`/`userId` + 响应头 `X-Trace-Id`）；`JwtInterceptor` 注入 `userId`；`logback` 模式含 `[traceId=%X{traceId} userId=%X{userId}]`；`GlobalExceptionHandler` 返回追踪 ID 便于定位 |
+| D-011 | **PostService/SystemConfigService 实现缺失** | ✅ Boot 3 升级后启动暴露：接口长期存在但实现类从未编写。重建 `PostServiceImpl`（19 方法：发帖/点赞/收藏/回复/关注/举报/热门/搜索）、`SystemConfigServiceImpl`（7 方法：分组配置/敏感掩码/管理员密码验证） |
+| D-012 | **SQLite + HikariCP 兼容** | ✅ Boot 3（HikariCP 6）升级后 `config.setReadOnly(true)` 与 sqlite-jdbc 冲突导致启动失败；移除 JDBC 只读标志（SQLite 只读需在创建连接时指定） |
+| D-013 | **Embedding 服务缺失** | ✅ 接入硅基流动 bge-m3（独立密钥，与 LLM 厂商 DeepSeek 分离）；DeepSeek 无 embeddings API 的历史坑闭环 |
 
 ### 仍待处理（保留项）
 
@@ -746,13 +793,13 @@ npm run dev
 
 ### 架构级遗留项（见 `DELIVERY.md` §8.2）
 
-- **Spring Boot 3 迁移**：当前 2.7.18（2023-11 EOL），需独立改造周期（javax→jakarta 等）
+- ✅ **Spring Boot 3 迁移**：v5.3 已完成（3.5.16 + Java 17，javax→jakarta 全量）
 - **等保三级测评 / 渗透测试**：未开展，商用前置
 - **API Key 存储**：环境变量注入；管理端配置项建议信封加密
 - **God Class 拆分**：`AiServiceImpl` 职责过载，已抽离 Provider 层，后续按会话/检索/评测/用量拆 4 服务
-- **服务端 ASR/TTS**：未实现（语音走浏览器原生 Web Speech API）
-- **向量库规模**：本地文件实现全量扫描，>10 万块时建议迁移 pgvector/Milvus + HNSW
-- **知识图谱**：Neo4j 代码模块已就绪，但尚未接入主 RAG 链路（GraphRAG 属新项目）
+- **服务端 ASR/TTS**：未实现（语音走浏览器原生 Web Speech API；Provider 化设计已定稿，见 `docs/multimodal-design.md`）
+- **向量库规模**：本地文件实现全量扫描，已规划迁移 pgvector + HNSW（10 万级甜蜜区）
+- ✅ **知识图谱**：GraphRAG 已接入主检索链路（Neo4j 实体抽取 → 关系查询 → 双路召回，见 v5.3）
 
 ---
 
