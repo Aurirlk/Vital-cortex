@@ -32,14 +32,13 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -101,7 +100,7 @@ public class AiServiceImpl implements AiService {
     private static final int RAG_ARTICLE_LIMIT = 6;
     private static final int RAG_CONTENT_MAX_LENGTH = 300;
 
-    @javax.annotation.PostConstruct
+    @jakarta.annotation.PostConstruct
     public void init() {
         this.httpClient = new OkHttpClient.Builder()
                 .connectTimeout(aiConfig.getConnectTimeout(), TimeUnit.MILLISECONDS)
@@ -735,7 +734,7 @@ public class AiServiceImpl implements AiService {
      */
     private String buildDrugContext() {
         try {
-            Path drugsPath = Paths.get("ai_data", "drugs.json");
+            Path drugsPath = Path.of("ai_data", "drugs.json");
             if (!Files.exists(drugsPath)) {
                 return "";
             }

@@ -11,7 +11,7 @@ import cn.kmbeast.pojo.vo.NewsVO;
 import cn.kmbeast.service.NewsService;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

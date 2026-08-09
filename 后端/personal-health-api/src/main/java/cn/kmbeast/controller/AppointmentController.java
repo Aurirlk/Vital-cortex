@@ -10,7 +10,7 @@ import cn.kmbeast.pojo.vo.DoctorVO;
 import cn.kmbeast.service.AppointmentService;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.time.LocalDate;
 import java.util.List;
 

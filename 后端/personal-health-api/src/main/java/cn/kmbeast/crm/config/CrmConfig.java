@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.io.File;
 
 @Data
@@ -23,6 +23,16 @@ public class CrmConfig {
 
     @Value("${crm.embedding.model:${EMBEDDING_MODEL:text-embedding-3-small}}")
     private String embeddingModel;
+
+    /**
+     * 嵌入服务访问密钥（独立于主 LLM 密钥）。
+     *
+     * <p>embedding 厂商可能与主对话模型不同（如 LLM=DeepSeek、embedding=硅基流动），
+     * 必须单独配置，否则会把主 LLM 的 key 发到 embedding 服务导致 401。
+     * 为空时回退 aiConfig.getApiKey()（兼容旧配置）。
+     */
+    @Value("${crm.embedding.api-key:${EMBEDDING_API_KEY:}}")
+    private String embeddingApiKey;
 
     /**
      * RAG-03：原默认值 {@code https://api.deepseek.com/v1/embeddings} 是错误端点——

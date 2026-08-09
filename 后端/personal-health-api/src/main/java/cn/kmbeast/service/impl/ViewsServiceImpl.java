@@ -14,7 +14,7 @@ import cn.kmbeast.pojo.vo.ChartVO;
 import cn.kmbeast.service.ViewsService;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
 

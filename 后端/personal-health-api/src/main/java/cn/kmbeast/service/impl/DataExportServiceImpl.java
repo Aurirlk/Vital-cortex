@@ -17,12 +17,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -90,7 +89,7 @@ public class DataExportServiceImpl implements DataExportService {
             root.put("total", drugs.size());
             root.put("drugs", drugArray);
 
-            Path filePath = Paths.get(getExportDir(), "drugs.json");
+            Path filePath = Path.of(getExportDir(), "drugs.json");
             Files.write(filePath, JSON.toJSONString(root, com.alibaba.fastjson2.JSONWriter.Feature.PrettyFormat)
                     .getBytes(StandardCharsets.UTF_8));
 
@@ -147,7 +146,7 @@ public class DataExportServiceImpl implements DataExportService {
             // 按用户ID存储
             String userDir = getExportDir() + File.separator + "health";
             new File(userDir).mkdirs();
-            Path filePath = Paths.get(userDir, "user_" + userId + ".json");
+            Path filePath = Path.of(userDir, "user_" + userId + ".json");
             Files.write(filePath, JSON.toJSONString(root, com.alibaba.fastjson2.JSONWriter.Feature.PrettyFormat)
                     .getBytes(StandardCharsets.UTF_8));
 

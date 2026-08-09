@@ -1,5 +1,6 @@
 package cn.kmbeast.crm.rag;
 
+import cn.kmbeast.crm.config.CrmConfig;
 import cn.kmbeast.crm.vectordb.LocalVectorStore;
 import cn.kmbeast.crm.vectordb.VectorEntity;
 import cn.kmbeast.mapper.NewsMapper;
@@ -7,8 +8,8 @@ import cn.kmbeast.pojo.vo.NewsVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +40,9 @@ public class KnowledgeIngestionService {
     @Resource
     private NewsMapper newsMapper;
 
+    @Resource
+    private CrmConfig crmConfig;
+
     @PostConstruct
     public void init() {
         // 启动自愈：集合不存在或为空时全量灌库
@@ -49,6 +53,15 @@ public class KnowledgeIngestionService {
             Map<String, Object> stats = vectorStore.getCollectionStats(COLLECTION);
             Object count = stats.get("doc_count");
             if (count == null || ((Number) count).intValue() == 0) {
+                // 嵌入服务未配置时（EMBEDDING_API_URL 为空）跳过灌库，
+                // 避免每次启动都触发一批必然失败的请求刷屏日志；
+                // 配置就绪后可手动触发全量重建（管理端接口）。
+                String embeddingUrl = crmConfig.getEmbeddingApiUrl();
+                if (embeddingUrl == null || embeddingUrl.trim().isEmpty()) {
+                    log.warn("[Ingestion] 向量库为空，但嵌入服务未配置（crm.embedding.api-url），跳过启动灌库。" +
+                            "配置后可通过管理端全量重建触发");
+                    return;
+                }
                 log.info("[Ingestion] 向量库为空，启动全量灌库");
                 rebuildAll();
             } else {

@@ -28,8 +28,8 @@ public class ToolContext {
 
     public static Integer getInt(String key) {
         Object val = get(key);
-        if (val instanceof Integer) return (Integer) val;
-        if (val instanceof Number) return ((Number) val).intValue();
+        if (val instanceof Integer integer) return integer;
+        if (val instanceof Number number) return number.intValue();
         return null;
     }
 

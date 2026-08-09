@@ -8,7 +8,7 @@ import cn.kmbeast.pojo.vo.FollowupTaskVO;
 import cn.kmbeast.service.FollowupService;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.List;
 
 @RestController

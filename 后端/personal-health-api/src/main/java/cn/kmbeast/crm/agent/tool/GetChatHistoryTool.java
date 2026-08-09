@@ -6,7 +6,7 @@ import com.alibaba.fastjson2.JSON;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.*;
 
 @Slf4j
@@ -58,8 +58,8 @@ public class GetChatHistoryTool implements Tool {
 
         int limit = 10;
         Object limitArg = arguments.get("limit");
-        if (limitArg instanceof Number) {
-            limit = Math.max(1, Math.min(((Number) limitArg).intValue(), 100));
+        if (limitArg instanceof Number number) {
+            limit = Math.max(1, Math.min(number.intValue(), 100));
         }
 
         try {

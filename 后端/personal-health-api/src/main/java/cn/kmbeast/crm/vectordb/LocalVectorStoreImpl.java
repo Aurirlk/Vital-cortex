@@ -8,14 +8,17 @@ import com.alibaba.fastjson2.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -55,7 +58,7 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
     }
 
     private void loadAllCollections() {
-        Path collectionsFile = Paths.get(storeRoot, "collections.json");
+        Path collectionsFile = Path.of(storeRoot, "collections.json");
         if (!Files.exists(collectionsFile)) return;
 
         try {
@@ -76,7 +79,7 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
 
     private void loadCollection(String collectionName) {
         try {
-            Path colDir = Paths.get(storeRoot, collectionName);
+            Path colDir = Path.of(storeRoot, collectionName);
             if (!Files.exists(colDir)) return;
 
             Path metadataFile = colDir.resolve("metadata.json");
@@ -132,7 +135,7 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
         if (metadataMap.containsKey(collectionName)) return;
 
         try {
-            Path colDir = Paths.get(storeRoot, collectionName);
+            Path colDir = Path.of(storeRoot, collectionName);
             Files.createDirectories(colDir);
 
             CollectionMetadata meta = new CollectionMetadata();
@@ -397,7 +400,7 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
             binaryStores.remove(collectionName);
 
             try {
-                Path colDir = Paths.get(storeRoot, collectionName);
+                Path colDir = Path.of(storeRoot, collectionName);
                 if (Files.exists(colDir)) {
                     Files.walk(colDir)
                             .sorted(Comparator.reverseOrder())
@@ -447,8 +450,8 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
 
     private void persistMetadata(String collectionName) {
         try {
-            Path file = Paths.get(storeRoot, collectionName, "metadata.json");
-            Path tmp = Paths.get(storeRoot, collectionName, "metadata.json.tmp");
+            Path file = Path.of(storeRoot, collectionName, "metadata.json");
+            Path tmp = Path.of(storeRoot, collectionName, "metadata.json.tmp");
             String json = JSON.toJSONString(metadataMap.get(collectionName));
             Files.write(tmp, json.getBytes(StandardCharsets.UTF_8));
             Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -459,8 +462,8 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
 
     private void persistDocuments(String collectionName) {
         try {
-            Path file = Paths.get(storeRoot, collectionName, "documents.json");
-            Path tmp = Paths.get(storeRoot, collectionName, "documents.json.tmp");
+            Path file = Path.of(storeRoot, collectionName, "documents.json");
+            Path tmp = Path.of(storeRoot, collectionName, "documents.json.tmp");
             JSONObject root = new JSONObject();
             root.put("version", 1);
             Map<String, Object> docMap = new LinkedHashMap<>();
@@ -483,8 +486,8 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
 
     private void persistCollections() {
         try {
-            Path file = Paths.get(storeRoot, "collections.json");
-            Path tmp = Paths.get(storeRoot, "collections.json.tmp");
+            Path file = Path.of(storeRoot, "collections.json");
+            Path tmp = Path.of(storeRoot, "collections.json.tmp");
             JSONObject root = new JSONObject();
             root.put("version", 1);
             root.put("updated_at", new Date().toString());
@@ -564,7 +567,7 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
             // 而 append 以 APPEND 模式打开——旧向量全部保留，新向量追加在尾部，
             // readAll 会读到"旧数据+新数据"两份，docCount 却只认新数量，
             // 导致索引错位、检索结果完全错乱，且文件体积永久翻倍。
-            Path binPath = Paths.get(storeRoot, collectionName, "vectors.bin");
+            Path binPath = Path.of(storeRoot, collectionName, "vectors.bin");
             Files.deleteIfExists(binPath);
             VectorBinaryStore store = new VectorBinaryStore(binPath, DIMENSION);
             for (int i = 0; i < newVectors.size(); i++) {

@@ -23,8 +23,7 @@ public class PagerAspect {
     public Object handlePageableParams(ProceedingJoinPoint joinPoint, Pager pager) throws Throwable {
         Object[] args = joinPoint.getArgs();
         for (Object arg : args) {
-            if (arg instanceof QueryDto) {
-                QueryDto queryDTO = (QueryDto) arg;
+            if (arg instanceof QueryDto queryDTO) {
                 configPager(queryDTO);
             }
         }

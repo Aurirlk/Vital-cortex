@@ -42,8 +42,8 @@ public final class ToolArgsValidator {
 
         // 必填项检查
         Object requiredObj = schema.get("required");
-        if (requiredObj instanceof List) {
-            for (Object r : (List<?>) requiredObj) {
+        if (requiredObj instanceof List<?> list) {
+            for (Object r : list) {
                 if (r != null && !arguments.containsKey(r.toString())) {
                     return "缺少必填参数: " + r;
                 }

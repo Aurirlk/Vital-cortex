@@ -17,7 +17,7 @@ import cn.kmbeast.pojo.vo.MessageVO;
 import cn.kmbeast.service.MessageService;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;

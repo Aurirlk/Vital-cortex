@@ -8,7 +8,7 @@ import cn.kmbeast.pojo.entity.Evaluations;
 import cn.kmbeast.service.EvaluationsService;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.List;
 
 /**

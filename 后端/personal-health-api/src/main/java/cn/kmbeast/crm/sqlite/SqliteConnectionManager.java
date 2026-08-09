@@ -4,11 +4,12 @@ import cn.kmbeast.crm.config.CrmConfig;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import javax.annotation.Resource;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.annotation.Resource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -33,6 +34,7 @@ import java.sql.Statement;
  */
 @Slf4j
 @Component
+@DependsOnDatabaseInitialization
 public class SqliteConnectionManager {
 
     @Resource
@@ -50,7 +52,7 @@ public class SqliteConnectionManager {
             readWritePool = buildPool(url, false, 1, "crm-sqlite-rw");
             initSchema();
 
-            readOnlyPool = buildPool(url, true, 4, "crm-sqlite-ro");
+            readOnlyPool = buildPool(url, false, 4, "crm-sqlite-ro");
 
             log.info("[CRM-SQLite] 连接池已就绪: {}（写池=1，读池=4，WAL）", crmConfig.getSqliteDbPath());
         } catch (Exception e) {
@@ -67,8 +69,12 @@ public class SqliteConnectionManager {
         config.setMinimumIdle(1);
         config.setPoolName(poolName);
         config.setConnectionTimeout(10_000);
-        config.setReadOnly(readOnly);
-        // WAL：允许读写并发；busy_timeout：写冲突时等待而非立刻抛错
+        // 注意：绝不能设置 config.setReadOnly() —— sqlite-jdbc 驱动禁止在连接建立后
+        // 修改 read-only 标志（HikariCP 6 在 readOnly=true 时调用 connection.setReadOnly(true)
+        // 会抛 "Cannot change read-only flag after establishing a connection"，导致
+        // PoolInitializationException，应用启动失败）。
+        // SQLite 的只读语义只能在创建连接时通过 JDBC URL 参数（SQLiteConfig）指定；
+        // 此处读池仅靠业务约定执行 SELECT（SQLite 本身支持并发读）。
         config.addDataSourceProperty("journal_mode", "WAL");
         config.addDataSourceProperty("busy_timeout", "5000");
         config.addDataSourceProperty("synchronous", "NORMAL");

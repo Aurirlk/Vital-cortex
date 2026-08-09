@@ -51,8 +51,8 @@ public class AiSessionContext {
      */
     public static Boolean getBoolean(String key) {
         Object value = get(key);
-        if (value instanceof Boolean) {
-            return (Boolean) value;
+        if (value instanceof Boolean boolean1) {
+            return boolean1;
         }
         return null;
     }

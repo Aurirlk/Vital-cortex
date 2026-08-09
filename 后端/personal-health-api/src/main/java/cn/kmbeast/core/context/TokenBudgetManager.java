@@ -6,7 +6,7 @@ import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 
 /**
  * 上下文窗口预算管理（Phase A，设计见 docs/multimodal-design.md §4.3）。
@@ -46,11 +46,9 @@ public class TokenBudgetManager {
                 continue;
             }
             Object content = msg.get("content");
-            if (content instanceof String) {
-                total += estimateTextTokens((String) content);
-            } else if (content instanceof JSONArray) {
-                // 多模态 content：[{type:text},{type:image_url},...]
-                JSONArray parts = (JSONArray) content;
+            if (content instanceof String string) {
+                total += estimateTextTokens(string);
+            } else if (content instanceof JSONArray parts) {
                 for (int j = 0; j < parts.size(); j++) {
                     JSONObject part = parts.getJSONObject(j);
                     if (part == null) {

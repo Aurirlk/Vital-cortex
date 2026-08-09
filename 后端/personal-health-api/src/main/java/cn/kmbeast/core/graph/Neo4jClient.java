@@ -5,9 +5,11 @@ import org.neo4j.driver.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.util.*;
+
+import org.neo4j.driver.Record;
 
 /**
  * Neo4j 客户端
@@ -52,7 +54,7 @@ public class Neo4jClient {
             session.readTransaction(tx -> {
                 org.neo4j.driver.Result result = tx.run(cypher, params);
                 while (result.hasNext()) {
-                    org.neo4j.driver.Record record = result.next();
+                    Record record = result.next();
                     Map<String, Object> row = new HashMap<>();
                     record.keys().forEach(key -> row.put(key, record.get(key).asObject()));
                     results.add(row);

@@ -12,7 +12,7 @@ import cn.kmbeast.pojo.vo.PostReplyVO;
 import cn.kmbeast.service.PostService;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.List;
 
 @RestController

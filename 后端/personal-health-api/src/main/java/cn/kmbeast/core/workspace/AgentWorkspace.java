@@ -9,10 +9,12 @@ import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -50,7 +52,7 @@ public class AgentWorkspace {
      * 获取 Agent 工作目录
      */
     public Path getAgentWorkDir(String agentType) {
-        Path dir = Paths.get(WORKSPACE_ROOT, agentType);
+        Path dir = Path.of(WORKSPACE_ROOT, agentType);
         try {
             Files.createDirectories(dir);
         } catch (IOException e) {
@@ -63,7 +65,7 @@ public class AgentWorkspace {
      * 获取用户专属工作目录
      */
     public Path getUserWorkDir(String agentType, Integer userId) {
-        Path dir = Paths.get(WORKSPACE_ROOT, agentType, "user_" + userId);
+        Path dir = Path.of(WORKSPACE_ROOT, agentType, "user_" + userId);
         try {
             Files.createDirectories(dir);
         } catch (IOException e) {
@@ -253,7 +255,7 @@ public class AgentWorkspace {
      */
     public void saveTempData(String key, JSONObject data, long ttlMillis) {
         data.put("_expiresAt", System.currentTimeMillis() + ttlMillis);
-        Path filePath = Paths.get(WORKSPACE_ROOT, "temp", key + ".json");
+        Path filePath = Path.of(WORKSPACE_ROOT, "temp", key + ".json");
         try {
             Files.createDirectories(filePath.getParent());
             Files.write(filePath, data.toJSONString().getBytes(StandardCharsets.UTF_8),
@@ -267,7 +269,7 @@ public class AgentWorkspace {
      * 获取临时数据
      */
     public JSONObject getTempData(String key) {
-        Path filePath = Paths.get(WORKSPACE_ROOT, "temp", key + ".json");
+        Path filePath = Path.of(WORKSPACE_ROOT, "temp", key + ".json");
         try {
             if (Files.exists(filePath)) {
                 String content = new String(Files.readAllBytes(filePath), StandardCharsets.UTF_8);

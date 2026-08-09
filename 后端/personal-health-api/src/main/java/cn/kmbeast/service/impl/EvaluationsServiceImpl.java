@@ -15,7 +15,7 @@ import cn.kmbeast.pojo.vo.EvaluationsVO;
 import cn.kmbeast.service.EvaluationsService;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.*;
 

@@ -9,12 +9,11 @@ import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -76,7 +75,7 @@ public class HistoryStorageServiceImpl implements HistoryStorageService {
             }
             detail.put("messages", msgArray);
 
-            Path detailPath = Paths.get(userDir, "conversation_" + conversation.getId() + ".json");
+            Path detailPath = Path.of(userDir, "conversation_" + conversation.getId() + ".json");
             Files.write(detailPath, JSON.toJSONString(detail, com.alibaba.fastjson2.JSONWriter.Feature.PrettyFormat)
                     .getBytes(StandardCharsets.UTF_8));
 
@@ -120,7 +119,7 @@ public class HistoryStorageServiceImpl implements HistoryStorageService {
                 index.add(item);
             }
             
-            Path indexPath = Paths.get(getUserDir(userId), "index.json");
+            Path indexPath = Path.of(getUserDir(userId), "index.json");
             Files.write(indexPath, JSON.toJSONString(index, com.alibaba.fastjson2.JSONWriter.Feature.PrettyFormat)
                     .getBytes(StandardCharsets.UTF_8));
                     
@@ -131,7 +130,7 @@ public class HistoryStorageServiceImpl implements HistoryStorageService {
 
     private JSONArray loadIndex(Integer userId) {
         try {
-            Path indexPath = Paths.get(getUserDir(userId), "index.json");
+            Path indexPath = Path.of(getUserDir(userId), "index.json");
             if (Files.exists(indexPath)) {
                 String content = new String(Files.readAllBytes(indexPath), StandardCharsets.UTF_8);
                 return JSON.parseArray(content);
@@ -176,7 +175,7 @@ public class HistoryStorageServiceImpl implements HistoryStorageService {
     public List<AiChatRecord> loadMessages(Integer userId, Integer conversationId) {
         List<AiChatRecord> result = new ArrayList<>();
         try {
-            Path detailPath = Paths.get(getUserDir(userId), "conversation_" + conversationId + ".json");
+            Path detailPath = Path.of(getUserDir(userId), "conversation_" + conversationId + ".json");
             if (!Files.exists(detailPath)) {
                 return result;
             }
@@ -211,7 +210,7 @@ public class HistoryStorageServiceImpl implements HistoryStorageService {
     public void deleteConversation(Integer userId, Integer conversationId) {
         try {
             // 删除详情文件
-            Path detailPath = Paths.get(getUserDir(userId), "conversation_" + conversationId + ".json");
+            Path detailPath = Path.of(getUserDir(userId), "conversation_" + conversationId + ".json");
             Files.deleteIfExists(detailPath);
             
             // 从索引中移除
@@ -224,7 +223,7 @@ public class HistoryStorageServiceImpl implements HistoryStorageService {
                 }
             }
             
-            Path indexPath = Paths.get(getUserDir(userId), "index.json");
+            Path indexPath = Path.of(getUserDir(userId), "index.json");
             Files.write(indexPath, JSON.toJSONString(newIndex, com.alibaba.fastjson2.JSONWriter.Feature.PrettyFormat)
                     .getBytes(StandardCharsets.UTF_8));
             

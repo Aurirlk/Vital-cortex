@@ -11,7 +11,7 @@ import cn.kmbeast.pojo.vo.NewsSaveVO;
 import cn.kmbeast.service.NewsSaveService;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;

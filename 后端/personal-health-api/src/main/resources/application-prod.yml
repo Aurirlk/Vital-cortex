@@ -27,15 +27,17 @@ spring:
     hikari:
       minimum-idle: 5
       maximum-pool-size: 20
-  redis:
-    host: ${REDIS_HOST:redis}
-    port: 6379
-    database: 0
-    timeout: 5000ms
+  data:
+    redis:
+      database: 0
+      host: ${REDIS_HOST:redis}
+      port: 6379
+      timeout: 5000ms
 
 # 日志（生产：文件滚动 + 错误独立归档，见 logback-spring.xml）
 logging:
   file:
+    # OpenRewrite 迁移误把 path 嵌套进 name（Boot3 中 name 为字符串属性），已修正恢复
     path: /app/logs
 
 # ============================================================

@@ -12,7 +12,6 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 /**
@@ -133,7 +132,7 @@ public class SearchDrugTool implements Tool {
     private JSONArray loadDrugsFromJson() {
         try {
             String drugsFile = vectorCacheDir.replace("vector_cache", "ai_data") + File.separator + "drugs.json";
-            Path filePath = Paths.get(drugsFile);
+            Path filePath = Path.of(drugsFile);
             
             if (!Files.exists(filePath)) {
                 log.info("[SearchDrugTool] 药品数据文件不存在: {}", filePath);

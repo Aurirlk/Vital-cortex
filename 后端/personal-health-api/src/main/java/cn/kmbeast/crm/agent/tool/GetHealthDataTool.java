@@ -12,7 +12,6 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 /**
@@ -108,7 +107,7 @@ public class GetHealthDataTool implements Tool {
             // AG-15 整改：原实现用 vectorCacheDir.replace("vector_cache","ai_data")
             // 字符串替换推导路径，配置名一变就静默失效。
             // 改为独立配置 crm.health-data-dir（可环境变量 HEALTH_DATA_DIR 注入）。
-            Path filePath = Paths.get(healthDataDir, "user_" + userId + ".json");
+            Path filePath = Path.of(healthDataDir, "user_" + userId + ".json");
             
             if (!Files.exists(filePath)) {
                 log.info("[GetHealthDataTool] 健康数据文件不存在: {}", filePath);

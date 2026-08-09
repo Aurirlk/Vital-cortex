@@ -10,8 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,6 +60,18 @@ public class EmbeddingService {
                 .build();
     }
 
+    /**
+     * 解析嵌入服务密钥：优先独立配置 crm.embedding.api-key（embedding 厂商可能与
+     * 主 LLM 不同，如 DeepSeek + 硅基流动），为空时回退主 LLM 密钥（兼容旧配置）。
+     */
+    private String resolveApiKey() {
+        String key = crmConfig.getEmbeddingApiKey();
+        if (key != null && !key.trim().isEmpty()) {
+            return key.trim();
+        }
+        return aiConfig.getApiKey();
+    }
+
     public float[] embed(String text) {
         float[] cached = embeddingCache.get(text);
         if (cached != null) return cached;
@@ -72,7 +84,7 @@ public class EmbeddingService {
 
                 Request request = new Request.Builder()
                         .url(crmConfig.getEmbeddingApiUrl())
-                        .addHeader("Authorization", "Bearer " + aiConfig.getApiKey())
+                        .addHeader("Authorization", "Bearer " + resolveApiKey())
                         .addHeader("Content-Type", "application/json")
                         .post(RequestBody.create(body.toJSONString(), JSON_MEDIA_TYPE))
                         .build();
@@ -168,7 +180,7 @@ public class EmbeddingService {
 
                 Request request = new Request.Builder()
                         .url(crmConfig.getEmbeddingApiUrl())
-                        .addHeader("Authorization", "Bearer " + aiConfig.getApiKey())
+                        .addHeader("Authorization", "Bearer " + resolveApiKey())
                         .addHeader("Content-Type", "application/json")
                         .post(RequestBody.create(body.toJSONString(), JSON_MEDIA_TYPE))
                         .build();

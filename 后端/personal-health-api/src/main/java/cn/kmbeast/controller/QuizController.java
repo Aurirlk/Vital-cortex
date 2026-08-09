@@ -9,7 +9,7 @@ import cn.kmbeast.pojo.vo.QuizQuestionVO;
 import cn.kmbeast.service.QuizService;
 import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.List;
 
 @RestController
