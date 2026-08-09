@@ -2,6 +2,10 @@ package cn.kmbeast.service.impl;
 
 import cn.kmbeast.config.AiConfig;
 import cn.kmbeast.config.AiPromptConfig;
+import cn.kmbeast.core.graph.KnowledgeGraphService;
+import cn.kmbeast.core.guard.OutputValidator;
+import cn.kmbeast.core.guard.SignalDetector;
+import cn.kmbeast.core.guard.SynthesisGuard;
 import cn.kmbeast.crm.agent.tool.AiSessionContext;
 import cn.kmbeast.crm.rag.HybridRetriever;
 import cn.kmbeast.mapper.AiChatRecordMapper;
@@ -67,6 +71,18 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private cn.kmbeast.crm.rag.HybridRetriever hybridRetriever;
+
+    @Resource
+    private KnowledgeGraphService knowledgeGraphService;
+
+    @Resource
+    private SynthesisGuard synthesisGuard;
+
+    @Resource
+    private OutputValidator outputValidator;
+
+    @Resource
+    private SignalDetector signalDetector;
 
     @Resource
     private cn.kmbeast.mapper.AiUsageMapper aiUsageMapper;
@@ -142,10 +158,14 @@ public class AiServiceImpl implements AiService {
                 healthContext = buildHealthContext(userId);
             }
             
-            // 根据设置决定是否启用知识库
+            // 根据设置决定是否启用知识库（文章 RAG + 知识图谱 GraphRAG 双路召回）
             String articleContext = "";
+            String graphContext = "";
             if (chatRequest.getEnableKnowledgeBase() == null || Boolean.TRUE.equals(chatRequest.getEnableKnowledgeBase())) {
                 articleContext = buildArticleRagContext(userMessage, chatRequest.getKeywords());
+                // GraphRAG 接入主链路：向量/关键词召回文章之外，追加知识图谱实体关系上下文。
+                // Neo4j 未连接时 getRelatedContext 返回空串，自动降级为纯文章检索（不抛错）。
+                graphContext = knowledgeGraphService.getRelatedContext(userMessage);
             }
             
             // 联网搜索上下文
@@ -158,7 +178,7 @@ public class AiServiceImpl implements AiService {
             }
 
             String systemPrompt = AiPromptConfig.getSystemPrompt(agentType);
-            String fullContext = healthContext + articleContext + buildDrugContext() + webSearchContext;
+            String fullContext = healthContext + articleContext + graphContext + buildDrugContext() + webSearchContext;
             // Phase B：按 VIP 判定窗口档位与图片上限（128K/3张 vs 512K/10张）
             boolean vip = authSessionManager.isVip(userId);
             JSONArray messages = buildMessagesArray(systemPrompt, fullContext,
@@ -197,6 +217,26 @@ public class AiServiceImpl implements AiService {
                     chatRequest.getEnableDeepThink());
 
             String aiReply = callDeepSeekApi(requestBody.toJSONString(), apiUrl, apiKey);
+
+            // ============ SynthesisGuard 输出守卫（三层防幻觉接线） ============
+            // 层1 质量门：端水/重复/过短检测 —— 不阻断回答，仅记录监控（质量信号）
+            if (!synthesisGuard.validateOutput(aiReply)) {
+                log.warn("[AI-Guard] 回答质量门未通过（疑似端水/重复/过短）: userId={}, len={}",
+                        userId, aiReply != null ? aiReply.length() : 0);
+            }
+            // 层2 合规门：医疗关键词 → 免责声明；剂量类敏感信息 → 强化"遵医嘱"提示
+            StringBuilder guardedReply = new StringBuilder(aiReply != null ? aiReply : "");
+            if (outputValidator.needDisclaimer(aiReply)) {
+                guardedReply.append("\n\n---\n⚠️ 以上内容由 AI 生成，仅供参考，不能替代专业医生的诊断与治疗建议。");
+            }
+            if (outputValidator.containsSensitiveInfo(aiReply)) {
+                guardedReply.append("\n⚠️ 具体用药剂量请务必遵医嘱或药品说明书，本回答不构成处方建议。");
+            }
+            // 层3 安全门：紧急情况 → 强制就医提示（医疗场景兜底）
+            if (signalDetector.isUrgent(userMessage)) {
+                guardedReply.append("\n\n🚨 您描述的情况可能属于紧急医疗状况，请立即拨打 120 或前往就近医院急诊！本对话不能替代紧急救助。");
+            }
+            aiReply = guardedReply.toString();
 
             AiChatRecord aiRecord = AiChatRecord.builder()
                     .conversationId(conversationId)
@@ -282,14 +322,18 @@ public class AiServiceImpl implements AiService {
                 log.info("[AI] 健康数据查询: 已禁用");
             }
             
-            // 根据设置决定是否启用知识库
+            // 根据设置决定是否启用知识库（文章 RAG + 知识图谱 GraphRAG 双路召回）
             String articleContext = "";
+            String graphContext = "";
             boolean enableKB = chatRequest.getEnableKnowledgeBase() == null || Boolean.TRUE.equals(chatRequest.getEnableKnowledgeBase());
             if (enableKB) {
                 articleContext = buildArticleRagContext(userMessage, chatRequest.getKeywords());
-                log.info("[AI] 知识库查询: 关键词={}, 结果长度={}, 有结果={}", 
+                // GraphRAG 接入主链路（流式）：追加知识图谱实体关系上下文。
+                // Neo4j 未连接时 getRelatedContext 返回空串，自动降级为纯文章检索（不抛错）。
+                graphContext = knowledgeGraphService.getRelatedContext(userMessage);
+                log.info("[AI] 知识库查询: 关键词={}, 结果长度={}, 图谱={}, 有结果={}", 
                         chatRequest.getKeywords() != null ? chatRequest.getKeywords() : userMessage,
-                        articleContext.length(), !articleContext.isEmpty());
+                        articleContext.length(), graphContext.length(), !articleContext.isEmpty());
             } else {
                 log.info("[AI] 知识库查询: 已禁用");
             }
@@ -314,7 +358,7 @@ public class AiServiceImpl implements AiService {
             }
 
             String systemPrompt = AiPromptConfig.getSystemPrompt(agentType);
-            String fullContext = healthContext + articleContext + drugContext + webSearchContext;
+            String fullContext = healthContext + articleContext + graphContext + drugContext + webSearchContext;
             // Phase B：按 VIP 判定窗口档位与图片上限
             boolean vip = authSessionManager.isVip(userId);
             JSONArray messages = buildMessagesArray(systemPrompt, fullContext,
@@ -418,6 +462,31 @@ public class AiServiceImpl implements AiService {
                     log.info("[AI] 流式响应完成: agentType={}, chunkCount={}, replyLength={}",
                             agentType, chunkCount, fullReply.length());
                 }
+            }
+
+            // ============ SynthesisGuard 输出守卫（流式，三层防幻觉接线） ============
+            // 层1 质量门：端水/重复/过短检测 —— 不阻断回答，仅记录监控（质量信号）
+            String streamReply = fullReply.toString();
+            if (!synthesisGuard.validateOutput(streamReply)) {
+                log.warn("[AI-Guard] 流式回答质量门未通过（疑似端水/重复/过短）: userId={}, len={}",
+                        userId, streamReply.length());
+            }
+            // 层2 合规门 + 层3 安全门：追加免责/遵医嘱/紧急就医提示（与 chat 一致，前端可见）
+            StringBuilder guardedReply = new StringBuilder(streamReply);
+            if (outputValidator.needDisclaimer(streamReply)) {
+                guardedReply.append("\n\n---\n⚠️ 以上内容由 AI 生成，仅供参考，不能替代专业医生的诊断与治疗建议。");
+            }
+            if (outputValidator.containsSensitiveInfo(streamReply)) {
+                guardedReply.append("\n⚠️ 具体用药剂量请务必遵医嘱或药品说明书，本回答不构成处方建议。");
+            }
+            if (signalDetector.isUrgent(userMessage)) {
+                guardedReply.append("\n\n🚨 您描述的情况可能属于紧急医疗状况，请立即拨打 120 或前往就近医院急诊！本对话不能替代紧急救助。");
+            }
+            String appendText = guardedReply.substring(streamReply.length());
+            if (!appendText.isEmpty()) {
+                callback.onEvent("answer_chunk", JSON.toJSONString(
+                        buildMap("content", appendText, "done", false)));
+                fullReply.append(appendText);
             }
 
             AiChatRecord aiRecord = AiChatRecord.builder()

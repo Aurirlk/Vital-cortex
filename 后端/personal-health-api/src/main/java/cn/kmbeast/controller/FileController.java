@@ -1,10 +1,12 @@
 package cn.kmbeast.controller;
 
 import cn.kmbeast.aop.Protector;
+import cn.kmbeast.config.SentinelBlockHandlers;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.utils.IdFactoryUtil;
 import cn.kmbeast.utils.PathUtils;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
@@ -64,6 +66,8 @@ public class FileController {
      * 文件上传（需登录）
      */
     @Protector
+    @SentinelResource(value = "file:upload",
+            blockHandler = "uploadBlocked", blockHandlerClass = SentinelBlockHandlers.class)
     @PostMapping("/upload")
     public Result<Map<String, String>> uploadFile(@RequestParam("file") MultipartFile multipartFile) {
         if (multipartFile == null || multipartFile.isEmpty()) {

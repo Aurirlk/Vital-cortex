@@ -36,3 +36,13 @@ ai:
   max-history-rounds: 10
   max-tokens: 4096
   vector-cache-dir: ./vector_cache
+
+# CRM 模块（机器对机器接口 + RAG 链路）
+crm:
+  # 本地开发可设为 false 跳过启动期强校验（不配置也能启动）。
+  # 生产环境必须保持 true（默认值），未配置 crm.api-key 时应用拒绝启动。
+  # 实际密钥通过环境变量 CRM_API_KEY / 配置 crm.api-key 注入，勿写入本文件。
+  strict-startup: true
+  api-key: YOUR_CRM_API_KEY_HERE  # ← 生产必填：openssl rand -hex 32 生成（≥24字符）
+  embedding:
+    api-url: YOUR_EMBEDDING_API_URL  # ← 生产必填：OpenAI 兼容 embeddings 端点（DeepSeek 无此接口）

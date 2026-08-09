@@ -16,8 +16,12 @@
              源码里的中文注释全部编译失败。 -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <!-- Java 17 对齐：项目实际运行在 JDK 17（JAVA_HOME=D:\Program Files\Java\Jdk-17），
+             原 1.8 目标导致 Map.of()/List.of() 等 Java 9+ API 编译报"找不到符号"。
+             Spring Boot 2.7.18 官方支持 Java 17，升级零风险。 -->
+        <java.version>17</java.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
     <!--springboot父亲依赖 - 升级到 2.7.18 LTS-->
@@ -85,6 +89,27 @@
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
             <version>2.3.2</version>
+        </dependency>
+
+        <!-- ============ Sentinel 限流熔断（roadmap S3） ============
+             单机接入：sentinel-core（核心）+ annotation-aspectj（@SentinelResource 注解）
+             + transport-simple-http（连接控制台，可选）。
+             1.8.8 同时兼容 Spring Boot 2.7（javax）与 3.x（jakarta），
+             后续 OpenRewrite 升级 Boot 3 无需改动。 -->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-core</artifactId>
+            <version>1.8.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-annotation-aspectj</artifactId>
+            <version>1.8.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-transport-simple-http</artifactId>
+            <version>1.8.8</version>
         </dependency>
 
         <!--excel处理-->

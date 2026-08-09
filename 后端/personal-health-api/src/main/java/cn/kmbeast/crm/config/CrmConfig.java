@@ -69,10 +69,26 @@ public class CrmConfig {
     @Value("${crm.react.tool-timeout-seconds:30}")
     private int toolTimeoutSeconds;
 
+    /**
+     * 启动期强校验开关（默认 true 保持安全门）。
+     *
+     * <p>本地开发（IDEA 直接 Run）未注入 CRM_API_KEY / EMBEDDING_API_URL 时，
+     * 设置环境变量 {@code CRM_STRICT_STARTUP=false}（或 JVM 参数
+     * {@code -Dcrm.strict-startup=false}）可跳过强校验仅告警。
+     * 生产环境务必保持默认 true —— 该开关**不会**削弱 {@code CrmApiKeyInterceptor}
+     * 的 fail-closed 行为（未配置密钥时 /crm/** 请求仍一律 401，绝不无认证放行）。
+     */
+    @Value("${crm.strict-startup:true}")
+    private boolean strictStartup;
+
     @PostConstruct
     public void init() {
-        validateApiKey();
-        validateEmbeddingConfig();
+        if (strictStartup) {
+            validateApiKey();
+            validateEmbeddingConfig();
+        } else {
+            log.warn("[CRM] strict-startup=false：跳过 API 密钥/嵌入端点启动强校验（仅限本地开发，生产必须为 true）");
+        }
 
         File sqliteParent = new File(sqliteDbPath).getParentFile();
         if (sqliteParent != null && !sqliteParent.exists()) {

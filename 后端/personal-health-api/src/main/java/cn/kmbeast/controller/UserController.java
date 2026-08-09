@@ -2,6 +2,7 @@ package cn.kmbeast.controller;
 
 import cn.kmbeast.aop.Pager;
 import cn.kmbeast.aop.Protector;
+import cn.kmbeast.config.SentinelBlockHandlers;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.extend.UserQueryDto;
 import cn.kmbeast.pojo.dto.update.UserLoginDTO;
@@ -11,6 +12,7 @@ import cn.kmbeast.pojo.entity.User;
 import cn.kmbeast.pojo.vo.ChartVO;
 import cn.kmbeast.pojo.vo.UserVO;
 import cn.kmbeast.service.UserService;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -30,6 +32,8 @@ public class UserController {
      * @param userLoginDTO 登录入参
      * @return Result<String> 响应结果
      */
+    @SentinelResource(value = "user:login",
+            blockHandler = "loginBlocked", blockHandlerClass = SentinelBlockHandlers.class)
     @PostMapping(value = "/login")
     @ResponseBody
     public Result<Object> login(@RequestBody UserLoginDTO userLoginDTO) {

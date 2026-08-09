@@ -3,6 +3,7 @@ package cn.kmbeast.controller;
 import cn.kmbeast.aop.Pager;
 import cn.kmbeast.aop.Protector;
 import cn.kmbeast.config.AiPromptConfig;
+import cn.kmbeast.config.SentinelBlockHandlers;
 import cn.kmbeast.context.LocalThreadHolder;
 import cn.kmbeast.mapper.UserMapper;
 import cn.kmbeast.pojo.api.ApiResult;
@@ -15,6 +16,7 @@ import cn.kmbeast.pojo.entity.User;
 import cn.kmbeast.service.AiChatCacheService;
 import cn.kmbeast.service.AiHealthDataService;
 import cn.kmbeast.service.AiService;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -67,6 +69,8 @@ public class AiController {
      * @return AI回复（含 conversationId）
      */
     @Protector
+    @SentinelResource(value = "ai:chat",
+            blockHandler = "chatBlocked", blockHandlerClass = SentinelBlockHandlers.class)
     @PostMapping(value = "/chat")
     public Result<Map<String, String>> chat(@RequestBody AiChatRequest chatRequest) {
         Integer userId = LocalThreadHolder.getUserId();
@@ -89,6 +93,8 @@ public class AiController {
      * AI医生流式对话（SSE）
      */
     @Protector
+    @SentinelResource(value = "ai:chatStream",
+            blockHandler = "chatStreamBlocked", blockHandlerClass = SentinelBlockHandlers.class)
     @PostMapping(value = "/chat/stream")
     public void chatStream(@RequestBody AiChatRequest chatRequest,
                            HttpServletResponse response) {
