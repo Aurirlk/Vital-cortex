@@ -1,6 +1,6 @@
 # 智康云健康管理系统 — 用户交付手册
 
-> **版本**: v1.1（2026-07-31）
+> **版本**: v1.2（2026-07-31）
 > **适用系统**: 智康云 · AI 驱动的全栈健康管理平台
 > **本文档定位**: 面向部署方、运维方与使用方的交付说明。内部审查与修复过程记录已归档，不在此重复。
 
@@ -119,6 +119,7 @@ JWT_SECRET=至少32字节随机字符串（openssl rand -base64 48）
 CRM_API_KEY=至少24字符随机字符串（openssl rand -hex 32）
 EMBEDDING_API_URL=嵌入服务地址（可选，RAG 向量检索用）
 AI_API_KEY=DeepSeek等厂商密钥
+GRAFANA_ADMIN_PASSWORD=Grafana管理员密码（≥8位强密码，监控看板登录用，见 4.4）
 EOF
 
 # 2. 启动
@@ -145,8 +146,29 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 ### 4.3 关键运维事项
 
 - **镜像/进程以非 root 运行**（后端镜像已内置 appuser）
-- **数据卷持久化**：`backend_data`（上传文件）、`mysql_data`、`crm_data`（对话历史）
+- **数据卷持久化**：`backend_data`（上传文件）、`mysql_data`、`crm_data`（对话历史）、`grafana_data`/`loki_data`（监控数据，见 4.4）
 - **备份清单**：MySQL 全库、`crm_data/chat_history.db`（WAL 模式下需 `sqlite3 .backup` 或使用 `/crm/sqlite/backup` 接口）
+
+### 4.4 监控、告警与日志采集（随 compose 默认启用）
+
+部署成功后附带一套可观测性栈，服务与访问入口：
+
+| 组件 | 端口 | 入口 | 说明 |
+|------|------|------|------|
+| Grafana | 3000 | `http://<主机>:3000` | 指标看板 + 日志查询，登录用 5.1 的 `GRAFANA_ADMIN_PASSWORD` |
+| Prometheus | 9090 | `http://<主机>:9090` | 指标抓取与告警规则管理 |
+| Alertmanager | 9093 | `http://<主机>:9093` | 告警通知分发 |
+| Loki | 3100 | `http://<主机>:3100` | 日志存储（保留 7 天），一般经 Grafana 访问 |
+
+**指标看板**：Grafana 已预置数据源（Prometheus/Loki）与「Spring Boot 应用概览（智康云）」看板（JVM 堆 / CPU / HTTP QPS / 5xx / 线程 / 启动时长），打开即用。
+
+**告警规则**（`deploy/prometheus-alerts.yml`，5 条）：后端实例离线（critical）、HTTP 5xx 速率过高、进程 CPU >85%、JVM 堆 >85%、监控目标离线。触发后在 Prometheus「Alerts」页可见，并推送 Alertmanager。
+
+**告警外发（上线前必改）**：编辑 `deploy/alertmanager.yml`，把 `url` 换成企业微信 / 钉钉 / 飞书机器人 Webhook，然后 `docker compose restart alertmanager`。未替换前告警只在 Alertmanager 页面停留，不会外发。
+
+**日志查询**：Grafana → 左侧 Explore → 数据源选 Loki，按 `service="backend"` 过滤后端日志；日志带 `traceId`/`userId` 标记，可与错误响应中的「追踪ID」关联排查。
+
+**关闭监控栈**：不需要时删除 `docker-compose.yml` 中 grafana / alertmanager / loki / promtail 四个服务块及其数据卷声明即可（不影响业务）。
 
 ## 5. 配置说明
 
@@ -158,6 +180,7 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 | CRM API Key | `CRM_API_KEY` | ≥24 字符，保护 `/crm/**` 机器接口 |
 | MySQL 密码 | `DB_ROOT_PASSWORD` | 数据库 root 密码 |
 | 嵌入服务地址 | `EMBEDDING_API_URL` | 向量检索用（DeepSeek 无此接口，需 OpenAI 兼容或本地服务） |
+| Grafana 管理员密码 | `GRAFANA_ADMIN_PASSWORD` | 监控看板登录密码（≥8 位，随 compose 启动 Grafana，见 4.4） |
 
 ### 5.2 可选配置
 
@@ -169,6 +192,8 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 | 对外文件 URL | `my-server.public-base-url` | localhost（生产必须改为域名） |
 | 嵌入模型 | `EMBEDDING_MODEL` | text-embedding-3-small |
 | 健康数据目录 | `HEALTH_DATA_DIR` | ./ai_data/health |
+| 监控端口 | `GRAFANA_PORT` / `ALERTMANAGER_PORT` / `LOKI_PORT` | 3000 / 9093 / 3100 |
+| Grafana 访问地址 | `GRAFANA_ROOT_URL` | http://localhost:3000（生产改为域名） |
 
 ### 5.3 安全配置基线
 

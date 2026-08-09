@@ -1,0 +1,18 @@
+# 智康云健康管理系统 - Alertmanager 告警通知配置
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'instance']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'zhikangyun-webhook'
+
+receivers:
+  - name: 'zhikangyun-webhook'
+    webhook_configs:
+      # TODO(上线前必改)：将 url 替换为实际告警通道（企业微信/钉钉/飞书机器人 Webhook）。
+      # 当前为占位地址，不配置则告警只停留在 Alertmanager/Prometheus 页面，不会外发。
+      - url: 'http://host.docker.internal:9000/hook'
+        send_resolved: true

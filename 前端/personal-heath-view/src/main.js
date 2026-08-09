@@ -14,10 +14,15 @@ import "./assets/css/dialog.scss";
 import "./assets/css/input.scss";
 import "./assets/css/dark-mode.scss";
 import "./assets/themes.css";
+// D-003/D-008 整改：全局加载设计令牌（--xh-*），打通 token 体系（仅定义变量，不含有问题的 EP 覆写）。
+// 主品牌色 #0050cb 已在 assets/themes.css 的 --primary-color 中生效。
+import "@/styles/design-tokens.css";
 import request from "@/utils/request";
 import md5 from "js-md5";
 import swalPlugin from "@/utils/swalPlugin";
 import { URL_API } from "@/utils/request";
+import { getToken } from "@/utils/storage.js";
+import { connectWs } from "@/utils/ws.js";
 
 // ---- Element Plus  ----
 //  300+ 
@@ -87,5 +92,11 @@ app.use(ElementPlus, { locale: zhCn });
 app.use(VueSweetalert2);
 app.use(swalPlugin);
 app.use(router);
+
+// D-004 整改：应用启动且本地已存在 token（如刷新页面后保留登录态）时，主动建立 WebSocket 连接，
+// 以便即时接收消息通知。登录成功分支（Login.vue）也会在写入 token 后调用 connectWs()。
+if (getToken()) {
+  connectWs();
+}
 
 app.mount("#app");

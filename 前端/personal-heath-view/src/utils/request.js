@@ -1,4 +1,5 @@
 import axios from "axios";
+import { ElMessage } from "element-plus";
 import { getToken, clearToken } from "@/utils/storage.js";
 
 /**
@@ -33,6 +34,12 @@ request.interceptors.response.use(
   (error) => {
     const status = error && error.response && error.response.status;
     if (status === 401) {
+      // roadmap §1.3：业务码 4010 = 账号被禁用（管理员锁定），给出明确提示；
+      // 其余 401（token 失效/会话过期）静默清 token 跳登录。
+      const body = error.response.data || {};
+      if (body.code === 4010) {
+        ElMessage.error(body.msg || "账号已被禁用，请联系管理员");
+      }
       try {
         clearToken();
       } catch (e) {

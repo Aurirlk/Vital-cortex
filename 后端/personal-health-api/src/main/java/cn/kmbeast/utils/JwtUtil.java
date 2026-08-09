@@ -94,19 +94,34 @@ public class JwtUtil {
     }
 
     /**
-     * 生成 token
+     * 生成 token（兼容入口，ver=0，等价于无会话版本约束）
      *
      * @param id   用户ID
      * @param role 用户角色
      * @return JWT token
      */
     public String toToken(Integer id, Integer role) {
+        return toToken(id, role, 0);
+    }
+
+    /**
+     * 生成 token（携带会话版本号 ver）
+     * <p>roadmap §1.3：ver 由 AuthSessionManager.nextVersion() 签发；锁定 / 登出 / 改密
+     * 时版本递增，旧 token 因 ver 不匹配而失效，无需维护黑名单。
+     *
+     * @param id   用户ID
+     * @param role 用户角色
+     * @param ver  会话版本号（登录时递增，默认 0）
+     * @return JWT token
+     */
+    public String toToken(Integer id, Integer role, Integer ver) {
         JwtBuilder jwtBuilder = Jwts.builder();
         return jwtBuilder
                 .id(UUID.randomUUID().toString())
                 .subject(String.valueOf(id))
                 .claim("id", id)
                 .claim("role", role)
+                .claim("ver", ver == null ? 0 : ver)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(signingKey)

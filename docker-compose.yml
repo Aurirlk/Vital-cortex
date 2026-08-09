@@ -54,6 +54,8 @@ services:
       EMBEDDING_API_URL: ${EMBEDDING_API_URL:-}
       # MM-06：文件存储根目录指向持久化卷，避免容器重建丢失上传文件
       FILE_STORAGE_ROOT: /app/data
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "${BACKEND_PORT:-21090}:21090"
     volumes:
@@ -65,6 +67,8 @@ services:
       - frontend-net
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   # 前端服务
@@ -81,6 +85,108 @@ services:
     depends_on:
       - backend
 
+  # Redis 缓存（D-006 整改：补齐 Redis 实例，消除 RedisHealthIndicator 恒为 DOWN 并启用缓存层）
+  redis:
+    image: redis:7-alpine
+    container_name: zhikangyun-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Prometheus 监控（D-007 整改：落地监控抓取端）
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: zhikangyun-prometheus
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./deploy/prometheus-alerts.yml:/etc/prometheus/prometheus-alerts.yml
+      - prometheus_data:/prometheus
+    networks:
+      - backend-net
+    depends_on:
+      - backend
+
+  # Grafana 可视化（上线前补齐：指标看板 + 日志查询）
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: zhikangyun-grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?请通过环境变量 GRAFANA_ADMIN_PASSWORD 设置 Grafana 管理员密码}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - backend-net
+    depends_on:
+      - prometheus
+      - loki
+
+  # Alertmanager 告警通知（告警规则见 deploy/prometheus-alerts.yml，通知地址见 deploy/alertmanager.yml）
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: zhikangyun-alertmanager
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./deploy/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    networks:
+      - backend-net
+    depends_on:
+      - prometheus
+
+  # Loki 日志聚合（生产日志采集，保留 7 天）
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: zhikangyun-loki
+    restart: unless-stopped
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./deploy/loki/local-config.yaml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    networks:
+      - backend-net
+
+  # promtail 日志采集（docker.sock 自动发现容器 → Loki）
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: zhikangyun-promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./deploy/promtail/config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - backend-net
+    depends_on:
+      - loki
+
 # 数据卷
 volumes:
   mysql_data:
@@ -90,6 +196,16 @@ volumes:
   backend_logs:
     driver: local
   backend_cache:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+  loki_data:
     driver: local
 
 # 网络

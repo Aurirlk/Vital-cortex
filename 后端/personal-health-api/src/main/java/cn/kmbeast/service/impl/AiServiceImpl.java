@@ -74,6 +74,12 @@ public class AiServiceImpl implements AiService {
     @Resource
     private cn.kmbeast.core.provider.LLMProviderFactory llmProviderFactory;
 
+    @Resource
+    private cn.kmbeast.core.context.TokenBudgetManager tokenBudgetManager;
+
+    @Resource
+    private cn.kmbeast.core.auth.AuthSessionManager authSessionManager;
+
     private OkHttpClient httpClient;
 
     private static final int RAG_ARTICLE_LIMIT = 6;
@@ -153,8 +159,12 @@ public class AiServiceImpl implements AiService {
 
             String systemPrompt = AiPromptConfig.getSystemPrompt(agentType);
             String fullContext = healthContext + articleContext + buildDrugContext() + webSearchContext;
+            // Phase B：按 VIP 判定窗口档位与图片上限（128K/3张 vs 512K/10张）
+            boolean vip = authSessionManager.isVip(userId);
             JSONArray messages = buildMessagesArray(systemPrompt, fullContext,
-                    historyRecords, userMessage);
+                    historyRecords, userMessage, chatRequest.getFiles(), vip);
+            // Phase A/B：上下文预算校验（用户档位预算 ∩ 模型上限；含图片 token 估算）
+            tokenBudgetManager.assertWithinBudget(messages, "chat", vip);
 
             // 构建消息后再保存用户消息到缓存
             chatCacheService.addMessage(conversationId, userRecord);
@@ -305,8 +315,12 @@ public class AiServiceImpl implements AiService {
 
             String systemPrompt = AiPromptConfig.getSystemPrompt(agentType);
             String fullContext = healthContext + articleContext + drugContext + webSearchContext;
+            // Phase B：按 VIP 判定窗口档位与图片上限
+            boolean vip = authSessionManager.isVip(userId);
             JSONArray messages = buildMessagesArray(systemPrompt, fullContext,
-                    historyRecords, userMessage);
+                    historyRecords, userMessage, chatRequest.getFiles(), vip);
+            // Phase A/B：上下文预算校验（含图片 token 估算）
+            tokenBudgetManager.assertWithinBudget(messages, "chatStream", vip);
 
             log.info("[AI] 上下文构建完成: 健康={}字, 知识库={}字, 药品={}字, 搜索={}字, 总={}字", 
                     healthContext.length(), articleContext.length(), drugContext.length(),
@@ -422,6 +436,15 @@ public class AiServiceImpl implements AiService {
             doneData.put("totalLength", fullReply.length());
             callback.onEvent("answer_done", JSON.toJSONString(doneData));
 
+        } catch (IllegalArgumentException e) {
+            // 参数/权限/多模态校验类业务错误：直接回传可读信息，不伪装成"AI服务异常"
+            log.warn("[AI] 流式聊天请求被拒绝: userId={}, reason={}", userId, e.getMessage());
+            try {
+                callback.onEvent("error", JSON.toJSONString(
+                        buildMap("message", e.getMessage())));
+            } catch (Exception ignored) {
+                // 回调失败（客户端已断开）不再处理
+            }
         } catch (Exception e) {
             // SEC-10：客户端断开导致的异常不回调 error（回调本身已不可用），
             // 避免在 catch 块里二次抛异常逃逸到容器。
@@ -690,7 +713,7 @@ public class AiServiceImpl implements AiService {
             body.put("messages", buildMessagesArray(
                 "你是一个医疗健康领域的意图识别助手。请从用户问题中提取2-5个最关键的医学/健康关键词，" +
                 "用逗号分隔。只返回关键词，不要任何解释。",
-                "", new ArrayList<>(), shortMsg));
+                "", new ArrayList<>(), shortMsg, null, false));
             body.put("temperature", 0.1);
             body.put("max_tokens", 50);
             body.put("top_p", 0.3);
@@ -769,8 +792,15 @@ public class AiServiceImpl implements AiService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 组装 OpenAI 兼容 messages。
+     * Phase A（docs/multimodal-design.md §4.2）：当前用户消息支持携带图片（files），
+     * content 由纯字符串升级为 [{type:text},{type:image_url},...] 数组；历史消息保持字符串。
+     * Phase B：图片数量上限按 VIP 分级（普通 3 张 / VIP 10 张）。
+     */
     private JSONArray buildMessagesArray(String systemPrompt, String healthContext,
-                                          List<AiChatRecord> history, String userMessage) {
+                                          List<AiChatRecord> history, String userMessage,
+                                          List<String> files, boolean vip) {
         JSONArray messages = new JSONArray();
 
         JSONObject systemMsg = new JSONObject();
@@ -787,10 +817,38 @@ public class AiServiceImpl implements AiService {
             messages.add(historyMsg);
         }
 
-        // 添加当前用户消息
+        // 添加当前用户消息（支持多模态图片）
         JSONObject userMsg = new JSONObject();
         userMsg.put("role", "user");
-        userMsg.put("content", userMessage);
+        if (files != null && !files.isEmpty()) {
+            if (!aiConfig.isVisionEnabled()) {
+                throw new IllegalArgumentException(
+                        "当前模型不支持图片，请在管理端「AI配置」中选择多模态模型后重试");
+            }
+            int maxImages = vip ? aiConfig.getMaxImagesVip() : aiConfig.getMaxImagesNormal();
+            if (files.size() > maxImages) {
+                throw new IllegalArgumentException("单次最多上传 " + maxImages + " 张图片");
+            }
+            JSONArray content = new JSONArray();
+            JSONObject textPart = new JSONObject();
+            textPart.put("type", "text");
+            textPart.put("text", userMessage);
+            content.add(textPart);
+            for (String f : files) {
+                if (f == null || f.trim().isEmpty()) {
+                    continue;
+                }
+                JSONObject imgPart = new JSONObject();
+                imgPart.put("type", "image_url");
+                JSONObject urlObj = new JSONObject();
+                urlObj.put("url", f.trim());
+                imgPart.put("image_url", urlObj);
+                content.add(imgPart);
+            }
+            userMsg.put("content", content);
+        } else {
+            userMsg.put("content", userMessage);
+        }
         messages.add(userMsg);
 
         return messages;

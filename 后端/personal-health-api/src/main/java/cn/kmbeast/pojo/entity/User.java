@@ -63,6 +63,17 @@ public class User {
     private Boolean isWord;
 
     /**
+     * 是否 VIP（0:否；1:是）
+     */
+    private Boolean isVip;
+
+    /**
+     * VIP 到期时间（null=永久有效）
+     */
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime vipExpireTime;
+
+    /**
      * 用户注册时间
      */
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")

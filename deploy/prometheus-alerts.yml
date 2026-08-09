@@ -1,0 +1,49 @@
+# 智康云健康管理系统 - Prometheus 告警规则（上线前补齐：Grafana/Alertmanager 配套）
+# 指标来源：后端 Actuator /prometheus（micrometer），job 名 personal-health-api
+groups:
+  - name: zhikangyun-backend
+    rules:
+      - alert: BackendInstanceDown
+        expr: up{job="personal-health-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "后端服务不可达"
+          description: "Prometheus 已无法抓取 personal-health-api（backend:21090）超过 1 分钟。"
+
+      - alert: HighHttp5xxRate
+        expr: sum(rate(http_server_requests_seconds_count{job="personal-health-api",status=~"5.."}[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP 5xx 错误率过高"
+          description: "过去 5 分钟 5xx 响应速率持续超过 0.5 req/s，请检查后端异常日志。"
+
+      - alert: HighProcessCpu
+        expr: process_cpu_usage{job="personal-health-api"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "进程 CPU 使用率过高"
+          description: "进程 CPU 使用率持续超过 85%（5 分钟），注意扩容或排查热点。"
+
+      - alert: HighJvmHeap
+        expr: jvm_memory_used_bytes{job="personal-health-api",area="heap"} / clamp_min(jvm_memory_max_bytes{job="personal-health-api",area="heap"}, 1) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM 堆内存占用过高"
+          description: "JVM 堆内存使用率持续超过 85%（5 分钟），请排查内存泄漏或调大堆。"
+
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "监控目标离线"
+          description: "目标 {{ $labels.instance }}（job={{ $labels.job }}）离线超过 1 分钟。"

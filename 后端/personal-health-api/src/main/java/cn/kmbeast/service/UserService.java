@@ -30,6 +30,11 @@ public interface UserService {
 
     Result<String> updatePwd(Map<String, String> map);
 
+    /**
+     * 登出：递增会话版本，使该用户全部存量 token 失效（roadmap §1.3）
+     */
+    Result<String> logout();
+
     Result<UserVO> getById(Integer id);
 
     Result<String> insert(UserRegisterDTO userRegisterDTO);

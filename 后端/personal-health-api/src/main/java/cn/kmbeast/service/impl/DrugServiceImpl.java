@@ -9,6 +9,8 @@ import cn.kmbeast.pojo.entity.Drug;
 import cn.kmbeast.pojo.entity.DrugSubscription;
 import cn.kmbeast.pojo.vo.DrugVO;
 import cn.kmbeast.service.DrugService;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -22,6 +24,7 @@ public class DrugServiceImpl implements DrugService {
     private DrugMapper drugMapper;
 
     @Override
+    @CacheEvict(value = "drug", allEntries = true)
     public Result<Void> save(Drug drug) {
         drug.setCreateTime(LocalDateTime.now());
         drug.setStatus(true);
@@ -30,18 +33,21 @@ public class DrugServiceImpl implements DrugService {
     }
 
     @Override
+    @CacheEvict(value = "drug", allEntries = true)
     public Result<Void> batchDelete(List<Long> ids) {
         drugMapper.batchDelete(ids);
         return ApiResult.success();
     }
 
     @Override
+    @CacheEvict(value = "drug", allEntries = true)
     public Result<Void> update(Drug drug) {
         drugMapper.update(drug);
         return ApiResult.success();
     }
 
     @Override
+    @Cacheable(value = "drug", key = "#drugQueryDto")
     public Result<List<DrugVO>> query(DrugQueryDto drugQueryDto) {
         List<DrugVO> drugs = drugMapper.query(drugQueryDto);
         Integer totalCount = drugMapper.queryCount(drugQueryDto);
@@ -88,6 +94,7 @@ public class DrugServiceImpl implements DrugService {
     }
 
     @Override
+    @Cacheable(value = "drug", key = "#keyword")
     public Result<List<DrugVO>> search(String keyword) {
         List<DrugVO> drugs = drugMapper.searchByName(keyword, 20);
         return ApiResult.success(drugs);

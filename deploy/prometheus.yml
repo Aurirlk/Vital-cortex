@@ -1,0 +1,25 @@
+# 智康云健康管理系统 - Prometheus 抓取配置（D-007 整改 + 上线前补告警）
+# 后端 Actuator 挂载在 context-path 下：/api/personal-health/v1.0/actuator/prometheus
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: zhikangyun-monitor
+
+# 告警规则（上线前补齐）：见 prometheus-alerts.yml
+rule_files:
+  - /etc/prometheus/prometheus-alerts.yml
+
+# 告警发送：对接 Alertmanager（deploy/alertmanager.yml）
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+scrape_configs:
+  - job_name: 'personal-health-api'
+    metrics_path: /api/personal-health/v1.0/actuator/prometheus
+    static_configs:
+      - targets: ['backend:21090']
+        labels:
+          application: personal-health-api

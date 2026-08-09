@@ -1,5 +1,6 @@
 package cn.kmbeast.service.impl;
 
+import cn.kmbeast.core.auth.AuthSessionManager;
 import cn.kmbeast.context.LocalThreadHolder;
 import cn.kmbeast.mapper.UserMapper;
 import cn.kmbeast.pojo.api.ApiResult;
@@ -48,6 +49,9 @@ public class UserServiceImpl implements UserService {
     @Resource
     private PasswordEncoder passwordEncoder;
 
+    @Resource
+    private AuthSessionManager authSessionManager;
+
     @Override
     public Result<String> register(UserRegisterDTO userRegisterDTO) {
         User user = userMapper.getByActive(
@@ -88,10 +92,13 @@ public class UserServiceImpl implements UserService {
         if (!passwordEncoder.matches(userLoginDTO.getUserPwd(), user.getUserPwd())) {
             return ApiResult.error("密码错误");
         }
-        if (user.getIsLogin()) {
+        if (Boolean.TRUE.equals(user.getIsLogin())) {
             return ApiResult.error("登录状态异常");
         }
-        String token = jwtUtil.toToken(user.getId(), user.getUserRole());
+        // roadmap §1.3：登录即递增会话版本，版本写入 token（ver claim）；
+        // 后续锁定/登出/改密再次递增，旧 token 立即失效。
+        int ver = authSessionManager.nextVersion(user.getId());
+        String token = jwtUtil.toToken(user.getId(), user.getUserRole(), ver);
         Map<String, Object> map = new HashMap<>();
         map.put("token", token);
         map.put("role", user.getUserRole());
@@ -143,7 +150,19 @@ public class UserServiceImpl implements UserService {
         // 使用BCrypt加密新密码
         user.setUserPwd(passwordEncoder.encode(newPwd));
         userMapper.update(user);
+        // roadmap §1.3：改密后使该用户所有旧 token 失效（含其他设备的登录态）
+        authSessionManager.nextVersion(user.getId());
         return ApiResult.success();
+    }
+
+    @Override
+    public Result<String> logout() {
+        // roadmap §1.3：登出即递增会话版本，使该用户全部存量 token 失效（服务端可感知）
+        Integer userId = LocalThreadHolder.getUserId();
+        if (userId != null) {
+            authSessionManager.nextVersion(userId);
+        }
+        return ApiResult.success("已退出登录");
     }
 
     @Override
@@ -161,7 +180,39 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Result<String> backUpdate(User user) {
+        // 防止管理员把账号（含自己或最后一个可登录管理员）锁死，导致无法登录后台
+        if (Boolean.TRUE.equals(user.getIsLogin())) {
+            Integer currentUserId = LocalThreadHolder.getUserId();
+            // 不能锁定当前登录的账号
+            if (currentUserId != null && currentUserId.equals(user.getId())) {
+                return ApiResult.error("不能锁定当前登录的账号");
+            }
+            // 目标为管理员时，确保锁定后仍有至少一个可登录的管理员
+            User existing = userMapper.getByActive(User.builder().id(user.getId()).build());
+            if (existing != null && RoleEnum.ADMIN.getRole().equals(existing.getUserRole())) {
+                UserQueryDto adminQuery = new UserQueryDto();
+                adminQuery.setRole(true);
+                List<User> admins = userMapper.query(adminQuery);
+                long remainingUnlocked = admins.stream()
+                        .filter(a -> !Boolean.TRUE.equals(a.getIsLogin())
+                                && !a.getId().equals(user.getId()))
+                        .count();
+                if (remainingUnlocked <= 0) {
+                    return ApiResult.error("至少需保留一个可登录的管理员账号");
+                }
+            }
+        }
         userMapper.update(user);
+        // roadmap §1.3：锁定/解锁即时生效——
+        // 锁定 → 递增会话版本（存量 token 全部失效）+ 状态缓存置锁定；
+        // 解锁 → 状态缓存置正常（存量 token 需重新登录后签发新版本）。
+        Boolean targetIsLogin = user.getIsLogin();
+        if (targetIsLogin != null) {
+            authSessionManager.setAccountState(user.getId(), Boolean.TRUE.equals(targetIsLogin));
+            if (Boolean.TRUE.equals(targetIsLogin)) {
+                authSessionManager.nextVersion(user.getId());
+            }
+        }
         return ApiResult.success();
     }
 

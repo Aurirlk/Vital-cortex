@@ -1,0 +1,13 @@
+# 智康云健康管理系统 - Grafana 看板自动加载
+apiVersion: 1
+
+providers:
+  - name: 'Spring Boot'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

@@ -24,8 +24,10 @@ CREATE TABLE IF NOT EXISTS `user` (
   `user_avatar` VARCHAR(255) DEFAULT NULL COMMENT '头像',
   `user_email` VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
   `user_role` INT DEFAULT 2 COMMENT '角色(1:管理员;2:用户)',
-  `is_login` TINYINT(1) DEFAULT 0 COMMENT '可登录(0:禁止;1:允许)',
+  `is_login` TINYINT(1) DEFAULT 0 COMMENT '是否可登录(0:可登录;1:锁定禁止)',
   `is_word` TINYINT(1) DEFAULT 0 COMMENT '禁言(0:正常;1:禁言)',
+  `is_vip` TINYINT(1) DEFAULT 0 COMMENT 'VIP(0:否;1:是)',
+  `vip_expire_time` DATETIME DEFAULT NULL COMMENT 'VIP到期时间(NULL=永久)',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_account` (`user_account`)
@@ -259,8 +261,8 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- 默认管理员 (密码: 123456)
 INSERT IGNORE INTO `user` (`id`, `user_account`, `user_name`, `user_pwd`, `user_role`, `is_login`, `is_word`) VALUES
-(1, 'admin', '管理员', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', 1, 1, 0),
-(2, 'user', '普通用户', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', 2, 1, 0);
+(1, 'admin', '管理员', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', 1, 0, 0),
+(2, 'user', '普通用户', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', 2, 0, 0);
 
 -- 默认健康模型
 INSERT IGNORE INTO `health_model_config` (`id`, `user_id`, `name`, `detail`, `cover`, `unit`, `symbol`, `value_range`, `is_global`, `category`) VALUES

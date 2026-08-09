@@ -45,6 +45,12 @@
             <if test="isWord != null">
                 is_word = #{isWord},
             </if>
+            <if test="isVip != null">
+                is_vip = #{isVip},
+            </if>
+            <if test="vipExpireTime != null">
+                vip_expire_time = #{vipExpireTime},
+            </if>
             <if test="userRole != null">
                 user_role = #{userRole},
             </if>
@@ -154,6 +160,8 @@
         <result column="user_role" property="userRole"/>
         <result column="is_login" property="isLogin"/>
         <result column="is_word" property="isWord"/>
+        <result column="is_vip" property="isVip"/>
+        <result column="vip_expire_time" property="vipExpireTime"/>
         <result column="create_time" property="createTime"/>
     </resultMap>
 

@@ -1,8 +1,10 @@
 package cn.kmbeast.config;
 
+import cn.kmbeast.context.LocalThreadHolder;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
@@ -97,8 +100,14 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public Result<Void> handleException(Exception e) {
-        log.error("系统异常", e);
-        return ApiResult.error("系统异常，请稍后重试");
+    public Result<Void> handleException(Exception e, HttpServletRequest request) {
+        String traceId = MDC.get("traceId");
+        Integer userId = LocalThreadHolder.getUserId();
+        String uri = request != null ? request.getRequestURI() : "unknown";
+        log.error("系统异常 uri={} userId={} traceId={}", uri, userId, traceId, e);
+        String msg = traceId != null
+                ? "系统异常，请稍后重试（追踪ID: " + traceId + "）"
+                : "系统异常，请稍后重试";
+        return ApiResult.error(msg);
     }
 }

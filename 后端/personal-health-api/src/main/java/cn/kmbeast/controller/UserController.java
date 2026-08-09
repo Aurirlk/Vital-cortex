@@ -127,6 +127,16 @@ public class UserController {
     }
 
     /**
+     * 登出：递增会话版本，使该用户全部存量 token 失效（roadmap §1.3）
+     */
+    @Protector
+    @PostMapping(value = "/logout")
+    @ResponseBody
+    public Result<String> logout() {
+        return userService.logout();
+    }
+
+    /**
      * 批量删除用户信息
      */
     @Protector(role = "管理员")

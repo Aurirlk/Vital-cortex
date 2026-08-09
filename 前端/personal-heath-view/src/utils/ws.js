@@ -8,6 +8,7 @@ import { URL_API } from './request'
 let ws = null
 let reconnectTimer = null
 let heartbeatTimer = null
+let reconnectDelay = 5000
 const listeners = new Map()
 
 /**
@@ -26,7 +27,8 @@ export function connectWs() {
   ws = new WebSocket(wsUrl)
 
   ws.onopen = () => {
-    console.log('[WebSocket] ')
+    console.log('[WebSocket] 连接已建立')
+    reconnectDelay = 5000
     startHeartbeat()
   }
 
@@ -111,26 +113,27 @@ function stopHeartbeat() {
 
 function scheduleReconnect() {
   clearTimeout(reconnectTimer)
+  reconnectDelay = Math.min(reconnectDelay * 2, 60000)
   reconnectTimer = setTimeout(() => {
-    console.log('[WebSocket] ...')
+    console.log('[WebSocket] 尝试重连...')
     connectWs()
-  }, 5000)
+  }, reconnectDelay)
 }
 
 /**
- * 从 URL_API（http(s)://host:port/api/...）推导 WebSocket 基础地址。
+ * 从 URL_API（http(s)://host:port/api/personal-health/v1.0）推导 WebSocket 基础地址。
  * 端口规则：http→ws、https→wss，端口默认 80/443 时省略。
- * 后端 WebSocket 端点固定部署在 21091 端口时，请用 VUE_APP_WS_BASE 显式指定。
+ * 关键点：必须保留 URL_API 的 pathname（即 context-path /api/personal-health/v1.0），
+ * 否则拼接出的 WS 地址会缺少 context-path，被 nginx/后端返回 404（D-004 整改）。
+ * 仅当后端 WebSocket 端点部署在非常规端口时，才用 VUE_APP_WS_BASE 显式覆盖。
  */
 function deriveWsBase() {
   try {
     const url = new URL(URL_API)
     const isHttps = url.protocol === 'https:'
     const scheme = isHttps ? 'wss' : 'ws'
-    // 端口取 URL_API 的端口（与 HTTP 同域反代场景下 WS 走同一端口反代规则）
-    const port = url.port ? `:${url.port}` : ''
-    return `${scheme}://${url.hostname}${port}`
+    return `${scheme}://${url.host}${url.pathname}`
   } catch (e) {
-    return 'ws://localhost:21091'
+    return 'ws://localhost:21090'
   }
 }

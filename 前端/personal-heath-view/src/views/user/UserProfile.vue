@@ -89,7 +89,7 @@ export default {
       ],
       serviceMenus: [
         { icon: "", label: "", path: "/user/health-report", bg: "rgba(14, 165, 165, 0.08)" },
-        { icon: "", label: "", path: "/user/drug", bg: "rgba(255, 36, 66, 0.08)" },
+        { icon: "", label: "", path: "/user/drug", bg: "rgba(0, 80, 203, 0.08)" },
         { icon: "", label: "AI", path: "/user/assistant", bg: "rgba(168, 85, 247, 0.08)" },
         { icon: "", label: "", path: "/user/user-health-model", bg: "rgba(255, 149, 0, 0.08)" },
         { icon: "", label: "", path: "/user/my-save", bg: "rgba(255, 107, 129, 0.08)" },
@@ -151,7 +151,7 @@ export default {
         showCancelButton: true,
         confirmButtonText: "",
         cancelButtonText: "",
-        confirmButtonColor: "#ff2442",
+        confirmButtonColor: "#0050cb",
       }).then((result) => {
         if (result.isConfirmed) {
           clearToken();
@@ -164,8 +164,6 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/design-tokens.css';
-
 .profile-container {
   max-width: 800px;
   margin: 0 auto;
@@ -185,7 +183,7 @@ export default {
 
   &__bg {
     height: 120px;
-    background: linear-gradient(135deg, #0EA5A5, #15559a, #a855f7);
+    background: linear-gradient(135deg, #0050cb, #0066ff, #632ce5);
     position: relative;
 
     &::after {
@@ -229,12 +227,12 @@ export default {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #ff2442;
+    background: #0050cb;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(255, 36, 66, 0.4);
+    box-shadow: 0 2px 8px rgba(0, 80, 203, 0.4);
     transition: transform 0.2s;
 
     span {
@@ -279,7 +277,7 @@ export default {
 
   &--role {
     background: rgba(14, 165, 165, 0.1);
-    color: #0EA5A5;
+    color: #0050cb;
   }
 
   &--vip {
@@ -290,10 +288,10 @@ export default {
 
 .profile-edit-btn {
   padding: 8px 24px;
-  border: 2px solid #ff2442;
+  border: 2px solid #0050cb;
   border-radius: 10px;
   background: transparent;
-  color: #ff2442;
+  color: #0050cb;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -301,7 +299,7 @@ export default {
   align-self: flex-end;
 
   &:hover {
-    background: rgba(255, 36, 66, 0.06);
+    background: rgba(0, 80, 203, 0.06);
   }
 }
 
@@ -329,7 +327,7 @@ export default {
   &__number {
     font-size: 28px;
     font-weight: 700;
-    background: linear-gradient(135deg, #ff2442, #ff6b81);
+    background: linear-gradient(135deg, #0050cb, #0066ff);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -449,7 +447,7 @@ export default {
 
   &:hover &__arrow {
     transform: translateX(4px);
-    color: #ff2442;
+    color: #0050cb;
   }
 }
 
@@ -465,7 +463,7 @@ export default {
   border: none;
   border-radius: 12px;
   background: #fff;
-  color: #ff2442;
+  color: #0050cb;
   font-size: 15px;
   font-weight: 500;
   cursor: pointer;
@@ -473,8 +471,8 @@ export default {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 
   &:hover {
-    background: rgba(255, 36, 66, 0.04);
-    box-shadow: 0 4px 16px rgba(255, 36, 66, 0.1);
+    background: rgba(0, 80, 203, 0.04);
+    box-shadow: 0 4px 16px rgba(0, 80, 203, 0.1);
   }
 }
 

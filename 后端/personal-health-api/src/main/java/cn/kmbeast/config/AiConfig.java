@@ -108,6 +108,42 @@ public class AiConfig {
     @Value("${ai.embedding.model:text-embedding-3-small}")
     private String embeddingModel;
 
+    // ==================== 多模态（Vision）配置（Phase A，设计见 docs/multimodal-design.md §3） ====================
+
+    @Value("${ai.vision.enabled:false}")
+    private boolean visionEnabled;
+
+    @Value("${ai.vision.api-key:}")
+    private String visionApiKey;
+
+    @Value("${ai.vision.api-url:}")
+    private String visionApiUrl;
+
+    @Value("${ai.vision.model:}")
+    private String visionModel;
+
+    // 上下文窗口预算（Phase A 统一 normal；Phase B 按 VIP 分级）
+    @Value("${ai.context.normal:131072}")
+    private Integer contextNormal;
+
+    @Value("${ai.context.vip:524288}")
+    private Integer contextVip;
+
+    @Value("${ai.vision.max-images-normal:3}")
+    private Integer maxImagesNormal;
+
+    @Value("${ai.vision.max-images-vip:10}")
+    private Integer maxImagesVip;
+
+    @Value("${ai.vision.max-dim:1024}")
+    private Integer maxDim;
+
+    @Value("${ai.vision.max-dim-vip:2048}")
+    private Integer maxDimVip;
+
+    @Value("${ai.vision.tokens-per-image:766}")
+    private Integer tokensPerImage;
+
     // ==================== 通用配置 ====================
     
     @Value("${ai.connect-timeout:30000}")
@@ -159,6 +195,8 @@ public class AiConfig {
                 "https://open.bigmodel.cn/api/anthropic",
                 Arrays.asList("glm-5.1", "glm-4.7", "glm-4-plus")
         ));
+        PROVIDERS.get("zhipu").setVisionSupported(true);
+        PROVIDERS.get("zhipu").setMaxContextTokens(131072);
         PROVIDERS.put("qwen", new ProviderConfig(
                 "阿里云 (通义千问)",
                 "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
@@ -172,12 +210,16 @@ public class AiConfig {
                         "qwq-plus"
                 )
         ));
+        PROVIDERS.get("qwen").setVisionSupported(true);
+        PROVIDERS.get("qwen").setMaxContextTokens(131072);
         PROVIDERS.put("minimax", new ProviderConfig(
                 "MiniMax",
                 "https://api.minimaxi.com/v1/chat/completions",
                 "https://api.minimaxi.com/anthropic",
                 Arrays.asList("MiniMax-M2.7", "M2.7-HighSpeed")
         ));
+        PROVIDERS.get("minimax").setVisionSupported(true);
+        PROVIDERS.get("minimax").setMaxContextTokens(131072);
         PROVIDERS.put("baidu", new ProviderConfig(
                 "百度 (文心一言)",
                 "https://qianfan.baidubce.com/v2/chat/completions",
@@ -190,6 +232,8 @@ public class AiConfig {
                 null,
                 Arrays.asList("doubao-seed-2.0-pro", "doubao-1.5-pro")
         ));
+        PROVIDERS.get("bytedance").setVisionSupported(true);
+        PROVIDERS.get("bytedance").setMaxContextTokens(131072);
         PROVIDERS.put("tencent", new ProviderConfig(
                 "腾讯 (混元)",
                 "https://api.hunyuan.cloud.tencent.com/v1/chat/completions",
@@ -226,6 +270,9 @@ public class AiConfig {
                 null,
                 Arrays.asList("HealthPulse_Qwen2.5-7B_merged")
         ));
+        // 本地模型若部署 Qwen2.5-VL 等视觉版本则支持图片，上下文按实际部署配置
+        PROVIDERS.get("zhikangyun-local").setVisionSupported(true);
+        PROVIDERS.get("zhikangyun-local").setMaxContextTokens(32768);
 
     }
 
@@ -238,6 +285,10 @@ public class AiConfig {
         private String openaiBaseUrl;
         private String anthropicBaseUrl;
         private List<String> models;
+        /** 是否支持图片输入（多模态），默认 false */
+        private boolean visionSupported;
+        /** 模型最大上下文（token），默认 131072；VIP 512K 档仅对声明 ≥512K 的厂商生效 */
+        private Integer maxContextTokens = 131072;
 
         public ProviderConfig(String name, String openaiBaseUrl, String anthropicBaseUrl, List<String> models) {
             this.name = name;
@@ -333,6 +384,20 @@ public class AiConfig {
             if (saved.containsKey("readTimeout")) this.readTimeout = saved.getInteger("readTimeout");
             if (saved.containsKey("maxTokens")) this.maxTokens = saved.getInteger("maxTokens");
             if (saved.containsKey("maxHistoryRounds")) this.maxHistoryRounds = saved.getInteger("maxHistoryRounds");
+
+            // 加载多模态（Vision）配置
+            if (saved.containsKey("visionEnabled")) this.visionEnabled = saved.getBooleanValue("visionEnabled");
+            if (saved.containsKey("visionApiUrl")) this.visionApiUrl = saved.getString("visionApiUrl");
+            if (saved.containsKey("visionModel")) this.visionModel = saved.getString("visionModel");
+            if (saved.containsKey("visionApiKey") && !saved.getString("visionApiKey").isEmpty()) {
+                this.visionApiKey = saved.getString("visionApiKey");
+            }
+            if (saved.containsKey("contextNormal")) this.contextNormal = saved.getInteger("contextNormal");
+            if (saved.containsKey("contextVip")) this.contextVip = saved.getInteger("contextVip");
+            if (saved.containsKey("maxImagesNormal")) this.maxImagesNormal = saved.getInteger("maxImagesNormal");
+            if (saved.containsKey("maxImagesVip")) this.maxImagesVip = saved.getInteger("maxImagesVip");
+            if (saved.containsKey("maxDimVip")) this.maxDimVip = saved.getInteger("maxDimVip");
+            if (saved.containsKey("tokensPerImage")) this.tokensPerImage = saved.getInteger("tokensPerImage");
             
             // 加载Dify配置
             if (saved.containsKey("difyApiKey")) this.difyApiKey = saved.getString("difyApiKey");
@@ -367,6 +432,24 @@ public class AiConfig {
      */
     public boolean isApiKeyValid() {
         return apiKey != null && !apiKey.isEmpty() && !apiKey.equals("sk-xxx");
+    }
+
+    /**
+     * 图片多模态是否可用：总开关开启 且 已配置视觉模型名。
+     * 未配置时前端保持图片入口置灰（能力下发见 AiController /ai/config/capabilities）。
+     */
+    public boolean isVisionEnabled() {
+        return visionEnabled && visionModel != null && !visionModel.trim().isEmpty();
+    }
+
+    /**
+     * 当前厂商模型的上下文上限（token）。未标注的厂商按默认 131072。
+     */
+    public Integer getModelMaxContext() {
+        ProviderConfig pc = PROVIDERS.get(provider);
+        return pc != null && pc.getMaxContextTokens() != null
+                ? pc.getMaxContextTokens()
+                : 131072;
     }
 
     /**

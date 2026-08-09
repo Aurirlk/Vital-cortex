@@ -42,7 +42,9 @@ public class InterceptorConfig implements WebMvcConfigurer {
                         "/user/login",
                         "/user/register",
                         "/error",
-                        "/crm/**"
+                        "/crm/**",
+                        API + "/actuator/**",
+                        "/actuator/**"
                 );
 
         // CRM 接口独立的 API Key 校验：默认全保护，仅健康检查放行

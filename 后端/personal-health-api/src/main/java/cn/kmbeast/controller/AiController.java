@@ -52,6 +52,12 @@ public class AiController {
     @Resource
     private PasswordEncoder passwordEncoder;
 
+    @Resource
+    private cn.kmbeast.config.AiConfig aiConfig;
+
+    @Resource
+    private cn.kmbeast.core.auth.AuthSessionManager authSessionManager;
+
     // ==================== 聊天接口 ====================
 
     /**
@@ -138,6 +144,26 @@ public class AiController {
     }
 
     // ==================== 会话管理接口 ====================
+
+    /**
+     * 获取 AI 能力开关（Phase A/B：图片多模态 + VIP 分级；语音在 roadmap §1.1 接入后扩展）。
+     * 前端据此决定图片入口是否可用、上下文/图片档位（VIP 512K/10张 vs 普通 128K/3张）。
+     */
+    @Protector
+    @GetMapping(value = "/config/capabilities")
+    public Result<Map<String, Object>> getCapabilities() {
+        Integer userId = LocalThreadHolder.getUserId();
+        boolean vip = authSessionManager.isVip(userId);
+        Map<String, Object> data = new HashMap<>();
+        data.put("visionEnabled", aiConfig.isVisionEnabled());
+        data.put("visionModel", aiConfig.getVisionModel());
+        data.put("isVip", vip);
+        data.put("maxContext", vip ? aiConfig.getContextVip() : aiConfig.getContextNormal());
+        data.put("maxImages", vip ? aiConfig.getMaxImagesVip() : aiConfig.getMaxImagesNormal());
+        data.put("asrEnabled", false);
+        data.put("ttsEnabled", false);
+        return ApiResult.success(data);
+    }
 
     /**
      * 获取用户的会话列表

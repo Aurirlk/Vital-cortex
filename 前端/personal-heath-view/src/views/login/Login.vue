@@ -177,6 +177,7 @@
 const DELAY_TIME = 1300;
 import request from "@/utils/request.js";
 import { setToken } from "@/utils/storage.js";
+import { connectWs } from "@/utils/ws.js";
 import md5 from "js-md5";
 import BrandLogo from "@/components/BrandLogo.vue";
 import BrandDecoration from "@/components/BrandDecoration.vue";
@@ -268,6 +269,7 @@ export default {
           return;
         }
         setToken(data.data.token);
+        connectWs();
         const { role } = data.data;
         await this.$router.push(
           role === 1 ? "/admin/adminLayout" : "/user/news-record"
@@ -308,6 +310,7 @@ export default {
           return;
         }
         setToken(data.data.token);
+        connectWs();
         const { role } = data.data;
         await this.$router.push(
           role === 1 ? "/admin/adminLayout" : "/user/news-record"
@@ -324,8 +327,6 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-@import '@/styles/design-tokens.css';
-
 .login-container {
   display: flex;
   min-height: 100vh;
@@ -335,7 +336,7 @@ export default {
 /* ====================  ==================== */
 .login-left {
   flex: 1;
-  background: linear-gradient(135deg, #0EA5A5 0%, #15559a 50%, #a855f7 100%);
+  background: linear-gradient(135deg, #0050cb 0%, #0066ff 50%, #632ce5 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -516,8 +517,8 @@ export default {
 
   &--active {
     background: #fff;
-    color: #ff2442;
-    box-shadow: 0 2px 8px rgba(255, 36, 66, 0.15);
+    color: #0050cb;
+    box-shadow: 0 2px 8px rgba(0, 80, 203, 0.15);
   }
 }
 
@@ -564,9 +565,9 @@ export default {
 
   &:focus {
     outline: none;
-    border-color: #ff2442;
+    border-color: #0050cb;
     background: #fff;
-    box-shadow: 0 0 0 3px rgba(255, 36, 66, 0.08);
+    box-shadow: 0 0 0 3px rgba(0, 80, 203, 0.08);
   }
 
   &--sms {
@@ -578,10 +579,10 @@ export default {
 .sms-btn {
   height: 48px;
   padding: 0 20px;
-  border: 2px solid #ff2442;
+  border: 2px solid #0050cb;
   border-radius: 10px;
   background: transparent;
-  color: #ff2442;
+  color: #0050cb;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -589,7 +590,7 @@ export default {
   transition: all 0.25s ease;
 
   &:hover:not(&--disabled) {
-    background: rgba(255, 36, 66, 0.06);
+    background: rgba(0, 80, 203, 0.06);
   }
 
   &--disabled {
@@ -605,7 +606,7 @@ export default {
   height: 50px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, #ff2442, #ff6b81);
+  background: linear-gradient(135deg, #0050cb, #0066ff);
   color: #fff;
   font-size: 16px;
   font-weight: 600;
@@ -615,11 +616,11 @@ export default {
   justify-content: center;
   gap: 8px;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 14px rgba(255, 36, 66, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 80, 203, 0.35);
 
   &:hover:not(&--loading) {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 36, 66, 0.45);
+    box-shadow: 0 6px 20px rgba(0, 80, 203, 0.45);
   }
 
   &:active {
@@ -658,7 +659,7 @@ export default {
 
 .login-form__link {
   font-size: 14px;
-  color: #ff2442;
+  color: #0050cb;
   font-weight: 500;
   cursor: pointer;
   transition: opacity 0.2s;
@@ -693,8 +694,8 @@ export default {
   transition: all 0.25s ease;
 
   &:hover {
-    border-color: #ff2442;
-    background: rgba(255, 36, 66, 0.04);
+    border-color: #0050cb;
+    background: rgba(0, 80, 203, 0.04);
     transform: scale(1.08);
   }
 }

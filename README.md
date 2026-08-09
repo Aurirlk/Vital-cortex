@@ -28,7 +28,9 @@
 | **安全加固设计**   | `docs/security-hardening.md`        | **v5.1 新增** JWT/CRM Key/SqlGuard/XSS/脱敏      |
 | 项目状态         | `docs/project-status.md`                     | 功能清单、完成状态                                    |
 | 开发指南         | `docs/development-guidelines.md`             | 防坑指南、编码规范                                    |
-| 用户交付手册       | `DELIVERY.md`                        | 部署/配置/安全/已知限制（v1.1，架构改进权威说明）                 |
+| **缺陷与改进路线图** | `docs/defect-roadmap.md`                | **v5.2 新增** 缺陷/漏洞/改进点决策与排期（已定方案 3 项）      |
+| **多模态能力设计** | `docs/multimodal-design.md`            | **v5.2 新增** 图片进上下文 + 语音 ASR/TTS Provider 化详细设计 |
+| 用户交付手册       | `DELIVERY.md`                        | 部署/配置/安全/已知限制（v1.2，架构改进权威说明）                 |
 
 ---
 
@@ -721,25 +723,26 @@ npm run dev
 
 > 本表为历史缺陷台账，状态随版本推进更新。架构级改进详情见 `DELIVERY.md` §8。
 
-### 已解决（v5.1 完成）
+### 已解决（v5.1 / v5.2 完成）
 
 | 编号    | 原缺陷          | 现状                                                                                    |
 | ----- | ------------ | ------------------------------------------------------------------------------------- |
 | D-005 | 缺少单元测试       | ✅ 已补 25 个用例（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl），`mvn test` 通过 |
 | D-009 | 部分接口缺少输入验证   | ✅ CRM 接口加 `CrmApiKeyInterceptor`；`SqlGuard` 只读守卫 + 租户隔离；AI 输出 DOMPurify 净化            |
 | D-001 | 部分 SQL 脚本未执行 | ⚠️ 已补充 `Data/sql/ai_usage_schema.sql`（token 成本表），其余业务表脚本仍建议部署时执行                      |
+| D-002 | admin 账号可能被锁定 | ✅ 修复 `init_database.sql`/`mock_business_data.sql` 种子账号 `is_login 1→0`；`UserServiceImpl.backUpdate` 增加防锁死守卫（保护当前用户 & 最后一名可登录管理员） |
+| D-003 | 旧页面 UI 风格不统一 | ✅ 主品牌色统一为 `#0050cb`（品牌蓝），激活 `design-tokens.css` 令牌体系；登录页/个人页硬编码色收敛为品牌蓝（其余页面分阶收敛，见路线图） |
+| D-004 | WebSocket 未实际部署测试 | ✅ 全链路打通：`ws.js` 保留 context-path 推导 + 指数退避；`Login.vue`/`main.js` 登录态自动建连；后端 `WebSocketServer` 补 `@OnMessage` 心跳回包；`NotificationServiceImpl.save` 入库后 `sendToUser` 实时推送（`type=notification` 对齐 `NotificationBell`） |
+| D-006 | Redis 缓存未完全集成 | ✅ 引入 `RedisConfig`（Jackson2Json + 10min TTL）；`TagsServiceImpl`/`DrugServiceImpl` 加 `@Cacheable`/`@CacheEvict`；`docker-compose` 增 `redis` 服务 |
+| D-007 | Prometheus 监控未完全集成 | ✅ `InterceptorConfig` 放行 `/actuator/**`；`application.yml` 去掉 `roles: ADMIN` 且 Redis health 默认关闭；新增 `deploy/prometheus.yml` 抓取 `backend:21090`，`docker-compose` 增 `prometheus` 服务 |
+| D-008 | 前端样式不完全统一 | ✅ 主色收敛品牌蓝（见 D-003）；`main.js` 全局加载 `design-tokens.css`；移除 `Login.vue`/`UserProfile.vue` 冗余 `@import` |
+| D-010 | 错误日志不够详细 | ✅ 新增 `TraceIdFilter`（MDC `traceId`/`userId` + 响应头 `X-Trace-Id`）；`JwtInterceptor` 注入 `userId`；`logback` 模式含 `[traceId=%X{traceId} userId=%X{userId}]`；`GlobalExceptionHandler` 返回追踪 ID 便于定位 |
 
 ### 仍待处理（保留项）
 
-| 编号    | 缺陷                 | 影响        | 位置              |
-| ----- | ------------------ | --------- | --------------- |
-| D-002 | admin 账号可能被锁定      | 无法登录管理后台  | `user` 表        |
-| D-003 | 旧页面 UI 风格不统一       | 视觉不一致     | `views/`        |
-| D-004 | WebSocket 未实际部署测试  | 消息通知可能不可用 | `websocket/`    |
-| D-006 | Redis 缓存未完全集成      | 热点数据无缓存   | `service/impl/` |
-| D-007 | Prometheus 监控未完全集成 | 无系统健康监控   | `config/`       |
-| D-008 | 前端样式不完全统一          | 部分页面样式不一致 | `views/`        |
-| D-010 | 错误日志不够详细           | 调试困难      | `service/impl/` |
+| 编号 | 缺陷 | 影响 | 位置 |
+| --- | --- | --- | --- |
+| D-003/008（续） | 全站样式令牌收敛 | 约 40 个页面仍存在硬编码色值，需分阶段视觉回归后统一为品牌蓝 | `views/` |
 
 ### 架构级遗留项（见 `DELIVERY.md` §8.2）
 

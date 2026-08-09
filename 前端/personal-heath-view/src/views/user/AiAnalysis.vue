@@ -37,17 +37,36 @@
              & 
           </div>
           <div class="file-actions">
-            <!-- MM-04 整改：图片/文件附件入口临时禁用。
-                 后端 DTO 的 files 字段全仓库零消费（根本没有视觉模型链路），
-                 且前端 push 的对象结构与后端 List<String> 契约不匹配，
-                 附带任意附件都会导致聊天请求 400。
-                 在真正接入多模态（视觉/PDF解析）之前，保留上传按钮只会制造
-                 必然失败的体验，故置灰并给出说明。 -->
-            <el-tooltip content="多模态能力尚未接入，附件功能暂不可用" placement="top">
+            <!-- Phase A（docs/multimodal-design.md §4）：图片多模态已接入——
+                 后端 /ai/chat 的 files 字段已消费（OpenAI 兼容 image_url），
+                 入口可用性由 /ai/config/capabilities 的 visionEnabled 控制：
+                 管理端未配置多模态模型时保持置灰，避免 400/无效请求。 -->
+            <el-tooltip
+              :content="capabilities.visionEnabled
+                ? '上传图片（单次最多 ' + capabilities.maxImages + ' 张，支持体检单/化验单/症状照片）'
+                : '当前模型不支持图片，请在管理端「AI配置」选择多模态模型后使用'"
+              placement="top"
+            >
               <span>
-                <el-button size="small" type="primary" plain disabled>
-                  <el-icon><Upload /></el-icon> 
-                </el-button>
+                <el-upload
+                  :show-file-list="false"
+                  :action="uploadUrl"
+                  :headers="uploadHeaders"
+                  :on-success="handleFileUpload"
+                  :before-upload="beforeImageUpload"
+                  :disabled="!capabilities.visionEnabled || uploadFiles.length >= capabilities.maxImages"
+                  accept="image/*"
+                  style="display:inline-block"
+                >
+                  <el-button
+                    size="small"
+                    type="primary"
+                    plain
+                    :disabled="!capabilities.visionEnabled || uploadFiles.length >= capabilities.maxImages"
+                  >
+                    <el-icon><Upload /></el-icon> 
+                  </el-button>
+                </el-upload>
               </span>
             </el-tooltip>
             <el-button size="small" type="success" plain @click="generateHealthReport">
@@ -408,8 +427,16 @@ export default {
       messages: [],
       loading: false,
       fileList: [],
-      uploadFiles: [],
-      // 
+      uploadFiles: [],      // 
+      // Phase A：AI 能力开关（/ai/config/capabilities，图片多模态；语音待 roadmap §1.1）
+      capabilities: {
+        visionEnabled: false,
+        visionModel: "",
+        maxContext: 131072,
+        maxImages: 3,
+        asrEnabled: false,
+        ttsEnabled: false,
+      },
       showHealthAssistant: false,
       healthMessages: [],
       healthInput: "",
@@ -534,6 +561,8 @@ export default {
   },
   created() {
     this.loadConversations();
+    // Phase A：拉取 AI 能力开关（visionEnabled 决定图片入口是否可用）
+    this.loadCapabilities();
     // 
     const token = getToken();
     if (token) {
@@ -798,8 +827,8 @@ export default {
           enableDeepThink: this.enableDeepThink,
           enableHealthData: this.enableHealthData,
           keywords: keywords,
-          // MM-04 整改：后端不消费 files 字段，且类型不匹配会 400，一律不再发送
-          files: [],
+          // Phase A：后端已消费 files（多模态 image_url），传已上传图片的 capability URL
+          files: this.uploadFiles.map((f) => f.url),
           userId: userInfo.id || null,
           context: {
             userName: userInfo.userName || "",
@@ -934,6 +963,34 @@ export default {
       a.download = `AI_${new Date().toISOString().slice(0, 10)}.txt`;
       a.click();
       URL.revokeObjectURL(url);
+    },
+    // Phase A：拉取 AI 能力开关（visionEnabled 决定图片入口；语音开关留待 roadmap §1.1）
+    async loadCapabilities() {
+      try {
+        const { data } = await this.$axios.get("/ai/config/capabilities");
+        if (data.code === 200 && data.data) {
+          this.capabilities = { ...this.capabilities, ...data.data };
+        }
+      } catch (e) {
+        console.warn("[Capabilities] 获取能力开关失败:", e);
+      }
+    },
+    // Phase A：上传前校验（仅图片、≤5MB、不超过单次上限）
+    beforeImageUpload(file) {
+      const isImage = file.type && file.type.startsWith("image/");
+      if (!isImage) {
+        this.$message.error("仅支持上传图片");
+        return false;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        this.$message.error("图片大小不能超过 5MB");
+        return false;
+      }
+      if (this.uploadFiles.length >= this.capabilities.maxImages) {
+        this.$message.warning("单次最多上传 " + this.capabilities.maxImages + " 张图片");
+        return false;
+      }
+      return true;
     },
     handleFileUpload(res, file) {
       if (res.code === 200) {

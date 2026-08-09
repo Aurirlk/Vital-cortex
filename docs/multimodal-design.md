@@ -1,0 +1,273 @@
+# 多模态能力详细设计（图片 + 语音）
+
+> **版本**：v0.1（设计稿，未实现）
+> **关联**：`docs/defect-roadmap.md` §1.1（语音 ASR/TTS Provider 化）、§1.2（图片进上下文 + 分级窗口 128K/512K）
+> **状态**：🟠 已定方案，待实现
+> **原则**：与现有 LLM 配置模式（`AiConfig` + `PROVIDERS` 表 + 持久化）**完全同构**；一切能力**管理员配置驱动，未配置即降级/回退**。
+
+---
+
+## 1. 目标与范围
+
+| 能力 | 目标 | 未配置时行为 |
+|------|------|--------------|
+| 图片输入（Vision） | 用户上传体检单/化验单/症状照片，随文本一起进入 LLM 上下文 | 前端图片入口置灰（现状） |
+| 语音输入（ASR） | 录音转文字后走现有文本聊天链路 | 前端回退浏览器 Web Speech API |
+| 语音输出（TTS） | 文本回复转语音播报 | 前端回退浏览器 speechSynthesis |
+| 分级上下文窗口 | 非 VIP 128K token / VIP 512K token | 默认 128K |
+
+---
+
+## 2. 总体架构
+
+```
+┌─ 前端 AiAnalysis.vue ──────────────────────────────┐
+│ 图片选择/粘贴 → 压缩(≤1024px) → 上传或 dataURL       │
+│ 语音：录音/上传 → 若 asrEnabled 走服务端，否则 WebSpeech│
+│ 文本+files → POST /ai/chat（SSE 流式）              │
+└─────────────────────────┬──────────────────────────┘
+                          ▼
+┌─ 后端 AiController / AiServiceImpl ────────────────┐
+│ 1. TokenBudgetManager：按 VIP 计算窗口预算(128K/512K)│
+│ 2. 消息组装器：text + image_url（OpenAI 视觉格式）    │
+│ 3. 上下文裁剪：保留 system + 最近 N 轮                │
+│ 4. 调用 ChatProvider（现有 LLMProvider 体系）        │
+│ 5. AiUsage 落库（新增 modality 维度）               │
+└──────┬──────────────────────┬──────────────────────┘
+       ▼                      ▼
+┌─ VisionProvider ──┐  ┌─ AsrProvider / TtsProvider ─┐
+│ 多模态模型直传图片  │  │ 工厂按 provider 名切换        │
+│ (OpenAI 兼容)     │  │ OpenAI 兼容/MiniMax/FunASR/  │
+└───────────────────┘  │ EdgeTTS（本地免费）          │
+                       └─────────────────────────────┘
+```
+
+**关键复用**：ChatProvider（LLM）已存在且支持「把图片以 image_url 传入 content」——只要所选模型是多模态模型，**后端聊天链路几乎不用改**，核心新增是"消息组装 + 窗口预算 + 配置开关"。
+
+---
+
+## 3. 配置模型（AiConfig 扩展，对标现有模式）
+
+### 3.1 新增配置项
+
+| 配置键 | 说明 | 默认 |
+|--------|------|------|
+| `ai.vision.api-key` | 多模态模型密钥（缺省复用 `ai.chat.api-key`） | 空 |
+| `ai.vision.api-url` | 视觉请求端点（缺省复用当前 provider 的 chat 端点） | 空 |
+| `ai.vision.model` | 多模态模型名（如 `qwen-vl-max`、`glm-4v-plus`、`MiniMax-M2.7`） | 空（=不可用） |
+| `ai.vision.enabled` | 图片能力总开关（model 为空则强制 false） | false |
+| `ai.asr.provider` / `ai.asr.api-key` / `ai.asr.api-url` / `ai.asr.model` | 语音识别 | 全空（=disabled） |
+| `ai.tts.provider` / `ai.tts.api-key` / `ai.tts.api-url` / `ai.tts.model` / `ai.tts.voice` | 语音合成 | 全空（=disabled） |
+| `ai.context.normal` | 非 VIP 窗口上限（token） | 131072 |
+| `ai.context.vip` | VIP 窗口上限（token） | 524288 |
+| `ai.vision.max-images-normal` | 非 VIP 单次最多图片数 | 3 |
+| `ai.vision.max-images-vip` | VIP 单次最多图片数 | 10 |
+| `ai.vision.max-dim` | 上传图片最长边压缩上限 | 1024 |
+
+### 3.2 Provider 元数据扩展（`PROVIDERS` 表）
+
+在现有 `ProviderConfig` 上追加两个字段：
+
+```java
+private boolean visionSupported;   // 该厂商是否有可用多模态模型
+private Integer maxContextTokens;  // 该厂商模型最大上下文（决定 VIP 512K 是否可用）
+```
+
+- **visionSupported=true**：qwen（qwen-vl）、zhipu（glm-4v）、minimax（M2.7 系列）、bytedance（doubao-vision）、本地 zhikangyun-local（Qwen2.5-VL，若部署）。
+- **maxContextTokens**：deepseek 128K；512K 档仅对声明 ≥512K 的厂商/模型生效；**未声明一律按 128K 封顶**（防超窗报错）。
+
+### 3.3 能力下发接口
+
+`GET /ai/voice/config` 扩展（或新增 `GET /ai/config/capabilities`）返回：
+
+```json
+{
+  "code": 200,
+  "data": {
+    "visionEnabled": true,
+    "asrEnabled": false,
+    "ttsEnabled": true,
+    "maxContext": 131072,
+    "maxImages": 3
+  }
+}
+```
+
+前端据此决定：图片入口是否可用、语音走服务端还是 Web Speech。**这是 MM-01 断链的正式修复点**。
+
+---
+
+## 4. 图片多模态（对应 roadmap §1.2）
+
+### 4.1 请求协议
+
+`AiChatRequest.files` 现有类型 `List<String>`，扩展语义（向后兼容：纯字符串按 URL 处理）：
+
+```json
+{ "files": ["https://host/api/personal-health/v1.0/file/getFile?name=xxx", "data:image/png;base64,..."] }
+```
+
+> 图片来源两条路径：① 已上传文件走 `file/getFile`（capability URL，模型侧可直接拉取）；② 前端粘贴的小图直接 dataURL 提交（避免一次上传往返）。
+
+### 4.2 消息组装（OpenAI 兼容视觉格式）
+
+```java
+// AiServiceImpl 组装 messages 时：
+content: [
+  { "type": "text", "text": "请解读这张体检单的异常指标" },
+  { "type": "image_url", "image_url": { "url": "https://.../file/getFile?name=xxx" } }
+]
+```
+
+- 若 `ai.vision.model` 为空或所选 provider 不支持视觉 → **返回明确业务错误**（"当前模型不支持图片，请在配置中选择多模态模型"），前端保持置灰。
+- 图片地址：capability URL 匿名可读，模型侧拉取无鉴权问题（S7 的安全权衡在图片链路同样成立，需在文档记录）。
+
+### 4.3 上下文窗口管理（TokenBudgetManager）
+
+新增 `core/context/TokenBudgetManager.java`：
+
+| 环节 | 规则 |
+|------|------|
+| 预算判定 | `user.is_vip ? ai.context.vip : ai.context.normal`；**再与模型 maxContextTokens 取 min**（512K 只对支持模型生效） |
+| 文本估算 | 按 1 汉字≈1.2 token、1 英文词≈1.3 token 估算（或接入 tiktoken 风格计数器）；现有 `maxHistoryRounds` 继续生效 |
+| 图片估算 | 近似公式：`tokens ≈ (W×H)/(512×512) × 170 + 85`（OpenAI tile 模型口径）；多图累加 |
+| 超限裁剪 | 保留 system prompt + 最新 `contextRounds` 轮；**优先裁剪最早轮次中的图片**（图片 token 占比高、收益低）；仍超限则对最近图片降采样 |
+| 响应兜底 | 裁剪后仍超预算 → 返回「上下文过长」业务错误，引导用户开新会话 |
+
+### 4.4 VIP 判定与数据模型
+
+- `user` 表新增：`is_vip TINYINT DEFAULT 0`、`vip_expire_time DATETIME NULL`（可选套餐表）。
+- 判定逻辑：`is_vip=1 AND (vip_expire_time IS NULL OR > now())`。
+- 前端 `profile-tag--vip` 展示位已有，接真实字段即可。
+- SQL 变更文件：`Data/sql/` 新增迁移脚本（不在 init_database.sql 上改，避免已有库重建）。
+
+### 4.5 图片限制策略
+
+| 维度 | 非 VIP | VIP |
+|------|--------|-----|
+| 单次张数 | 3 | 10 |
+| 单张最长边 | 1024px（前端 canvas 压缩） | 2048px |
+| 格式 | JPEG/PNG/WebP（复用 MM-08 魔数校验） | 同左 |
+| 单张大小 | ≤5MB | ≤10MB |
+
+### 4.6 成本统计
+
+`ai_usage` 表扩展 `modality VARCHAR(16)`（text/image/audio）+ 图片张数、估算 token 计入 `prompt_tokens`；管理端可看到多模态占比（为 VIP 定价提供数据）。
+
+---
+
+## 5. 语音（对应 roadmap §1.1）
+
+### 5.1 配置与能力开关
+
+与 3.1 一致；**未配置任一 key → 对应 enabled=false**，前端回退 Web Speech。语音与 LLM 密钥独立，同样纳入 SEC-05 加密存储范畴。
+
+### 5.2 Provider 抽象与工厂
+
+```java
+public interface AsrProvider {
+    String transcribe(byte[] audio, String contentType, String lang) throws Exception;
+    boolean isAvailable();
+}
+public interface TtsProvider {
+    byte[] synthesize(String text, String voice, Float speed) throws Exception;
+    String contentType(); // audio/mpeg | audio/wav ...
+    boolean isAvailable();
+}
+```
+
+- `AsrProviderFactory` / `TtsProviderFactory`：按 `ai.asr.provider` / `ai.tts.provider` 名路由（与 `LLMProviderFactory` 同构）。
+- 首批实现候选：
+  - **OpenAI 兼容 ASR**（whisper-1 / 兼容服务）：`POST {base}/audio/transcriptions`（multipart）。
+  - **MiniMax**：TTS 质量高、API 简单（`POST {base}/tts`）。
+  - **EdgeTTS**（本地免费，微软在线合成，`microsoft-edge-tts` 类库）：零密钥兜底。
+  - **FunASR**（本地）：离线合规场景。
+- 不实现的服务一律 `isAvailable()=false`，工厂回退「未配置」。
+
+### 5.3 接口设计
+
+| 接口 | 说明 |
+|------|------|
+| `POST /ai/voice/asr` | multipart `audio` + `lang`(可选) → `{text}`；异常返回可读错误（上游 4xx/5xx 退避重试） |
+| `POST /ai/voice/tts` | `{text, voice?, speed?}` → 二进制音频（`Content-Type` 由 provider 声明），SSE 场景可走 base64 或流式 |
+| `GET /ai/voice/config` | 能力开关 + provider 名（3.3 已含） |
+| `POST /ai/voice/config` | 管理端保存（复用 `AiConfigPersistenceService`） |
+
+### 5.4 前端分流（AiAnalysis.vue）
+
+```
+发送语音消息：
+  if (capabilities.asrEnabled)  → 上传录音 → 拿 text → 走正常聊天
+  else                         → 浏览器 SpeechRecognition（现状，仅 HTTPS）
+播报回复：
+  if (capabilities.ttsEnabled)  → 调 /ai/voice/tts → Audio 播放
+  else                         → speechSynthesis（现状）
+```
+
+### 5.5 错误处理与安全
+
+- 音频格式/大小校验：wav/mp3/ogg/amr 魔数 + ≤10MB（复用 `FileController` 校验逻辑）。
+- 上游超时：ASR 30s / TTS 20s（可配置）；429/5xx 指数退避（3 次）。
+- 音频不落盘（内存处理）或复用 `file` 体系；`traceId` 贯穿，出错可关联。
+
+---
+
+## 6. 接口清单汇总
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| POST | `/ai/chat`（扩展） | JWT | `files` 字段生效，多模态组装 |
+| GET | `/ai/voice/config` | JWT(管理端) | 能力开关下发（前端也用） |
+| POST | `/ai/voice/config` | 管理端 | 保存 ASR/TTS 配置 |
+| POST | `/ai/voice/asr` | JWT | 语音转文字 |
+| POST | `/ai/voice/tts` | JWT | 文字转语音 |
+| GET | `/ai/config/capabilities`（可选合并） | 登录态 | vision/asr/tts/maxContext 一键下发 |
+
+---
+
+## 7. 数据模型变更
+
+```sql
+-- 用户 VIP（新增迁移脚本，不动 init_database.sql）
+ALTER TABLE `user`
+  ADD COLUMN is_vip TINYINT NOT NULL DEFAULT 0 COMMENT 'VIP(0否/1是)',
+  ADD COLUMN vip_expire_time DATETIME NULL COMMENT 'VIP到期时间';
+
+-- 用量统计扩展（ai_usage）
+ALTER TABLE ai_usage ADD COLUMN modality VARCHAR(16) DEFAULT 'text';
+```
+
+---
+
+## 8. 前端改造清单
+
+| 文件 | 改动 |
+|------|------|
+| `AiAnalysis.vue` | 图片选择/粘贴/预览/删除；语音按钮按能力开关分流；发送时携带 `files` |
+| `utils/upload.js`（或复用 el-upload） | 带 token 上传 → 返回 capability URL |
+| 图片压缩 util | canvas 按 `max-dim` 压缩后上传/转 dataURL |
+| `SystemConfigManage.vue` | 语音表单接通 `/ai/voice/config`（现状是断链）；可选加多模态模型选择 |
+
+---
+
+## 9. 风险与注意
+
+1. **512K 窗口 ≠ 所有模型可用**：必须 `min(vip 预算, 模型 maxContextTokens)`；否则会因超出模型上下文直接报错。设计上已通过 3.2 元数据封顶。
+2. **图片 token 成本**：一张 1024px 图约 700~900 token，10 张图 ≈ 8K token，多轮会话图片占比迅速放大 → 裁剪策略优先级最高的就是图片；非 VIP 限 3 张。
+3. **医疗图片合规**：体检单/报告可能含敏感信息，送第三方多模态模型前需：① 用户明确授权文案；② 管理端可配置"仅走本地模型"的合规模式（复用 `zhikangyun-local` provider）。
+4. **SSE 流式兼容**：多模态请求同样走流式返回，组装在首包前完成，不阻塞流式。
+5. **MM-01 遗留**：语音配置接口断链必须在 Phase C 一并接通，否则管理端表单形同虚设。
+6. **WebSocket 通知与多模态无关**，但语音识别时长较长，注意聊天请求超时配置（`ai.read-timeout` 60s 对 ASR 上游请求适用的是 provider 内部超时，别混用）。
+
+---
+
+## 10. 实施拆分（对齐 roadmap 排期）
+
+| Phase | 内容 | 对应 |
+|------|------|------|
+| A | 图片多模态基础：`files` 生效 + 消息组装 + `TokenBudgetManager` 128K 预算 + 前端图片入口 | roadmap 1.2 / P1 |
+| B | VIP 分级：`is_vip` 字段 + 512K 预算 + 图片数量/尺寸分级 | roadmap 1.2 / P1 |
+| C | 语音 Provider 化：Asr/TtsProvider + 工厂 + `/ai/voice/config` 接通（解 MM-01）+ 前端分流 | roadmap 1.1 / P1 |
+| D | 成本统计（modality）+ 多模态模型元数据表 + 合规模式 | 演进 |
+
+> 每 Phase 完成即 `mvn compile` + 前端 `npm run build` 验证；Phase A 可独立上线（不依赖 B/C）。

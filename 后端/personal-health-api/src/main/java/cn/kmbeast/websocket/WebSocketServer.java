@@ -66,6 +66,19 @@ public class WebSocketServer {
         log.error("WebSocket 错误: userId={}", userId, error);
     }
 
+    @OnMessage
+    public void onMessage(Session session, String message) {
+        // 心跳保活：客户端每隔 30s 发送 {"type":"heartbeat"}，服务端回包以维持连接活跃。
+        // 前端 ws.onmessage 会忽略 type=heartbeat 的回包，不影响业务消息分发（D-004 整改）。
+        if (session != null && session.isOpen() && message != null && message.contains("heartbeat")) {
+            try {
+                session.getBasicRemote().sendText("{\"type\":\"heartbeat\"}");
+            } catch (IOException e) {
+                log.error("WebSocket 心跳回包失败: userId={}", userId, e);
+            }
+        }
+    }
+
     /**
      * 发送消息给指定用户
      */

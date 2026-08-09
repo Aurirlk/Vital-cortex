@@ -1,0 +1,135 @@
+# 缺陷与改进路线图（Defect Roadmap）
+
+> **建立日期**：2026-08-01
+> **定位**：记录当前已知缺陷、漏洞与改进点的**决策与排期**，供未来迭代排版决定。本文件为待办清单，**不代表已实现**；已实现项见 `DELIVERY.md` §8 与根 `README.md`「已知缺陷与限制清单」。
+> **状态字段**：🔴 待排期 ｜ 🟠 已定方案待实现 ｜ ✅ 已实现
+
+---
+
+## 1. 已定方案（用户拍板，🟠 待实现）
+
+### 1.1 服务端语音 ASR/TTS Provider 化（对标 LLM 配置模式）
+
+**决策**：ASR / TTS 与 LLM 同构设计 —— 管理员在后台手动配置 API Key + Base URL（可选模型名）；**不配置则前端回退浏览器 Web Speech API**。
+
+**现状核实**：
+- `core/voice/` 六个类（TTSFactory/ASRFactory/EdgeTTSProvider/FunASRProvider/VADDetector/AudioManager）为空壳，一律「打日志 + return 空值」，却注册为 `@Component`。
+- 前端已改走浏览器 Web Speech API（`AiAnalysis.vue`）；管理端仍有语音配置表单，但接口 `/ai/voice/config/get|update` 后端零匹配（MM-01 断链）。
+
+**设计要点**：
+1. 配置模型：复用 `AiConfig` 模式，新增 `ai.asr.*` / `ai.tts.*`（provider / base-url / api-key / model），`AiConfigPersistenceService` 持久化。
+2. Provider 抽象：`AsrProvider` / `TtsProvider` 接口 + 工厂按 provider 名切换（通用 OpenAI 兼容 / 本地 FunASR / MiniMax / EdgeTTS）；**未配置 → 返回「未启用」**，由前端决定回退 Web Speech。
+3. 能力下发：`/ai/voice/config/get` 返回 `asrEnabled` / `ttsEnabled` 标志，前端据此选择服务端接口或 Web Speech（同时解决 MM-01 断链）。
+4. 工程注意：TTS 返回二进制音频（`Content-Type: audio/*`，可选流式）；ASR 接收 multipart 上传；上游 4xx/5xx 退避重试；密钥存储与 SEC-05 同源（KMS/信封加密，勿明文入库）。
+
+**涉及**：`core/voice/*`（重写）、`AiConfig` + `AiConfigPersistenceService`、`AiController`（/ai/voice/config 接通）、`SystemConfigManage.vue`（表单）、`AiAnalysis.vue`（语音按钮分流）。
+
+> 📐 **详细设计**：见 `docs/multimodal-design.md` §5（语音）。
+
+---
+
+### 1.2 图片附件进 AI 聊天 + 分级上下文窗口（VIP 512K / 非 VIP 128K）
+
+**决策**：图片缓存进上下文，支持多模态；上下文窗口按用户身份分级 —— 非 VIP **128K**、VIP **512K** token。
+
+**现状核实**：
+- `AiChatRequest.files` 已声明但**全仓库零调用**（MM-04）；前端图片附件入口已置灰规避。
+
+**设计要点**：
+1. 请求侧：`files` 支持 `{url, name}`；服务端将图片转 `base64/dataURL` 或直接以 OpenAI 兼容视觉格式（`content: [{type:"image_url", image_url:{url}}]`）拼入 messages。
+2. 上下文窗口管理：按 VIP 设 token 预算（128K / 512K）；**需与所选模型的真实上下文匹配**（如 DeepSeek 等 128K 档位模型不支持 512K，VIP 档需模型支持长上下文，或该档仅对支持模型生效）；超限裁剪策略：保留系统提示 + 最近 N 轮，可选摘要压缩。
+3. Token 成本：图片 token 占比大（约数百~上千 token/张），需计入 usage 统计与成本控制；非 VIP 限制图片数量与尺寸（压缩到 ≤1024px）。
+4. VIP 判定：确认 `user` 表是否有 VIP 字段，无则新增标记/套餐字段（前端 `profile-tag--vip` 已有展示位）。
+
+**涉及**：`AiChatRequest`、`AiServiceImpl`（消息组装 + 窗口预算）、token 计数工具（复用现有 usage 统计）、前端 `AiAnalysis.vue`（开放图片入口 + 预览）。
+
+> 📐 **详细设计**：见 `docs/multimodal-design.md` §4（图片）。
+
+---
+
+### 1.3 账号锁定/停用 → 存量 Token 立即失效 + 强制退出登录
+
+**决策**：管理员锁定用户（`is_login=0`）后，该用户**失去全部功能并强制退出到登录界面**（而非 7 天内 token 仍可用）。
+
+**现状核实**：`JwtInterceptor` 只验签 + 过期校验，**不查账号状态**；`jwt.expiration` 默认 7 天 → 锁定不回收存量会话（S1）。
+
+**设计要点**：
+1. 后端鉴权加固：`JwtInterceptor` 验签后校验账号状态 —— 查 Redis 缓存（key `auth:user:{id}:state`，miss 时查库回填，TTL 60s）；`is_login=0` → 返回 **401 + 业务码 4010「账号已禁用」**。
+2. 会话版本号（一并解决登出失效 / 改密失效）：登录时生成会话版本 `auth:user:{id}:ver` 写入 Redis；**锁定、登出、改密即递增版本**，旧 token 全部失效。与未来 refresh token / 双 token 方案同构，一次设计。
+3. 前端：`request.js` 已有 401 统一拦截 → 补 4010 分支：`clearToken()` + 跳转登录页（可带 reason 提示）。
+4. 注意点：状态校验走 Redis 缓存避免每请求查库；锁定即时性由版本递增保证；与「登录防爆破」（S10）可共用 Redis 计数设施。
+
+**涉及**：`JwtInterceptor`、`RedisConfig`（已有）、`UserServiceImpl`（登录/锁定/登出接口）、`request.js`（前端）。
+
+---
+
+## 2. 其余待排期缺陷（🔴 先记录，未来排版决定）
+
+### 2.1 安全
+
+| # | 问题 | 现状 | 建议 |
+|---|------|------|------|
+| S2 | 手机号登录为假实现 | 验证码写死 `123456`，后端无短信模块 | 上线前下线该入口，或接真实短信 + 服务端校验 + 频次限制 |
+| S3 | 无接口级限流 | 仅 LLM 上游 429 退避 | 登录/短信/上传/AI 对话加 rate limit（可复用 1.3 的 Redis 设施） |
+| S5 | AI 密钥明文存储 | 管理端配置明文入库 | KMS / 信封加密（与 1.1 语音密钥同源处理） |
+| S6 | WebSocket token 走 URL | `/ws/notification/{token}` | 改 header / 短期一次性 token，避免进 nginx access log |
+| S7 | `/file/getFile` 匿名读 | capability URL（122 位随机名）设计权衡 | 确认文件名随机源强度；日志脱敏 |
+| S8 | Spring Boot 2.7.18 已 EOL | 2023-11 停止支持 | 依赖 CVE 扫描（上线前至少跑一次）；规划 3.x（见 2.4） |
+| S9 | 等保三级 / 渗透测试未开展 | — | 商用合规前置，需外部机构 |
+| S10 | 登录无防爆破 | 无限流 + 无验证码 + 无自动失败锁定 | 失败次数锁定（Redis 计数）+ 验证码（与 S3 一并做） |
+
+### 2.2 功能 / 正确性
+
+| # | 问题 | 现状 | 建议 |
+|---|------|------|------|
+| F1 | 服务端语音未实现 | 已定方案 1.1 | — |
+| F2 | 图片附件进聊天未支持 | 已定方案 1.2 | — |
+| F3 | 向量检索全量扫描 | 本地文件实现 | >10 万块迁移 pgvector / Milvus（见 2.4） |
+| F4 | 知识图谱未接入 | Neo4j 代码就绪 | GraphRAG 属新项目，独立立项 |
+| F5 | 全站 ~40 页硬编码色值 | 未收敛品牌蓝 #0050cb | D-003/008 续，视觉一致性，低风险可上线后做 |
+| F6 | 登出服务端无感知 | 仅清前端 token | 并入 1.3 会话版本号方案 |
+
+### 2.3 工程化 / 质量
+
+| # | 问题 | 现状 | 建议 |
+|---|------|------|------|
+| E1 | 测试覆盖 <2% | 25 单测 / 336 Java 文件，无集成/E2E | 至少补登录/通知推送/上传权限/RAG 关键链路冒烟；**本轮 D-002~D-010 与监控栈改动未跑 `mvn compile` / `npm run build`，动手前先全量构建验证** |
+| E2 | CI 门禁薄弱 | 仅 `mvn test` | 加 lint / 依赖 CVE 扫描 / 构建产物校验 |
+| E3 | 告警外发未配置 | `deploy/alertmanager.yml` 为占位 webhook | 上线前替换为企业微信/钉钉/飞书 webhook |
+| E4 | 无自动备份脚本 | 备份清单有、落地靠手动 | 补 cron 自动备份（MySQL dump + 文件卷） |
+| E5 | 容器健康检查粗糙 | healthcheck 用 `/user/login` | 改 `/actuator/health`；补优雅停机 |
+
+### 2.4 架构级
+
+| # | 方向 | 说明 |
+|---|------|------|
+| A1 | 鉴权模型重构 | Redis 会话 / refresh token / 账号状态校验一体设计（见 1.3），建议与 A2 同周期 |
+| A2 | Spring Boot 3 迁移 | javax→jakarta、Servlet 6、Spring Security 集成时机；与 A1 一起改避免两遍 |
+| A3 | God Class 拆分 | `AiServiceImpl` 已抽 Provider 层，继续按会话/检索/评测/用量拆 4 服务 |
+| A4 | 向量库选型 | pgvector（与 MySQL 同栈）vs Milvus（大规模），承接 F3 |
+| A5 | 多租户 | CRM 已有租户隔离；主业务健康数据为单租户模型，SaaS 化需整体重构 |
+| A6 | 审计日志体系 | 等保要求登录/操作/导出审计，当前无审计表（可先基于 Loki 落地） |
+| A7 | 异步化 | 短信/通知/报表无 MQ；WebSocket 直连推送，后端重启断连 |
+| A8 | 密钥托管 | SEC-05 / 1.1 语音密钥的架构解：KMS / Vault / 信封加密 |
+
+---
+
+## 3. 实施顺序草案（待排版决定）
+
+| 批次 | 范围 | 理由 |
+|------|------|------|
+| P0（上线前） | 1.3 账号锁定失效（安全阻断）＋ S2 假登录处置 ＋ S3 登录限流 | 高危安全项，先行 |
+| P1 | 1.1 语音 Provider ＋ 1.2 图片多模态 ＋ S8 依赖 CVE 扫描 | 功能补齐 + 合规基线 |
+| P2 | A1＋A2 鉴权重构与 Boot 3 同周期、E1 测试补强、E3/E4/E5 运维 | 工程与架构主体 |
+| P3 | F3 向量库迁移、A3 拆分、A5~A8 | 演进型，按业务节奏 |
+
+---
+
+## 4. 追踪表
+
+| 编号 | 标题 | 状态 | 优先级 | 决策日期 |
+|------|------|------|--------|----------|
+| 1.1 | 语音 ASR/TTS Provider 化（LLM 同构配置，空配置回退 Web Speech） | 🟠 已定方案 | P1 | 2026-08-01 |
+| 1.2 | 图片进上下文 + 上下文窗口 VIP 512K / 非 VIP 128K | 🟠 已定方案 | P1 | 2026-08-01 |
+| 1.3 | 账号锁定存量 Token 立即失效 + 强制退出登录 | 🟠 已定方案 | P0 | 2026-08-01 |
+| S2~S10 / F3~F6 / E1~E5 / A1~A8 | 见第 2 节 | 🔴 待排期 | — | 2026-08-01 |
