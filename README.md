@@ -226,15 +226,17 @@
 
 ---
 
-## RAG 知识库检索流程
+## RAG 知识库检索流程（双路召回）
 
 ```
-用户提问 → 向量召回（余弦相似度）+ MySQL LIKE 召回
+用户提问 → 向量语义召回（bge-m3）+ Neo4j 图谱召回（实体关系）+ MySQL LIKE 召回
                     ↓
-              RRF 融合排序 → Top-K 文章
+              RRF 融合排序 → Top-K 上下文
                     ↓
-              注入 AI 上下文（带引用溯源）→ 基于文章生成回答
+      注入 AI 上下文（文章引用溯源 + 图谱实体关系）→ 基于知识生成回答
 ```
+
+> 图谱路未配置/未启动 Neo4j 时自动降级为纯向量 + LIKE，不抛错（`GraphRAG.isConnected()` 兜底）。
 
 ---
 
@@ -333,16 +335,15 @@ AI配置 → MySQL（明文存储，管理员后台管理）
 
 ## 快速启动
 
-### 环境部署
-
-选择发布的压缩包，不要使用源代码直接下载压缩包，我因为使用GitHub gestop所以一些json文件和配置文件懒得去（当然key你们就别想了，包隐藏的，这个我肯定不能偷懒的）。
-
 ### 环境要求
 
-- JDK 17（推荐；构建与测试均在该版本验证。pom 当前 `source/target=1.8`，但核心模块已用 Java 9+ 语法，实际需 11+ 才能编译）
+- JDK 17（构建/运行目标，pom `source/target=17`）
 - Maven 3.6+
 - Node.js 16+
-- MySQL 5.7+ / 8.x
+- MySQL 8.x（主库，HikariCP 连接池）
+- Redis 6+（缓存 + 会话版本号，必需）
+- Neo4j（可选，GraphRAG 双路召回；未启动时自动降级为纯向量检索）
+- Docker（可选，一键起监控告警栈：Prometheus/Grafana/Loki/Alertmanager，见 `DELIVERY.md` §4.4）
 
 ### 1. 数据库初始化
 
@@ -350,24 +351,35 @@ AI配置 → MySQL（明文存储，管理员后台管理）
 CREATE DATABASE personal_health DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 USE personal_health;
 
--- 基础表结构
-source sql/personal_health_schema.sql;
-source 后端/personal-health-api/sql/drug_schema.sql;
-source 后端/personal-health-api/sql/ai_chat_schema.sql;
-source 后端/personal-health-api/sql/ai_config_schema.sql;
-
--- 可选数据
-source sql/personal_health_data.sql;
+-- 基础表结构 + 种子数据
+source Data/sql/deploy/init_database.sql;
 ```
 
-### 2. 启动后端
+扩展模块脚本按需执行（`Data/sql/` 下）：`ai_usage_schema.sql`（token 成本）、`appointment_schema.sql`（预约）、`forum_schema.sql`（社区）、`rbac_schema.sql`（权限）、`audit_log.sql`（审计）等。
+
+### 2. 配置密钥（本地开发）
+
+```bash
+# 复制配置模板（application.yml 已被 gitignore，不会误提交真实密钥）
+cp 后端/personal-health-api/src/main/resources/application-example.yml \
+   后端/personal-health-api/src/main/resources/application.yml
+
+export JWT_SECRET=$(openssl rand -hex 48)      # JWT 签名密钥（≥32 字节，启动强校验）
+export CRM_API_KEY=$(openssl rand -hex 32)     # CRM 机器接口密钥（≥24 字符）
+export EMBEDDING_API_KEY=sk-xxx                # 嵌入服务密钥（硅基流动 bge-m3 等）
+```
+
+> 本地开发可设置 `CRM_STRICT_STARTUP=false`（或配置 `crm.strict-startup: false`）跳过启动强校验；
+> 生产必须保持默认严格校验（未配置密钥拒绝启动）。
+
+### 3. 启动后端
 
 ```bash
 cd 后端/personal-health-api
 mvn spring-boot:run
 ```
 
-### 3. 启动前端
+### 4. 启动前端
 
 ```bash
 cd 前端/personal-heath-view
@@ -375,12 +387,11 @@ npm install
 npm run dev
 ```
 
-### 4. 首次配置
+### 5. 首次配置
 
-1. 用 `yangshu/123456` 登录
-2. 进入管理员后台 → AI 配置
-3. 选择厂商（如 DeepSeek）并输入 API Key
-4. 保存配置
+1. 用种子管理员账号 `admin` 登录（密码见 `Data/sql/deploy/init_database.sql` 注释，首次登录后请立即修改）
+2. 进入管理员后台 → AI 配置：选择厂商（如 DeepSeek）、输入 API Key、配置嵌入服务（Embedding API URL + Key）
+3. 保存配置后即可开始 AI 对话
 
 ---
 
