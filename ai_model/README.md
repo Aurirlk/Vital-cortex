@@ -16,9 +16,12 @@
 
 ## 完整模型权重
 
-合并后的完整权重约 **29GB**，不适合直接入库。提供百度网盘下载：
+合并后的完整权重约 **29GB**，不适合直接入库，已发布到 Hugging Face：
 
-> **下载链接**：[百度网盘]（待补充，上传后填入）
+> **模型仓库**：[`Weikaijie/HealthPulse-Qwen2.5-7B`](https://huggingface.co/Weikaijie/HealthPulse-Qwen2.5-7B)
+>
+> 国内拉取加速：`export HF_ENDPOINT=https://hf-mirror.com`，然后
+> `huggingface-cli download Weikaijie/HealthPulse-Qwen2.5-7B --local-dir ./merged_model`
 
 ## 本地部署（vLLM）
 

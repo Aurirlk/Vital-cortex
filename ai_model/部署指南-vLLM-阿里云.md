@@ -41,7 +41,7 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 # 方式 A：从 HF 仓库拉取（推荐）
 pip install -U huggingface_hub
-huggingface-cli download Aurirlk/HealthPulse-Qwen2.5-7B --local-dir /data/models/HealthPulse-Qwen2.5-7B
+huggingface-cli download Weikaijie/HealthPulse-Qwen2.5-7B --local-dir /data/models/HealthPulse-Qwen2.5-7B
 
 # 方式 B：从网盘下载后解压到同一目录（目录内需含 config.json、model.safetensors 等）
 ```

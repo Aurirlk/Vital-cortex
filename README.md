@@ -53,7 +53,7 @@
 | --- | --------------------------------------------- |
 | 前端  | Vue 3 + Element Plus + ECharts + Vue Router   |
 | 后端  | **Spring Boot 3.5.16 + Java 17** + MyBatis + MySQL 8 + Redis + SQLite（CRM 对话历史） |
-| AI  | 12 个国内厂商（DeepSeek、通义千问、Kimi、GLM 等）+ 本地 vLLM 微调模型（可选，训练集与参数见 `ai_model/`，完整权重走百度网盘） |
+| AI  | 12 个国内厂商（DeepSeek、通义千问、Kimi、GLM 等）+ 本地 vLLM 微调模型（可选，训练集与参数见 `ai_model/`，完整权重发布 Hugging Face：`Weikaijie/HealthPulse-Qwen2.5-7B`） |
 | 向量库 | 本地向量库（余弦相似度，规划迁移 pgvector HNSW）+ **bge-m3 嵌入（硅基流动）** + MySQL LIKE，**RRF 混合检索** |
 | 知识图谱 | **Neo4j GraphRAG**（实体抽取 → 关系查询 → 注入上下文，双路召回已接入主链路） |
 | 认证  | JWT（会话版本号，锁定/登出/改密即失效）+ CRM API Key（机器接口，fail-closed） |
@@ -209,7 +209,7 @@
 通过 `LLMProviderFactory` 在运行时切换厂商，自带轻量熔断器与 429/5xx 重试：
 
 - `DeepSeekProvider` — 云端 DeepSeek
-- `LocalVllmProvider` — 自部署微调模型 `HealthPulse-Qwen2.5-7B`（vLLM，OpenAI 兼容，默认 `:8000`）；训练集/训练参数见 `ai_model/`，完整权重走百度网盘（见 `ai_model/README.md`）
+- `LocalVllmProvider` — 自部署微调模型 `HealthPulse-Qwen2.5-7B`（vLLM，OpenAI 兼容，默认 `:8000`）；训练集/训练参数见 `ai_model/`，完整权重发布 Hugging Face：`Weikaijie/HealthPulse-Qwen2.5-7B`（见 `ai_model/README.md`）
 - `CircuitBreaker` — 故障快速失败、半开探测恢复
 
 ### 5. 安全加固（本轮完成）
@@ -570,7 +570,7 @@ npm run dev
 2. **密钥必须外部注入** — `JWT_SECRET`、`CRM_API_KEY`、`EMBEDDING_API_KEY` 等缺失或强度不足时后端**拒绝启动**，请勿使用硬编码密钥。
 3. **AI 配置** — 通过管理员后台配置 API Key，持久化到 MySQL，重启不丢失（生产建议信封加密）。
 4. **数据导出** — 药品和健康数据需先调用导出接口，AI 工具才能读取。
-5. **敏感文件** — `.gitignore` 已排除 `application.yml`、`ai_data/`、`chat_backup/`、`dir/`（完整模型权重）等；微调训练集与训练参数已入库至 `ai_model/`，完整权重通过百度网盘分发。
+5. **敏感文件** — `.gitignore` 已排除 `application.yml`、`ai_data/`、`chat_backup/`、`dir/`（完整模型权重）等；微调训练集与训练参数已入库至 `ai_model/`，完整权重通过 Hugging Face 分发（`Weikaijie/HealthPulse-Qwen2.5-7B`）。
 6. **合规提醒** — 平台涉及敏感健康信息，商用前建议完成等保三级测评与个人信息保护影响评估。详见 `DELIVERY.md`。
 
 ---
@@ -610,7 +610,7 @@ npm run dev
 - Multi-Agent 协调器（`AgentCoordinator`）意图词表外部化，6 专科角色路由
 - ReAct Agent 改为 OpenAI function calling 驱动，工具调用轨迹落库（检查点/审计）
 - LLM Provider 工厂 + 熔断器（`DeepSeekProvider` / `LocalVllmProvider` / `CircuitBreaker`），429/5xx 重试与快速失败
-- 本地微调模型 `HealthPulse-Qwen2.5-7B`（vLLM :8000，OpenAI 兼容）可一键切换；训练集/参数入库 `ai_model/`，完整权重百度网盘分发（见 `ai_model/README.md`）
+- 本地微调模型 `HealthPulse-Qwen2.5-7B`（vLLM :8000，OpenAI 兼容）可一键切换；训练集/参数入库 `ai_model/`，完整权重 Hugging Face 分发（`Weikaijie/HealthPulse-Qwen2.5-7B`，见 `ai_model/README.md`）
 
 **RAG**
 - 文章 ingestion 管线（分块→嵌入→入库），发布自动联动灌数
