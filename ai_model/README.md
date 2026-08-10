@@ -9,6 +9,8 @@
 | `dataset/` | 医疗问答训练集（train/val/test，huatuo_medical 格式，约 5MB） |
 | `train_config.yaml` | LoRA 训练参数（rank=8, alpha=16, lr=5e-5, sft） |
 | `requirements.txt` | 训练/推理依赖 |
+| `微调步骤.md` | 华为云 A800 实际微调完整步骤记录（环境/数据/训练/合并/部署 + 踩坑） |
+| `排障指南.md` | 微调与部署常见问题排查 |
 
 ## 完整模型权重
 
