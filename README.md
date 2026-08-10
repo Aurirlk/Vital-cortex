@@ -527,40 +527,39 @@ npm run dev
 ## 目录结构
 
 ```
-智康云-健康管理系统/
-├── 前端/personal-heath-view/
-│   └── src/views/user/
-│       ├── AiAnalysis.vue      # AI 健康分析（6角色+意图识别）
-│       ├── Assistant.vue        # 网站小助手（意图分流对话）
-│       ├── UserHealthModel.vue  # 健康数据管理
-│       └── Drug.vue             # 药品订阅
+VitalCortex/
+├── 前端/personal-heath-view/        # Vue 3 + Element Plus
+│   └── src/views/                    # 页面（AI分析/助手/健康数据/药品等）
 │
-├── 后端/personal-health-api/
+├── 后端/personal-health-api/        # Spring Boot 3.5.16 + Java 17
 │   └── src/main/java/cn/kmbeast/
-│       ├── service/impl/
-│       │   ├── AiServiceImpl.java           # AI 核心服务
-│       │   ├── AiHealthDataServiceImpl.java # 健康数据 JSON 格式
-│       │   ├── DataExportServiceImpl.java   # 数据导出
-│       │   └── DifyWorkflowServiceImpl.java # AI 关键词提取
-│       ├── crm/agent/tool/                  # 6 个工具
-│       ├── config/
-│       │   ├── AiConfig.java                # AI 多厂商配置
-│       │   └── AiPromptConfig.java          # 角色提示词配置
-│       └── sql/
-│           ├── ai_chat_schema.sql
-│           ├── ai_config_schema.sql
-│           └── drug_schema.sql
+│       ├── controller/               # REST 接口
+│       ├── service/impl/             # 业务实现（AiServiceImpl 等）
+│       ├── core/                     # GraphRAG / Multi-Agent / LLM Provider
+│       ├── crm/                      # 网站小助手（ReAct Agent / SQLite / 向量库）
+│       └── config/                   # 配置（Sentinel / Redis / AI / 缓存）
 │
-├── ai_data/                    # AI 数据文件（自动导出）
-│   ├── drugs.json              # 55 种药品
-│   └── health/user_{id}.json   # 用户健康指标
+├── ai_model/                        # 微调模型全套（已入库）
+│   ├── dataset/                      # 医疗问答训练集（train/val/test）
+│   ├── scripts/                      # 推理/评测脚本（FastAPI / Flask）
+│   ├── train_config.yaml             # LoRA 训练参数
+│   ├── 微调步骤.md / 排障指南.md
+│   ├── 部署指南-vLLM-阿里云.md
+│   └── README.md                     # 含 HF 权重仓库链接
 │
-├── chat_backup/                # 会话备份
-│   ├── history_speak/{userId}/ # 历史会话
-│   └── user_health/{userId}/   # 健康数据
+├── docs/                            # 项目文档（中文名）
+│   ├── 需求分析.md / 数据库设计.md / 后端开发.md / 前端开发.md
+│   ├── 测试报告.md / 智能体架构.md / RAG子系统.md / 安全加固设计.md
+│   ├── 多模态设计.md / 技术问答.md / 缺陷与改进路线图.md / ...
 │
-└── .gitignore                  # 排除敏感文件
+├── Data/sql/                        # SQL 脚本（建表 / 种子 / 扩展模块）
+├── deploy/                          # 部署配置（Prometheus 等）
+├── docker-compose.yml               # MySQL / Redis / 监控告警栈
+├── DELIVERY.md                      # 交付与运维手册
+└── README.md                        # 本项目文件
 ```
+
+> 注：`dir/`（完整模型权重 29GB 等大文件）已被 `.gitignore` 排除，仅存本地；完整权重发布至 Hugging Face，训练集/参数/文档在 `ai_model/`。
 
 ---
 
@@ -576,6 +575,18 @@ npm run dev
 ---
 
 ## 更新日志
+
+### v5.4 (2026-08-10) — 作品集门面完善 + 微调模型发布
+
+**文档体系**
+- docs/ 15 个文档改中文名（需求分析/数据库设计/后端开发等），全部交叉引用同步
+- README 作品集化：**VitalCortex** 品牌 + 核心能力矩阵 + 全站去 emoji
+- 路线图/缺陷台账同步完成状态（Boot 3 升级、GraphRAG 接入、Sentinel 限流）
+- 技术问答新增 4 道 v5.3 实战面试题（Boot3 升级坑 / Sentinel / embedding 选型 / GraphRAG 落地）
+
+**微调模型发布**
+- `ai_model/` 入库：训练集（5MB）+ LoRA 训练参数 + 微调步骤/排障指南/部署指南（vLLM+阿里云）+ 推理评测脚本（FastAPI/Flask）
+- 完整权重（29GB）发布 **Hugging Face**：[`Weikaijie/HealthPulse-Qwen2.5-7B`](https://huggingface.co/Weikaijie/HealthPulse-Qwen2.5-7B)
 
 ### v5.3 (2026-08-09) — Spring Boot 3 升级 + 双路 RAG 打通 + 限流
 
