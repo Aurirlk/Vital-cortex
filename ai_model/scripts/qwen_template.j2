@@ -1,0 +1,25 @@
+{% if messages[0]['role'] == 'system' %}
+    {% set loop_messages = messages[1:] %}
+    {% set system_message = messages[0]['content'] %}
+{% else %}
+    {% set loop_messages = messages %}
+    {% set system_message = '' %}
+{% endif %}
+{% for message in loop_messages %}
+    {% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}
+        {{ raise_exception('Conversation roles must alternate user/assistant/user/assistant...') }}
+    {% endif %}
+{% endfor %}
+{% if system_message != '' %}
+    {{ '<|im_start|>system\n' + system_message + '<|im_end|>\n' }}
+{% endif %}
+{% for message in loop_messages %}
+    {% if message['role'] == 'user' %}
+        {{ '<|im_start|>user\n' + message['content'] + '<|im_end|>\n' }}
+    {% elif message['role'] == 'assistant' %}
+        {{ '<|im_start|>assistant\n' + message['content'] + '<|im_end|>\n' }}
+    {% endif %}
+{% endfor %}
+{% if add_generation_prompt %}
+    {{ '<|im_start|>assistant\n' }}
+{% endif %}
