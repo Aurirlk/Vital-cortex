@@ -75,4 +75,4 @@
 
 - **必填**：`EMBEDDING_API_URL`（DeepSeek 无嵌入接口，需 OpenAI 兼容服务或本地服务）；
 - **限制**：本地文件向量库为全量扫描，数据量 **>10 万块** 时建议迁移 pgvector / Milvus + HNSW（见 ../DELIVERY.md §8.2）；
-- **知识图谱**：Neo4j 代码模块已就绪，但**未接入**主 RAG 链路（GraphRAG 属新项目，规划中）。
+- **知识图谱**：Neo4j 代码模块已就绪，并已**接入**主 RAG 链路（v5.3：Neo4j 实体抽取 → 关系查询 → 双路召回）。

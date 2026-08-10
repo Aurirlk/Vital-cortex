@@ -42,7 +42,7 @@
 └──────────────────┬──────────────────────────┘
                    │ HTTPS
 ┌──────────────────▼──────────────────────────┐
-│  后端 Spring Boot 2.7（Java 17）              │
+│  后端 Spring Boot 3.5.16（Java 17）          │
 │  ├─ JWT 用户鉴权 + CRM API Key（机器接口）       │
 │  ├─ ReAct Agent（OpenAI function calling + 工具轨迹落库）     │
 │  ├─ RAG（ingestion 管线 + 向量/LIKE 混合检索 + RAGAS 评测）  │
@@ -59,7 +59,7 @@
 | 组件 | 说明 | 默认端口 |
 |------|------|----------|
 | 前端 | Vue 3 + Nginx | 80 |
-| 后端 | Spring Boot 2.7.18 + Java 17 | 21090 |
+| 后端 | Spring Boot 3.5.16 + Java 17 | 21090 |
 | MySQL | 业务主库（8.0） | 3306 |
 | SQLite | CRM 对话历史（WAL 模式） | 文件 |
 | 可选 | 本地医疗大模型（vLLM，端口 8000�� | 8000 |
@@ -269,7 +269,7 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 
 | 项 | 现状 | 处置建议 |
 |----|------|----------|
-| **Spring Boot 3 迁移** | 当前 2.7.18（2023-11 EOL） | 独立改造周期（2-3 周）：javax→jakarta、Spring Security 6、MyBatis 适配；升级前先冻结功能 |
+| **Spring Boot 3 迁移** | 已完成（v5.3：3.5.16 + Java 17，OpenRewrite javax→jakarta 全量） | 遗留迁移瑕疵已修复：spring.data.redis 前缀、logging.file.path、SQLite+HikariCP 兼容 |
 | **等保三级测评** | 未开展 | 需授权测评机构；系统涉及敏感健康信息，商用前必须完成 |
 | **渗透测试** | 未开展 | 建议上线前由第三方执行（OWASP Top10 + 越权专项） |
 | **API Key 存储** | 环境变量注入；管理端配置项建议信封加密 | 如管理端需保存厂商密钥，改造为 KMS/信封加密 |
@@ -277,7 +277,7 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 | **意图识别** | 词表外部化完成，仍为关键词匹配 | 升级路径：embedding 分类或 LLM router（词表可先用） |
 | **服务端 ASR/TTS** | 未实现（语音走浏览器原生） | 医疗级识别/电话通道需接入服务端，见交接档案 |
 | **向量库容量** | 本地文件实现，全量扫描 | 数据量 >10 万块时迁移 pgvector/Milvus + HNSW |
-| **知识图谱** | Neo4j 未接入业务 | GraphRAG 依赖图谱数据建设，属新项目 |
+| **知识图谱** | 已接入（v5.3 GraphRAG 双路召回） | Neo4j 实体抽取 → 关系查询 → 注入上下文 |
 
 ### 8.3 路线图（优先级排序）
 
