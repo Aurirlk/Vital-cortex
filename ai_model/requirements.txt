@@ -1,0 +1,31 @@
+# 智康云 - 微调环境依赖
+# 使用方法: pip install -r requirements.txt
+
+# 核心框架
+transformers>=4.37.0
+torch>=2.0.0
+datasets>=2.14.0
+
+# LLaMA-Factory
+llamafactory>=0.8.0
+
+# LoRA微调
+peft>=0.7.0
+accelerate>=0.25.0
+
+# 评估
+sacrebleu>=2.3.0
+rouge-score>=0.1.2
+
+# 数据
+scikit-learn>=1.2.0
+numpy>=1.24.0
+pandas>=2.0.0
+
+# 可视化
+wandb>=0.15.0
+tensorboard>=2.13.0
+
+# 推理加速 (可选)
+bitsandbytes>=0.41.0
+vllm>=0.2.0

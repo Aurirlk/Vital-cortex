@@ -29,20 +29,20 @@
 
 | 文档           | 路径                                      | 说明                                           |
 | ------------ | --------------------------------------- | -------------------------------------------- |
-| 需求分析         | `docs/requirements-analysis.md` | 功能需求、用例图、流程图                                 |
-| 数据库设计        | `docs/database-design.md`           | ER 图、建表 SQL、字段说明                             |
-| 后端开发         | `docs/backend-development.md`        | 接口设计、核心代码、架构说明                               |
-| 前端开发         | `docs/frontend-development.md`      | 页面设计、组件说明、路由设计                               |
-| 测试文档         | `docs/test-report.md`                | 测试用例（49条，含25单测）、测试报告                         |
-| Linux部署      | `docs/linux-deployment.md`        | 环境搭建、部署命令、常见问题                               |
-| AI工具使用       | `docs/ai-tool-usage-record.md`      | AI工具使用记录（≥500字）                              |
-| **AI 智能体架构** | `docs/agent-architecture.md`              | **v5.1 新增** Multi-Agent/ReAct/Provider工厂/熔断器 |
-| **RAG 检索增强** | `docs/rag-subsystem.md`                   | **v5.1 新增** ingestion管线/混合检索/RAGAS           |
-| **安全加固设计**   | `docs/security-hardening.md`        | **v5.1 新增** JWT/CRM Key/SqlGuard/XSS/脱敏      |
-| 项目状态         | `docs/project-status.md`                     | 功能清单、完成状态                                    |
-| 开发指南         | `docs/development-guidelines.md`             | 防坑指南、编码规范                                    |
-| **缺陷与改进路线图** | `docs/defect-roadmap.md`                | **v5.2 新增** 缺陷/漏洞/改进点决策与排期（已定方案 3 项）      |
-| **多模态能力设计** | `docs/multimodal-design.md`            | **v5.2 新增** 图片进上下文 + 语音 ASR/TTS Provider 化详细设计 |
+| 需求分析         | `docs/需求分析.md` | 功能需求、用例图、流程图                                 |
+| 数据库设计        | `docs/数据库设计.md`           | ER 图、建表 SQL、字段说明                             |
+| 后端开发         | `docs/后端开发.md`        | 接口设计、核心代码、架构说明                               |
+| 前端开发         | `docs/前端开发.md`      | 页面设计、组件说明、路由设计                               |
+| 测试文档         | `docs/测试报告.md`                | 测试用例（49条，含25单测）、测试报告                         |
+| Linux部署      | `docs/Linux部署.md`        | 环境搭建、部署命令、常见问题                               |
+| AI工具使用       | `docs/AI工具使用记录.md`      | AI工具使用记录（≥500字）                              |
+| **AI 智能体架构** | `docs/智能体架构.md`              | **v5.1 新增** Multi-Agent/ReAct/Provider工厂/熔断器 |
+| **RAG 检索增强** | `docs/RAG子系统.md`                   | **v5.1 新增** ingestion管线/混合检索/RAGAS           |
+| **安全加固设计**   | `docs/安全加固设计.md`        | **v5.1 新增** JWT/CRM Key/SqlGuard/XSS/脱敏      |
+| 项目状态         | `docs/项目状态.md`                     | 功能清单、完成状态                                    |
+| 开发指南         | `docs/开发指南.md`             | 防坑指南、编码规范                                    |
+| **缺陷与改进路线图** | `docs/缺陷与改进路线图.md`                | **v5.2 新增** 缺陷/漏洞/改进点决策与排期（已定方案 3 项）      |
+| **多模态能力设计** | `docs/多模态设计.md`            | **v5.2 新增** 图片进上下文 + 语音 ASR/TTS Provider 化详细设计 |
 | 用户交付手册       | `DELIVERY.md`                        | 部署/配置/安全/已知限制（v1.2，架构改进权威说明）                 |
 
 ---
@@ -53,7 +53,7 @@
 | --- | --------------------------------------------- |
 | 前端  | Vue 3 + Element Plus + ECharts + Vue Router   |
 | 后端  | **Spring Boot 3.5.16 + Java 17** + MyBatis + MySQL 8 + Redis + SQLite（CRM 对话历史） |
-| AI  | 12 个国内厂商（DeepSeek、通义千问、Kimi、GLM 等）+ 本地 vLLM 微调模型（可选） |
+| AI  | 12 个国内厂商（DeepSeek、通义千问、Kimi、GLM 等）+ 本地 vLLM 微调模型（可选，训练集与参数见 `ai_model/`，完整权重走百度网盘） |
 | 向量库 | 本地向量库（余弦相似度，规划迁移 pgvector HNSW）+ **bge-m3 嵌入（硅基流动）** + MySQL LIKE，**RRF 混合检索** |
 | 知识图谱 | **Neo4j GraphRAG**（实体抽取 → 关系查询 → 注入上下文，双路召回已接入主链路） |
 | 认证  | JWT（会话版本号，锁定/登出/改密即失效）+ CRM API Key（机器接口，fail-closed） |
@@ -209,7 +209,7 @@
 通过 `LLMProviderFactory` 在运行时切换厂商，自带轻量熔断器与 429/5xx 重试：
 
 - `DeepSeekProvider` — 云端 DeepSeek
-- `LocalVllmProvider` — 自部署微调模型 `HealthPulse-Qwen2.5-7B`（vLLM，OpenAI 兼容，默认 `:8000`）
+- `LocalVllmProvider` — 自部署微调模型 `HealthPulse-Qwen2.5-7B`（vLLM，OpenAI 兼容，默认 `:8000`）；训练集/训练参数见 `ai_model/`，完整权重走百度网盘（见 `ai_model/README.md`）
 - `CircuitBreaker` — 故障快速失败、半开探测恢复
 
 ### 5. 安全加固（本轮完成）
@@ -570,7 +570,7 @@ npm run dev
 2. **密钥必须外部注入** — `JWT_SECRET`、`CRM_API_KEY`、`EMBEDDING_API_KEY` 等缺失或强度不足时后端**拒绝启动**，请勿使用硬编码密钥。
 3. **AI 配置** — 通过管理员后台配置 API Key，持久化到 MySQL，重启不丢失（生产建议信封加密）。
 4. **数据导出** — 药品和健康数据需先调用导出接口，AI 工具才能读取。
-5. **敏感文件** — `.gitignore` 已排除 `application.yml`、`ai_data/`、`chat_backup/`、`dir/`（模型权重）等。
+5. **敏感文件** — `.gitignore` 已排除 `application.yml`、`ai_data/`、`chat_backup/`、`dir/`（完整模型权重）等；微调训练集与训练参数已入库至 `ai_model/`，完整权重通过百度网盘分发。
 6. **合规提醒** — 平台涉及敏感健康信息，商用前建议完成等保三级测评与个人信息保护影响评估。详见 `DELIVERY.md`。
 
 ---
@@ -595,7 +595,7 @@ npm run dev
 
 ### v5.2 (2026-08-01) — 多模态设计与账号锁定
 
-**方案定稿（docs/defect-roadmap.md）**
+**方案定稿（docs/缺陷与改进路线图.md）**
 - 1.1 语音 ASR/TTS Provider 化设计（与 AiConfig 同构，未配置回退 Web Speech）
 - 1.2 图片进上下文 + VIP 分级窗口设计（128K/512K）
 - 1.3 账号锁定即失效 + 会话版本号设计
@@ -610,7 +610,7 @@ npm run dev
 - Multi-Agent 协调器（`AgentCoordinator`）意图词表外部化，6 专科角色路由
 - ReAct Agent 改为 OpenAI function calling 驱动，工具调用轨迹落库（检查点/审计）
 - LLM Provider 工厂 + 熔断器（`DeepSeekProvider` / `LocalVllmProvider` / `CircuitBreaker`），429/5xx 重试与快速失败
-- 本地微调模型 `HealthPulse-Qwen2.5-7B`（vLLM :8000，OpenAI 兼容）可一键切换
+- 本地微调模型 `HealthPulse-Qwen2.5-7B`（vLLM :8000，OpenAI 兼容）可一键切换；训练集/参数入库 `ai_model/`，完整权重百度网盘分发（见 `ai_model/README.md`）
 
 **RAG**
 - 文章 ingestion 管线（分块→嵌入→入库），发布自动联动灌数
@@ -808,7 +808,7 @@ npm run dev
 - **等保三级测评 / 渗透测试**：未开展，商用前置
 - **API Key 存储**：环境变量注入；管理端配置项建议信封加密
 - **God Class 拆分**：`AiServiceImpl` 职责过载，已抽离 Provider 层，后续按会话/检索/评测/用量拆 4 服务
-- **服务端 ASR/TTS**：未实现（语音走浏览器原生 Web Speech API；Provider 化设计已定稿，见 `docs/multimodal-design.md`）
+- **服务端 ASR/TTS**：未实现（语音走浏览器原生 Web Speech API；Provider 化设计已定稿，见 `docs/多模态设计.md`）
 - **向量库规模**：本地文件实现全量扫描，已规划迁移 pgvector + HNSW（10 万级甜蜜区）
 - **知识图谱**：GraphRAG 已接入主检索链路（Neo4j 实体抽取 → 关系查询 → 双路召回，见 v5.3）
 

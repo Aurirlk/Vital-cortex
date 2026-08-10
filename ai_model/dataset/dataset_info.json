@@ -1,0 +1,18 @@
+{
+  "huatuo_medical": {
+    "file_name": "train.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "history": "history"
+    }
+  },
+  "huatuo_medical_val": {
+    "file_name": "val.json"
+  },
+  "huatuo_medical_test": {
+    "file_name": "test.json"
+  }
+}
