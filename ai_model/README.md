@@ -11,6 +11,7 @@
 | `requirements.txt` | 训练/推理依赖 |
 | `微调步骤.md` | 华为云 A800 实际微调完整步骤记录（环境/数据/训练/合并/部署 + 踩坑） |
 | `排障指南.md` | 微调与部署常见问题排查 |
+| `部署指南-vLLM-阿里云.md` | 阿里云 GPU 实例 + vLLM 部署微调模型并接入本项目（选型/环境/服务/接入/运维） |
 | `scripts/` | 推理/评测脚本：`api_server.py`（FastAPI OpenAI 兼容服务）、`server.py`（Flask+LangChain 对话）、`infer.py`、`eval_nlu.py`、部署/评测 shell、对话日志样本 |
 
 ## 完整模型权重
