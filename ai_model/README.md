@@ -17,7 +17,7 @@
 
 ## 完整模型权重
 
-合并后的完整权重约 **29GB**，不适合直接入库，已发布到 Hugging Face：
+合并后的完整权重约 **29GB**，不适合直接入库，已双平台发布：
 
 > **国内（推荐）**：[`Aulink/HealthPulse-Qwen2.5-7B`](https://www.modelscope.cn/models/Aulink/HealthPulse-Qwen2.5-7B)（ModelScope 魔搭，国内直连快）
 > ```python
@@ -30,6 +30,8 @@
 > export HF_ENDPOINT=https://hf-mirror.com
 > huggingface-cli download Weikaijie/HealthPulse-Qwen2.5-7B --local-dir ./merged_model
 > ```
+
+**配套数据集**（华佗医疗问答，9,344 条）：[魔搭](https://www.modelscope.cn/datasets/Aulink/Zhikangyun-Huatuo) / [Hugging Face](https://huggingface.co/datasets/Weikaijie/Zhikangyun-Huatuo)
 
 ## 本地部署（vLLM）
 

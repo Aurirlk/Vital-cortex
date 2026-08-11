@@ -67,7 +67,7 @@ git clone https://www.modelscope.cn/datasets/Aulink/Zhikangyun-Huatuo.git
 
 ## 关联项目
 
-- 微调模型：`Aulink/HealthPulse-Qwen2.5-7B`（本草医疗 Qwen2.5-7B）
+- 微调模型：`Aulink/HealthPulse-Qwen2.5-7B`（本草医疗 Qwen2.5-7B，ModelScope：[链接](https://www.modelscope.cn/models/Aulink/HealthPulse-Qwen2.5-7B) / Hugging Face：[链接](https://huggingface.co/Weikaijie/HealthPulse-Qwen2.5-7B)）
 - 项目仓库：https://github.com/Aurirlk/HealthPulse （`ai_model/` 目录：训练参数、微调步骤、评测脚本）
 
 ## 免责声明

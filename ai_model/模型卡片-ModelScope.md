@@ -90,6 +90,11 @@ print(resp.choices[0].message.content)
 
 本模型仅供**学习与研究**及健康科普参考，**不构成医疗诊断或治疗建议**。医疗问题请咨询专业医生。模型输出可能包含错误或过时信息，使用者需自行判断。
 
+## 数据集（配套训练数据）
+
+- **ModelScope（国内）**：[`Aulink/Zhikangyun-Huatuo`](https://www.modelscope.cn/datasets/Aulink/Zhikangyun-Huatuo)（9,344 条华佗医疗问答，Alpaca 格式）
+- **Hugging Face（海外）**：[`Weikaijie/Zhikangyun-Huatuo`](https://huggingface.co/datasets/Weikaijie/Zhikangyun-Huatuo)
+
 ## 关联项目
 
 - 项目主页（VitalCortex 健康平台，含训练集/参数/微调步骤/评测脚本）：[github.com/Aurirlk/HealthPulse](https://github.com/Aurirlk/HealthPulse)
