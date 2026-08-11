@@ -33,17 +33,17 @@ sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
 sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker
 ```
 
-## 三、获取模型权重（Hugging Face）
+## 三、获取模型权重（魔搭优先，国内快）
 
 ```bash
-# 国内网络建议走 HF 镜像
-export HF_ENDPOINT=https://hf-mirror.com
+# 方式 A（推荐，国内直连快）：从 ModelScope 魔搭拉取
+pip install modelscope
+python -c "from modelscope import snapshot_download; snapshot_download('Aulink/HealthPulse-Qwen2.5-7B', local_dir='/data/models/HealthPulse-Qwen2.5-7B')"
 
-# 方式 A：从 HF 仓库拉取（推荐）
-pip install -U huggingface_hub
-huggingface-cli download Weikaijie/HealthPulse-Qwen2.5-7B --local-dir /data/models/HealthPulse-Qwen2.5-7B
-
-# 方式 B：从网盘下载后解压到同一目录（目录内需含 config.json、model.safetensors 等）
+# 方式 B（海外/备选）：从 Hugging Face 拉取
+# export HF_ENDPOINT=https://hf-mirror.com
+# pip install -U huggingface_hub
+# huggingface-cli download Weikaijie/HealthPulse-Qwen2.5-7B --local-dir /data/models/HealthPulse-Qwen2.5-7B
 ```
 
 ## 四、启动 vLLM 服务

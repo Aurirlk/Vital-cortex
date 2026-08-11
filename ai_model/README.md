@@ -19,10 +19,17 @@
 
 合并后的完整权重约 **29GB**，不适合直接入库，已发布到 Hugging Face：
 
-> **模型仓库**：[`Weikaijie/HealthPulse-Qwen2.5-7B`](https://huggingface.co/Weikaijie/HealthPulse-Qwen2.5-7B)
+> **国内（推荐）**：[`Aulink/HealthPulse-Qwen2.5-7B`](https://www.modelscope.cn/models/Aulink/HealthPulse-Qwen2.5-7B)（ModelScope 魔搭，国内直连快）
+> ```python
+> from modelscope import snapshot_download
+> snapshot_download('Aulink/HealthPulse-Qwen2.5-7B', local_dir='./merged_model')
+> ```
 >
-> 国内拉取加速：`export HF_ENDPOINT=https://hf-mirror.com`，然后
-> `huggingface-cli download Weikaijie/HealthPulse-Qwen2.5-7B --local-dir ./merged_model`
+> **海外**：[`Weikaijie/HealthPulse-Qwen2.5-7B`](https://huggingface.co/Weikaijie/HealthPulse-Qwen2.5-7B)（Hugging Face）
+> ```bash
+> export HF_ENDPOINT=https://hf-mirror.com
+> huggingface-cli download Weikaijie/HealthPulse-Qwen2.5-7B --local-dir ./merged_model
+> ```
 
 ## 本地部署（vLLM）
 

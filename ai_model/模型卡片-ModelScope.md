@@ -37,11 +37,11 @@ pipeline_tag: text-generation
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 model = AutoModelForCausalLM.from_pretrained(
-    "<魔搭用户名>/HealthPulse-Qwen2.5-7B",
+    "Aulink/HealthPulse-Qwen2.5-7B",
     torch_dtype="auto",
     device_map="auto",
 )
-tokenizer = AutoTokenizer.from_pretrained("<魔搭用户名>/HealthPulse-Qwen2.5-7B")
+tokenizer = AutoTokenizer.from_pretrained("Aulink/HealthPulse-Qwen2.5-7B")
 
 messages = [{"role": "user", "content": "高血压患者日常饮食需要注意什么？"}]
 text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
@@ -54,7 +54,7 @@ print(tokenizer.decode(out[0][inputs.input_ids.shape[1]:], skip_special_tokens=T
 
 ```bash
 pip install vllm
-vllm serve <魔搭用户名>/HealthPulse-Qwen2.5-7B --port 8000
+vllm serve Aulink/HealthPulse-Qwen2.5-7B --port 8000
 # 国内下载加速：使用魔搭 SDK 下载后指定本地路径
 ```
 
