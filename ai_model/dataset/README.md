@@ -1,5 +1,5 @@
 ---
-license: Apache License 2.0
+license: apache-2.0
 language:
 - zh
 task_categories:
