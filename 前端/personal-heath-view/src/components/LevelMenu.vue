@@ -7,18 +7,21 @@
       </div>
       <nav class="nav-menu">
         <template v-for="(item, index) in menus" :key="index">
-          <div
+          <el-tooltip
             v-if="!item.isHidden"
-            class="nav-item"
-            :class="{ 'nav-item--active': selectedIndex === index }"
-            @click="menuClick(item.path, index)"
+            :content="item.name"
+            placement="bottom"
+            :show-after="100"
           >
-            <span class="nav-item-text">
-              <el-icon><component :is="item.icon" /></el-icon>
-              {{ item.name }}
-            </span>
-            <div v-if="selectedIndex === index" class="nav-indicator"></div>
-          </div>
+            <div
+              class="nav-item"
+              :class="{ 'nav-item--active': selectedIndex === index }"
+              @click="menuClick(item.path, index)"
+            >
+              <el-icon class="nav-item-icon" :size="20"><component :is="item.icon" /></el-icon>
+              <div v-if="selectedIndex === index" class="nav-indicator"></div>
+            </div>
+          </el-tooltip>
         </template>
       </nav>
     </div>
@@ -179,33 +182,33 @@ export default {
 .nav-item {
   position: relative;
   cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
   transition: all 0.25s ease;
+  color: #6B7280;
 }
 
 .nav-item:hover {
-  background: rgba(102, 126, 234, 0.06);
+  background: rgba(102, 126, 234, 0.08);
+  color: #667eea;
+  transform: translateY(-1px);
+}
+
+.nav-item--active {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.12), rgba(118, 75, 162, 0.12));
+  color: #667eea;
+}
+
+.nav-item-icon {
+  display: block;
 }
 
 .nav-item-text {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  font-weight: 500;
-  font-size: 15px;
-  color: #6B7280;
-  transition: color 0.25s ease;
-}
-
-.nav-item--active .nav-item-text {
-  font-weight: 700;
-  color: #111827;
-}
-
-.nav-item:hover .nav-item-text {
-  color: #111827;
+  display: none;
 }
 
 .nav-indicator {
