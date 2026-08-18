@@ -1,30 +1,30 @@
 <template>
   <div class="quiz-container">
     <div class="quiz-header">
-      <h1 class="page-title"></h1>
-      <p class="page-desc"></p>
+      <h1 class="page-title">健康测评</h1>
+      <p class="page-desc">健康知识测评，巩固学习成果</p>
     </div>
 
-    <!--  -->
+    <!-- 测评列表 -->
     <div v-if="!currentExam" class="exam-list">
       <div v-for="exam in exams" :key="exam.id" class="exam-card" @click="startExam(exam)">
         <div class="exam-card__header">
           <h3 class="exam-card__title">{{ exam.title }}</h3>
           <span class="exam-card__difficulty" :class="'diff--' + exam.difficulty">
-            {{ ['', '', '', ''][exam.difficulty] }}
+            {{ ['简单', '中等', '困难'][exam.difficulty - 1] || '未知' }}
           </span>
         </div>
         <p class="exam-card__desc">{{ exam.description }}</p>
         <div class="exam-card__meta">
-          <span>⏱ {{ exam.durationMinutes }}</span>
-          <span> {{ exam.questionCount }}</span>
-          <span> {{ exam.totalScore }}</span>
+          <span>⏱ {{ exam.durationMinutes }} 分钟</span>
+          <span>共 {{ exam.questionCount }} 题</span>
+          <span>总分 {{ exam.totalScore }}</span>
         </div>
-        <button class="exam-card__btn"></button>
+        <button class="exam-card__btn">开始答题</button>
       </div>
     </div>
 
-    <!--  -->
+    <!-- 答题面板 -->
     <div v-if="currentExam && !examResult" class="quiz-panel">
       <div class="quiz-panel__header">
         <h2>{{ currentExam.title }}</h2>
@@ -33,12 +33,12 @@
 
       <div class="question-card">
         <div class="question-card__header">
-          <span class="question-num"> {{ currentIndex + 1 }}/{{ questions.length }} </span>
-          <span class="question-type">{{ ['', '', '', '', '', ''][currentQuestion.questionType] }}</span>
+          <span class="question-num">第 {{ currentIndex + 1 }}/{{ questions.length }} 题</span>
+          <span class="question-type">{{ ['单选', '多选', '判断', '填空', '简答', '其他'][currentQuestion.questionType] || '其他' }}</span>
         </div>
         <h3 class="question-title">{{ currentQuestion.title }}</h3>
 
-        <!--  -->
+        <!-- 选项 -->
         <div v-if="currentQuestion.questionType < 3" class="options-list">
           <div v-for="(opt, idx) in parseOptions(currentQuestion.options)" :key="idx"
                class="option-item" :class="{ 'option-item--selected': isOptionSelected(idx) }"
@@ -48,62 +48,62 @@
           </div>
         </div>
 
-        <!-- / -->
+        <!-- 填空/简答 -->
         <div v-else class="text-answer">
-          <textarea v-model="answers[currentQuestion.id]" class="answer-input" placeholder=""></textarea>
+          <textarea v-model="answers[currentQuestion.id]" class="answer-input" placeholder="请输入您的答案"></textarea>
         </div>
       </div>
 
       <div class="quiz-nav">
-        <button class="btn btn--outline" :disabled="currentIndex === 0" @click="prevQuestion"></button>
-        <button v-if="currentIndex < questions.length - 1" class="btn btn--primary" @click="nextQuestion"></button>
-        <button v-else class="btn btn--success" @click="submitExam"></button>
+        <button class="btn btn--outline" :disabled="currentIndex === 0" @click="prevQuestion">上一题</button>
+        <button v-if="currentIndex < questions.length - 1" class="btn btn--primary" @click="nextQuestion">下一题</button>
+        <button v-else class="btn btn--success" @click="submitExam">交卷</button>
       </div>
     </div>
 
-    <!--  -->
+    <!-- 成绩结果 -->
     <div v-if="examResult" class="result-panel">
       <div class="result-card">
         <div class="result-score">
           <div class="score-circle" :class="examResult.score >= currentExam.passScore ? 'pass' : 'fail'">
             <span class="score-num">{{ examResult.score }}</span>
-            <span class="score-label"></span>
+            <span class="score-label">总分</span>
           </div>
-          <div class="score-status">{{ examResult.score >= currentExam.passScore ? ' ' : ' ' }}</div>
+          <div class="score-status">{{ examResult.score >= currentExam.passScore ? '恭喜通过' : '继续加油' }}</div>
         </div>
         <div class="result-stats">
           <div class="stat-item">
             <div class="stat-value">{{ examResult.correctCount }}</div>
-            <div class="stat-label"></div>
+            <div class="stat-label">答对题数</div>
           </div>
           <div class="stat-item">
             <div class="stat-value">{{ examResult.questionCount }}</div>
-            <div class="stat-label"></div>
+            <div class="stat-label">总题数</div>
           </div>
           <div class="stat-item">
             <div class="stat-value">{{ Math.round(examResult.correctCount / examResult.questionCount * 100) }}%</div>
-            <div class="stat-label"></div>
+            <div class="stat-label">正确率</div>
           </div>
         </div>
         <div class="result-actions">
-          <button class="btn btn--outline" @click="currentExam = null; examResult = null"></button>
-          <button class="btn btn--primary" @click="viewAnswers"></button>
+          <button class="btn btn--outline" @click="currentExam = null; examResult = null">返回列表</button>
+          <button class="btn btn--primary" @click="viewAnswers">查看解析</button>
         </div>
       </div>
     </div>
 
-    <!--  -->
+    <!-- 历史记录 -->
     <div class="history-section">
-      <h2 class="section-title"></h2>
-      <div v-if="records.length === 0" class="empty-state"></div>
+      <h2 class="section-title">历史记录</h2>
+      <div v-if="records.length === 0" class="empty-state">暂无答题记录</div>
       <div v-else class="record-list">
         <div v-for="record in records" :key="record.id" class="record-item">
           <div class="record-item__info">
             <div class="record-item__score">{{ record.score }}</div>
-            <div class="record-item__detail">{{ record.correctCount }}/{{ record.questionCount }} </div>
+            <div class="record-item__detail">{{ record.correctCount }}/{{ record.questionCount }} 题</div>
           </div>
           <div class="record-item__status" :class="record.score >= 60 ? 'pass' : 'fail'">
-            {{ record.score >= 60 ? '' : '' }}
+            {{ record.score >= 60 ? '通过' : '未通过' }}
           </div>
         </div>
       </div>
@@ -233,7 +233,7 @@ export default {
       } catch (e) { console.error(e); }
     },
     viewAnswers() {
-      this.$message.info("");
+      this.$message.info("题目解析功能开发中");
     },
   },
 };

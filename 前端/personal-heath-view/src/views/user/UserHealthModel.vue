@@ -16,7 +16,7 @@
           font-size: 24px;
         "
       >
-        
+        我的健康模型
       </div>
       <div
         style="
@@ -27,7 +27,7 @@
           font-weight: bolder;
         "
       >
-        
+        记录健康数据
         <span
           @click="toRecord"
           style="
@@ -38,19 +38,19 @@
             color: #fff;
           "
         >
-          
+          立即记录
           <el-icon><Right /></el-icon>
         </span>
       </div>
     </div>
     <div style="padding: 30px 0">
       <div style="margin: 20px 0; display: flex; align-items: center; gap: 16px;">
-        <!--  -->
+        <!-- 选择模型 -->
         <el-select
           size="small"
           @change="modelChange"
           v-model="userHealthQueryDto.healthModelConfigId"
-          placeholder=""
+          placeholder="选择健康模型"
         >
           <el-option
             v-for="model in usersHealthModelConfig"
@@ -60,7 +60,7 @@
           >
           </el-option>
         </el-select>
-        <!--  -->
+        <!-- 下载报告 -->
         <el-button
           type="primary"
           size="small"
@@ -68,18 +68,18 @@
           :loading="reportLoading"
         >
           <el-icon><Document /></el-icon>
-          
+          下载报告
         </el-button>
-        <!-- JSON -->
+        <!-- 导入 JSON -->
         <el-button
           type="success"
           size="small"
           @click="showImportDialog = true"
         >
           <el-icon><Upload /></el-icon>
-          JSON
+          导入 JSON
         </el-button>
-        <!-- JSON -->
+        <!-- 导出 JSON -->
         <el-button
           type="info"
           size="small"
@@ -87,7 +87,7 @@
           :loading="exportLoading"
         >
           <el-icon><Download /></el-icon>
-          JSON
+          导出 JSON
         </el-button>
       </div>
       <div>
@@ -95,7 +95,7 @@
           @on-selected="onSelectedTime"
           @on-date-range="onDateRange"
           height="500px"
-          tag=""
+          tag="健康趋势"
           :values="values"
           :date="dates"
         />
@@ -103,7 +103,7 @@
     </div>
     <div>
       <h2 style="padding-left: 20px; border-left: 2px solid rgb(43, 121, 203)">
-        
+        健康记录明细
       </h2>
       <el-row style="padding: 10px; margin-left: 10px">
         <el-row>
@@ -113,9 +113,9 @@
             style="width: 220px"
             v-model="searchTime"
             type="daterange"
-            range-separator=""
-            start-placeholder=""
-            end-placeholder=""
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
           >
           </el-date-picker>
         </el-row>
@@ -126,7 +126,7 @@
           @selection-change="handleSelectionChange"
           :data="tableData"
         >
-          <el-table-column prop="name" width="88" label="">
+          <el-table-column prop="name" width="88" label="状态">
             <template #default="{ row }">
               <el-icon v-if="!statusCheck(row)" style="margin-right: 5px"
                 ><Warning
@@ -140,7 +140,7 @@
                 v-if="!statusCheck(row)"
                 class="item"
                 effect="dark"
-                content=""
+                content="该数值偏离正常范围"
                 placement="bottom-end"
               >
                 <span
@@ -148,18 +148,18 @@
                     text-decoration: underline;
                     text-decoration-style: dashed;
                   "
-                  ></span
+                  >异常</span
                 >
               </el-tooltip>
-              <span v-else></span>
+              <span v-else>正常</span>
             </template>
           </el-table-column>
-          <el-table-column prop="value" width="148" label="" sortable>
+          <el-table-column prop="value" width="148" label="测量值" sortable>
             <template #default="{ row }">
               <span>{{ row.value }}({{ row.unit }})</span>
             </template>
           </el-table-column>
-          <el-table-column prop="name" label="">
+          <el-table-column prop="name" label="指标名称">
             <template #default="{ row }">
               <span
                 ><el-icon style="margin-right: 3px"><Receiving /></el-icon
@@ -170,27 +170,27 @@
           <el-table-column
             prop="unit"
             width="88"
-            label=""
+            label="单位"
           ></el-table-column>
           <el-table-column
             prop="symbol"
             width="88"
-            label=""
+            label="符号"
           ></el-table-column>
           <el-table-column
             prop="valueRange"
             width="128"
-            label=""
+            label="正常范围"
           ></el-table-column>
           <el-table-column
             prop="createTime"
             width="178"
-            label=""
+            label="测量时间"
             sortable
           ></el-table-column>
-          <el-table-column label="" width="80">
+          <el-table-column label="操作" width="80">
             <template #default="{ row }">
-              <span class="text-button" @click="handleDelete(row)"></span>
+              <span class="text-button" @click="handleDelete(row)">删除</span>
             </template>
           </el-table-column>
         </el-table>
@@ -205,23 +205,22 @@
       </el-row>
     </div>
 
-    <!-- JSON -->
-    <el-dialog v-model="showImportDialog" title="JSON" width="700px">
+    <!-- JSON 导入 -->
+    <el-dialog v-model="showImportDialog" title="导入健康数据 JSON" width="700px">
       <div style="margin-bottom: 16px">
         <el-alert type="info" :closable="false">
           <template #title>
             <div>
-              <p><strong></strong></p>
-              <p>JSON</p>
-              <p>- <code>healthModelConfigId</code>: ID</p>
-              <p>- <code>modelName</code>: """"ID</p>
-              <p>- <code>value</code>: </p>
-              <p>- <code>recordTime</code>: yyyy-MM-dd HH:mm:ss</p>
+              <p><strong>JSON 字段说明</strong></p>
+              <p>每条记录都是一个 JSON 对象，字段如下：</p>
+              <p>- <code>modelName</code>: 指标名称（必须与系统中已有指标一致）</p>
+              <p>- <code>value</code>: 测量值</p>
+              <p>- <code>recordTime</code>: 记录时间，格式 yyyy-MM-dd HH:mm:ss</p>
             </div>
           </template>
         </el-alert>
       </div>
-      
+
       <div style="margin-bottom: 16px; display: flex; gap: 8px">
         <el-upload
           :auto-upload="false"
@@ -231,25 +230,25 @@
         >
           <el-button size="small" type="primary">
             <el-icon><Upload /></el-icon>
-            JSON
+            选择 JSON 文件
           </el-button>
         </el-upload>
         <el-button size="small" @click="fillExample">
           <el-icon><DocumentCopy /></el-icon>
-          
+          填充示例
         </el-button>
       </div>
-      
+
       <el-input
         v-model="importJson"
         type="textarea"
         :rows="12"
-        placeholder="JSON..."
+        placeholder="请粘贴或上传 JSON 数据..."
       />
       <template #footer>
-        <el-button @click="showImportDialog = false"></el-button>
+        <el-button @click="showImportDialog = false">取消</el-button>
         <el-button type="primary" @click="handleImport" :loading="importing">
-          
+          确认导入
         </el-button>
       </template>
     </el-dialog>
