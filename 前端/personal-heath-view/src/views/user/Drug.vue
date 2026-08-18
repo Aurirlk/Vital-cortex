@@ -1,41 +1,42 @@
 <template>
   <div class="drug-container">
-    <!--  -->
+    <!-- 药品查询 -->
     <div class="drug-header">
       <div class="drug-header-left">
-        <h2 class="page-title"></h2>
-        <span class="page-subtitle"></span>
+        <h2 class="page-title">药品查询</h2>
+        <span class="page-subtitle">查药品用法、禁忌与副作用</span>
       </div>
       <div class="drug-header-right">
         <div class="search-box">
           <input
             class="search-input"
-            placeholder="..."
+            placeholder="输入药品名称..."
             @keyup.enter="searchDrugs"
             v-model="searchKeyword"
           />
-          <span class="search-btn" @click="searchDrugs"></span>
+          <span class="search-btn" @click="searchDrugs">搜索</span>
         </div>
-        <el-select v-model="selectedCategory" placeholder="" clearable @change="onCategoryChange" style="width: 140px; margin-left: 12px">
-          <el-option label="" value="" />
-          <el-option label="" value="" />
-          <el-option label="" value="" />
-          <el-option label="" value="" />
-          <el-option label="" value="" />
-          <el-option label="" value="" />
-          <el-option label="" value="" />
-          <el-option label="" value="" />
+        <el-select v-model="selectedCategory" placeholder="全部分类" clearable @change="onCategoryChange" style="width: 140px; margin-left: 12px">
+          <el-option label="全部分类" value="" />
+          <el-option label="感冒咳嗽" value="感冒咳嗽" />
+          <el-option label="消化系统" value="消化系统" />
+          <el-option label="心血管" value="心血管" />
+          <el-option label="降三高" value="降三高" />
+          <el-option label="抗生素" value="抗生素" />
+          <el-option label="维生素" value="维生素" />
+          <el-option label="中成药" value="中成药" />
+          <el-option label="外用药" value="外用药" />
         </el-select>
         <el-button type="primary" @click="showMySubscriptions" style="margin-left: 12px">
           <el-icon><Collection /></el-icon>
-          
+          我的订阅
         </el-button>
       </div>
     </div>
 
-    <!--  -->
+    <!-- 药品列表 -->
     <div class="drug-grid" v-loading="loading">
-      <el-empty v-if="drugList.length === 0" description="" />
+      <el-empty v-if="drugList.length === 0" description="暂无药品数据" />
       <div
         v-for="drug in drugList"
         :key="drug.id"
@@ -48,7 +49,7 @@
             <el-icon :size="40"><FirstAidKit /></el-icon>
           </div>
           <span v-if="drug.isOtc" class="otc-badge">OTC</span>
-          <span v-else class="rx-badge"></span>
+          <span v-else class="rx-badge">处方药</span>
         </div>
         <div class="drug-card-body">
           <h3 class="drug-name">{{ drug.name }}</h3>
@@ -64,7 +65,7 @@
               @click.stop="subscribeDrug(drug)"
               class="subscribe-btn"
             >
-              
+              订阅提醒
             </el-button>
             <el-button
               v-else
@@ -73,7 +74,7 @@
               @click.stop="unsubscribeDrug(drug)"
               class="subscribe-btn"
             >
-              
+              已订阅
             </el-button>
           </div>
         </div>
@@ -117,15 +118,15 @@
               <span class="unit">/{{ currentDrug.unit }}</span>
             </div>
             <div class="badge-row">
-              <el-tag v-if="currentDrug.isOtc" type="success">OTC </el-tag>
-              <el-tag v-else type="warning"></el-tag>
-              <el-tag v-if="currentDrug.stock > 0" type="info" style="margin-left: 8px">: {{ currentDrug.stock }}{{ currentDrug.unit }}</el-tag>
-              <el-tag v-else type="danger" style="margin-left: 8px"></el-tag>
+              <el-tag v-if="currentDrug.isOtc" type="success">OTC 非处方药</el-tag>
+              <el-tag v-else type="warning">处方药</el-tag>
+              <el-tag v-if="currentDrug.stock > 0" type="info" style="margin-left: 8px">库存: {{ currentDrug.stock }}{{ currentDrug.unit }}</el-tag>
+              <el-tag v-else type="danger" style="margin-left: 8px">暂无库存</el-tag>
             </div>
           </div>
         </div>
         <div class="drug-detail-desc">
-          <h4></h4>
+          <h4>药品说明</h4>
           <p>{{ currentDrug.description }}</p>
         </div>
         <div class="drug-detail-actions">
@@ -136,7 +137,7 @@
             @click="subscribeDrug(currentDrug)"
           >
             <el-icon><Collection /></el-icon>
-            
+            订阅用药提醒
           </el-button>
           <el-button
             v-else
@@ -145,34 +146,34 @@
             @click="unsubscribeDrug(currentDrug)"
           >
             <el-icon><Select /></el-icon>
-            
+            取消订阅
           </el-button>
         </div>
       </div>
     </el-dialog>
 
-    <!--  -->
+    <!-- 我的订阅 -->
     <el-dialog
       v-model="subscriptionVisible"
-      title=""
+      title="我的药品订阅"
       width="700px"
     >
       <el-table :data="mySubscriptions" stripe v-loading="subscriptionLoading">
-        <el-table-column prop="name" label="" width="150" />
-        <el-table-column prop="category" label="" width="100" />
-        <el-table-column prop="specification" label="" width="150" />
-        <el-table-column label="" width="100">
+        <el-table-column prop="name" label="药品名称" width="150" />
+        <el-table-column prop="category" label="分类" width="100" />
+        <el-table-column prop="specification" label="规格" width="150" />
+        <el-table-column label="价格" width="100">
           <template #default="{ row }">
             <span style="color: #e74c3c; font-weight: bold">¥{{ row.price }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="" width="120">
+        <el-table-column label="操作" width="120">
           <template #default="{ row }">
-            <el-button type="danger" size="small" @click="unsubscribeDrug(row)"></el-button>
+            <el-button type="danger" size="small" @click="unsubscribeDrug(row)">取消订阅</el-button>
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="mySubscriptions.length === 0 && !subscriptionLoading" description="" />
+      <el-empty v-if="mySubscriptions.length === 0 && !subscriptionLoading" description="还没有订阅任何药品" />
     </el-dialog>
   </div>
 </template>
@@ -243,8 +244,8 @@ export default {
         if (res.data.code === 200) {
           this.$swal.fire({
             icon: "success",
-            title: "",
-            text: ` ${drug.name}`,
+            title: "订阅成功",
+            text: `已订阅 ${drug.name}`,
             timer: 1500,
             showConfirmButton: false,
           });
@@ -256,8 +257,8 @@ export default {
       } catch (e) {
         this.$swal.fire({
           icon: "error",
-          title: "",
-          text: e.response?.data?.message || "",
+          title: "订阅失败",
+          text: e.response?.data?.message || "请稍后再试",
         });
       }
     },
@@ -267,7 +268,7 @@ export default {
         if (res.data.code === 200) {
           this.$swal.fire({
             icon: "success",
-            title: "",
+            title: "已取消订阅",
             timer: 1500,
             showConfirmButton: false,
           });
@@ -280,8 +281,8 @@ export default {
       } catch (e) {
         this.$swal.fire({
           icon: "error",
-          title: "",
-          text: e.response?.data?.message || "",
+          title: "取消订阅失败",
+          text: e.response?.data?.message || "请稍后再试",
         });
       }
     },
