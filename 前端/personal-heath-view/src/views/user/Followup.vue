@@ -1,41 +1,41 @@
 <template>
   <div class="followup-container">
     <div class="followup-header">
-      <h1 class="page-title"></h1>
-      <p class="page-desc"></p>
+      <h1 class="page-title">随访管理</h1>
+      <p class="page-desc">查看医生下发的随访任务并按时打卡</p>
     </div>
 
-    <!--  -->
+    <!-- 统计卡片 -->
     <div class="stats-row">
       <div class="stat-card">
         <div class="stat-card__num">{{ stats.pending }}</div>
-        <div class="stat-card__label"></div>
+        <div class="stat-card__label">待开始</div>
       </div>
       <div class="stat-card">
         <div class="stat-card__num">{{ stats.inProgress }}</div>
-        <div class="stat-card__label"></div>
+        <div class="stat-card__label">进行中</div>
       </div>
       <div class="stat-card">
         <div class="stat-card__num">{{ stats.completed }}</div>
-        <div class="stat-card__label"></div>
+        <div class="stat-card__label">已完成</div>
       </div>
       <div class="stat-card">
         <div class="stat-card__num">{{ stats.overdue }}</div>
-        <div class="stat-card__label"></div>
+        <div class="stat-card__label">已逾期</div>
       </div>
     </div>
 
-    <!--  -->
+    <!-- 类型筛选 -->
     <div class="filter-bar">
-      <div class="filter-item" :class="{ active: !filterType }" @click="filterType = null"></div>
-      <div class="filter-item" :class="{ active: filterType === 'medication' }" @click="filterType = 'medication'"> </div>
-      <div class="filter-item" :class="{ active: filterType === 'appointment' }" @click="filterType = 'appointment'"> </div>
-      <div class="filter-item" :class="{ active: filterType === 'indicator' }" @click="filterType = 'indicator'"> </div>
-      <div class="filter-item" :class="{ active: filterType === 'exercise' }" @click="filterType = 'exercise'"> </div>
-      <div class="filter-item" :class="{ active: filterType === 'diet' }" @click="filterType = 'diet'"> </div>
+      <div class="filter-item" :class="{ active: !filterType }" @click="filterType = null">全部</div>
+      <div class="filter-item" :class="{ active: filterType === 'medication' }" @click="filterType = 'medication'">用药</div>
+      <div class="filter-item" :class="{ active: filterType === 'appointment' }" @click="filterType = 'appointment'">复诊</div>
+      <div class="filter-item" :class="{ active: filterType === 'indicator' }" @click="filterType = 'indicator'">体征</div>
+      <div class="filter-item" :class="{ active: filterType === 'exercise' }" @click="filterType = 'exercise'">运动</div>
+      <div class="filter-item" :class="{ active: filterType === 'diet' }" @click="filterType = 'diet'">饮食</div>
     </div>
 
-    <!--  -->
+    <!-- 任务列表 -->
     <div class="task-list">
       <div v-for="task in filteredTasks" :key="task.id" class="task-card" :class="'task--' + task.status">
         <div class="task-card__header">
@@ -43,51 +43,51 @@
           <div class="task-card__info">
             <h3 class="task-card__title">{{ task.title }}</h3>
             <div class="task-card__meta">
-              <span>: {{ task.dueDate }}</span>
-              <span>: {{ task.doctorName }}</span>
+              <span>截止: {{ task.dueDate }}</span>
+              <span>医生: {{ task.doctorName }}</span>
             </div>
           </div>
           <div class="task-card__status" :class="'status--' + task.status">
-            {{ ['', '', '', '', ''][task.status] }}
+            {{ ['待开始', '进行中', '已完成', '已逾期'][task.status] || '未知' }}
           </div>
         </div>
         <p class="task-card__desc">{{ task.description }}</p>
         <div class="task-card__actions">
-          <button v-if="task.status < 2" class="btn btn--primary" @click="openCheckin(task)"></button>
-          <button class="btn btn--outline" @click="viewRecords(task)"></button>
+          <button v-if="task.status < 2" class="btn btn--primary" @click="openCheckin(task)">打卡</button>
+          <button class="btn btn--outline" @click="viewRecords(task)">查看记录</button>
         </div>
       </div>
     </div>
 
-    <!--  -->
+    <!-- 打卡弹窗 -->
     <div v-if="showCheckin" class="modal-overlay" @click.self="showCheckin = false">
       <div class="modal-panel">
         <div class="modal-header">
-          <h3></h3>
+          <h3>任务打卡</h3>
           <button class="close-btn" @click="showCheckin = false">×</button>
         </div>
         <div class="modal-body">
           <div class="form-field">
-            <label></label>
-            <textarea v-model="checkinContent" class="form-textarea" placeholder="..."></textarea>
+            <label>打卡内容</label>
+            <textarea v-model="checkinContent" class="form-textarea" placeholder="请输入本次打卡内容，例如：今日服药时间、用药感受等..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn--outline" @click="showCheckin = false"></button>
-          <button class="btn btn--primary" @click="submitCheckin"></button>
+          <button class="btn btn--outline" @click="showCheckin = false">取消</button>
+          <button class="btn btn--primary" @click="submitCheckin">提交打卡</button>
         </div>
       </div>
     </div>
 
-    <!--  -->
+    <!-- 打卡记录弹窗 -->
     <div v-if="showRecords" class="modal-overlay" @click.self="showRecords = false">
       <div class="modal-panel">
         <div class="modal-header">
-          <h3></h3>
+          <h3>打卡记录</h3>
           <button class="close-btn" @click="showRecords = false">×</button>
         </div>
         <div class="modal-body">
-          <div v-if="taskRecords.length === 0" class="empty-state"></div>
+          <div v-if="taskRecords.length === 0" class="empty-state">暂无打卡记录</div>
           <div v-else class="record-list">
             <div v-for="record in taskRecords" :key="record.id" class="record-item">
               <div class="record-item__time">{{ record.createTime }}</div>
@@ -128,8 +128,14 @@ export default {
   },
   methods: {
     getTaskIcon(type) {
-      const icons = { medication: '', appointment: '', indicator: '', exercise: '', diet: '' };
-      return icons[type] || '';
+      const icons = {
+        medication: "💊",
+        appointment: "🏥",
+        indicator: "📊",
+        exercise: "🏃",
+        diet: "🥗",
+      };
+      return icons[type] || "📋";
     },
     async loadTasks() {
       try {
@@ -151,7 +157,7 @@ export default {
       this.showCheckin = true;
     },
     async submitCheckin() {
-      if (!this.checkinContent.trim()) { this.$message.warning(""); return; }
+      if (!this.checkinContent.trim()) { this.$message.warning("请输入打卡内容"); return; }
       try {
         await request.post("followup/checkin", {
           taskId: this.currentTask.id,
@@ -159,8 +165,8 @@ export default {
         });
         this.showCheckin = false;
         this.loadTasks();
-        this.$message.success("");
-      } catch (e) { this.$message.error(""); }
+        this.$message.success("打卡成功");
+      } catch (e) { this.$message.error("打卡失败，请稍后再试"); }
     },
     async viewRecords(task) {
       try {

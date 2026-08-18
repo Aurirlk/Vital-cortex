@@ -8,9 +8,9 @@
             style="cursor: pointer; display: inline-block; padding: 0 20px 0 0"
           >
             <el-icon><ArrowLeft /></el-icon>
-            
+            返回
           </span>
-          
+          记录健康数据
         </p>
       </div>
     </div>
@@ -29,8 +29,8 @@
             @tab-click="handleClick"
             style="margin-right: 40px"
           >
-            <el-tab-pane label="" name="first"></el-tab-pane>
-            <el-tab-pane label="" name="second"></el-tab-pane>
+            <el-tab-pane label="系统指标" name="first"></el-tab-pane>
+            <el-tab-pane label="自定义指标" name="second"></el-tab-pane>
           </el-tabs>
           <div style="padding: 20px 0 30px 0">
             <span
@@ -43,16 +43,16 @@
                 color: #fff;
               "
             >
-              
+              新增自定义指标
               <el-icon><Right /></el-icon>
             </span>
           </div>
           <div>
-            <span style="margin-right: 20px"></span>
+            <span style="margin-right: 20px">搜索：</span>
             <el-input
               style="width: 148px"
               v-model="userHealthModel.name"
-              placeholder=""
+              placeholder="输入指标名称"
               clearable
               @clear="handleFilterClear"
             >
@@ -66,7 +66,7 @@
               "
               type="primary"
               @click="searModel"
-              ></el-button
+              >搜索</el-button
             >
           </div>
           <div
@@ -87,7 +87,7 @@
               <el-tooltip
                 class="item"
                 effect="dark"
-                :content="'' + model.name + ''"
+                :content="'查看或编辑 ' + model.name"
                 placement="bottom"
               >
                 <el-row style="padding: 20px 0">
@@ -111,13 +111,13 @@
                           @click="updateModel(model)"
                           v-if="!model.isGlobal"
                           style="margin-left: 10px; color: #333"
-                          ></span
+                          >编辑</span
                         >
                         <span
                           @click="deleteModel(model)"
                           v-if="!model.isGlobal"
                           style="margin-left: 10px; color: red"
-                          ></span
+                          >删除</span
                         >
                       </div>
                     </div>
@@ -130,16 +130,16 @@
         <el-col :span="18">
           <div style="padding: 0 150px; box-sizing: border-box">
             <div style="padding: 15px 0; font-size: 24px">
-              
+              已选指标
               <span
                 @click="clearData"
                 style="font-size: 14px; margin-left: 20px"
-                ></span
+                >清空</span
               >
             </div>
             <el-row>
               <el-row v-if="selectedModel.length === 0">
-                <el-empty description=""></el-empty>
+                <el-empty description="请从左侧选择要记录的指标"></el-empty>
               </el-row>
               <el-row>
                 <el-col
@@ -152,7 +152,7 @@
                     type="text"
                     v-model="model.value"
                     class="input-model"
-                    :placeholder="'' + model.valueRange"
+                    :placeholder="'正常范围: ' + model.valueRange"
                   />
                 </el-col>
               </el-row>
@@ -169,7 +169,7 @@
                 color: #fff;
               "
             >
-              
+              保存记录
               <el-icon><Right /></el-icon>
             </span>
           </div>
@@ -180,13 +180,13 @@
       <template #title>
         <div>
           <p class="dialog-title">
-            {{ !isOperation ? "" : "" }}
+            {{ !isOperation ? "新增健康指标" : "编辑健康指标" }}
           </p>
         </div>
       </template>
       <div style="padding: 0 20px">
-        <p>*</p>
-        <!--  -->
+        <p>* 必填项</p>
+        <!-- 指标封面 -->
         <el-row style="margin-top: 10px">
           <el-upload
             class="avatar-uploader"
@@ -203,51 +203,51 @@
             <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
           </el-upload>
         </el-row>
-        <!--  -->
+        <!-- 指标名称 -->
         <el-row style="padding: 0 10px 0 0">
           <p>
-            <span class="modelName">*</span>
+            <span class="modelName">指标名称</span>
           </p>
-          <input class="input-title" v-model="data.name" placeholder="" />
+          <input class="input-title" v-model="data.name" placeholder="例如：血压、心率" />
         </el-row>
-        <!--  -->
+        <!-- 单位 -->
         <el-row style="padding: 0 10px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*</span>
+            <span class="modelName">单位</span>
           </p>
-          <input class="input-title" v-model="data.unit" placeholder="" />
+          <input class="input-title" v-model="data.unit" placeholder="例如：mmHg、次/分钟" />
         </el-row>
-        <!--  -->
+        <!-- 符号 -->
         <el-row style="padding: 0 10px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*</span>
+            <span class="modelName">符号</span>
           </p>
           <input
             class="input-title"
             v-model="data.symbol"
-            placeholder=""
+            placeholder="例如：mmHg、bpm"
           />
         </el-row>
-        <!--  -->
+        <!-- 正常范围 -->
         <el-row style="padding: 0 20px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*,</span>
+            <span class="modelName">正常范围,</span>
           </p>
           <input
             class="input-title"
             v-model="data.valueRange"
-            placeholder=""
+            placeholder="例如：60-100"
           />
         </el-row>
-        <!--  -->
+        <!-- 详细说明 -->
         <el-row style="padding: 0 10px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">*</span>
+            <span class="modelName">详细说明</span>
           </p>
           <el-input
             type="textarea"
             :autosize="{ minRows: 2, maxRows: 3 }"
-            placeholder=""
+            placeholder="请输入指标的详细说明"
             v-model="data.detail"
           >
           </el-input>
@@ -262,7 +262,7 @@
             class="customer"
             type="info"
             @click="addOperation"
-            ></el-button
+            >新增</el-button
           >
           <el-button
             size="small"
@@ -271,14 +271,14 @@
             class="customer"
             type="info"
             @click="updateOperation"
-            ></el-button
+            >更新</el-button
           >
           <el-button
             class="customer"
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="cannel()"
-            ></el-button
+            >取消</el-button
           >
         </span>
       </template>
