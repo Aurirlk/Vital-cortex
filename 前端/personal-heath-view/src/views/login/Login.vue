@@ -152,7 +152,11 @@
                 :disabled="smsCooldown > 0"
                 @click="sendSmsCode"
               >
-                {{ smsCooldown > 0 ? `${smsCooldown}s` : '' }}
+                <svg v-if="smsCooldown <= 0" class="sms-btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>{{ smsCooldown > 0 ? `${smsCooldown}s 后重发` : '获取验证码' }}</span>
               </button>
             </div>
           </div>
@@ -614,16 +618,20 @@ export default {
 /*  */
 .sms-btn {
   height: 48px;
-  padding: 0 20px;
+  padding: 0 16px;
   border: 2px solid #0050cb;
   border-radius: 10px;
   background: transparent;
   color: #0050cb;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 
   &:hover:not(&--disabled) {
     background: rgba(0, 80, 203, 0.06);
@@ -633,6 +641,10 @@ export default {
     border-color: #ddd;
     color: #bbb;
     cursor: not-allowed;
+  }
+
+  &__icon {
+    flex-shrink: 0;
   }
 }
 
