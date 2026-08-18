@@ -6,38 +6,37 @@
         <div class="login-left__brand">
           <BrandLogo size="large" color="white" :show-text="true" />
         </div>
-        <h1 class="login-left__title"></h1>
+        <h1 class="login-left__title">您的随身 AI 健康管家</h1>
         <p class="login-left__subtitle">
-          AI
-          
+          智康云健康管理系统 —— 让健康数据会说话，让 AI 医生常在身边。
         </p>
         <div class="login-left__features">
           <div class="feature-item">
             <div class="feature-icon">🩺</div>
             <div class="feature-text">
-              <div class="feature-title">AI</div>
-              <div class="feature-desc">6AI</div>
+              <div class="feature-title">AI 智能问诊</div>
+              <div class="feature-desc">多轮对话式健康咨询，支持 RAG 引用溯源</div>
             </div>
           </div>
           <div class="feature-item">
-            <div class="feature-icon"></div>
+            <div class="feature-icon">📊</div>
             <div class="feature-text">
-              <div class="feature-title"></div>
-              <div class="feature-desc"></div>
+              <div class="feature-title">健康数据追踪</div>
+              <div class="feature-desc">体征指标采集、趋势可视化与风险预警</div>
             </div>
           </div>
           <div class="feature-item">
-            <div class="feature-icon"></div>
+            <div class="feature-icon">📚</div>
             <div class="feature-text">
-              <div class="feature-title"></div>
-              <div class="feature-desc"></div>
+              <div class="feature-title">知识库双路 RAG</div>
+              <div class="feature-desc">向量 + 知识图谱检索，回答有据可依</div>
             </div>
           </div>
           <div class="feature-item">
-            <div class="feature-icon"></div>
+            <div class="feature-icon">📄</div>
             <div class="feature-text">
-              <div class="feature-title"></div>
-              <div class="feature-desc">PDF</div>
+              <div class="feature-title">健康报告导出</div>
+              <div class="feature-desc">一键生成 PDF 报告，数据随身带走</div>
             </div>
           </div>
         </div>
@@ -57,8 +56,8 @@
     <div class="login-right">
       <div class="login-right__form">
         <div class="login-form__header">
-          <h2 class="login-form__title"></h2>
-          <p class="login-form__desc"></p>
+          <h2 class="login-form__title">欢迎登录</h2>
+          <p class="login-form__desc">智康云健康管理系统</p>
         </div>
 
         <!--  -->
@@ -68,35 +67,35 @@
             :class="{ 'login-tab--active': loginType === 'account' }"
             @click="loginType = 'account'"
           >
-            
+            账号登录
           </button>
           <button 
             class="login-tab" 
             :class="{ 'login-tab--active': loginType === 'phone' }"
             @click="loginType = 'phone'"
           >
-            
+            手机登录
           </button>
         </div>
 
         <!--  -->
         <div v-if="loginType === 'account'" class="login-form__fields">
           <div class="form-field">
-            <label class="form-label"></label>
+            <label class="form-label">账号</label>
             <input 
               v-model="act" 
               class="form-input" 
-              placeholder="" 
+              placeholder="请输入账号（如 admin）" 
               @keyup.enter="login"
             />
           </div>
           <div class="form-field">
-            <label class="form-label"></label>
+            <label class="form-label">密码</label>
             <input 
               v-model="pwd" 
               class="form-input" 
               type="password" 
-              placeholder="" 
+              placeholder="请输入密码" 
               @keyup.enter="login"
             />
           </div>
@@ -105,21 +104,21 @@
         <!--  -->
         <div v-else class="login-form__fields">
           <div class="form-field">
-            <label class="form-label"></label>
+            <label class="form-label">手机号</label>
             <input 
               v-model="phone" 
               class="form-input" 
-              placeholder="" 
+              placeholder="请输入手机号" 
               maxlength="11"
             />
           </div>
           <div class="form-field">
-            <label class="form-label"></label>
+            <label class="form-label">短信验证码</label>
             <div class="form-field__row">
               <input 
                 v-model="smsCode" 
                 class="form-input form-input--sms" 
-                placeholder="" 
+                placeholder="请输入验证码" 
                 maxlength="6"
                 @keyup.enter="loginByPhone"
               />
@@ -143,20 +142,20 @@
           :disabled="loading"
         >
           <span v-if="loading" class="login-btn__spinner"></span>
-          <span>{{ loading ? '...' : '' }}</span>
+          <span>{{ loading ? '登录中...' : '登录' }}</span>
         </button>
 
         <!--  -->
         <div class="login-form__footer">
-          <span class="login-form__text"></span>
-          <span class="login-form__link" @click="toRegister"></span>
+          <span class="login-form__text">还没有账号？</span>
+          <span class="login-form__link" @click="toRegister">立即注册</span>
         </div>
 
         <!--  -->
         <div class="login-form__other">
           <div class="brand-divider"></div>
           <div class="other-login">
-            <button class="other-login__btn" title="">
+            <button class="other-login__btn" title="微信登录">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M8.5 11C9.33 11 10 10.33 10 9.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11ZM15.5 11C16.33 11 17 10.33 17 9.5S16.33 8 15.5 8 14 8.67 14 9.5 14.67 11 15.5 11ZM12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" fill="#07c160"/>
               </svg>
@@ -205,8 +204,8 @@ export default {
     sendSmsCode() {
       if (!this.phone || this.phone.length !== 11) {
         this.$swal.fire({
-          title: "",
-          text: "11",
+          title: "提示",
+          text: "请输入 11 位手机号",
           icon: "warning",
           showConfirmButton: false,
           timer: DELAY_TIME,
@@ -221,21 +220,21 @@ export default {
           clearInterval(timer);
         }
       }, 1000);
-      this.$swal.fire({
-        title: "",
-        text: "123456",
-        icon: "success",
-        showConfirmButton: false,
-        timer: DELAY_TIME,
-      });
+        this.$swal.fire({
+          title: "成功",
+          text: "验证码已发送（演示环境默认 123456）",
+          icon: "success",
+          showConfirmButton: false,
+          timer: DELAY_TIME,
+        });
     },
 
     // 
     async loginByPhone() {
       if (!this.phone || this.phone.length !== 11) {
         this.$swal.fire({
-          title: "",
-          text: "11",
+          title: "提示",
+          text: "请输入 11 位手机号",
           icon: "warning",
           showConfirmButton: false,
           timer: DELAY_TIME,
@@ -244,8 +243,8 @@ export default {
       }
       if (!this.smsCode || this.smsCode.length !== 6) {
         this.$swal.fire({
-          title: "",
-          text: "6",
+          title: "提示",
+          text: "请输入 6 位验证码",
           icon: "warning",
           showConfirmButton: false,
           timer: DELAY_TIME,
@@ -276,7 +275,7 @@ export default {
         );
       } catch (error) {
         console.error(":", error);
-        this.$message.error("");
+        this.$message.error("登录失败，请检查网络后重试");
       } finally {
         this.loading = false;
       }
@@ -286,8 +285,8 @@ export default {
     async login() {
       if (!this.act || !this.pwd) {
         this.$swal.fire({
-          title: "",
-          text: "",
+          title: "提示",
+          text: "请输入账号和密码",
           icon: "error",
           showConfirmButton: false,
           timer: DELAY_TIME,
@@ -317,7 +316,7 @@ export default {
         );
       } catch (error) {
         console.error(":", error);
-        this.$message.error("");
+        this.$message.error("登录失败，请检查网络后重试");
       } finally {
         this.loading = false;
       }
