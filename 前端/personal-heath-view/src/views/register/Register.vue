@@ -2,20 +2,20 @@
   <div class="register-containel">
     <div class="register-panel">
       <div class="logo">
-        <Logo sysName="" />
+        <Logo sysName="智康云" />
       </div>
       <div class="text">
-        <input v-model="act" class="act" placeholder="" />
+        <input v-model="act" class="act" placeholder="请输入账号" />
       </div>
       <div class="text">
-        <input v-model="name" class="act" placeholder="" />
+        <input v-model="name" class="act" placeholder="请输入昵称" />
       </div>
       <div class="text">
         <input
           v-model="pwd"
           class="pwd"
           type="password"
-          placeholder=""
+          placeholder="请输入密码"
         />
       </div>
       <div class="text">
@@ -23,14 +23,14 @@
           v-model="pwdConfirm"
           class="pwd"
           type="password"
-          placeholder=""
+          placeholder="请再次输入密码"
         />
       </div>
       <div>
-        <span class="register-btn" @click="registerFunc"></span>
+        <span class="register-btn" @click="registerFunc">立即注册</span>
       </div>
       <div class="tip">
-        <p><span class="no-act" @click="toDoLogin"></span></p>
+        <p>已有账号？<span class="no-act" @click="toDoLogin">去登录</span></p>
       </div>
     </div>
   </div>
@@ -46,22 +46,22 @@ export default {
   components: { Logo },
   data() {
     return {
-      act: "", // 
-      pwd: "", // 
-      pwdConfirm: "", // 
-      name: "", // 
+      act: "", // 账号
+      pwd: "", // 密码
+      pwdConfirm: "", // 确认密码
+      name: "", // 昵称
     };
   },
   methods: {
-    // 
+    // 返回登录页
     toDoLogin() {
       this.$router.push("/login");
     },
     async registerFunc() {
       if (!this.act || !this.pwd || !this.pwdConfirm || !this.name) {
         this.$swal.fire({
-          title: "",
-          text: "",
+          title: "提示",
+          text: "请完整填写账号、昵称、密码和确认密码",
           icon: "error",
           showConfirmButton: false,
           timer: DELAY_TIME,
@@ -70,8 +70,8 @@ export default {
       }
       if (this.pwd !== this.pwdConfirm) {
         this.$swal.fire({
-          title: "",
-          text: "",
+          title: "提示",
+          text: "两次输入的密码不一致，请重新确认",
           icon: "error",
           showConfirmButton: false,
           timer: DELAY_TIME,
@@ -88,7 +88,7 @@ export default {
         const { data } = await request.post(`user/register`, paramDTO);
         if (data.code !== 200) {
           this.$swal.fire({
-            title: "",
+            title: "注册失败",
             text: data.msg,
             icon: "error",
             showConfirmButton: false,
@@ -96,20 +96,19 @@ export default {
           });
           return;
         }
-        // Swal
+        // 注册成功提示后跳转登录页
         this.$swal.fire({
-          title: "",
-          text: "...",
+          title: "注册成功",
+          text: "即将跳转到登录页",
           icon: "success",
           showConfirmButton: false,
           timer: DELAY_TIME,
         });
-        // 
         setTimeout(() => {
           this.$router.push("/login");
         }, DELAY_TIME);
       } catch (error) {
-        console.error(":", error);
+        console.error("注册失败:", error);
       }
     },
   },
