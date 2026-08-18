@@ -3,37 +3,58 @@
     <!--  -->
     <div class="login-left">
       <div class="login-left__content">
-        <div class="login-left__brand">
-          <BrandLogo size="large" color="white" :show-text="true" />
-        </div>
         <h1 class="login-left__title">您的随身 AI 健康管家</h1>
         <p class="login-left__subtitle">
           智康云健康管理系统 —— 让健康数据会说话，让 AI 医生常在身边。
         </p>
         <div class="login-left__features">
           <div class="feature-item">
-            <div class="feature-icon">🩺</div>
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 11.5C21 16.75 16.75 21 11.5 21C10 21 8.75 20.75 7.5 20.25L3 21L4.5 17.25C3.5 15.75 3 14 3 11.5C3 6.25 7.25 2 12.5 2C17.75 2 21 6.25 21 11.5Z" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8.5 11.5H14.5M11.5 8.5V14.5" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </div>
             <div class="feature-text">
               <div class="feature-title">AI 智能问诊</div>
               <div class="feature-desc">多轮对话式健康咨询，支持 RAG 引用溯源</div>
             </div>
           </div>
           <div class="feature-item">
-            <div class="feature-icon">📊</div>
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 12H7L10 4L14 20L17 12H21" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
             <div class="feature-text">
               <div class="feature-title">健康数据追踪</div>
               <div class="feature-desc">体征指标采集、趋势可视化与风险预警</div>
             </div>
           </div>
           <div class="feature-item">
-            <div class="feature-icon">📚</div>
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="5" cy="5" r="2" stroke="white" stroke-width="1.6"/>
+                <circle cx="19" cy="5" r="2" stroke="white" stroke-width="1.6"/>
+                <circle cx="12" cy="12" r="2" stroke="white" stroke-width="1.6"/>
+                <circle cx="5" cy="19" r="2" stroke="white" stroke-width="1.6"/>
+                <circle cx="19" cy="19" r="2" stroke="white" stroke-width="1.6"/>
+                <path d="M7 5L10 10M17 5L14 10M10 14L7 17M14 14L17 17" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+            </div>
             <div class="feature-text">
               <div class="feature-title">知识库双路 RAG</div>
               <div class="feature-desc">向量 + 知识图谱检索，回答有据可依</div>
             </div>
           </div>
           <div class="feature-item">
-            <div class="feature-icon">📄</div>
+            <div class="feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 3H7C5.9 3 5 3.9 5 5V21L8 19L11 21L12 20.5L13 21L16 19L19 21V8" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M19 8H14V3" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 13H15M9 16H13" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+            </div>
             <div class="feature-text">
               <div class="feature-title">健康报告导出</div>
               <div class="feature-desc">一键生成 PDF 报告，数据随身带走</div>
@@ -56,7 +77,10 @@
     <div class="login-right">
       <div class="login-right__form">
         <div class="login-form__header">
-          <h2 class="login-form__title">欢迎登录</h2>
+          <div class="login-form__brand-row">
+            <BrandLogo size="small" color="teal" :show-text="false" />
+            <h2 class="login-form__title">欢迎登录</h2>
+          </div>
           <p class="login-form__desc">智康云健康管理系统</p>
         </div>
 
@@ -402,7 +426,13 @@ export default {
 }
 
 .feature-icon {
-  font-size: 28px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
   flex-shrink: 0;
 }
 
@@ -479,11 +509,18 @@ export default {
     margin-bottom: 36px;
   }
 
+  &__brand-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
   &__title {
     font-size: 28px;
     font-weight: 700;
     color: #1a1a1a;
-    margin: 0 0 8px 0;
+    margin: 0;
   }
 
   &__desc {
