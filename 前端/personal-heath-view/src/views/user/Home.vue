@@ -13,7 +13,7 @@
             v-for="(news, index) in newsTopList"
           >
             <div class="top-news-card">
-              <img :src="news.cover" :alt="news.name" class="top-news-img" />
+              <div class="top-news-img cover-gradient" :style="coverGradient(news)"></div>
               <h3 class="news-title">{{ news.name }}</h3>
               <div class="top-news-meta">
                 <span class="news-tags">{{ news.tagName }}</span>
@@ -39,7 +39,7 @@
         v-for="(news, index) in newsList"
       >
         <div class="news-card">
-          <img :src="news.cover" :alt="news.name" class="news-card-img" />
+          <div class="news-card-img cover-gradient" :style="coverGradient(news)"></div>
           <div class="news-card-body">
             <h3 class="news-title">{{ news.name }}</h3>
             <div class="news-card-meta">
@@ -72,6 +72,18 @@ export default {
     this.loadAllTopNews();
   },
   methods: {
+    // 根据栏目返回主题渐变色（替换数据库里不相关的占位图）
+    coverGradient(news) {
+      const map = {
+        "康复手册": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        "养生保健": "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+        "疾病预防": "linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)",
+        "心理健康": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+        "运动健身": "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+        "饮食健康": "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+      };
+      return { background: map[news.tagName] || "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" };
+    },
     // 
     onBannerClick(banner) {
       sessionStorage.setItem("newsInfo", JSON.stringify(banner));
@@ -171,6 +183,22 @@ export default {
     transform: scale(1.05);
   }
 }
+
+.cover-gradient {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.25) 0%, transparent 50%);
+  }
+}
+
 
 .top-news-meta {
   font-size: 12px;

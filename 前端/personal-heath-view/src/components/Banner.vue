@@ -1,10 +1,12 @@
 <template>
   <div class="banner-wrapper">
-    <img
-      :src="activeData.cover"
-      :style="{ width: width, height: height, borderRadius: borderRadius }"
-      class="banner-img"
-    />
+    <div
+      class="banner-img banner-gradient"
+      :style="[
+        { width: width, height: height, borderRadius: borderRadius },
+        bannerGradient(activeData),
+      ]"
+    ></div>
     <h3 @click="onClick" class="tip-name">{{ activeData.name }}</h3>
     <!--  -->
     <div class="dots-container" v-if="data.length > 1">
@@ -83,6 +85,17 @@ export default {
     }
   },
   methods: {
+    bannerGradient(data) {
+      const map = {
+        "康复手册": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        "养生保健": "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+        "疾病预防": "linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)",
+        "心理健康": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+        "运动健身": "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+        "饮食健康": "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+      };
+      return { background: map[data?.tagName] || "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" };
+    },
     onClick(data) {
       this.$emit("on-click", this.activeData);
     },
@@ -140,6 +153,22 @@ export default {
     transform: scale(1.03);
   }
 }
+
+.banner-gradient {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.25) 0%, transparent 50%);
+  }
+}
+
 
 .tip-name {
   position: absolute;

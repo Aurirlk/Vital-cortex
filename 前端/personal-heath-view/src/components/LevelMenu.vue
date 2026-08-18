@@ -3,7 +3,7 @@
     <!-- Logo +  -->
     <div class="header-left">
       <div class="logo-area">
-        <Logo sysName="" />
+        <Logo sysName="智康云" />
       </div>
       <nav class="nav-menu">
         <template v-for="(item, index) in menus" :key="index">
@@ -29,11 +29,11 @@
       <div class="search-box">
         <input
           class="search-input"
-          placeholder="..."
+          placeholder="搜索健康资讯、症状、药品..."
           @keyup.enter="search"
           v-model="filterText"
         />
-        <span class="search-btn" @click="search"></span>
+        <span class="search-btn" @click="search">搜索</span>
       </div>
 
       <!--  -->
@@ -41,7 +41,7 @@
         <svg class="record-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
         </svg>
-        <span></span>
+        <span>记录健康</span>
       </button>
 
       <!--  -->
@@ -61,10 +61,10 @@
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item :icon="User" @click="userCenterPanel"></el-dropdown-item>
-              <el-dropdown-item :icon="WarningFilled" @click="resetPwd"></el-dropdown-item>
-              <el-dropdown-item :icon="Setting" @click="openSettings"></el-dropdown-item>
-              <el-dropdown-item :icon="Back" @click="loginOut"></el-dropdown-item>
+              <el-dropdown-item :icon="User" @click="userCenterPanel">个人中心</el-dropdown-item>
+              <el-dropdown-item :icon="WarningFilled" @click="resetPwd">修改密码</el-dropdown-item>
+              <el-dropdown-item :icon="Setting" @click="openSettings">设置</el-dropdown-item>
+              <el-dropdown-item :icon="Back" @click="loginOut">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -76,11 +76,11 @@
 <script>
 import { clearToken } from "@/utils/storage.js";
 import Logo from "@/components/Logo.vue";
-import { Upload, Bell, ArrowDown, User, WarningFilled, Back, Setting } from "@element-plus/icons-vue";
+import { Upload, Bell, ArrowDown, User, WarningFilled, Back, Setting, HomeFilled, Star, FirstAidKit, ChatDotRound, Service, Calendar, EditPen, ShoppingCart, Check, Document } from "@element-plus/icons-vue";
 
 export default {
   name: "UserMenu",
-  components: { Logo, Upload, Bell, ArrowDown, User, WarningFilled, Back, Setting },
+  components: { Logo, Upload, Bell, ArrowDown, User, WarningFilled, Back, Setting, HomeFilled, Star, FirstAidKit, ChatDotRound, Service, Calendar, EditPen, ShoppingCart, Check, Document },
   data() {
     return {
       selectedIndex: 0,
