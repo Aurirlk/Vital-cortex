@@ -1,17 +1,17 @@
 <template>
   <div style="box-sizing: border-box; padding: 10px">
     <el-tabs v-model="activeTab" @tab-click="handleTabClick">
-      <!--  -->
-      <el-tab-pane label="" name="records">
+      <!-- 对话记录 -->
+      <el-tab-pane label="对话记录" name="records">
         <div style="padding: 10px 0">
           <el-row style="margin-bottom: 15px">
             <el-col :span="8">
               <el-date-picker
                 v-model="dateRange"
                 type="daterange"
-                range-separator=""
-                start-placeholder=""
-                end-placeholder=""
+                range-separator="至"
+                start-placeholder="开始日期"
+                end-placeholder="结束日期"
                 size="small"
                 @change="loadChatRecords"
               >
@@ -20,18 +20,18 @@
             <el-col :span="4">
               <el-select
                 v-model="queryRole"
-                placeholder=""
+                placeholder="全部角色"
                 clearable
                 size="small"
                 @change="loadChatRecords"
               >
-                <el-option label="" value=""></el-option>
-                <el-option label="" value="doctor"></el-option>
-                <el-option label="" value="nutritionist"></el-option>
-                <el-option label="" value="psychologist"></el-option>
-                <el-option label="" value="analyst"></el-option>
+                <el-option label="全部角色" value=""></el-option>
+                <el-option label="AI 医生" value="doctor"></el-option>
+                <el-option label="营养师" value="nutritionist"></el-option>
+                <el-option label="心理顾问" value="psychologist"></el-option>
+                <el-option label="报告分析师" value="analyst"></el-option>
                 <el-option
-                  label=""
+                  label="通用助手"
                   value="general_assistant"
                 ></el-option>
               </el-select>
@@ -43,7 +43,7 @@
                 type="primary"
                 @click="loadChatRecords"
               >
-                <el-icon><Search /></el-icon> 
+                <el-icon><Search /></el-icon> 查询
               </el-button>
             </el-col>
           </el-row>
@@ -55,7 +55,7 @@
             max-height="500"
           >
             <el-table-column prop="id" label="ID" width="80"></el-table-column>
-            <el-table-column prop="role" label="" width="100">
+            <el-table-column prop="role" label="角色" width="100">
               <template #default="{ row }">
                 <el-tag size="small" :type="getRoleTagType(row.agentType)">
                   {{ getRoleName(row.agentType) }}
@@ -64,17 +64,17 @@
             </el-table-column>
             <el-table-column
               prop="sender"
-              label=""
+              label="发送者"
               width="100"
             ></el-table-column>
             <el-table-column
               prop="content"
-              label=""
+              label="内容"
               show-overflow-tooltip
             ></el-table-column>
             <el-table-column
               prop="createTime"
-              label=""
+              label="时间"
               width="160"
             ></el-table-column>
           </el-table>
@@ -92,31 +92,31 @@
         </div>
       </el-tab-pane>
 
-      <!--  -->
-      <el-tab-pane label="" name="stats">
+      <!-- 统计分析 -->
+      <el-tab-pane label="统计分析" name="stats">
         <el-row :gutter="20" style="margin-bottom: 20px">
           <el-col :span="6">
             <div class="stat-card">
               <div class="stat-value">{{ stats.totalChats }}</div>
-              <div class="stat-label"></div>
+              <div class="stat-label">总对话数</div>
             </div>
           </el-col>
           <el-col :span="6">
             <div class="stat-card">
               <div class="stat-value">{{ stats.todayChats }}</div>
-              <div class="stat-label"></div>
+              <div class="stat-label">今日对话</div>
             </div>
           </el-col>
           <el-col :span="6">
             <div class="stat-card">
               <div class="stat-value">{{ stats.userCount }}</div>
-              <div class="stat-label"></div>
+              <div class="stat-label">使用用户数</div>
             </div>
           </el-col>
           <el-col :span="6">
             <div class="stat-card">
               <div class="stat-value">{{ stats.avgPerUser }}</div>
-              <div class="stat-label"></div>
+              <div class="stat-label">人均对话</div>
             </div>
           </el-col>
         </el-row>
@@ -124,16 +124,16 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <div class="chart-card">
-              <div class="chart-title"></div>
+              <div class="chart-title">角色分布</div>
               <div style="padding: 20px">
                 <el-table :data="roleStats" border style="width: 100%">
-                  <el-table-column prop="name" label=""></el-table-column>
+                  <el-table-column prop="name" label="角色"></el-table-column>
                   <el-table-column
                     prop="count"
-                    label=""
+                    label="数量"
                     width="100"
                   ></el-table-column>
-                  <el-table-column prop="percent" label="" width="100">
+                  <el-table-column prop="percent" label="占比" width="100">
                     <template #default="{ row }">
                       <el-progress
                         :percentage="row.percent"
@@ -148,18 +148,18 @@
           </el-col>
           <el-col :span="12">
             <div class="chart-card">
-              <div class="chart-title"></div>
+              <div class="chart-title">对话趋势</div>
               <div style="padding: 20px">
                 <el-table :data="trendData" border style="width: 100%">
-                  <el-table-column prop="date" label=""></el-table-column>
+                  <el-table-column prop="date" label="日期"></el-table-column>
                   <el-table-column
                     prop="count"
-                    label=""
+                    label="对话数"
                     width="100"
                   ></el-table-column>
                   <el-table-column
                     prop="users"
-                    label=""
+                    label="用户数"
                     width="100"
                   ></el-table-column>
                 </el-table>
@@ -175,10 +175,10 @@
           <el-alert type="info" :closable="false" style="margin-bottom: 20px">
             <template #title>
               <div>
-                <strong>AI</strong> - AIAPI
+                <strong>AI 服务配置</strong> - 配置对话、推理与 Embedding 的 API
                 <br/>
                 <span style="font-size: 12px; color: #999">
-                  API KeyKey
+                  API Key 仅存储在服务端，不会回显到前端
                 </span>
               </div>
             </template>
@@ -187,10 +187,10 @@
           <el-form :model="aiConfig" label-width="160px">
             <!--  -->
             <el-divider content-position="left">
-              <el-icon><OfficeBuilding /></el-icon> AI
+              <el-icon><OfficeBuilding /></el-icon> AI 服务商
             </el-divider>
-            
-            <el-form-item label="">
+
+            <el-form-item label="服务商">
               <el-select 
                 v-model="aiConfig.provider" 
                 style="width: 100%"
@@ -223,26 +223,26 @@
 
             <!--  -->
             <el-divider content-position="left">
-              <el-icon><ChatDotRound /></el-icon> 
+              <el-icon><ChatDotRound /></el-icon> 对话模型
             </el-divider>
-            
+
             <el-form-item label="API Key">
-              <el-input 
-                v-model="aiConfig.chat.apiKey" 
-                placeholder="API Key"
+              <el-input
+                v-model="aiConfig.chat.apiKey"
+                placeholder="对话 API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.chat.apiKey ? '' : '' }}</span>
+              <span class="form-tip">{{ aiConfig.chat.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
-            
-            <el-form-item label="API ">
-              <el-input 
-                v-model="aiConfig.chat.apiUrl" 
-                placeholder="API"
+
+            <el-form-item label="API 地址">
+              <el-input
+                v-model="aiConfig.chat.apiUrl"
+                placeholder="对话 API 地址"
               />
             </el-form-item>
             
-            <el-form-item label="">
+            <el-form-item label="对话模型">
               <el-select v-model="aiConfig.chat.model" style="width: 100%" allow-create filterable>
                 <el-option 
                   v-for="model in currentProvider.models" 
@@ -255,26 +255,26 @@
 
             <!--  -->
             <el-divider content-position="left">
-              <el-icon><MagicStick /></el-icon> 
+              <el-icon><MagicStick /></el-icon> 推理模型
             </el-divider>
-            
+
             <el-form-item label="API Key">
-              <el-input 
-                v-model="aiConfig.reasoner.apiKey" 
-                placeholder="API Key"
+              <el-input
+                v-model="aiConfig.reasoner.apiKey"
+                placeholder="推理 API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.reasoner.apiKey ? '' : '' }}</span>
+              <span class="form-tip">{{ aiConfig.reasoner.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
-            
-            <el-form-item label="API ">
-              <el-input 
-                v-model="aiConfig.reasoner.apiUrl" 
-                placeholder="API"
+
+            <el-form-item label="API 地址">
+              <el-input
+                v-model="aiConfig.reasoner.apiUrl"
+                placeholder="推理 API 地址"
               />
             </el-form-item>
-            
-            <el-form-item label="">
+
+            <el-form-item label="推理模型">
               <el-select v-model="aiConfig.reasoner.model" style="width: 100%" allow-create filterable>
                 <el-option 
                   v-for="model in currentProvider.models" 
@@ -291,150 +291,150 @@
             </el-divider>
             
             <el-form-item label="API Key">
-              <el-input 
-                v-model="aiConfig.embedding.apiKey" 
-                placeholder="API Key"
+              <el-input
+                v-model="aiConfig.embedding.apiKey"
+                placeholder="Embedding API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.embedding.apiKey ? '' : '' }}</span>
+              <span class="form-tip">{{ aiConfig.embedding.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
-            
-            <el-form-item label="API ">
-              <el-input 
-                v-model="aiConfig.embedding.apiUrl" 
-                placeholder="Embedding API"
-              />
-            </el-form-item>
-            
-            <el-form-item label="">
-              <el-input 
-                v-model="aiConfig.embedding.model" 
-                placeholder="Embedding"
+
+            <el-form-item label="API 地址">
+              <el-input
+                v-model="aiConfig.embedding.apiUrl"
+                placeholder="Embedding API 地址"
               />
             </el-form-item>
 
-            <!--  -->
+            <el-form-item label="Embedding 模型">
+              <el-input
+                v-model="aiConfig.embedding.model"
+                placeholder="例如：text-embedding-v3"
+              />
+            </el-form-item>
+
+            <!-- 通用参数 -->
             <el-divider content-position="left">
-              <el-icon><Setting /></el-icon> 
+              <el-icon><Setting /></el-icon> 通用参数
             </el-divider>
-            
-            <el-form-item label="(ms)">
-              <el-input-number 
-                v-model="aiConfig.common.connectTimeout" 
-                :min="5000" 
+
+            <el-form-item label="连接超时 (ms)">
+              <el-input-number
+                v-model="aiConfig.common.connectTimeout"
+                :min="5000"
                 :max="120000"
                 :step="1000"
               />
             </el-form-item>
-            
-            <el-form-item label="(ms)">
-              <el-input-number 
-                v-model="aiConfig.common.readTimeout" 
-                :min="10000" 
+
+            <el-form-item label="读取超时 (ms)">
+              <el-input-number
+                v-model="aiConfig.common.readTimeout"
+                :min="10000"
                 :max="300000"
                 :step="5000"
               />
             </el-form-item>
-            
-            <el-form-item label="Token">
-              <el-input-number 
-                v-model="aiConfig.common.maxTokens" 
-                :min="256" 
+
+            <el-form-item label="最大 Token">
+              <el-input-number
+                v-model="aiConfig.common.maxTokens"
+                :min="256"
                 :max="32768"
                 :step="256"
               />
             </el-form-item>
-            
-            <el-form-item label="">
-              <el-input-number 
-                v-model="aiConfig.common.maxHistoryRounds" 
-                :min="1" 
+
+            <el-form-item label="历史轮数">
+              <el-input-number
+                v-model="aiConfig.common.maxHistoryRounds"
+                :min="1"
                 :max="50"
                 :step="1"
               />
             </el-form-item>
           </el-form>
 
-          <!--  -->
+          <!-- 操作按钮 -->
           <div class="config-actions">
             <el-button type="primary" @click="saveConfig" :loading="configSaving">
-              <el-icon><Check /></el-icon> 
+              <el-icon><Check /></el-icon> 保存配置
             </el-button>
             <el-button @click="loadConfig">
-              <el-icon><Refresh /></el-icon> 
+              <el-icon><Refresh /></el-icon> 刷新配置
             </el-button>
             <el-button type="warning" @click="resetConfig">
-              <el-icon><RefreshLeft /></el-icon> 
+              <el-icon><RefreshLeft /></el-icon> 重置
             </el-button>
           </div>
 
-          <!--  -->
+          <!-- 配置摘要 -->
           <el-card style="margin-top: 20px">
             <template #header>
-              <span></span>
+              <span>当前配置摘要</span>
             </template>
             <div class="config-summary">
-              <p><strong></strong> {{ currentProvider.name || '' }}</p>
-              <p><strong></strong> {{ aiConfig.apiKeyValid ? ' API Key' : ' API Key' }}</p>
-              <p><strong></strong> {{ aiConfig.summary }}</p>
+              <p><strong>当前服务商：</strong> {{ currentProvider.name || '未选择' }}</p>
+              <p><strong>API Key 状态：</strong> {{ aiConfig.apiKeyValid ? '已配置' : '未配置' }}</p>
+              <p><strong>配置说明：</strong> {{ aiConfig.summary || '无' }}</p>
             </div>
           </el-card>
         </div>
       </el-tab-pane>
 
-      <!--  -->
-      <el-tab-pane label="" name="websearch">
+      <!-- 联网搜索配置 -->
+      <el-tab-pane label="联网搜索" name="websearch">
         <div class="config-container">
           <el-alert type="info" :closable="false" style="margin-bottom: 20px">
             <template #title>
               <div>
-                <strong></strong> - APIAI
+                <strong>联网搜索配置</strong> - 配置 AI 使用的第三方搜索 API
                 <br/>
                 <span style="font-size: 12px; color: #999">
-                  AITavily
+                  支持博查 AI、Tavily、DuckDuckGo 等搜索引擎
                 </span>
               </div>
             </template>
           </el-alert>
 
           <el-form :model="aiConfig" label-width="140px">
-            <!--  -->
+            <!-- 通用设置 -->
             <el-divider content-position="left">
-              <el-icon><Setting /></el-icon> 
+              <el-icon><Setting /></el-icon> 通用设置
             </el-divider>
-            
-            <el-form-item label="">
+
+            <el-form-item label="启用联网搜索">
               <el-switch v-model="aiConfig.webSearch.enabled" />
             </el-form-item>
-            
-            <el-form-item label="">
+
+            <el-form-item label="搜索提供商">
               <el-select v-model="aiConfig.webSearch.provider" style="width: 100%">
-                <el-option label="" value="auto" />
-                <el-option label="AI" value="bocha" />
+                <el-option label="自动选择" value="auto" />
+                <el-option label="博查 AI" value="bocha" />
                 <el-option label="Tavily" value="tavily" />
                 <el-option label="DuckDuckGo" value="duckduckgo" />
-                <el-option label="SerperGoogle" value="serper" />
-                <el-option label="SerpAPIGoogle/Bing" value="serpapi" />
+                <el-option label="Serper (Google)" value="serper" />
+                <el-option label="SerpAPI (Google/Bing)" value="serpapi" />
               </el-select>
             </el-form-item>
 
-            <!-- AI -->
+            <!-- 博查 AI -->
             <el-divider content-position="left" style="font-size: 13px">
-              AI <span style="color: #999; font-size: 11px"></span>
+              博查 AI <span style="color: #999; font-size: 11px">中文搜索</span>
             </el-divider>
-            
-            <el-form-item label=" API Key">
-              <el-input 
-                v-model="aiConfig.webSearch.bocha.apiKey" 
-                placeholder="AIAPI Key"
+
+            <el-form-item label="博查 API Key">
+              <el-input
+                v-model="aiConfig.webSearch.bocha.apiKey"
+                placeholder="博查 AI API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.webSearch.bocha?.apiKey ? '' : '' }}</span>
+              <span class="form-tip">{{ aiConfig.webSearch.bocha?.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
-            
-            <el-form-item label=" API ">
-              <el-input 
-                v-model="aiConfig.webSearch.bocha.apiUrl" 
+
+            <el-form-item label="博查 API 地址">
+              <el-input
+                v-model="aiConfig.webSearch.bocha.apiUrl"
                 placeholder="https://api.bochaai.com/v1/web-search"
               />
             </el-form-item>
@@ -445,17 +445,17 @@
             </el-divider>
             
             <el-form-item label="Tavily API Key">
-              <el-input 
-                v-model="aiConfig.webSearch.tavily.apiKey" 
-                placeholder="TavilyAPI Key"
+              <el-input
+                v-model="aiConfig.webSearch.tavily.apiKey"
+                placeholder="Tavily API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.webSearch.tavily?.apiKey ? '' : '' }}</span>
+              <span class="form-tip">{{ aiConfig.webSearch.tavily?.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
-            
-            <el-form-item label="Tavily API ">
-              <el-input 
-                v-model="aiConfig.webSearch.tavily.apiUrl" 
+
+            <el-form-item label="Tavily API 地址">
+              <el-input
+                v-model="aiConfig.webSearch.tavily.apiUrl"
                 placeholder="https://api.tavily.com/search"
               />
             </el-form-item>
@@ -465,64 +465,64 @@
               DuckDuckGo <span style="color: #999; font-size: 11px">API Key</span>
             </el-divider>
             
-            <el-form-item label="API ">
-              <el-input 
-                v-model="aiConfig.webSearch.duckduckgo.apiUrl" 
+            <el-form-item label="API 地址">
+              <el-input
+                v-model="aiConfig.webSearch.duckduckgo.apiUrl"
                 placeholder="https://api.duckduckgo.com/"
               />
-              <span class="form-tip">: https://api.duckduckgo.com/</span>
+              <span class="form-tip">示例: https://api.duckduckgo.com/</span>
             </el-form-item>
 
             <!-- Serper -->
             <el-divider content-position="left" style="font-size: 13px">
-              Serper <span style="color: #999; font-size: 11px">Google100</span>
+              Serper <span style="color: #999; font-size: 11px">Google 搜索，每月 100 次免费</span>
             </el-divider>
-            
+
             <el-form-item label="Serper API Key">
-              <el-input 
-                v-model="aiConfig.webSearch.serper.apiKey" 
-                placeholder="SerperAPI Key"
+              <el-input
+                v-model="aiConfig.webSearch.serper.apiKey"
+                placeholder="Serper API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.webSearch.serper?.apiKey ? '' : '' }}</span>
+              <span class="form-tip">{{ aiConfig.webSearch.serper?.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
-            
-            <el-form-item label="Serper API ">
-              <el-input 
-                v-model="aiConfig.webSearch.serper.apiUrl" 
+
+            <el-form-item label="Serper API 地址">
+              <el-input
+                v-model="aiConfig.webSearch.serper.apiUrl"
                 placeholder="https://google.serper.dev/search"
               />
             </el-form-item>
 
             <!-- SerpAPI -->
             <el-divider content-position="left" style="font-size: 13px">
-              SerpAPI <span style="color: #999; font-size: 11px">Google/Bing100</span>
+              SerpAPI <span style="color: #999; font-size: 11px">Google / Bing 搜索，每月 100 次免费</span>
             </el-divider>
-            
+
             <el-form-item label="SerpAPI Key">
-              <el-input 
-                v-model="aiConfig.webSearch.serpapi.apiKey" 
-                placeholder="SerpAPIKey"
+              <el-input
+                v-model="aiConfig.webSearch.serpapi.apiKey"
+                placeholder="SerpAPI Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.webSearch.serpapi?.apiKey ? '' : '' }}</span>
+              <span class="form-tip">{{ aiConfig.webSearch.serpapi?.apiKey ? '已配置' : '未配置' }}</span>
             </el-form-item>
-            
-            <el-form-item label="SerpAPI ">
-              <el-input 
-                v-model="aiConfig.webSearch.serpapi.apiUrl" 
+
+            <el-form-item label="SerpAPI 地址">
+              <el-input
+                v-model="aiConfig.webSearch.serpapi.apiUrl"
                 placeholder="https://serpapi.com/search"
               />
             </el-form-item>
           </el-form>
 
-          <!--  -->
+          <!-- 操作按钮 -->
           <div class="config-actions">
             <el-button type="primary" @click="saveConfig" :loading="configSaving">
-              <el-icon><Check /></el-icon> 
+              <el-icon><Check /></el-icon> 保存配置
             </el-button>
             <el-button @click="loadConfig">
-              <el-icon><Refresh /></el-icon> 
+              <el-icon><Refresh /></el-icon> 刷新配置
             </el-button>
           </div>
         </div>
@@ -548,37 +548,37 @@ export default {
       uploadFiles: [],
       roles: {
         doctor: {
-          name: "",
+          name: "AI 医生",
           icon: "🩺",
-          desc: "",
+          desc: "症状分析与就医建议",
           temp: 0.2,
           topP: 0.3,
         },
         nutritionist: {
-          name: "",
-          icon: "",
-          desc: "",
+          name: "营养师",
+          icon: "🥗",
+          desc: "饮食搭配与营养方案",
           temp: 0.6,
           topP: 0.8,
         },
         psychologist: {
-          name: "",
-          icon: "",
-          desc: "",
+          name: "心理顾问",
+          icon: "🧠",
+          desc: "情绪疏导与心理支持",
           temp: 0.8,
           topP: 0.9,
         },
         analyst: {
-          name: "",
-          icon: "",
-          desc: "",
+          name: "报告分析师",
+          icon: "📊",
+          desc: "体检报告与健康数据解读",
           temp: 0.1,
           topP: 0.1,
         },
         general_assistant: {
-          name: "",
-          icon: "",
-          desc: "",
+          name: "通用助手",
+          icon: "💡",
+          desc: "不限主题的智能问答",
           temp: 0.5,
           topP: 0.5,
         },

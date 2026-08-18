@@ -18,8 +18,8 @@
         </span>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item :icon="UserFilled" @click="userCenterPanel"></el-dropdown-item>
-            <el-dropdown-item :icon="Fold" @click="loginOut"></el-dropdown-item>
+            <el-dropdown-item :icon="UserFilled" @click="userCenterPanel">个人中心</el-dropdown-item>
+            <el-dropdown-item :icon="Fold" @click="loginOut">退出登录</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -57,11 +57,11 @@ export default {
     },
   },
   methods: {
-    // 
+    // 打开个人中心
     userCenterPanel() {
       this.$emit("eventListener", "center");
     },
-    // 
+    // 退出登录
     loginOut() {
       this.$emit("eventListener", "loginOut");
     },

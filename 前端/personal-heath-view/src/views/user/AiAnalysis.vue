@@ -3,9 +3,9 @@
     <div class="ai-header">
       <h2 class="ai-title">
         <el-icon><MagicStick /></el-icon>
-        AI 
+        AI 健康问诊
       </h2>
-      <span class="ai-subtitle"></span>
+      <span class="ai-subtitle">多角色智能健康助手，支持症状咨询、报告解读与营养建议</span>
     </div>
 
     <el-row :gutter="16">
@@ -14,7 +14,7 @@
         <div class="role-panel">
           <div class="panel-title">
             <el-icon><User /></el-icon>
-            
+            选择问诊角色
           </div>
           <div class="role-list">
             <div
@@ -34,7 +34,7 @@
           <!--  &  -->
           <div class="panel-title" style="margin-top: 16px">
             <el-icon><Document /></el-icon>
-             & 
+            文件与健康报告
           </div>
           <div class="file-actions">
             <!-- Phase A（docs/multimodal-design.md §4）：图片多模态已接入——
@@ -64,13 +64,13 @@
                     plain
                     :disabled="!capabilities.visionEnabled || uploadFiles.length >= capabilities.maxImages"
                   >
-                    <el-icon><Upload /></el-icon> 
+                    <el-icon><Upload /></el-icon> 上传图片
                   </el-button>
                 </el-upload>
               </span>
             </el-tooltip>
             <el-button size="small" type="success" plain @click="generateHealthReport">
-              <el-icon><DataAnalysis /></el-icon> 
+              <el-icon><DataAnalysis /></el-icon> 生成健康报告
             </el-button>
           </div>
           <div v-if="uploadFiles.length > 0" class="file-list">
@@ -98,10 +98,10 @@
             </span>
             <div>
               <el-button size="small" type="warning" plain @click="exportChat">
-                <el-icon><Download /></el-icon> 
+                <el-icon><Download /></el-icon> 导出对话
               </el-button>
               <el-button size="small" type="danger" plain @click="clearChat">
-                <el-icon><Delete /></el-icon> 
+                <el-icon><Delete /></el-icon> 清空对话
               </el-button>
             </div>
           </div>
@@ -142,7 +142,7 @@
               </div>
               <div class="message-content">
                 <div class="message-role">
-                  {{ msg.role === "user" ? "" : roles[currentRole].name }}
+                  {{ msg.role === "user" ? "我" : roles[currentRole].name }}
                 </div>
                 <div v-if="msg.toolCalls && msg.toolCalls.length" style="margin-bottom: 6px">
                   <span v-for="(tc, i) in msg.toolCalls" :key="i" class="tool-call-tag">
@@ -171,56 +171,56 @@
             </div>
           </div>
 
-          <!--  -  -->
+          <!--  功能开关 -  -->
           <div class="feature-bar">
-            <el-tooltip content="" placement="top">
-              <el-button 
+            <el-tooltip content="联网搜索：开启后 AI 可检索最新健康资讯" placement="top">
+              <el-button
                 :type="enableWebSearch ? 'primary' : 'info'"
                 size="small"
                 round
                 @click="enableWebSearch = !enableWebSearch"
               >
-                <el-icon><Search /></el-icon> 
+                <el-icon><Search /></el-icon> 联网
               </el-button>
             </el-tooltip>
-            <el-tooltip content="" placement="top">
-              <el-button 
+            <el-tooltip content="深度思考：让 AI 进行更严谨的多步推理" placement="top">
+              <el-button
                 :type="enableDeepThink ? 'warning' : 'info'"
                 size="small"
                 round
                 @click="enableDeepThink = !enableDeepThink"
               >
-                <el-icon><MagicStick /></el-icon> 
+                <el-icon><MagicStick /></el-icon> 深度
               </el-button>
             </el-tooltip>
-            <el-tooltip content="" placement="top">
-              <el-button 
+            <el-tooltip content="知识库：开启后优先引用平台健康资料" placement="top">
+              <el-button
                 :type="enableKnowledgeBase ? 'success' : 'info'"
                 size="small"
                 round
                 @click="enableKnowledgeBase = !enableKnowledgeBase"
               >
-                <el-icon><Collection /></el-icon> 
+                <el-icon><Collection /></el-icon> 知识库
               </el-button>
             </el-tooltip>
-            <el-tooltip content="" placement="top">
-              <el-button 
+            <el-tooltip content="健康档案：允许 AI 读取您的健康记录" placement="top">
+              <el-button
                 :type="enableHealthData ? 'danger' : 'info'"
                 size="small"
                 round
                 @click="enableHealthData = !enableHealthData"
               >
-                <el-icon><FirstAidKit /></el-icon> 
+                <el-icon><FirstAidKit /></el-icon> 健康档案
               </el-button>
             </el-tooltip>
-            <el-tooltip content="" placement="top">
-              <el-button 
+            <el-tooltip content="流式输出：开启后 AI 回复逐字显示" placement="top">
+              <el-button
                 :type="enableStream ? '' : 'info'"
                 size="small"
                 round
                 @click="enableStream = !enableStream"
               >
-                <el-icon><VideoPlay /></el-icon> 
+                <el-icon><VideoPlay /></el-icon> 流式
               </el-button>
             </el-tooltip>
           </div>
@@ -232,12 +232,12 @@
               v-model="inputMessage"
               type="textarea"
               :rows="3"
-              placeholder="..."
+              placeholder="请输入您的健康问题，按 Ctrl+Enter 快速发送..."
               @keyup.ctrl.enter="sendMessage"
               :disabled="loading"
             ></el-input>
             <div class="input-actions">
-              <el-tooltip content=" ()" placement="top">
+              <el-tooltip content="按住说话（松开结束）" placement="top">
                 <el-button
                   class="voice-btn"
                   :type="isVoiceMode ? 'danger' : 'success'"
@@ -258,7 +258,7 @@
                 :loading="loading"
                 :disabled="!inputMessage.trim()"
               >
-                <el-icon><Promotion /></el-icon> 
+                <el-icon><Promotion /></el-icon> 发送
               </el-button>
             </div>
           </div>
@@ -268,10 +268,10 @@
       <!--  +  -->
       <el-col :span="5">
         <div class="settings-panel">
-          <!--  -->
+          <!--  最近对话 -->
           <div class="panel-title">
             <el-icon><ChatLineRound /></el-icon>
-            
+            最近对话
             <el-button
               type="primary"
               link
@@ -279,12 +279,12 @@
               style="float: right"
               @click="showHistoryDialog = true"
             >
-              
+              查看全部
             </el-button>
           </div>
           <div class="recent-history">
             <div v-if="conversations.length === 0" class="no-recent">
-              
+              暂无历史对话
             </div>
             <div
               v-for="conv in recentConversations"
@@ -297,10 +297,10 @@
             </div>
           </div>
           
-          <!--  -->
+          <!--  参数设置 -->
           <div class="panel-title" style="margin-top: 16px">
             <el-icon><Setting /></el-icon>
-            
+            生成参数
           </div>
           
           <!--  -  -->
@@ -313,7 +313,7 @@
           <!-- Temperature -->
           <div class="param-item">
             <div class="param-row">
-              <span class="param-label"></span>
+              <span class="param-label">Temperature（创造性）</span>
               <span class="param-value">{{ temperature }}</span>
             </div>
             <el-slider v-model="temperature" :min="0" :max="2" :step="0.1" :show-tooltip="false" size="small" />
@@ -328,29 +328,29 @@
             <el-slider v-model="topP" :min="0" :max="1" :step="0.05" :show-tooltip="false" size="small" />
           </div>
           
-          <!--  -->
+          <!-- 重复惩罚 -->
           <div class="param-item">
             <div class="param-row">
-              <span class="param-label"></span>
+              <span class="param-label">重复惩罚</span>
               <span class="param-value">{{ repetitionPenalty }}</span>
             </div>
             <el-slider v-model="repetitionPenalty" :min="1" :max="2" :step="0.1" :show-tooltip="false" size="small" />
           </div>
           
-          <!--  -->
+          <!-- 上下文轮数 -->
           <div class="param-item">
             <div class="param-row">
-              <span class="param-label"></span>
+              <span class="param-label">上下文轮数</span>
               <span class="param-value">{{ contextRounds }}</span>
             </div>
             <el-slider v-model="contextRounds" :min="0" :max="20" :step="1" :show-tooltip="false" size="small" />
           </div>
           
-          <!--  -->
+          <!-- 最大回复长度 -->
           <div class="param-item">
             <div class="param-row">
-              <span class="param-label"></span>
-              <span class="param-value">{{ maxReplyLength === 0 ? '' : maxReplyLength }}</span>
+              <span class="param-label">最大回复长度（0 为不限制）</span>
+              <span class="param-value">{{ maxReplyLength === 0 ? '不限制' : maxReplyLength }}</span>
             </div>
             <el-slider v-model="maxReplyLength" :min="0" :max="8192" :step="64" :show-tooltip="false" size="small" />
           </div>
@@ -358,23 +358,23 @@
       </el-col>
     </el-row>
     
-    <!--  -->
-    <el-dialog v-model="showHistoryDialog" title="" width="600px">
+    <!--  历史对话弹窗 -->
+    <el-dialog v-model="showHistoryDialog" title="历史对话" width="600px">
       <div class="history-dialog-content">
         <div class="history-header">
           <el-input
             v-model="historySearchKey"
-            placeholder="..."
+            placeholder="搜索历史对话..."
             clearable
             prefix-icon="Search"
           />
           <el-button type="primary" @click="newConversation">
-            <el-icon><Plus /></el-icon> 
+            <el-icon><Plus /></el-icon> 新建对话
           </el-button>
         </div>
         <div class="history-list">
           <div v-if="filteredConversations.length === 0" class="no-history">
-            {{ historySearchKey ? '' : '' }}
+            {{ historySearchKey ? '未找到匹配对话' : '暂无历史对话' }}
           </div>
           <div
             v-for="conv in filteredConversations"
@@ -472,71 +472,71 @@ export default {
       longMemory: false,
       fileBox: false,
       genModes: [
-        { key: "precise", label: "", temp: 0.2, topP: 0.7 },
-        { key: "balanced", label: "", temp: 0.8, topP: 1.0 },
-        { key: "creative", label: "", temp: 1.2, topP: 0.95 },
-        { key: "custom", label: "", temp: 0.8, topP: 1.0 },
+        { key: "precise", label: "精准", temp: 0.2, topP: 0.7 },
+        { key: "balanced", label: "均衡", temp: 0.8, topP: 1.0 },
+        { key: "creative", label: "创意", temp: 1.2, topP: 0.95 },
+        { key: "custom", label: "自定义", temp: 0.8, topP: 1.0 },
       ],
       roles: {
         consultant: {
-          name: "",
+          name: "健康顾问",
           icon: "Service",
           color: "#667eea",
-          desc: "·",
+          desc: "日常健康问题咨询",
           temp: 0.3,
           topP: 0.5,
-          welcome: "",
-          presets: ["", "", "", ""],
+          welcome: "您好，我是您的健康顾问，有什么可以帮您？",
+          presets: ["我最近总是失眠，怎么办？", "帮我分析一下体检报告", "高血压患者日常注意事项", "每天应该喝多少水"],
         },
         doctor: {
-          name: "",
+          name: "AI 医生",
           icon: "FirstAidKit",
           color: "#e74c3c",
-          desc: "",
+          desc: "症状分析与就医建议",
           temp: 0.2,
           topP: 0.3,
-          welcome: "AIAI",
-          presets: ["", "38.5", "", ""],
+          welcome: "请描述您的症状，我会帮您分析并给出就医建议。",
+          presets: ["发烧 38.5℃ 需要去医院吗？", "咳嗽一周不好，什么原因", "头疼伴随恶心是怎么回事", "皮肤过敏起红疹怎么处理"],
         },
         nutritionist: {
-          name: "",
+          name: "营养师",
           icon: "Apple",
           color: "#27ae60",
-          desc: "",
+          desc: "饮食搭配与营养建议",
           temp: 0.6,
           topP: 0.8,
-          welcome: "AI",
-          presets: ["", "", "", ""],
+          welcome: "我是您的营养顾问，请告诉我您的饮食目标和偏好。",
+          presets: ["帮我制定一周减脂餐", "糖尿病患者应该怎么吃", "早餐吃什么比较有营养", "运动后怎么补充蛋白质"],
         },
         psychologist: {
-          name: "",
+          name: "心理顾问",
           icon: "ChatDotRound",
           color: "#f39c12",
-          desc: "",
+          desc: "情绪疏导与心理支持",
           temp: 0.8,
           topP: 0.9,
-          welcome: "AI",
-          presets: ["", "", "", ""],
+          welcome: "我是您的心理顾问，愿意倾听您的烦恼。",
+          presets: ["最近压力很大，怎么缓解", "焦虑睡不着怎么办", "如何改善人际关系", "情绪低落时怎么自我调节"],
         },
         analyst: {
-          name: "",
+          name: "报告分析师",
           icon: "DataAnalysis",
           color: "#3498db",
-          desc: "",
+          desc: "体检报告与健康数据解读",
           temp: 0.1,
           topP: 0.1,
-          welcome: "AI",
-          presets: ["", "", "", ""],
+          welcome: "请上传体检单或化验单，我会帮您解读关键指标。",
+          presets: ["帮我看看这份血常规报告", "肝功能指标偏高说明什么", "血脂报告怎么解读", "尿酸高要注意什么"],
         },
         general_assistant: {
-          name: "",
+          name: "通用助手",
           icon: "MagicStick",
           color: "#8e44ad",
-          desc: "",
+          desc: "不限主题的智能问答",
           temp: 0.5,
           topP: 0.5,
-          welcome: "",
-          presets: ["", "", "", ""],
+          welcome: "有什么我可以帮您的吗？",
+          presets: ["介绍一下这个平台的功能", "如何记录健康数据", "怎么预约医生", "平台的 AI 模型有哪些"],
         },
       },
     };
@@ -743,9 +743,9 @@ export default {
     // 
     async deleteConversation(convId) {
       try {
-        await this.$confirm("", "", {
-          confirmButtonText: "",
-          cancelButtonText: "",
+        await this.$confirm("删除后不可恢复，是否继续？", "删除对话", {
+          confirmButtonText: "删除",
+          cancelButtonText: "取消",
           type: "warning",
         });
         const response = await this.$axios.delete(
@@ -753,7 +753,7 @@ export default {
         );
         const { data } = response;
         if (data.code === 200) {
-          this.$message.success("");
+          this.$message.success("删除成功");
           if (this.currentConversationId === convId) {
             this.newConversation();
           }

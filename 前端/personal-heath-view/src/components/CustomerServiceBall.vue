@@ -3,8 +3,8 @@
     <!--  -->
     <div class="service-ball" @click="toggleChat" :class="{ 'is-open': showChat }">
       <div class="ball-icon">
-        <span v-if="!showChat"></span>
-        <span v-else></span>
+        <span v-if="!showChat">AI</span>
+        <span v-else>×</span>
       </div>
       <div class="ball-pulse" v-if="!showChat"></div>
     </div>
@@ -15,10 +15,10 @@
         <!--  -->
         <div class="chat-header">
           <div class="header-info">
-            <span class="header-icon"></span>
+            <span class="header-icon">🩺</span>
             <div>
-              <div class="header-title"></div>
-              <div class="header-status"></div>
+              <div class="header-title">AI 健康助手</div>
+              <div class="header-status">在线</div>
             </div>
           </div>
           <div class="header-actions">
@@ -28,19 +28,19 @@
 
         <!--  -->
         <div class="quick-actions" v-if="messages.length === 0">
-          <div class="quick-title"></div>
+          <div class="quick-title">常见问题</div>
           <div class="quick-list">
-            <div class="quick-item" @click="sendQuick('')">
-              <span></span> 
+            <div class="quick-item" @click="sendQuick('平台有哪些功能？')">
+              <span>💡</span> 平台功能
             </div>
-            <div class="quick-item" @click="sendQuick('')">
-              <span></span> 
+            <div class="quick-item" @click="sendQuick('怎么记录健康数据？')">
+              <span>📝</span> 记录数据
             </div>
-            <div class="quick-item" @click="sendQuick('')">
-              <span></span> 
+            <div class="quick-item" @click="sendQuick('如何预约医生？')">
+              <span>📅</span> 预约医生
             </div>
-            <div class="quick-item" @click="sendQuick('')">
-              <span>🩺</span> 
+            <div class="quick-item" @click="sendQuick('帮我分析一下最近的健康状况')">
+              <span>🩺</span> 健康分析
             </div>
           </div>
         </div>
@@ -48,15 +48,15 @@
         <!--  -->
         <div class="message-list" ref="messageList">
           <div v-if="messages.length === 0" class="welcome-msg">
-            <div class="welcome-avatar"></div>
+            <div class="welcome-avatar">🩺</div>
             <div class="welcome-text">
-              AI
+              您好，我是 AI 健康助手，请问有什么可以帮您？
             </div>
           </div>
           <div v-for="(msg, i) in messages" :key="i" :class="['msg', msg.role]">
             <div class="msg-avatar">
-              <span v-if="msg.role === 'user'"></span>
-              <span v-else></span>
+              <span v-if="msg.role === 'user'">我</span>
+              <span v-else>AI</span>
             </div>
             <div class="msg-content">
               <div class="msg-text" v-html="safeHtml(msg.content)"></div>
@@ -77,19 +77,19 @@
         <div class="input-area">
           <el-input
             v-model="inputMsg"
-            placeholder="..."
+            placeholder="请输入您的问题..."
             @keyup.enter="sendMessage"
             :disabled="loading"
             size="small"
           />
-          <el-button 
-            type="primary" 
-            @click="sendMessage" 
+          <el-button
+            type="primary"
+            @click="sendMessage"
             :loading="loading"
             :disabled="!inputMsg.trim()"
             size="small"
           >
-            
+            发送
           </el-button>
         </div>
       </div>
@@ -171,7 +171,7 @@ export default {
         );
 
         if (!response.ok) {
-          throw new Error("");
+          throw new Error("服务响应异常");
         }
 
         const reader = response.body.getReader();
@@ -220,10 +220,10 @@ export default {
         if (e && e.name === "AbortError") return;
         this.messages.push({
           role: "assistant",
-          content: "",
+          content: "抱歉，服务暂时不可用，请稍后重试。",
           time: this.formatTime(new Date()),
         });
-        console.error(":", e);
+        console.error("客服球异常:", e);
       } finally {
         this.abortController = null;
       }

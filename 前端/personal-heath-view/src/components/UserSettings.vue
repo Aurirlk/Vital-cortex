@@ -1,65 +1,65 @@
 <template>
   <div class="settings-container" :class="{ 'dark-mode': isDarkMode }">
     <div class="settings-header">
-      <h2></h2>
+      <h2>用户设置</h2>
     </div>
-    
+
     <div class="settings-section">
-      <h3></h3>
+      <h3>显示设置</h3>
       <div class="setting-item">
         <div class="setting-info">
           <el-icon><Moon /></el-icon>
-          <span></span>
+          <span>深色模式</span>
         </div>
         <el-switch
           v-model="isDarkMode"
           @change="toggleDarkMode"
-          active-text=""
-          inactive-text=""
+          active-text="开启"
+          inactive-text="关闭"
         />
       </div>
     </div>
 
     <div class="settings-section">
-      <h3></h3>
+      <h3>首页 Banner</h3>
       <div class="setting-item">
         <div class="setting-info">
           <el-icon><View /></el-icon>
-          <span></span>
+          <span>显示指示点</span>
         </div>
         <el-switch
           v-model="showBannerDots"
           @change="saveSettings"
-          active-text=""
-          inactive-text=""
+          active-text="显示"
+          inactive-text="隐藏"
         />
       </div>
       <div class="setting-item">
         <div class="setting-info">
           <el-icon><Timer /></el-icon>
-          <span></span>
+          <span>自动轮播</span>
         </div>
         <el-switch
           v-model="autoPlayBanner"
           @change="saveSettings"
-          active-text=""
-          inactive-text=""
+          active-text="开启"
+          inactive-text="关闭"
         />
       </div>
     </div>
 
     <div class="settings-section">
-      <h3></h3>
+      <h3>消息通知</h3>
       <div class="setting-item">
         <div class="setting-info">
           <el-icon><Bell /></el-icon>
-          <span></span>
+          <span>启用通知</span>
         </div>
         <el-switch
           v-model="enableNotification"
           @change="saveSettings"
-          active-text=""
-          inactive-text=""
+          active-text="开启"
+          inactive-text="关闭"
         />
       </div>
     </div>

@@ -3,7 +3,7 @@
     <!--  -->
     <el-badge :value="unreadCount" :hidden="unreadCount === 0">
       <el-button type="primary" round @click="showPanel = !showPanel" class="assistant-btn">
-        <el-icon><Service /></el-icon> 
+        <el-icon><Service /></el-icon> 健康助手
       </el-button>
     </el-badge>
 
@@ -12,50 +12,50 @@
       <div class="panel-item" @click="openFunction('symptom')">
         <el-icon color="#e74c3c"><Search /></el-icon>
         <div class="item-text">
-          <strong></strong>
-          <span></span>
+          <strong>症状自查</strong>
+          <span>输入症状，AI 初步分析</span>
         </div>
       </div>
       <div class="panel-item" @click="openFunction('doctor')">
         <el-icon color="#3498db"><UserFilled /></el-icon>
         <div class="item-text">
-          <strong></strong>
-          <span>AI</span>
+          <strong>AI 医生</strong>
+          <span>多科室 AI 问诊入口</span>
         </div>
       </div>
       <div class="panel-item" @click="openFunction('drug')">
         <el-icon color="#27ae60"><FirstAidKit /></el-icon>
         <div class="item-text">
-          <strong></strong>
-          <span></span>
+          <strong>药品查询</strong>
+          <span>药品用法、禁忌与副作用</span>
         </div>
       </div>
       <div class="panel-item" @click="openFunction('knowledge')">
         <el-icon color="#8e44ad"><Collection /></el-icon>
         <div class="item-text">
-          <strong></strong>
-          <span></span>
+          <strong>健康知识</strong>
+          <span>疾病、养生、康复知识库</span>
         </div>
       </div>
     </div>
 
     <!--  -->
-    <el-dialog v-model="showSymptom" title=" " width="600px" :append-to-body="true">
+    <el-dialog v-model="showSymptom" title="症状自查" width="600px" :append-to-body="true">
       <div class="dialog-body">
         <div class="dialog-input">
-          <el-input v-model="symptomInput" placeholder="" @keyup.enter="searchSymptom">
+          <el-input v-model="symptomInput" placeholder="请输入症状，例如：头痛、发热、咳嗽" @keyup.enter="searchSymptom">
             <template #append>
-              <el-button @click="searchSymptom" :loading="symptomLoading"></el-button>
+              <el-button @click="searchSymptom" :loading="symptomLoading">查询</el-button>
             </template>
           </el-input>
         </div>
         <div class="dialog-result" v-if="symptomResult" v-html="safeHtml(symptomResult)"></div>
-        <div class="dialog-result" v-if="symptomLoading">...</div>
+        <div class="dialog-result" v-if="symptomLoading">AI 正在分析中，请稍候…</div>
       </div>
     </el-dialog>
 
     <!--  -->
-    <el-dialog v-model="showDoctor" title="🩺 " width="500px" :append-to-body="true">
+    <el-dialog v-model="showDoctor" title="AI 医生" width="500px" :append-to-body="true">
       <div class="dialog-body">
         <div class="doctor-list">
           <div v-for="(role, key) in doctorRoles" :key="key" class="doctor-card" @click="goToDoctor(key, role)">
@@ -71,32 +71,32 @@
     </el-dialog>
 
     <!--  -->
-    <el-dialog v-model="showDrug" title=" " width="600px" :append-to-body="true">
+    <el-dialog v-model="showDrug" title="药品查询" width="600px" :append-to-body="true">
       <div class="dialog-body">
         <div class="dialog-input">
-          <el-input v-model="drugInput" placeholder="..." @keyup.enter="searchDrug">
+          <el-input v-model="drugInput" placeholder="请输入药品名称，例如：阿莫西林" @keyup.enter="searchDrug">
             <template #append>
-              <el-button @click="searchDrug" :loading="drugLoading"></el-button>
+              <el-button @click="searchDrug" :loading="drugLoading">查询</el-button>
             </template>
           </el-input>
         </div>
         <div class="dialog-result" v-if="drugResult" v-html="safeHtml(drugResult)"></div>
-        <div class="dialog-result" v-if="drugLoading">...</div>
+        <div class="dialog-result" v-if="drugLoading">AI 正在查询中，请稍候…</div>
       </div>
     </el-dialog>
 
     <!--  -->
-    <el-dialog v-model="showKnowledge" title=" " width="600px" :append-to-body="true">
+    <el-dialog v-model="showKnowledge" title="健康知识问答" width="600px" :append-to-body="true">
       <div class="dialog-body">
         <div class="dialog-input">
-          <el-input v-model="knowledgeInput" placeholder="..." @keyup.enter="searchKnowledge">
+          <el-input v-model="knowledgeInput" placeholder="请输入健康相关问题" @keyup.enter="searchKnowledge">
             <template #append>
-              <el-button @click="searchKnowledge" :loading="knowledgeLoading"></el-button>
+              <el-button @click="searchKnowledge" :loading="knowledgeLoading">查询</el-button>
             </template>
           </el-input>
         </div>
         <div class="dialog-result" v-if="knowledgeResult" v-html="safeHtml(knowledgeResult)"></div>
-        <div class="dialog-result" v-if="knowledgeLoading">...</div>
+        <div class="dialog-result" v-if="knowledgeLoading">AI 正在检索知识库，请稍候…</div>
       </div>
     </el-dialog>
   </div>
@@ -118,19 +118,19 @@ export default {
       unreadCount: 0,
       // 
       showSymptom: false, symptomInput: "", symptomResult: "", symptomLoading: false,
-      // 
+      // AI 医生弹窗
       showDoctor: false,
-      // 
+      // 药品查询弹窗
       showDrug: false, drugInput: "", drugResult: "", drugLoading: false,
-      // 
+      // 健康知识弹窗
       showKnowledge: false, knowledgeInput: "", knowledgeResult: "", knowledgeLoading: false,
-      // 
+      // 医生角色列表
       doctorRoles: {
-        doctor: { name: "", icon: "🩺", desc: "", path: "/user/ai-analysis" },
-        nutritionist: { name: "", icon: "", desc: "", path: "/user/ai-analysis" },
-        psychologist: { name: "", icon: "", desc: "", path: "/user/ai-analysis" },
-        analyst: { name: "", icon: "", desc: "", path: "/user/ai-analysis" },
-        general_assistant: { name: "", icon: "", desc: "", path: "/user/ai-analysis" },
+        doctor: { name: "全科医生", icon: "🩺", desc: "常见症状与疾病咨询", path: "/user/ai-analysis" },
+        nutritionist: { name: "营养师", icon: "🥗", desc: "饮食搭配与营养方案", path: "/user/ai-analysis" },
+        psychologist: { name: "心理顾问", icon: "🧠", desc: "情绪疏导与心理支持", path: "/user/ai-analysis" },
+        analyst: { name: "报告分析师", icon: "📊", desc: "体检报告与健康数据解读", path: "/user/ai-analysis" },
+        general_assistant: { name: "通用助手", icon: "💡", desc: "不限主题的智能问答", path: "/user/ai-analysis" },
       },
     };
   },
@@ -162,7 +162,7 @@ export default {
         const data = await res.json();
         this.symptomResult = marked.parse(data.data?.reply || "");
       } catch (e) {
-        this.symptomResult = "" + e.message;
+        this.symptomResult = "分析失败：" + e.message;
       } finally {
         this.symptomLoading = false;
       }
@@ -189,7 +189,7 @@ export default {
         const data = await res.json();
         this.drugResult = marked.parse(data.data?.reply || "");
       } catch (e) {
-        this.drugResult = "" + e.message;
+        this.drugResult = "查询失败：" + e.message;
       } finally {
         this.drugLoading = false;
       }
@@ -221,7 +221,7 @@ export default {
         const data = await res.json();
         this.knowledgeResult = marked.parse(data.data?.reply || "");
       } catch (e) {
-        this.knowledgeResult = "" + e.message;
+        this.knowledgeResult = "检索失败：" + e.message;
       } finally {
         this.knowledgeLoading = false;
       }
