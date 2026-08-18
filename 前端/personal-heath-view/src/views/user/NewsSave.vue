@@ -1,7 +1,7 @@
 <template>
   <div class="news-save-container">
     <div v-if="newsSaveList.length === 0" class="empty-container">
-      <el-empty description=""></el-empty>
+      <el-empty description="暂无收藏的资讯"></el-empty>
     </div>
     <div v-else class="news-save-grid">
       <div

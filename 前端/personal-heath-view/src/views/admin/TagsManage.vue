@@ -6,7 +6,7 @@
           size="small"
           style="width: 188px; margin-left: 5px; margin-right: 6px"
           v-model="tagsQueryDto.name"
-          placeholder=""
+          placeholder="请输入标签名称"
           clearable
           @clear="handleFilterClear"
         >
@@ -33,11 +33,11 @@
     </el-row>
     <el-row style="margin: 0 20px; border-top: 1px solid rgb(245, 245, 245)">
       <el-table row-key="id" :data="tableData" style="width: 100%">
-        <el-table-column prop="name" label=""></el-table-column>
-        <el-table-column label="" width="120">
+        <el-table-column prop="name" label="标签名称"></el-table-column>
+        <el-table-column label="操作" width="120">
           <template #default="{ row }">
-            <span class="text-button" @click="handleEdit(row)"></span>
-            <span class="text-button" @click="handleDelete(row)"></span>
+            <span class="text-button" @click="handleEdit(row)">编辑</span>
+            <span class="text-button" @click="handleDelete(row)">删除</span>
           </template>
         </el-table-column>
       </el-table>
@@ -54,7 +54,7 @@
       <template #title>
         <div>
           <p class="dialog-title">
-            {{ !isOperation ? "" : "" }}
+            {{ !isOperation ? "新增标签" : "编辑标签" }}
           </p>
         </div>
       </template>
@@ -64,7 +64,7 @@
             style="font-size: 34px"
             class="dialog-input"
             v-model="data.name"
-            placeholder=""
+            placeholder="请输入标签名称"
           />
         </el-row>
       </div>
@@ -81,7 +81,7 @@
             class="customer"
             type="info"
             @click="addOperation()"
-            ></el-button
+            >新增</el-button
           >
           <el-button
             size="small"
@@ -94,14 +94,14 @@
             class="customer"
             type="info"
             @click="updateOperation()"
-            ></el-button
+            >修改</el-button
           >
           <el-button
             class="customer"
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="cannel"
-            ></el-button
+            >取消</el-button
           >
         </span>
       </template>
@@ -147,10 +147,10 @@ export default {
     },
     handleAvatarSuccess(res, file) {
       if (res.code !== 200) {
-        this.$message.error(``);
+        this.$message.error(`上传失败`);
         return;
       }
-      this.$message.success(``);
+      this.$message.success(`上传成功`);
       this.data.userAvatar = res.data;
       console.log(this.data);
     },
@@ -161,12 +161,12 @@ export default {
     // 
     async batchDelete() {
       if (!this.selectedRows.length) {
-        this.$message(``);
+        this.$message(`请选择要删除的标签`);
         return;
       }
       const confirmed = await this.$swalConfirm({
-        title: "",
-        text: ``,
+        title: "确认删除",
+        text: `您确定要删除选中的标签吗？`,
         icon: "warning",
       });
       if (confirmed) {
@@ -175,7 +175,7 @@ export default {
           const response = await this.$axios.post(`/tags/batchDelete`, ids);
           if (response.data.code === 200) {
             this.$swal.fire({
-              title: "",
+              title: "删除成功",
               text: response.data.msg,
               icon: "success",
               showConfirmButton: false,
@@ -200,7 +200,7 @@ export default {
       try {
         const response = await this.$axios.put("/tags/update", this.data);
         this.$swal.fire({
-          title: "",
+          title: "更新成功",
           text: response.data.msg,
           icon: response.data.code === 200 ? "success" : "error",
           showConfirmButton: false,
@@ -211,8 +211,8 @@ export default {
           this.fetchFreshData();
         }
       } catch (error) {
-        console.error("", error);
-        this.$message.error("");
+        console.error("更新标签失败：", error);
+        this.$message.error("更新失败");
       }
     },
     // 
@@ -227,8 +227,8 @@ export default {
           this.fetchFreshData();
         }
       } catch (error) {
-        console.error("", error);
-        this.$message.error("");
+        console.error("添加标签失败：", error);
+        this.$message.error("添加失败");
       }
     },
     async fetchFreshData() {

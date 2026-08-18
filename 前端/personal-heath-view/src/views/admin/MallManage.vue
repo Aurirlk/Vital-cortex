@@ -1,37 +1,37 @@
 <template>
   <div class="manage-container">
     <div class="manage-header">
-      <h2></h2>
-      <el-button type="primary" @click="showAddProduct = true"></el-button>
+      <h2>商城管理</h2>
+      <el-button type="primary" @click="showAddProduct = true">新增商品</el-button>
     </div>
 
     <div class="tabs">
-      <div class="tab" :class="{ active: activeTab === 'product' }" @click="activeTab = 'product'"></div>
-      <div class="tab" :class="{ active: activeTab === 'order' }" @click="activeTab = 'order'"></div>
-      <div class="tab" :class="{ active: activeTab === 'category' }" @click="activeTab = 'category'"></div>
+      <div class="tab" :class="{ active: activeTab === 'product' }" @click="activeTab = 'product'">商品管理</div>
+      <div class="tab" :class="{ active: activeTab === 'order' }" @click="activeTab = 'order'">订单管理</div>
+      <div class="tab" :class="{ active: activeTab === 'category' }" @click="activeTab = 'category'">分类管理</div>
     </div>
 
     <!--  -->
     <div v-if="activeTab === 'product'" class="tab-content">
       <el-table :data="products" stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="" />
-        <el-table-column prop="categoryName" label="" width="100" />
-        <el-table-column prop="price" label="" width="100" />
-        <el-table-column prop="stock" label="" width="80" />
-        <el-table-column prop="salesCount" label="" width="80" />
-        <el-table-column prop="status" label="" width="100">
+        <el-table-column prop="name" label="商品名称" />
+        <el-table-column prop="categoryName" label="分类" width="100" />
+        <el-table-column prop="price" label="价格" width="100" />
+        <el-table-column prop="stock" label="库存" width="80" />
+        <el-table-column prop="salesCount" label="销量" width="80" />
+        <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '' : '' }}</el-tag>
+            <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '已上架' : '已下架' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="" width="200">
+        <el-table-column label="操作" width="200">
           <template #default="{ row }">
-            <el-button size="small" @click="editProduct(row)"></el-button>
+            <el-button size="small" @click="editProduct(row)">编辑</el-button>
             <el-button size="small" :type="row.status === 1 ? 'warning' : 'success'" @click="toggleProduct(row)">
-              {{ row.status === 1 ? '' : '' }}
+              {{ row.status === 1 ? '下架' : '上架' }}
             </el-button>
-            <el-button size="small" type="danger" @click="deleteProduct(row.id)"></el-button>
+            <el-button size="small" type="danger" @click="deleteProduct(row.id)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -41,59 +41,59 @@
     <div v-if="activeTab === 'order'" class="tab-content">
       <el-table :data="orders" stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="orderNo" label="" width="180" />
-        <el-table-column prop="userName" label="" />
-        <el-table-column prop="totalAmount" label="" width="100" />
-        <el-table-column prop="status" label="" width="100">
+        <el-table-column prop="orderNo" label="订单号" width="180" />
+        <el-table-column prop="userName" label="用户" />
+        <el-table-column prop="totalAmount" label="金额" width="100" />
+        <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="['warning', 'primary', 'success', 'info', '', 'danger'][row.status]">
-              {{ ['', '', '', '', '', ''][row.status] }}
+              {{ ['待付款', '待发货', '待收货', '已完成', '已取消', '退款中'][row.status] }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="" width="180" />
+        <el-table-column prop="createTime" label="创建时间" width="180" />
       </el-table>
     </div>
 
     <!--  -->
     <div v-if="activeTab === 'category'" class="tab-content">
-      <el-button type="primary" @click="showAddCategory = true" style="margin-bottom: 16px"></el-button>
+      <el-button type="primary" @click="showAddCategory = true" style="margin-bottom: 16px">新增分类</el-button>
       <el-table :data="categories" stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="" />
-        <el-table-column prop="sortOrder" label="" width="80" />
+        <el-table-column prop="name" label="分类名称" />
+        <el-table-column prop="sortOrder" label="排序" width="80" />
       </el-table>
     </div>
 
     <!--  -->
-    <el-dialog v-model="showAddProduct" title="" width="600px">
+    <el-dialog v-model="showAddProduct" title="新增商品" width="600px">
       <el-form :model="productForm" label-width="80px">
-        <el-form-item label=""><el-input v-model="productForm.name" /></el-form-item>
-        <el-form-item label="">
+        <el-form-item label="商品名称"><el-input v-model="productForm.name" /></el-form-item>
+        <el-form-item label="商品分类">
           <el-select v-model="productForm.categoryId">
             <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label=""><el-input-number v-model="productForm.price" :min="0" :precision="2" /></el-form-item>
-        <el-form-item label=""><el-input-number v-model="productForm.stock" :min="0" /></el-form-item>
-        <el-form-item label=""><el-input v-model="productForm.description" type="textarea" /></el-form-item>
+        <el-form-item label="价格"><el-input-number v-model="productForm.price" :min="0" :precision="2" /></el-form-item>
+        <el-form-item label="库存"><el-input-number v-model="productForm.stock" :min="0" /></el-form-item>
+        <el-form-item label="商品描述"><el-input v-model="productForm.description" type="textarea" /></el-form-item>
         <el-form-item label="URL"><el-input v-model="productForm.cover" /></el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showAddProduct = false"></el-button>
-        <el-button type="primary" @click="saveProduct"></el-button>
+        <el-button @click="showAddProduct = false">取消</el-button>
+        <el-button type="primary" @click="saveProduct">保存</el-button>
       </template>
     </el-dialog>
 
     <!--  -->
-    <el-dialog v-model="showAddCategory" title="" width="400px">
+    <el-dialog v-model="showAddCategory" title="新增分类" width="400px">
       <el-form :model="categoryForm" label-width="80px">
-        <el-form-item label=""><el-input v-model="categoryForm.name" /></el-form-item>
-        <el-form-item label=""><el-input-number v-model="categoryForm.sortOrder" :min="0" /></el-form-item>
+        <el-form-item label="分类名称"><el-input v-model="categoryForm.name" /></el-form-item>
+        <el-form-item label="排序"><el-input-number v-model="categoryForm.sortOrder" :min="0" /></el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showAddCategory = false"></el-button>
-        <el-button type="primary" @click="saveCategory"></el-button>
+        <el-button @click="showAddCategory = false">取消</el-button>
+        <el-button type="primary" @click="saveCategory">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -137,8 +137,8 @@ export default {
         await request.post("mall/product/save", this.productForm);
         this.showAddProduct = false;
         this.loadAll();
-        this.$message.success("");
-      } catch (e) { this.$message.error(""); }
+        this.$message.success("保存成功");
+      } catch (e) { this.$message.error("保存失败"); }
     },
     editProduct(row) { this.productForm = { ...row }; this.showAddProduct = true; },
     async toggleProduct(row) {
@@ -154,8 +154,8 @@ export default {
         await request.post("mall/category/save", this.categoryForm);
         this.showAddCategory = false;
         this.loadAll();
-        this.$message.success("");
-      } catch (e) { this.$message.error(""); }
+        this.$message.success("保存成功");
+      } catch (e) { this.$message.error("保存失败"); }
     },
   },
 };

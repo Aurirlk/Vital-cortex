@@ -4,7 +4,7 @@
     <div class="operate-bar">
       <el-button type="primary" @click="showAddDialog">
         <el-icon><Plus /></el-icon>
-        
+        新增药品
       </el-button>
       <el-button type="success" @click="showImportDialog">
         <el-icon><Upload /></el-icon>
@@ -12,31 +12,31 @@
       </el-button>
       <el-input
         v-model="searchName"
-        placeholder=""
+        placeholder="搜索药品名称"
         style="width: 200px; margin-left: 16px"
         @keyup.enter="loadDrugs"
         clearable
       />
-      <el-select v-model="searchCategory" placeholder="" clearable @change="loadDrugs" style="width: 140px; margin-left: 16px">
-        <el-option label="" value="" />
-        <el-option label="" value="" />
-        <el-option label="" value="" />
-        <el-option label="" value="" />
-        <el-option label="" value="" />
-        <el-option label="" value="" />
-        <el-option label="" value="" />
-        <el-option label="" value="" />
+      <el-select v-model="searchCategory" placeholder="选择分类" clearable @change="loadDrugs" style="width: 140px; margin-left: 16px">
+        <el-option label="处方药" value="" />
+        <el-option label="非处方药" value="" />
+        <el-option label="中成药" value="" />
+        <el-option label="中药" value="" />
+        <el-option label="保健品" value="" />
+        <el-option label="医疗器械" value="" />
+        <el-option label="耗材" value="" />
+        <el-option label="其他" value="" />
       </el-select>
     </div>
 
     <!-- JSON -->
-    <el-dialog v-model="importDialogVisible" title="JSON" width="700px">
+    <el-dialog v-model="importDialogVisible" title="导入JSON" width="700px">
       <div style="margin-bottom: 16px">
         <el-alert type="info" :closable="false">
           <template #title>
             <div>
-              <p><strong></strong></p>
-              <p>1. JSON  2. JSON</p>
+              <p><strong>导入说明</strong></p>
+              <p>1. 上传 JSON 文件或粘贴 JSON 内容 2. 点击导入即可批量新增药品</p>
             </div>
           </template>
         </el-alert>
@@ -53,7 +53,7 @@
         >
           <el-button type="primary">
             <el-icon><Upload /></el-icon>
-            JSON
+            上传文件
           </el-button>
           <template #tip>
             <span style="margin-left: 12px; color: #999; font-size: 12px">
@@ -66,15 +66,15 @@
       <div style="margin-bottom: 16px; display: flex; gap: 8px">
         <el-button type="primary" size="small" @click="showTemplate">
           <el-icon><View /></el-icon>
-          
+          查看模板
         </el-button>
         <el-button type="success" size="small" @click="fillExample">
           <el-icon><DocumentCopy /></el-icon>
-          
+          填充示例
         </el-button>
         <el-button size="small" @click="downloadTemplate">
           <el-icon><Download /></el-icon>
-          
+          下载模板
         </el-button>
       </div>
       
@@ -85,54 +85,54 @@
         placeholder='JSON...'
       />
       <template #footer>
-        <el-button @click="importDialogVisible = false"></el-button>
+        <el-button @click="importDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleImport" :loading="importing">
-          
+          导入
         </el-button>
       </template>
     </el-dialog>
 
     <!-- JSON -->
-    <el-dialog v-model="templateDialogVisible" title="JSON" width="700px">
+    <el-dialog v-model="templateDialogVisible" title="JSON模板" width="700px">
       <pre class="json-template">{{ jsonTemplate }}</pre>
       <template #footer>
-        <el-button @click="copyTemplate"></el-button>
-        <el-button type="primary" @click="templateDialogVisible = false"></el-button>
+        <el-button @click="copyTemplate">复制模板</el-button>
+        <el-button type="primary" @click="templateDialogVisible = false">关闭</el-button>
       </template>
-    </el-dialog>
+      </el-dialog>
 
     <!--  -->
     <el-table :data="drugList" stripe v-loading="loading" style="margin-top: 16px">
       <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="name" label="" width="150" />
-      <el-table-column prop="category" label="" width="100" />
-      <el-table-column prop="price" label="" width="100">
+      <el-table-column prop="name" label="药品名称" width="150" />
+      <el-table-column prop="category" label="分类" width="100" />
+      <el-table-column prop="price" label="价格" width="100">
         <template #default="{ row }">
           <span style="color: #e74c3c; font-weight: bold">¥{{ row.price }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="unit" label="" width="60" />
-      <el-table-column prop="specification" label="" width="150" />
-      <el-table-column prop="manufacturer" label="" width="200" show-overflow-tooltip />
-      <el-table-column prop="isOtc" label="" width="80">
+      <el-table-column prop="unit" label="单位" width="60" />
+      <el-table-column prop="specification" label="规格" width="150" />
+      <el-table-column prop="manufacturer" label="生产厂家" width="200" show-overflow-tooltip />
+      <el-table-column prop="isOtc" label="OTC" width="80">
         <template #default="{ row }">
           <el-tag :type="row.isOtc ? 'success' : 'warning'" size="small">
-            {{ row.isOtc ? 'OTC' : '' }}
+            {{ row.isOtc ? 'OTC' : '处方药' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="stock" label="" width="80" />
-      <el-table-column prop="status" label="" width="80">
+      <el-table-column prop="stock" label="库存" width="80" />
+      <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }">
           <el-tag :type="row.status ? 'success' : 'danger'" size="small">
-            {{ row.status ? '' : '' }}
+            {{ row.status ? '在售' : '下架' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="" width="200" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
-          <el-button type="primary" size="small" @click="showEditDialog(row)"></el-button>
-          <el-button type="danger" size="small" @click="deleteDrug(row)"></el-button>
+          <el-button type="primary" size="small" @click="showEditDialog(row)">编辑</el-button>
+          <el-button type="danger" size="small" @click="deleteDrug(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -149,47 +149,47 @@
     </div>
 
     <!-- / -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '' : ''" width="600px">
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑药品' : '新增药品'" width="600px">
       <el-form :model="form" label-width="100px">
-        <el-form-item label="" required>
-          <el-input v-model="form.name" placeholder="" />
+        <el-form-item label="药品名称" required>
+          <el-input v-model="form.name" placeholder="请输入药品名称" />
         </el-form-item>
-        <el-form-item label="">
-          <el-input v-model="form.genericName" placeholder="" />
+        <el-form-item label="通用名">
+          <el-input v-model="form.genericName" placeholder="请输入通用名" />
         </el-form-item>
-        <el-form-item label="" required>
-          <el-select v-model="form.category" placeholder="">
-            <el-option label="" value="" />
-            <el-option label="" value="" />
-            <el-option label="" value="" />
-            <el-option label="" value="" />
-            <el-option label="" value="" />
-            <el-option label="" value="" />
-            <el-option label="" value="" />
+        <el-form-item label="分类" required>
+          <el-select v-model="form.category" placeholder="请选择分类">
+            <el-option label="处方药" value="" />
+            <el-option label="非处方药" value="" />
+            <el-option label="中成药" value="" />
+            <el-option label="中药" value="" />
+            <el-option label="保健品" value="" />
+            <el-option label="医疗器械" value="" />
+            <el-option label="其他" value="" />
           </el-select>
         </el-form-item>
-        <el-form-item label="" required>
+        <el-form-item label="价格" required>
           <el-input-number v-model="form.price" :min="0" :precision="2" />
         </el-form-item>
-        <el-form-item label="">
-          <el-input v-model="form.unit" placeholder="//" style="width: 120px" />
+        <el-form-item label="单位">
+          <el-input v-model="form.unit" placeholder="如：盒/瓶/片" style="width: 120px" />
         </el-form-item>
-        <el-form-item label="">
+        <el-form-item label="规格">
           <el-input v-model="form.specification" placeholder="0.5g×24" />
         </el-form-item>
-        <el-form-item label="">
-          <el-input v-model="form.manufacturer" placeholder="" />
+        <el-form-item label="生产厂家">
+          <el-input v-model="form.manufacturer" placeholder="请输入生产厂家" />
         </el-form-item>
         <el-form-item label="OTC">
           <el-switch v-model="form.isOtc" />
         </el-form-item>
-        <el-form-item label="">
+        <el-form-item label="库存">
           <el-input-number v-model="form.stock" :min="0" />
         </el-form-item>
-        <el-form-item label="">
-          <el-input v-model="form.description" type="textarea" :rows="4" placeholder="" />
+        <el-form-item label="药品说明">
+          <el-input v-model="form.description" type="textarea" :rows="4" placeholder="请输入药品说明" />
         </el-form-item>
-        <el-form-item label="">
+        <el-form-item label="药品图片">
           <el-upload
             class="avatar-uploader"
             :action="$uploadUrl"
@@ -203,8 +203,8 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false"></el-button>
-        <el-button type="primary" @click="submitForm" :loading="submitting"></el-button>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitForm" :loading="submitting">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -314,7 +314,7 @@ export default {
     },
     async submitForm() {
       if (!this.form.name || !this.form.category || this.form.price === undefined) {
-        this.$message.warning("");
+        this.$message.warning("请填写药品名称、分类和价格");
         return;
       }
       this.submitting = true;
@@ -323,12 +323,12 @@ export default {
         const method = this.isEdit ? "put" : "post";
         const res = await this.$axios[method](url, this.form);
         if (res.data.code === 200) {
-          this.$message.success(this.isEdit ? "" : "");
+          this.$message.success(this.isEdit ? "编辑成功" : "新增成功");
           this.dialogVisible = false;
           this.loadDrugs();
         }
       } catch (e) {
-        this.$message.error("");
+        this.$message.error("保存失败");
       } finally {
         this.submitting = false;
       }
@@ -336,22 +336,22 @@ export default {
     async deleteDrug(drug) {
       try {
         const result = await this.$swal.fire({
-          title: "",
-          text: `${drug.name}`,
+          title: "确认删除",
+          text: `确定要删除药品「${drug.name}」吗？`,
           icon: "warning",
           showCancelButton: true,
           confirmButtonColor: "#e74c3c",
-          confirmButtonText: "",
-          cancelButtonText: "",
+          confirmButtonText: "删除",
+          cancelButtonText: "取消",
         });
         if (!result.isConfirmed) return;
         const res = await this.$axios.post("/drug/batchDelete", [drug.id]);
         if (res.data.code === 200) {
-          this.$message.success("");
+          this.$message.success("删除成功");
           this.loadDrugs();
         }
       } catch (e) {
-        this.$message.error("");
+        this.$message.error("删除失败");
       }
     },
     showImportDialog() {
@@ -368,9 +368,9 @@ export default {
           // JSON
           JSON.parse(content);
           this.importJson = content;
-          this.$message.success("");
+          this.$message.success("文件解析成功");
         } catch {
-          this.$message.error("JSON");
+          this.$message.error("JSON格式错误，请检查文件内容");
         }
       };
       reader.readAsText(file.raw);
@@ -383,9 +383,9 @@ export default {
     },
     copyTemplate() {
       navigator.clipboard.writeText(this.jsonTemplate).then(() => {
-        this.$message.success("");
+        this.$message.success("已复制到剪贴板");
       }).catch(() => {
-        this.$message.error("");
+        this.$message.error("复制失败");
       });
     },
     downloadTemplate() {
@@ -393,7 +393,7 @@ export default {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = ".json";
+      a.download = "药品模板.json";
       a.click();
       URL.revokeObjectURL(url);
     },
@@ -423,7 +423,7 @@ export default {
             failCount++;
           }
         }
-        this.$message.success(`${successCount}${failCount}`);
+        this.$message.success(`导入完成：成功 ${successCount} 条，失败 ${failCount} 条`);
         this.importDialogVisible = false;
         this.loadDrugs();
       } catch (e) {

@@ -2,12 +2,12 @@
   <div class="ai-doctor-manage">
     <div class="page-header">
       <div class="page-header-left">
-        <h2>AI</h2>
-        <span class="subtitle">AI</span>
+      <h2>AI 医生管理</h2>
+      <span class="subtitle">AI 医生诊断与配置管理</span>
       </div>
       <el-button type="warning" @click="resetAllConfigs" :loading="resettingAll">
         <el-icon><RefreshRight /></el-icon>
-        
+        重置全部配置
       </el-button>
     </div>
 
@@ -43,23 +43,23 @@
         <div class="config-editor-actions">
           <el-button @click="resetConfig" :loading="resetting">
             <el-icon><RefreshRight /></el-icon>
-            
+            重置
           </el-button>
           <el-button type="primary" @click="saveConfig" :loading="saving">
             <el-icon><Check /></el-icon>
-            
+            保存
           </el-button>
         </div>
       </div>
 
       <div class="config-form">
         <div class="config-section">
-          <label class="config-label"> (System Prompt)</label>
+          <label class="config-label">系统提示词 (System Prompt)</label>
           <el-input
             v-model="editForm.systemPrompt"
             type="textarea"
             :rows="12"
-            placeholder="..."
+            placeholder="请输入系统提示词"
           />
         </div>
 
@@ -67,7 +67,7 @@
           <div class="config-section config-section--half">
             <label class="config-label">
               Temperature
-              <el-tooltip content="" placement="top">
+              <el-tooltip content="控制生成随机性，值越高输出越多样" placement="top">
                 <el-icon><QuestionFilled /></el-icon>
               </el-tooltip>
             </label>
@@ -83,7 +83,7 @@
           <div class="config-section config-section--half">
             <label class="config-label">
               Top-P
-              <el-tooltip content="" placement="top">
+              <el-tooltip content="核采样阈值，控制候选词输出范围" placement="top">
                 <el-icon><QuestionFilled /></el-icon>
               </el-tooltip>
             </label>
@@ -99,7 +99,7 @@
       </div>
     </div>
 
-    <el-empty v-else description="AI" />
+    <el-empty v-else description="请选择 AI 医生进行配置" />
   </div>
 </template>
 
@@ -143,7 +143,7 @@ export default {
         }
       } catch (e) {
         console.error("AI", e);
-        this.$message.error("");
+        this.$message.error("加载 AI 配置失败");
       } finally {
         this.loading = false;
       }
@@ -159,14 +159,14 @@ export default {
     },
     async saveConfig() {
       if (!this.editForm.systemPrompt.trim()) {
-        this.$message.warning("");
+        this.$message.warning("请输入系统提示词");
         return;
       }
       this.saving = true;
       try {
         const res = await this.$axios.put(`/ai/config/${this.selectedDoctor}`, this.editForm);
         if (res.data.code === 200) {
-          this.$message.success("");
+          this.$message.success("保存成功");
           // 
           const idx = this.doctorList.findIndex(d => d.key === this.selectedDoctor);
           if (idx !== -1) {
@@ -186,21 +186,21 @@ export default {
     },
     async resetConfig() {
       const { value: password } = await this.$swal.fire({
-        title: "",
+        title: "确认重置配置",
         html: `<p style="margin-bottom:12px"> <b>${this.currentConfig.name}</b> </p>`,
         input: "password",
-        inputLabel: "",
-        inputPlaceholder: "",
+        inputLabel: "管理员密码",
+        inputPlaceholder: "请输入管理员密码",
         inputAttributes: {
           autocapitalize: "off",
           autocorrect: "off"
         },
         showCancelButton: true,
-        confirmButtonText: "",
-        cancelButtonText: "",
+        confirmButtonText: "确认重置",
+        cancelButtonText: "取消",
         confirmButtonColor: "#667eea",
         inputValidator: (value) => {
-          if (!value) return "";
+          if (!value) return "请输入密码";
         }
       });
 
@@ -212,8 +212,8 @@ export default {
         if (res.data.code === 200) {
           this.$swal.fire({
             icon: "success",
-            title: "",
-            text: `${this.currentConfig.name} `,
+            title: "重置成功",
+            text: `${this.currentConfig.name} 已重置为默认配置`,
             timer: 1500,
             showConfirmButton: false
           });
@@ -223,14 +223,14 @@ export default {
         } else {
           this.$swal.fire({
             icon: "error",
-            title: "",
+            title: "重置失败",
             text: res.data.message || ""
           });
         }
       } catch (e) {
         this.$swal.fire({
           icon: "error",
-          title: "",
+          title: "重置失败",
           text: e.response?.data?.message || ""
         });
       } finally {
@@ -239,21 +239,21 @@ export default {
     },
     async resetAllConfigs() {
       const { value: password } = await this.$swal.fire({
-        title: "",
+        title: "确认重置全部配置",
         html: `<p style="margin-bottom:12px"> <b>AI</b> </p>`,
         input: "password",
-        inputLabel: "",
-        inputPlaceholder: "",
+        inputLabel: "管理员密码",
+        inputPlaceholder: "请输入管理员密码",
         inputAttributes: {
           autocapitalize: "off",
           autocorrect: "off"
         },
         showCancelButton: true,
-        confirmButtonText: "",
-        cancelButtonText: "",
+        confirmButtonText: "确认重置",
+        cancelButtonText: "取消",
         confirmButtonColor: "#e6a23c",
         inputValidator: (value) => {
-          if (!value) return "";
+          if (!value) return "请输入密码";
         }
       });
 
@@ -265,8 +265,8 @@ export default {
         if (res.data.code === 200) {
           this.$swal.fire({
             icon: "success",
-            title: "",
-            text: "",
+            title: "重置成功",
+            text: "已全部重置为默认配置",
             timer: 1500,
             showConfirmButton: false
           });
@@ -278,14 +278,14 @@ export default {
         } else {
           this.$swal.fire({
             icon: "error",
-            title: "",
+            title: "重置失败",
             text: res.data.message || ""
           });
         }
       } catch (e) {
         this.$swal.fire({
           icon: "error",
-          title: "",
+          title: "重置失败",
           text: e.response?.data?.message || ""
         });
       } finally {

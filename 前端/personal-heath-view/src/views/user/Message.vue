@@ -3,7 +3,7 @@
     <div style="line-height: 70px; padding: 0 50px">
       <el-row>
         <el-col :span="6">
-          <Logo sysName="" />
+          <Logo sysName="智康云健康管理系统" />
         </el-col>
         <el-col :span="18">
           <span
@@ -27,7 +27,7 @@
     <div style="padding: 10px 50px">
       <div>
         <p style="font-size: 16px; padding: 10px 0">
-          
+          消息中心
           <span @click="clearMessage" class="clear-message">
             <el-icon><Open /></el-icon>
           </span>
@@ -111,8 +111,8 @@ export default {
     // 
     async clearMessage() {
       const confirmed = await this.$swalConfirm({
-        title: "",
-        text: ``,
+        title: "清空消息",
+        text: `确定要清空所有消息吗？`,
         icon: "warning",
       });
       if (confirmed) {
@@ -152,7 +152,7 @@ export default {
         const { data } = response;
         if (data.code === 200) {
           this.messageTypes = data.data;
-          const messageType = { type: null, detail: "" };
+          const messageType = { type: null, detail: "全部" };
           this.messageTypes.unshift(messageType);
           this.messageTypes.map((entity) => (entity.isCheck = false));
         }

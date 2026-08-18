@@ -6,7 +6,7 @@
           size="small"
           style="width: 188px; margin-left: 5px; margin-right: 6px"
           v-model="healthModelConfigQueryDto.name"
-          placeholder=""
+          placeholder="请输入指标名称"
           clearable
           @clear="handleFilterClear"
         >
@@ -38,7 +38,7 @@
         :data="tableData"
         style="width: 100%"
       >
-        <el-table-column prop="cover" width="80" label="">
+        <el-table-column prop="cover" width="80" label="图标">
           <template #default="{ row }">
             <img
               :src="row.cover"
@@ -46,33 +46,33 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="name" width="218" label=""></el-table-column>
-        <el-table-column prop="isGlobal" label="" width="128">
+        <el-table-column prop="name" width="218" label="指标名称"></el-table-column>
+        <el-table-column prop="isGlobal" label="适用范围" width="128">
           <template #default="{ row }">
-            <span>{{ row.isGlobal ? "" : "" }}</span>
+            <span>{{ row.isGlobal ? "全局" : "个人" }}</span>
           </template>
         </el-table-column>
         <el-table-column
           prop="userName"
           width="108"
-          label=""
+          label="创建人"
         ></el-table-column>
         <el-table-column
           prop="valueRange"
           width="128"
-          label=""
+          label="正常范围"
         ></el-table-column>
-        <el-table-column prop="unit" width="88" label=""></el-table-column>
+        <el-table-column prop="unit" width="88" label="单位"></el-table-column>
         <el-table-column
           prop="symbol"
           width="88"
-          label=""
+          label="符号"
         ></el-table-column>
-        <el-table-column prop="detail" label=""></el-table-column>
-        <el-table-column label="" width="120">
+        <el-table-column prop="detail" label="描述"></el-table-column>
+        <el-table-column label="操作" width="120">
           <template #default="{ row }">
-            <span class="text-button" @click="handleEdit(row)"></span>
-            <span class="text-button" @click="handleDelete(row)"></span>
+            <span class="text-button" @click="handleEdit(row)">编辑</span>
+            <span class="text-button" @click="handleDelete(row)">删除</span>
           </template>
         </el-table-column>
       </el-table>
@@ -89,7 +89,7 @@
       <template #title>
         <div>
           <p class="dialog-title">
-            {{ !isOperation ? "" : "" }}
+            {{ !isOperation ? "新增健康指标" : "编辑健康指标" }}
           </p>
         </div>
       </template>
@@ -117,14 +117,14 @@
           <p>
             <span class="modelName">*</span>
           </p>
-          <input class="input-title" v-model="data.name" placeholder="" />
+          <input class="input-title" v-model="data.name" placeholder="请输入指标名称" />
         </el-row>
         <!--  -->
         <el-row style="padding: 0 10px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
             <span class="modelName">*</span>
           </p>
-          <input class="input-title" v-model="data.unit" placeholder="" />
+          <input class="input-title" v-model="data.unit" placeholder="请输入单位" />
         </el-row>
         <!--  -->
         <el-row style="padding: 0 10px 0 0">
@@ -134,7 +134,7 @@
           <input
             class="input-title"
             v-model="data.symbol"
-            placeholder=""
+            placeholder="请输入符号"
           />
         </el-row>
         <!-- -->
@@ -145,7 +145,7 @@
           <input
             class="input-title"
             v-model="data.valueRange"
-            placeholder=""
+            placeholder="请输入正常范围"
           />
         </el-row>
         <!-- -->
@@ -156,7 +156,7 @@
           <el-input
             type="textarea"
             :autosize="{ minRows: 2, maxRows: 3 }"
-            placeholder=""
+            placeholder="请输入指标描述"
             v-model="data.detail"
           >
           </el-input>
@@ -171,7 +171,7 @@
             class="customer"
             type="info"
             @click="addOperation"
-            ></el-button
+            >新增</el-button
           >
           <el-button
             size="small"
@@ -180,14 +180,14 @@
             class="customer"
             type="info"
             @click="updateOperation"
-            ></el-button
+            >修改</el-button
           >
           <el-button
             class="customer"
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="cannel()"
-            ></el-button
+            >取消</el-button
           >
         </span>
       </template>
@@ -229,8 +229,8 @@ export default {
     handleAvatarSuccess(res, file) {
       this.$notify({
         duration: 2000,
-        title: "",
-        message: res.code === 200 ? "" : "",
+        title: "上传结果",
+        message: res.code === 200 ? "封面上传成功" : "封面上传失败",
         type: res.code === 200 ? "success" : "error",
       });
       this.data.cover = res.data;
@@ -242,12 +242,12 @@ export default {
     // 
     async batchDelete() {
       if (!this.selectedRows.length) {
-        this.$message(``);
+        this.$message(`请选择要删除的指标`);
         return;
       }
       const confirmed = await this.$swalConfirm({
-        title: "",
-        text: ``,
+        title: "确认删除",
+        text: `您确定要删除选中的健康指标吗？`,
         icon: "warning",
       });
       if (confirmed) {
@@ -260,8 +260,8 @@ export default {
           if (response.data.code === 200) {
             this.$notify({
               duration: 2000,
-              title: "",
-              message: "",
+              title: "删除成功",
+              message: "健康指标删除成功",
               type: "success",
             });
             this.fetchFreshData();
@@ -287,8 +287,8 @@ export default {
             this.fetchFreshData();
             this.$notify({
               duration: 2000,
-              title: "",
-              message: "",
+              title: "更新成功",
+              message: "健康指标更新成功",
               type: "success",
             });
           }
@@ -313,8 +313,8 @@ export default {
             this.fetchFreshData();
             this.$notify({
               duration: 2000,
-              title: "",
-              message: "",
+              title: "添加成功",
+              message: "健康指标添加成功",
               type: "success",
             });
           }

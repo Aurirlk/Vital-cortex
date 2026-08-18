@@ -308,8 +308,8 @@ export default {
   methods: {
     async clearData() {
       const confirmed = await this.$swalConfirm({
-        title: "",
-        text: `,`,
+        title: "清空已选指标",
+        text: `确定要清空已选指标吗？`,
         icon: "warning",
       });
       if (confirmed) {
@@ -333,8 +333,8 @@ export default {
             this.isOperation = false;
             this.data = {};
             this.$swal.fire({
-              title: "",
-              text: "",
+              title: "更新成功",
+              text: "指标更新成功",
               icon: "success",
               showConfirmButton: false,
               timer: 1000,
@@ -353,8 +353,8 @@ export default {
     // 
     async deleteModel(model) {
       const confirmed = await this.$swalConfirm({
-        title: "" + model.name + "",
-        text: ``,
+        title: "删除指标 " + model.name,
+        text: `确定要删除该指标吗？`,
         icon: "warning",
       });
       if (confirmed) {
@@ -367,8 +367,8 @@ export default {
             const { data } = response;
             if (data.code === 200) {
               this.$swal.fire({
-                title: "",
-                text: "",
+                title: "删除成功",
+                text: "指标已删除",
                 icon: "success",
                 showConfirmButton: false,
                 timer: 1000,
@@ -398,8 +398,8 @@ export default {
         const { data } = response;
         if (data.code === 200) {
           this.$notify({
-            title: "",
-            message: "",
+            title: "保存成功",
+            message: "健康数据已保存",
             type: "success",
           });
           // 
@@ -427,10 +427,10 @@ export default {
     },
     handleAvatarSuccess(res, file) {
       if (res.code !== 200) {
-        this.$message.error(``);
+        this.$message.error(`封面上传失败`);
         return;
       }
-      this.$message.success(``);
+      this.$message.success(`封面上传成功`);
       this.data.cover = res.data;
     },
     getUser() {
@@ -455,7 +455,7 @@ export default {
         }
       } catch (error) {
         console.error(":", error);
-        this.$message.error("");
+        this.$message.error("新增指标失败");
       }
     },
     addModel() {

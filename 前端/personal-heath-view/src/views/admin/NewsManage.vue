@@ -7,7 +7,7 @@
             @change="changeNewsTag"
             size="default"
             v-model="newsQueryDto.tagId"
-            placeholder=""
+            placeholder="请选择标签"
             style="width: 100%"
           >
             <el-option
@@ -25,9 +25,9 @@
             style="width: 100%"
             v-model="searchTime"
             type="daterange"
-            range-separator=""
-            start-placeholder=""
-            end-placeholder=""
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
           >
           </el-date-picker>
         </el-col>
@@ -35,9 +35,9 @@
           <el-input
             size="default"
             style="width: 100%"
-            v-model="newsQueryDto.name"
-            placeholder=""
-            clearable
+          v-model="newsQueryDto.name"
+          placeholder="请输入资讯标题"
+          clearable
             @clear="handleFilterClear"
           >
             <template #append
@@ -75,7 +75,7 @@
         :data="tableData"
         style="width: 100%"
       >
-        <el-table-column prop="cover" width="80" label="">
+        <el-table-column prop="cover" width="80" label="封面">
           <template #default="{ row }">
             <img
               :src="row.cover"
@@ -83,7 +83,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="tagName" width="138" label="">
+        <el-table-column prop="tagName" width="138" label="标签">
           <template #default="{ row }">
             <span
               ><el-icon style="margin-right: 3px"><Discount /></el-icon>
@@ -91,7 +91,7 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="isTop" width="128" label="">
+        <el-table-column prop="isTop" width="128" label="置顶状态">
           <template #default="{ row }">
             <el-icon v-if="!row.isTop" style="margin-right: 5px"
               ><Warning
@@ -103,7 +103,7 @@
               v-if="!row.isTop"
               class="item"
               effect="dark"
-              content=""
+              content="未置顶"
               placement="bottom-end"
             >
               <span
@@ -112,29 +112,29 @@
                   text-decoration: underline;
                   text-decoration-style: dashed;
                 "
-                ></span
+                >未置顶</span
               >
             </el-tooltip>
-            <span v-else></span>
+            <span v-else>已置顶</span>
           </template>
         </el-table-column>
-        <el-table-column prop="isBanner" width="128" label="">
+        <el-table-column prop="isBanner" width="128" label="Banner展示">
           <template #default="{ row }">
             <el-tag :type="row.isBanner ? 'success' : 'info'" size="small">
-              {{ row.isBanner ? '' : '' }}
+              {{ row.isBanner ? '展示中' : '未展示' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column
           prop="createTime"
           width="168"
-          label=""
+          label="创建时间"
         ></el-table-column>
-        <el-table-column prop="name" label=""></el-table-column>
-        <el-table-column label="" width="120">
+        <el-table-column prop="name" label="资讯标题"></el-table-column>
+        <el-table-column label="操作" width="120">
           <template #default="{ row }">
-            <span class="text-button" @click="handleEdit(row)"></span>
-            <span class="text-button" @click="handleDelete(row)"></span>
+            <span class="text-button" @click="handleEdit(row)">编辑</span>
+            <span class="text-button" @click="handleDelete(row)">删除</span>
           </template>
         </el-table-column>
       </el-table>
@@ -151,7 +151,7 @@
       <template #title>
         <div>
           <p class="dialog-title">
-            {{ !isOperation ? "" : "" }}
+            {{ !isOperation ? "新增资讯" : "编辑资讯" }}
           </p>
         </div>
       </template>
@@ -178,7 +178,7 @@
               size="small"
               style="margin-top: 90px"
               @click="showDefaultCoverDialog = true"
-            ></el-button>
+            >选择默认封面</el-button>
           </div>
         </el-row>
         <!--  -->
@@ -188,13 +188,13 @@
             style="font-size: 32px; line-height: 45px"
             class="dialog-input"
             v-model="data.name"
-            placeholder=""
+            placeholder="请输入资讯标题"
           />
         </el-row>
         <!--  -->
         <el-row style="margin: 12px 0">
           <el-row>
-            <span class="dialog-hover"></span>
+            <span class="dialog-hover">标签</span>
           </el-row>
           <el-radio-group style="margin-top: 10px" v-model="data.tagId">
             <el-radio
@@ -208,7 +208,7 @@
         <!--  -->
         <el-row style="margin: 12px 0">
           <el-row>
-            <span class="dialog-hover"></span>
+            <span class="dialog-hover">置顶</span>
           </el-row>
           <el-switch
             style="user-select: none; padding: 0 6px"
@@ -221,7 +221,7 @@
         <!--  -->
         <el-row style="margin: 12px 0">
           <el-row>
-            <span class="dialog-hover"></span>
+            <span class="dialog-hover">Banner展示</span>
           </el-row>
           <el-switch
             style="user-select: none; padding: 0 6px"
@@ -253,7 +253,7 @@
             class="customer"
             type="info"
             @click="addOperation()"
-            ></el-button
+            >新增</el-button
           >
           <el-button
             size="small"
@@ -266,20 +266,20 @@
             class="customer"
             type="info"
             @click="updateOperation()"
-            ></el-button
+            >修改</el-button
           >
           <el-button
             class="customer"
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="dialogUserOperaion = false"
-            ></el-button
+            >取消</el-button
           >
         </span>
       </template>
     </el-dialog>
     <!--  -->
-    <el-dialog v-model="showDefaultCoverDialog" title="" width="600px">
+    <el-dialog v-model="showDefaultCoverDialog" title="选择默认封面" width="600px">
       <div style="display: flex; flex-wrap: wrap; gap: 12px; padding: 10px">
         <div
           v-for="(cover, index) in defaultCovers"
@@ -292,8 +292,8 @@
         </div>
       </div>
       <template #footer>
-        <el-button @click="showDefaultCoverDialog = false"></el-button>
-        <el-button type="primary" @click="showDefaultCoverDialog = false"></el-button>
+        <el-button @click="showDefaultCoverDialog = false">取消</el-button>
+        <el-button type="primary" @click="showDefaultCoverDialog = false">确定</el-button>
       </template>
     </el-dialog>
   </el-row>
@@ -322,12 +322,12 @@ export default {
       tagsList: [],
       showDefaultCoverDialog: false,
       defaultCovers: [
-        { name: "", url: "https://picsum.photos/seed/health1/400/250" },
-        { name: "", url: "https://picsum.photos/seed/health2/400/250" },
-        { name: "", url: "https://picsum.photos/seed/health3/400/250" },
-        { name: "", url: "https://picsum.photos/seed/health4/400/250" },
-        { name: "", url: "https://picsum.photos/seed/health5/400/250" },
-        { name: "", url: "https://picsum.photos/seed/health6/400/250" },
+        { name: "封面1", url: "https://picsum.photos/seed/health1/400/250" },
+        { name: "封面2", url: "https://picsum.photos/seed/health2/400/250" },
+        { name: "封面3", url: "https://picsum.photos/seed/health3/400/250" },
+        { name: "封面4", url: "https://picsum.photos/seed/health4/400/250" },
+        { name: "封面5", url: "https://picsum.photos/seed/health5/400/250" },
+        { name: "封面6", url: "https://picsum.photos/seed/health6/400/250" },
       ],
     };
   },
@@ -357,17 +357,17 @@ export default {
         const { data } = response;
         if (data.code === 200) {
           this.tagsList = data.data;
-          this.tagsList.unshift({ name: "", id: null });
+          this.tagsList.unshift({ name: "全部", id: null });
         }
       });
     },
     handleAvatarSuccess(res, file) {
       if (res.code !== 200) {
-        this.$message.error(``);
+        this.$message.error(`封面上传失败`);
         return;
       }
       this.data.cover = "";
-      this.$message.success(``);
+      this.$message.success(`封面上传成功`);
       this.data.cover = res.data;
     },
     // 
@@ -377,12 +377,12 @@ export default {
     // 
     async batchDelete() {
       if (!this.selectedRows.length) {
-        this.$message(``);
+        this.$message(`请选择要删除的资讯`);
         return;
       }
       const confirmed = await this.$swalConfirm({
-        title: "",
-        text: ``,
+        title: "确认删除",
+        text: `您确定要删除选中的资讯吗？`,
         icon: "warning",
       });
       if (confirmed) {
@@ -391,7 +391,7 @@ export default {
           const response = await this.$axios.post(`/news/batchDelete`, ids);
           if (response.data.code === 200) {
             this.$swal.fire({
-              title: "",
+              title: "删除成功",
               text: response.data.msg,
               icon: "success",
               showConfirmButton: false,
@@ -402,7 +402,7 @@ export default {
           }
         } catch (e) {
           this.$swal.fire({
-            title: "",
+            title: "删除失败",
             text: e,
             icon: "error",
             showConfirmButton: false,
@@ -422,7 +422,7 @@ export default {
       try {
         const response = await this.$axios.put("/news/update", this.data);
         this.$swal.fire({
-          title: "",
+          title: "更新成功",
           text: response.data.msg,
           icon: response.data.code === 200 ? "success" : "error",
           showConfirmButton: false,
@@ -434,8 +434,8 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
-        console.error("", error);
-        this.$message.error("");
+        console.error("更新资讯失败：", error);
+        this.$message.error("更新失败");
       }
     },
     // 
@@ -451,8 +451,8 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
-        console.error("", error);
-        this.$message.error("");
+        console.error("添加资讯失败：", error);
+        this.$message.error("添加失败");
       }
     },
     closeDialog() {

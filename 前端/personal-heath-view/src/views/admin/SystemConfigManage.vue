@@ -3,27 +3,27 @@
     <!--  -->
     <el-dialog
       v-model="passwordDialogVisible"
-      title=""
+      title="安全验证"
       width="400px"
       :close-on-click-modal="false"
       :close-on-press-escape="false"
       :show-close="false"
     >
       <el-form :model="passwordForm" label-width="80px">
-        <el-form-item label="">
+        <el-form-item label="管理员密码">
           <el-input
             v-model="passwordForm.password"
             type="password"
-            placeholder=""
+            placeholder="请输入管理员密码"
             show-password
             @keyup.enter="verifyPassword"
           />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="cancelPasswordDialog"></el-button>
+        <el-button @click="cancelPasswordDialog">取消</el-button>
         <el-button type="primary" @click="verifyPassword" :loading="verifying">
-          
+          验证
         </el-button>
       </template>
     </el-dialog>
@@ -31,13 +31,13 @@
     <!--  -->
     <div class="page-header">
       <div class="page-header-left">
-        <h2></h2>
-        <span class="subtitle"></span>
+        <h2>系统配置</h2>
+        <span class="subtitle">管理系统各项运行参数与 AI 能力</span>
       </div>
       <div class="page-header-actions">
         <el-button type="warning" @click="resetAllConfigs" :loading="resettingAll">
           <el-icon><RefreshRight /></el-icon>
-          
+          重置全部配置
         </el-button>
       </div>
     </div>
@@ -45,7 +45,7 @@
     <!--  -->
     <el-tabs v-model="mainTab" type="border-card" @tab-change="handleMainTabChange">
       <!-- ============  ============ -->
-      <el-tab-pane label="" name="system">
+      <el-tab-pane label="系统参数" name="system">
         <el-tabs v-model="systemGroup" tab-position="left" @tab-change="handleSystemGroupChange">
           <el-tab-pane
             v-for="(configs, group) in systemConfigGroups"
@@ -57,7 +57,7 @@
               <span class="group-title">{{ getGroupLabel(group) }}</span>
               <el-button type="primary" size="small" @click="saveSystemConfig(group)" :loading="saving">
                 <el-icon><Check /></el-icon>
-                
+                保存配置
               </el-button>
             </div>
 
@@ -89,7 +89,7 @@
                   <el-input
                     v-model="editSystemConfigs[group][config.key]"
                     :type="showPasswordMap[config.key] ? 'text' : 'password'"
-                    placeholder=""
+                    placeholder="请输入敏感配置值"
                     style="width: 400px"
                   >
                     <template #append>
@@ -101,7 +101,7 @@
                   </el-input>
                   <span class="sensitive-tip">
                     <el-icon><Warning /></el-icon>
-                    
+                    敏感信息，请妥善保管
                   </span>
                 </div>
 
@@ -126,11 +126,11 @@
       <el-tab-pane label="LLM" name="ai">
         <el-tabs v-model="aiTab" @tab-change="handleAiTabChange">
           <!-- AI -->
-          <el-tab-pane label="" name="provider">
+          <el-tab-pane label="AI 服务商" name="provider">
             <el-form :model="aiConfig" label-width="140px" class="config-form">
               <el-divider content-position="left">AI</el-divider>
               
-              <el-form-item label="">
+              <el-form-item label="服务商">
                 <el-select 
                   v-model="aiConfig.provider" 
                   style="width: 100%"
@@ -178,7 +178,7 @@
                 />
               </el-form-item>
               
-              <el-form-item label="">
+              <el-form-item label="聊天模型">
                 <el-select v-model="aiConfig.chat.model" style="width: 100%" allow-create filterable>
                   <el-option 
                     v-for="model in currentProvider.models" 
@@ -199,7 +199,7 @@
                 />
               </el-form-item>
               
-              <el-form-item label="">
+              <el-form-item label="推理模型">
                 <el-select v-model="aiConfig.reasoner.model" style="width: 100%" allow-create filterable>
                   <el-option 
                     v-for="model in currentProvider.models" 
@@ -220,7 +220,7 @@
                 />
               </el-form-item>
               
-              <el-form-item label="">
+              <el-form-item label="Embedding 模型">
                 <el-input 
                   v-model="aiConfig.embedding.model" 
                   placeholder="Embedding"
@@ -256,7 +256,7 @@
                 />
               </el-form-item>
               
-              <el-form-item label="">
+              <el-form-item label="最大历史轮数">
                 <el-input-number 
                   v-model="aiConfig.common.maxHistoryRounds" 
                   :min="1" 
@@ -277,17 +277,17 @@
           </el-tab-pane>
 
           <!--  -->
-          <el-tab-pane label="" name="websearch">
+          <el-tab-pane label="联网搜索" name="websearch">
             <el-form :model="aiConfig" label-width="140px" class="config-form">
               <el-divider content-position="left"></el-divider>
               
-              <el-form-item label="">
+              <el-form-item label="启用联网搜索">
                 <el-switch v-model="aiConfig.webSearch.enabled" />
               </el-form-item>
               
-              <el-form-item label="">
+              <el-form-item label="搜索服务">
                 <el-select v-model="aiConfig.webSearch.provider" style="width: 100%">
-                  <el-option label="" value="auto" />
+                  <el-option label="自动" value="auto" />
                   <el-option label="AI" value="bocha" />
                   <el-option label="Tavily" value="tavily" />
                   <el-option label="DuckDuckGo" value="duckduckgo" />
@@ -387,14 +387,14 @@
       </el-tab-pane>
 
       <!-- ============  ============ -->
-      <el-tab-pane label="" name="voice">
+      <el-tab-pane label="语音配置" name="voice">
         <el-tabs v-model="voiceTab" @tab-change="handleVoiceTabChange">
           <!-- ASR  -->
-          <el-tab-pane label=" (ASR)" name="asr">
+          <el-tab-pane label="语音识别 (ASR)" name="asr">
             <el-form :model="voiceConfig.asr" label-width="140px" class="config-form">
               <el-divider content-position="left">ASR Provider </el-divider>
               
-              <el-form-item label="">
+              <el-form-item label="ASR 服务商">
                 <el-select 
                   v-model="voiceConfig.asr.provider" 
                   style="width: 100%"
@@ -421,7 +421,7 @@
                 />
               </el-form-item>
 
-              <el-form-item label="">
+              <el-form-item label="模型">
                 <el-select v-model="voiceConfig.asr.model" style="width: 100%" allow-create filterable>
                   <el-option label="paraformer-zh ()" value="paraformer-zh" />
                   <el-option label="paraformer-v2" value="paraformer-v2" />
@@ -429,11 +429,11 @@
                 </el-select>
               </el-form-item>
 
-              <el-form-item label="">
+              <el-form-item label="语言">
                 <el-select v-model="voiceConfig.asr.language" style="width: 100%">
                   <el-option label=" (zh-CN)" value="zh-CN" />
                   <el-option label=" (en-US)" value="en-US" />
-                  <el-option label="" value="auto" />
+                  <el-option label="自动检测" value="auto" />
                 </el-select>
               </el-form-item>
 
@@ -478,11 +478,11 @@
           </el-tab-pane>
 
           <!-- TTS  -->
-          <el-tab-pane label=" (TTS)" name="tts">
+          <el-tab-pane label="语音合成 (TTS)" name="tts">
             <el-form :model="voiceConfig.tts" label-width="140px" class="config-form">
               <el-divider content-position="left">TTS Provider </el-divider>
               
-              <el-form-item label="">
+              <el-form-item label="TTS 服务商">
                 <el-select 
                   v-model="voiceConfig.tts.provider" 
                   style="width: 100%"
@@ -512,7 +512,7 @@
                 />
               </el-form-item>
 
-              <el-form-item label="">
+              <el-form-item label="语速">
                 <el-slider 
                   v-model="voiceConfig.tts.speed" 
                   :min="0.5" 
@@ -523,7 +523,7 @@
                 />
               </el-form-item>
 
-              <el-form-item label="">
+              <el-form-item label="音量">
                 <el-slider 
                   v-model="voiceConfig.tts.volume" 
                   :min="0" 
@@ -532,7 +532,7 @@
                 />
               </el-form-item>
 
-              <el-form-item label="">
+              <el-form-item label="输出格式">
                 <el-radio-group v-model="voiceConfig.tts.format">
                   <el-radio label="mp3">MP3</el-radio>
                   <el-radio label="wav">WAV</el-radio>
@@ -580,19 +580,19 @@
           </el-tab-pane>
 
           <!-- VAD  -->
-          <el-tab-pane label="VAD " name="vad">
+          <el-tab-pane label="语音活动检测 (VAD)" name="vad">
             <el-form :model="voiceConfig.vad" label-width="140px" class="config-form">
               <el-divider content-position="left"> (VAD)</el-divider>
               
-              <el-form-item label=" VAD">
+              <el-form-item label="启用 VAD">
                 <el-switch 
                   v-model="voiceConfig.vad.enabled"
-                  active-text=""
-                  inactive-text=""
+                  active-text="开启"
+                  inactive-text="关闭"
                 />
               </el-form-item>
 
-              <el-form-item label="" v-if="voiceConfig.vad.enabled">
+              <el-form-item label="灵敏度" v-if="voiceConfig.vad.enabled">
                 <el-slider 
                   v-model="voiceConfig.vad.sensitivity" 
                   :min="0.1" 
@@ -602,8 +602,8 @@
                   :format-tooltip="val => (val * 100).toFixed(0) + '%'"
                 />
                 <div class="slider-tip">
-                  <span> ()</span>
-                  <span> ()</span>
+                  <span>低</span>
+                  <span>高</span>
                 </div>
               </el-form-item>
 
@@ -776,27 +776,27 @@
           <div class="doctor-editor-header">
             <h3>
               <el-icon><component :is="currentDoctorConfig.icon" /></el-icon>
-              {{ currentDoctorConfig.name }} - 
+              {{ currentDoctorConfig.name }} - 智能体配置
             </h3>
             <div class="doctor-editor-actions">
               <el-button @click="resetDoctorConfig" :loading="doctorResetting">
                 <el-icon><RefreshRight /></el-icon>
-                
+                重置
               </el-button>
               <el-button type="primary" @click="saveDoctorConfig" :loading="doctorSaving">
                 <el-icon><Check /></el-icon>
-                
+                保存配置
               </el-button>
             </div>
           </div>
 
           <el-form :model="doctorEditForm" label-width="140px" class="config-form">
-            <el-form-item label="">
+            <el-form-item label="系统提示词">
               <el-input
                 v-model="doctorEditForm.systemPrompt"
                 type="textarea"
                 :rows="12"
-                placeholder="..."
+                placeholder="请输入该智能体的系统提示词"
               />
             </el-form-item>
 
@@ -827,7 +827,7 @@
           </el-form>
         </div>
 
-        <el-empty v-else description="AI" />
+        <el-empty v-else description="请选择一个 AI 智能体进行配置" />
       </el-tab-pane>
     </el-tabs>
 
@@ -835,7 +835,7 @@
     <div class="config-status" v-if="lastSaveTime">
       <el-tag type="success">
         <el-icon><Check /></el-icon>
-        : {{ lastSaveTime }}
+        最后保存：{{ lastSaveTime }}
       </el-tag>
     </div>
   </div>
@@ -954,12 +954,12 @@ export default {
       // 
       groupLabels: {
         mysql: "MySQL",
-        server: "",
+        server: "服务器",
         websocket: "WebSocket",
         ota: "OTA",
         sqlite: "SQLite",
         jwt: "JWT",
-        admin: "",
+        admin: "后台管理",
       },
     };
   },
@@ -1005,7 +1005,7 @@ export default {
         }
       } catch (e) {
         console.error("", e);
-        this.$message.error("");
+        this.$message.error("加载系统配置失败");
       }
     },
 
@@ -1050,7 +1050,7 @@ export default {
         });
 
         if (res.data.code === 200) {
-          this.$message.success("");
+          this.$message.success("配置保存成功");
           this.lastSaveTime = new Date().toLocaleString();
           this.passwordVerified = false;
         } else {
@@ -1065,18 +1065,18 @@ export default {
 
     async resetAllConfigs() {
       const { value: password } = await this.$swal.fire({
-        title: "",
-        html: `<p style="margin-bottom:12px"> <b></b> </p>
-               <p style="color:#e6a23c;font-size:13px"> </p>`,
+        title: "重置配置确认",
+        html: `<p style="margin-bottom:12px"> 将把系统配置恢复为默认（MySQL）值 </p>
+               <p style="color:#e6a23c;font-size:13px"> 此操作不可撤销，请谨慎操作 </p>`,
         input: "password",
-        inputLabel: "",
-        inputPlaceholder: "",
+        inputLabel: "管理员密码",
+        inputPlaceholder: "请输入管理员密码",
         inputAttributes: { autocapitalize: "off", autocorrect: "off" },
         showCancelButton: true,
-        confirmButtonText: "",
-        cancelButtonText: "",
+        confirmButtonText: "确认重置",
+        cancelButtonText: "取消",
         confirmButtonColor: "#e6a23c",
-        inputValidator: (value) => { if (!value) return ""; },
+        inputValidator: (value) => { if (!value) return "请输入密码"; },
       });
 
       if (!password) return;
@@ -1084,11 +1084,11 @@ export default {
       try {
         const verifyRes = await this.$axios.post("/system/config/verify-password", { password });
         if (verifyRes.data.code !== 200) {
-          this.$swal.fire({ icon: "error", title: "", text: "" });
+          this.$swal.fire({ icon: "error", title: "验证失败", text: "密码错误，无法重置配置" });
           return;
         }
       } catch (e) {
-        this.$swal.fire({ icon: "error", title: "", text: "" });
+        this.$swal.fire({ icon: "error", title: "验证失败", text: "验证过程发生错误" });
         return;
       }
 
@@ -1096,13 +1096,13 @@ export default {
       try {
         const res = await this.$axios.post("/system/config/reset/mysql");
         if (res.data.code === 200) {
-          this.$swal.fire({ icon: "success", title: "", text: "", timer: 2000, showConfirmButton: false });
+          this.$swal.fire({ icon: "success", title: "重置成功", text: "系统配置已恢复默认", timer: 2000, showConfirmButton: false });
           await this.loadSystemConfigs();
         } else {
-          this.$swal.fire({ icon: "error", title: "", text: res.data.message || "" });
+          this.$swal.fire({ icon: "error", title: "重置失败", text: res.data.message || "" });
         }
       } catch (e) {
-        this.$swal.fire({ icon: "error", title: "", text: e.response?.data?.message || "" });
+        this.$swal.fire({ icon: "error", title: "重置失败", text: e.response?.data?.message || "" });
       } finally {
         this.resettingAll = false;
       }
@@ -1122,7 +1122,7 @@ export default {
 
     async verifyPassword() {
       if (!this.passwordForm.password) {
-        this.$message.warning("");
+        this.$message.warning("请输入管理员密码");
         return;
       }
       this.verifying = true;
@@ -1133,13 +1133,13 @@ export default {
         if (res.data.code === 200) {
           this.passwordVerified = true;
           this.passwordDialogVisible = false;
-          this.$message.success("");
+          this.$message.success("验证成功");
           if (this.passwordCallback) {
             this.passwordCallback();
             this.passwordCallback = null;
           }
         } else {
-          this.$message.error("");
+          this.$message.error("密码错误，验证失败");
         }
       } catch (e) {
         this.$message.error(": " + (e.response?.data?.message || e.message));
@@ -1193,13 +1193,13 @@ export default {
       try {
         const res = await this.$axios.post("/ai/config/switch-provider", { provider });
         if (res.data.code === 200) {
-          this.$message.success("");
+          this.$message.success("切换服务商成功");
           this.loadAiConfig();
         } else {
           this.$message.error(res.data.msg || "");
         }
       } catch (e) {
-        this.$message.error("");
+        this.$message.error("切换服务商失败");
       }
     },
 
@@ -1208,14 +1208,14 @@ export default {
       try {
         const res = await this.$axios.post("/ai/config/update", this.aiConfig);
         if (res.data.code === 200) {
-          this.$message.success("AI");
+          this.$message.success("AI 配置保存成功");
           this.lastSaveTime = new Date().toLocaleString();
           this.loadAiConfig();
         } else {
           this.$message.error(res.data.msg || "");
         }
       } catch (e) {
-        this.$message.error("AI");
+        this.$message.error("AI 配置保存失败");
       } finally {
         this.aiSaving = false;
       }
@@ -1246,13 +1246,13 @@ export default {
       try {
         const res = await this.$axios.post("/ai/voice/config/update", this.voiceConfig);
         if (res.data.code === 200) {
-          this.$message.success("");
+          this.$message.success("语音配置保存成功");
           this.lastSaveTime = new Date().toLocaleString();
         } else {
           this.$message.error(res.data.msg || "");
         }
       } catch (e) {
-        this.$message.error("");
+        this.$message.error("语音配置保存失败");
       } finally {
         this.voiceSaving = false;
       }
@@ -1313,14 +1313,14 @@ export default {
 
     async saveDoctorConfig() {
       if (!this.doctorEditForm.systemPrompt.trim()) {
-        this.$message.warning("");
+        this.$message.warning("请填写系统提示词");
         return;
       }
       this.doctorSaving = true;
       try {
         const res = await this.$axios.put(`/ai/config/${this.selectedDoctor}`, this.doctorEditForm);
         if (res.data.code === 200) {
-          this.$message.success("AI");
+          this.$message.success("智能体配置保存成功");
           this.lastSaveTime = new Date().toLocaleString();
           await this.loadDoctorConfigs();
           const doctor = this.doctorList.find(d => d.key === this.selectedDoctor);
@@ -1337,17 +1337,17 @@ export default {
 
     async resetDoctorConfig() {
       const { value: password } = await this.$swal.fire({
-        title: "",
-        html: `<p style="margin-bottom:12px"> <b>${this.currentDoctorConfig.name}</b> </p>`,
+        title: "重置智能体配置",
+        html: `<p style="margin-bottom:12px"> 将把 <b>${this.currentDoctorConfig.name}</b> 恢复为默认配置 </p>`,
         input: "password",
-        inputLabel: "",
-        inputPlaceholder: "",
+        inputLabel: "管理员密码",
+        inputPlaceholder: "请输入管理员密码",
         inputAttributes: { autocapitalize: "off", autocorrect: "off" },
         showCancelButton: true,
-        confirmButtonText: "",
-        cancelButtonText: "",
+        confirmButtonText: "确认重置",
+        cancelButtonText: "取消",
         confirmButtonColor: "#667eea",
-        inputValidator: (value) => { if (!value) return ""; },
+        inputValidator: (value) => { if (!value) return "请输入密码"; },
       });
 
       if (!password) return;
@@ -1356,15 +1356,15 @@ export default {
       try {
         const res = await this.$axios.post(`/ai/config/${this.selectedDoctor}/reset`, { password });
         if (res.data.code === 200) {
-          this.$swal.fire({ icon: "success", title: "", text: `${this.currentDoctorConfig.name} `, timer: 1500, showConfirmButton: false });
+          this.$swal.fire({ icon: "success", title: "重置成功", text: `${this.currentDoctorConfig.name} 已恢复默认配置`, timer: 1500, showConfirmButton: false });
           await this.loadDoctorConfigs();
           const doctor = this.doctorList.find(d => d.key === this.selectedDoctor);
           if (doctor) this.selectDoctor(doctor);
         } else {
-          this.$swal.fire({ icon: "error", title: "", text: res.data.message || "" });
+          this.$swal.fire({ icon: "error", title: "重置失败", text: res.data.message || "" });
         }
       } catch (e) {
-        this.$swal.fire({ icon: "error", title: "", text: e.response?.data?.message || "" });
+        this.$swal.fire({ icon: "error", title: "重置失败", text: e.response?.data?.message || "" });
       } finally {
         this.doctorResetting = false;
       }
@@ -1380,7 +1380,7 @@ export default {
         }
       } catch (e) {
         console.error("", e);
-        this.$message.error("");
+        this.$message.error("加载模型列表失败");
       } finally {
         this.modelLoading = false;
       }
@@ -1422,15 +1422,14 @@ export default {
 
     async saveAnnouncement() {
       if (!this.announcementForm.title) {
-        this.$message.warning("");
+        this.$message.warning("请填写横幅标题");
         return;
       }
       this.announcementSaving = true;
       try {
         const res = await this.$axios.post("/ai/announcement/save", this.announcementForm);
         if (res.data.code === 200) {
-          this.$message.success("");
-          this.$message.success("");
+          this.$message.success("横幅保存成功");
           this.announcementForm = {
             modelKey: 'zhikangyun-local',
             title: '',
@@ -1464,7 +1463,7 @@ export default {
       try {
         const res = await this.$axios.post("/ai/announcement/delete", { id: row.id });
         if (res.data.code === 200) {
-          this.$message.success("");
+          this.$message.success("横幅删除成功");
           await this.loadAnnouncements();
         } else {
           this.$message.error(res.data.msg || "");

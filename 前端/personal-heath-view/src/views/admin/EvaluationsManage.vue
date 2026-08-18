@@ -9,16 +9,16 @@
           style="width: 220px"
           v-model="searchTime"
           type="daterange"
-          range-separator=""
-          start-placeholder=""
-          end-placeholder=""
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
         >
         </el-date-picker>
         <el-input
           size="small"
           style="width: 188px; margin-left: 5px; margin-right: 6px"
           v-model="evalustionsQueryDto.content"
-          placeholder=""
+          placeholder="搜索评价内容"
           clearable
           @clear="handleFilterClear"
         >
@@ -36,7 +36,7 @@
         :data="tableData"
         style="width: 100%"
       >
-        <el-table-column prop="content" label="">
+        <el-table-column prop="content" label="评价内容">
           <template #default="{ row }">
             <el-tooltip
               class="item"
@@ -48,7 +48,7 @@
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column prop="upvoteList" width="60" label="">
+        <el-table-column prop="upvoteList" width="60" label="点赞数">
           <template #default="{ row }">
             <span
               v-if="row.upvoteList !== null"
@@ -58,27 +58,27 @@
             <span v-else style="font-size: 16px; font-weight: bolder">0</span>
           </template>
         </el-table-column>
-        <el-table-column prop="contentType" width="100" label="">
+        <el-table-column prop="contentType" width="100" label="类型">
           <template #default="{ row }">
             <span>{{ row.contentType }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" width="168" label="">
+        <el-table-column prop="createTime" width="168" label="创建时间">
           <template #default="{ row }">
             <span>{{ row.createTime }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="userName" width="120" label="">
+        <el-table-column prop="userName" width="120" label="用户名">
           <template #default="{ row }">
             <span v-html="highlightKeyword(row.userName)"></span>
           </template>
         </el-table-column>
-        <el-table-column prop="replierName" width="120" label="">
+        <el-table-column prop="replierName" width="120" label="回复人">
           <template #default="{ row }">
             <span v-html="highlightKeyword(row.replierName)"></span>
           </template>
         </el-table-column>
-        <el-table-column prop="parentId" width="120" label="">
+        <el-table-column prop="parentId" width="120" label="回复状态">
           <template #default="{ row }">
             <el-icon v-if="row.parentId === null" style="margin-right: 5px"
               ><Warning
@@ -89,14 +89,14 @@
             <span
               v-if="row.parentId === null"
               style="text-decoration: underline; text-decoration-style: dashed"
-              ></span
+              >主评论</span
             >
-            <span v-else></span>
+            <span v-else>回复评论</span>
           </template>
         </el-table-column>
-        <el-table-column label="" width="100px" fixed="right">
+        <el-table-column label="操作" width="100px" fixed="right">
           <template #default="{ row }">
-            <span class="text-button" @click="handleDelete(row)"></span>
+            <span class="text-button" @click="handleDelete(row)">删除</span>
           </template>
         </el-table-column>
       </el-table>
@@ -110,10 +110,10 @@
       ></el-pagination>
     </el-row>
     <!--  -->
-    <el-dialog title="" :show-close="false" v-model="reportDialog" width="35%">
+    <el-dialog title="数据统计" :show-close="false" v-model="reportDialog" width="35%">
       <template #title>
         <div style="padding: 25px 0 0 20px">
-          <span style="font-size: 18px; font-weight: 800"></span>
+          <span style="font-size: 18px; font-weight: 800">数据统计报告</span>
         </div>
       </template>
       <el-row style="padding: 10px 20px 20px 20px">
@@ -123,7 +123,7 @@
         <el-col :span="12">
           <el-row class="main">
             <div v-if="!reportsDate.length">
-              <span class="count"></span>
+              <span class="count">暂无数据</span>
             </div>
             <el-col
               :span="6"
@@ -148,7 +148,7 @@
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="reportDialog = false"
-            ></el-button
+            >关闭</el-button
           >
         </span>
       </template>
@@ -303,12 +303,12 @@ export default {
     // 
     async batchDelete() {
       if (!this.selectedRows.length) {
-        this.$message(``);
+        this.$message(`请选择要删除的评价`);
         return;
       }
       const confirmed = await this.$swalConfirm({
-        title: "",
-        text: ``,
+        title: "确认删除",
+        text: `确定要删除选中的评价吗？`,
         icon: "warning",
       });
       if (confirmed) {
@@ -320,7 +320,7 @@ export default {
           );
           if (response.data.code === 200) {
             this.$swal.fire({
-              title: "",
+              title: "删除成功",
               text: response.data.msg,
               icon: "success",
               showConfirmButton: false,
@@ -331,7 +331,7 @@ export default {
           }
         } catch (e) {
           this.$swal.fire({
-            title: "",
+            title: "删除失败",
             text: e,
             icon: "error",
             showConfirmButton: false,
@@ -376,7 +376,7 @@ export default {
         }
       } catch (error) {
         console.error("", error);
-        this.$message.error("");
+        this.$message.error("操作失败");
       }
     },
     async addOperation() {
@@ -393,7 +393,7 @@ export default {
         }
       } catch (error) {
         console.error("", error);
-        this.$message.error("");
+        this.$message.error("操作失败");
       }
     },
     // 

@@ -7,9 +7,9 @@
           style="width: 220px"
           v-model="searchTime"
           type="daterange"
-          range-separator=""
-          start-placeholder=""
-          end-placeholder=""
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
         >
         </el-date-picker>
         <el-input
@@ -33,7 +33,7 @@
         @selection-change="handleSelectionChange"
         :data="tableData"
       >
-        <el-table-column prop="name" width="88" label="">
+        <el-table-column prop="name" width="88" label="状态">
           <template #default="{ row }">
             <el-icon v-if="!statusCheck(row)" style="margin-right: 5px"
               ><Warning
@@ -45,7 +45,7 @@
               v-if="!statusCheck(row)"
               class="item"
               effect="dark"
-              content=""
+              content="异常"
               placement="bottom-end"
             >
               <span
@@ -53,24 +53,24 @@
                   text-decoration: underline;
                   text-decoration-style: dashed;
                 "
-                ></span
+                >异常</span
               >
             </el-tooltip>
-            <span v-else></span>
+            <span v-else>正常</span>
           </template>
         </el-table-column>
-        <el-table-column prop="value" width="148" label="" sortable>
+        <el-table-column prop="value" width="148" label="数值" sortable>
           <template #default="{ row }">
             <span>{{ row.value }}({{ row.unit }})</span>
           </template>
         </el-table-column>
-        <el-table-column prop="userName" label=""></el-table-column>
+        <el-table-column prop="userName" label="用户"></el-table-column>
         <el-table-column
           prop="valueRange"
           width="88"
-          label=""
+          label="正常范围"
         ></el-table-column>
-        <el-table-column prop="name" width="140" label="">
+        <el-table-column prop="name" width="140" label="指标名称">
           <template #default="{ row }">
             <span
               ><el-icon style="margin-right: 3px"><Document /></el-icon
@@ -78,11 +78,11 @@
             >
           </template>
         </el-table-column>
-        <el-table-column prop="unit" width="88" label=""></el-table-column>
+        <el-table-column prop="unit" width="88" label="单位"></el-table-column>
         <el-table-column
           prop="symbol"
           width="88"
-          label=""
+          label="符号"
         ></el-table-column>
         <el-table-column
           prop="userId"
@@ -93,12 +93,12 @@
         <el-table-column
           prop="createTime"
           width="178"
-          label=""
+          label="创建时间"
           sortable
         ></el-table-column>
-        <el-table-column label="" width="80">
+        <el-table-column label="操作" width="80">
           <template #default="{ row }">
-            <span class="text-button" @click="handleDelete(row)"></span>
+            <span class="text-button" @click="handleDelete(row)">删除</span>
           </template>
         </el-table-column>
       </el-table>
@@ -115,7 +115,7 @@
       <template #title>
         <div>
           <p class="dialog-title">
-            {{ !isOperation ? "" : "" }}
+            {{ !isOperation ? "新增健康指标" : "编辑健康指标" }}
           </p>
         </div>
       </template>
@@ -179,7 +179,7 @@
             style="border-radius: 5px; background-color: #f1f1f1"
             type="textarea"
             :autosize="{ minRows: 2, maxRows: 3 }"
-            placeholder=""
+            placeholder="请输入指标描述"
             v-model="data.detail"
           >
           </el-input>
@@ -202,7 +202,7 @@
             class="customer"
             type="info"
             @click="addOperation"
-            ></el-button
+            >新增</el-button
           >
           <el-button
             size="small"
@@ -211,14 +211,14 @@
             class="customer"
             type="info"
             @click="updateOperation"
-            ></el-button
+            >修改</el-button
           >
           <el-button
             class="customer"
             size="small"
             style="background-color: rgb(241, 241, 241); border: none"
             @click="dialogUserOperaion = false"
-            ></el-button
+            >取消</el-button
           >
         </span>
       </template>
@@ -283,10 +283,10 @@ export default {
     },
     handleAvatarSuccess(res, file) {
       if (res.code !== 200) {
-        this.$message.error(``);
+        this.$message.error(`上传失败`);
         return;
       }
-      this.$message.success(``);
+      this.$message.success(`上传成功`);
       this.data.cover = res.data;
     },
     // 
@@ -296,12 +296,12 @@ export default {
     // 
     async batchDelete() {
       if (!this.selectedRows.length) {
-        this.$message(``);
+        this.$message(`请选择要删除的记录`);
         return;
       }
       const confirmed = await this.$swalConfirm({
-        title: "",
-        text: ``,
+        title: "确认删除",
+        text: `您确定要删除选中的健康记录吗？`,
         icon: "warning",
       });
       if (confirmed) {
@@ -313,7 +313,7 @@ export default {
           );
           if (response.data.code === 200) {
             this.$swal.fire({
-              title: "",
+              title: "删除成功",
               text: response.data.msg,
               icon: "success",
               showConfirmButton: false,
@@ -324,7 +324,7 @@ export default {
           }
         } catch (e) {
           this.$swal.fire({
-            title: "",
+            title: "删除失败",
             text: e,
             icon: "error",
             showConfirmButton: false,
@@ -348,7 +348,7 @@ export default {
           this.data
         );
         this.$swal.fire({
-          title: "",
+          title: "更新成功",
           text: response.data.msg,
           icon: response.data.code === 200 ? "success" : "error",
           showConfirmButton: false,
@@ -360,8 +360,8 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
-        console.error("", error);
-        this.$message.error("");
+        console.error("更新健康记录失败：", error);
+        this.$message.error("更新失败");
       }
     },
     // 
@@ -379,8 +379,8 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
-        console.error("", error);
-        this.$message.error("");
+        console.error("添加健康记录失败：", error);
+        this.$message.error("添加失败");
       }
     },
     closeDialog() {

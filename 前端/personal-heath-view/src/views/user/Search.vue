@@ -1,7 +1,7 @@
 <template>
   <el-row>
     <el-row v-if="newsData.length === 0">
-      <el-empty description=""></el-empty>
+      <el-empty description="暂无相关资讯"></el-empty>
     </el-row>
     <el-row v-else style="margin-top: 20px">
       <el-col

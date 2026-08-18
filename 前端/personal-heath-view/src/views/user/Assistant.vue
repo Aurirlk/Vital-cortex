@@ -3,7 +3,7 @@
     <!--  -->
     <div class="history-sidebar">
       <div class="sidebar-header">
-        <span class="sidebar-title"></span>
+        <span class="sidebar-title">对话历史</span>
         <el-button size="small" type="primary" @click="newChat" :icon="Plus"></el-button>
       </div>
       <div class="history-list">
@@ -29,36 +29,36 @@
     <!--  -->
     <div class="chat-panel">
       <div class="chat-header">
-        <span class="header-title"></span>
-        <span class="header-desc"> · </span>
+        <span class="header-title">AI 健康助手</span>
+        <span class="header-desc"> · 您的专属健康顾问</span>
       </div>
 
       <div class="chat-messages" ref="chatMessages">
         <div v-if="messages.length === 0" class="chat-empty">
-          <p class="welcome-text"></p>
+          <p class="welcome-text">您好，我是您的 AI 健康助手，请问有什么可以帮您？</p>
           <div class="intent-cards">
             <div class="intent-card" @click="quickAsk('search')">
               <el-icon :size="20"><Search /></el-icon>
-              <span></span>
-              <small></small>
+              <span>查症状</span>
+              <small>描述不适，查找健康知识</small>
             </div>
             <div class="intent-card" @click="quickAsk('doctor')">
               <el-icon :size="20"><UserFilled /></el-icon>
-              <span></span>
-              <small></small>
+              <span>找医生</span>
+              <small>智能推荐合适的 AI 医生</small>
             </div>
             <div class="intent-card" @click="quickAsk('drug')">
               <el-icon :size="20"><FirstAidKit /></el-icon>
-              <span></span>
-              <small></small>
+              <span>问用药</span>
+              <small>咨询药品用法与注意事项</small>
             </div>
             <div class="intent-card" @click="quickAsk('knowledge')">
               <el-icon :size="20"><Collection /></el-icon>
-              <span></span>
-              <small></small>
+              <span>健康知识</span>
+              <small>了解健康科普与养生建议</small>
             </div>
           </div>
-          <p style="font-size:13px;color:#999;margin-top:16px;"></p>
+          <p style="font-size:13px;color:#999;margin-top:16px;">您也可以直接输入问题，我将为您解答</p>
         </div>
         <div v-for="(msg, i) in messages" :key="i" :class="['msg', msg.role]">
           <div class="msg-avatar"><el-icon v-if="msg.role==='user'"><User /></el-icon><el-icon v-else><ChatDotRound /></el-icon></div>
@@ -80,9 +80,9 @@
       </div>
 
       <div class="chat-input">
-        <el-input v-model="input" placeholder="..." @keyup.enter="send" :disabled="loading" size="large">
+        <el-input v-model="input" placeholder="请输入您的问题，按回车发送" @keyup.enter="send" :disabled="loading" size="large">
           <template #append>
-            <el-button @click="send" :loading="loading" type="primary"></el-button>
+            <el-button @click="send" :loading="loading" type="primary">发送</el-button>
           </template>
         </el-input>
       </div>
@@ -107,18 +107,18 @@ export default {
       currentConvId: null,
       conversations: [],
       intents: {
-        search: ["","","","","","","","","","",""],
-        drug: ["","","","","","","","","",""],
-        doctor: ["","","","","","",""],
-        knowledge: ["","","","","","","","",""],
+        search: ["症状","不舒服","难受","疼痛","发烧","咳嗽","头痛","感冒","查询","搜索","查找"],
+        drug: ["药","用药","药品","吃药","剂量","副作用","禁忌","服用","药物","胶囊"],
+        doctor: ["医生","挂号","门诊","就诊","专家","科室","预约"],
+        knowledge: ["健康","养生","饮食","运动","睡眠","营养","科普","保健","减脂"],
       },
       // 
       doctorKeywords: {
-        doctor: { keywords: ["","","","","","","","","","","","","","","","",""], name: "", icon: "🩺", desc: "" },
-        nutritionist: { keywords: ["","","","","","","","","","","","","","","","","",""], name: "", icon: "", desc: "" },
-        psychologist: { keywords: ["","","","","","","","","","","","","","","","","",""], name: "", icon: "", desc: "" },
-        analyst: { keywords: ["","","","","","","","","","","","","","","",""], name: "", icon: "", desc: "" },
-        general_assistant: { keywords: ["","","","","","","","",""], name: "", icon: "", desc: "" },
+        doctor: { keywords: ["医生","门诊","挂号","就诊","专家","科室","预约","看病","问诊","诊断","治疗","医院","内科","外科","儿科","妇科"], name: "AI 医生", icon: "🩺", desc: "提供在线问诊与健康建议" },
+        nutritionist: { keywords: ["营养","饮食","减肥","食谱","热量","蛋白","维生素","膳食","营养餐","控糖","减脂","增肌","均衡","忌口","搭配","卡路里","碳水"], name: "AI 营养师", icon: "🥗", desc: "制定个性化营养饮食方案" },
+        psychologist: { keywords: ["心理","情绪","焦虑","抑郁","压力","失眠","烦恼","疏导","咨询","心态","放松","孤独","低落","紧张","倾诉","陪伴","沟通"], name: "AI 心理师", icon: "💬", desc: "倾听疏导，陪伴心理健康" },
+        analyst: { keywords: ["报告","指标","体检","数据","分析","趋势","血压","血糖","解读","异常","健康","评估","风险","化验","数值","监测"], name: "AI 健康分析师", icon: "📊", desc: "解读体检与健康数据" },
+        general_assistant: { keywords: ["健康","建议","咨询","科普","常识","生活","习惯","提醒","助手"], name: "AI 健康助手", icon: "🤖", desc: "解答您的日常健康疑问" },
       },
     };
   },
@@ -179,10 +179,10 @@ export default {
     // =====  =====
     quickAsk(type) {
       const prompts = {
-        search: "",
+        search: "我最近有些不舒服，想查一下相关健康知识",
         doctor: "AI",
-        drug: "",
-        knowledge: "",
+        drug: "我想咨询一下用药问题",
+        knowledge: "我想了解一些健康养生知识",
       };
       this.input = prompts[type] || "";
       this.send();
@@ -268,7 +268,7 @@ export default {
       return matched.length > 0 ? matched.slice(0, 3) : [scored.find(d => d.key === "doctor")];
     },
     intentLabel(intent) {
-      return { search: "", drug: "", doctor: "", knowledge: "" }[intent] || intent;
+      return { search: "症状查询", drug: "用药咨询", doctor: "找医生", knowledge: "健康知识" }[intent] || intent;
     },
     jumpToDoctor(key) {
       sessionStorage.setItem("navAssistantRole", key);

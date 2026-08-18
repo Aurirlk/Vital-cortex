@@ -14,7 +14,7 @@
               @click="saveNewsOperation"
               class="customer"
               size="small"
-              >{{ !saveFlag ? "" : "" }}</el-button
+              >{{ !saveFlag ? "收藏" : "取消收藏" }}</el-button
             >
           </div>
           <div class="news-detail-content" v-html="sanitizeHtml(newsInfo.content)"></div>
@@ -26,7 +26,7 @@
     </el-col>
     <el-col :span="6">
       <div class="sidebar-card">
-        <h3 class="sidebar-title"></h3>
+        <h3 class="sidebar-title">热门推荐</h3>
         <el-col
           @click="newsItemClick(news)"
           :span="24"
@@ -99,7 +99,7 @@ export default {
         .then((response) => {
           const { data } = response;
           if (data.code === 200) {
-            this.$message.success(!this.saveFlag ? "" : "");
+            this.$message.success(!this.saveFlag ? "收藏成功" : "取消收藏成功");
             this.saveFlag = !this.saveFlag;
           }
         })

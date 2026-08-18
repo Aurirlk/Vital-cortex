@@ -1,14 +1,14 @@
 <template>
   <div class="mall-container">
     <div class="mall-header">
-      <h1 class="page-title"></h1>
-      <p class="page-desc"></p>
+      <h1 class="page-title">健康商城</h1>
+      <p class="page-desc">精选健康好物，呵护您的每一天</p>
     </div>
 
     <!--  -->
     <div class="category-bar">
       <div class="category-item" :class="{ active: !selectedCategory }" @click="selectedCategory = null; loadProducts()">
-        
+        全部
       </div>
       <div v-for="cat in categories" :key="cat.id"
            class="category-item" :class="{ active: selectedCategory === cat.id }"
@@ -19,8 +19,8 @@
 
     <!--  -->
     <div class="search-bar">
-      <input v-model="keyword" class="search-input" placeholder="..." @keyup.enter="loadProducts" />
-      <button class="search-btn" @click="loadProducts"></button>
+      <input v-model="keyword" class="search-input" placeholder="搜索商品" @keyup.enter="loadProducts" />
+      <button class="search-btn" @click="loadProducts">搜索</button>
     </div>
 
     <!--  -->
@@ -38,17 +38,17 @@
             <span v-if="product.originalPrice" class="price-original">¥{{ product.originalPrice }}</span>
           </div>
           <div class="product-card__meta">
-            <span> {{ product.salesCount }}</span>
-            <span> {{ product.stock }}</span>
+            <span>已售 {{ product.salesCount }}</span>
+            <span>库存 {{ product.stock }}</span>
           </div>
-          <button class="product-card__btn" @click.stop="addToCart(product)"></button>
+          <button class="product-card__btn" @click.stop="addToCart(product)">加入购物车</button>
         </div>
       </div>
     </div>
 
     <!--  -->
     <div class="cart-float" @click="showCart = true">
-      <span class="cart-icon"></span>
+      <el-icon class="cart-icon"><ShoppingCart /></el-icon>
       <span v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</span>
     </div>
 
@@ -56,10 +56,10 @@
     <div v-if="showCart" class="cart-modal" @click.self="showCart = false">
       <div class="cart-panel">
         <div class="cart-panel__header">
-          <h3></h3>
+          <h3>购物车</h3>
           <button class="close-btn" @click="showCart = false">×</button>
         </div>
-        <div v-if="cartItems.length === 0" class="empty-state"></div>
+        <div v-if="cartItems.length === 0" class="empty-state">购物车空空如也，去挑选心仪好物吧</div>
         <div v-else class="cart-list">
           <div v-for="item in cartItems" :key="item.id" class="cart-item">
             <img :src="item.productCover || '/default-product.png'" class="cart-item__img" />
@@ -72,12 +72,12 @@
               <span>{{ item.quantity }}</span>
               <button @click="updateQty(item, item.quantity + 1)">+</button>
             </div>
-            <button class="cart-item__del" @click="removeFromCart(item)"></button>
+            <button class="cart-item__del" @click="removeFromCart(item)">删除</button>
           </div>
         </div>
         <div class="cart-panel__footer">
-          <div class="cart-total">: <span class="total-price">¥{{ cartTotal }}</span></div>
-          <button class="checkout-btn" @click="checkout"></button>
+          <div class="cart-total">合计：<span class="total-price">¥{{ cartTotal }}</span></div>
+          <button class="checkout-btn" @click="checkout">去结算</button>
         </div>
       </div>
     </div>
@@ -90,7 +90,7 @@
         <h2 class="product-panel__name">{{ selectedProduct.name }}</h2>
         <div class="product-panel__price">¥{{ selectedProduct.price }}</div>
         <p class="product-panel__desc">{{ selectedProduct.description }}</p>
-        <button class="add-cart-btn" @click="addToCart(selectedProduct); selectedProduct = null"></button>
+        <button class="add-cart-btn" @click="addToCart(selectedProduct); selectedProduct = null">加入购物车</button>
       </div>
     </div>
   </div>
@@ -148,8 +148,8 @@ export default {
       try {
         await request.post("mall/cart/add", null, { params: { productId: product.id, quantity: 1 } });
         this.loadCart();
-        this.$message.success("");
-      } catch (e) { this.$message.error(""); }
+        this.$message.success("已加入购物车");
+      } catch (e) { this.$message.error("加入购物车失败"); }
     },
     async updateQty(item, qty) {
       if (qty <= 0) { this.removeFromCart(item); return; }
@@ -165,16 +165,16 @@ export default {
       } catch (e) { console.error(e); }
     },
     async checkout() {
-      if (this.cartItems.length === 0) { this.$message.warning(""); return; }
+      if (this.cartItems.length === 0) { this.$message.warning("购物车为空，请先添加商品"); return; }
       try {
         const { data } = await request.post("mall/order/create", null, { params: { addressId: 1 } });
         if (data.code === 200) {
           await request.post(`mall/order/pay/${data.data.id}`);
-          this.$swal.fire({ title: "", icon: "success", timer: 1500, showConfirmButton: false });
+          this.$swal.fire({ title: "下单成功", icon: "success", timer: 1500, showConfirmButton: false });
           this.showCart = false;
           this.loadCart();
         }
-      } catch (e) { this.$message.error(""); }
+      } catch (e) { this.$message.error("结算失败"); }
     },
   },
 };
