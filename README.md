@@ -3,7 +3,19 @@
 > 从 0 到 1 落地的 AI 应用工程实践：Multi-Agent 健康问诊 × 双路 RAG 检索 × 多模态交互 × 企业级安全加固。
 > 让健康数据会说话，让 AI 医生常在身边。
 
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.16-brightgreen) ![Java](https://img.shields.io/badge/Java-17-orange) ![Vue](https://img.shields.io/badge/Vue-3-42b883) ![Docker](https://img.shields.io/badge/Docker-compose-2496ed) ![License](https://img.shields.io/badge/License-MIT-blue)
+
 基于 **Spring Boot 3.5 + Java 17 + Vue 3** 构建的 AI 健康平台，集成 AI 智能问诊、药品订阅、健康数据追踪、知识库双路 RAG 检索、联网搜索、社区互动等功能。支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理（药品查询、健康数据读取、知识检索、联网搜索、SQL 查询）。
+
+## 项目解决什么问题
+
+健康咨询场景存在三个真实痛点，本项目逐一给出工程化答案：
+
+| 痛点 | 本项目的答案 |
+| --- | --- |
+| 网上健康信息鱼龙混杂、真假难辨 | 双路 RAG 知识检索（向量 × 知识图谱 × 关键词），回答**带 `[ID]` 引用溯源**，可验证、可追溯 |
+| 通用大模型医学不严谨，可能给出不负责任的用药建议 | 三层防幻觉门 + **自研微调医疗模型**（华佗 9k+ 数据 SFT + LoRA，医学准确性与安全性提升约 10%），云端/微调双轨制各取所长 |
+| 个人健康数据零散、无结构，AI 无法利用 | 结构化健康模型 + JSON 导入导出 + 健康报告 PDF，AI 可读取真实数据做个性化分析 |
 
 ## 核心能力
 
@@ -16,6 +28,12 @@
 | **企业级安全** | 会话版本号（锁定/登出/改密即旧 Token 失效）、JWT 外部注入、fail-closed 接口、SqlGuard 防注入、Sentinel 限流熔断 |
 | **全链路可观测** | MDC traceId/userId 日志关联 + Prometheus/Grafana 指标看板 + Loki 日志聚合 + Alertmanager 告警 |
 | **多厂商 AI 接入** | DeepSeek/通义/Kimi/GLM/豆包/MiniMax 等 12 家，Provider 工厂 + 熔断 + 自动重试，管理员界面热切换 |
+
+## 系统架构
+
+![系统技术架构](docs/assets/architecture.svg)
+
+> 前端（Vue 3）→ 接入层（认证/限流）→ AI 智能体核心（Multi-Agent × ReAct × Provider 工厂 × 三层防幻觉）→ 双路 RAG 检索（向量 × 图谱 × 关键词，RRF 融合 + 引用溯源）→ 数据与基础设施。
 
 ---
 
@@ -384,7 +402,24 @@ AI配置 → MySQL（明文存储，管理员后台管理）
 
 ---
 
+## 核心难点与解决方案
+
+| 难点 | 解决方案 |
+| --- | --- |
+| Spring Boot 2 → 3 升级，javax→jakarta 全量迁移、隐藏坑多 | OpenRewrite 自动化迁移；修复 `spring.data.redis` 前缀、SQLite + HikariCP 6 `setReadOnly` 冲突（移除 JDBC 只读标志） |
+| 通用模型医学不严谨、安全性不足 | 华佗数据 PySpark 清洗 + Dify + GPT-4o-mini 多维打分（≥6.0 保留 90%-95%）；LoRA 微调 Qwen2.5-7B，5 维 NLU 评测，医学准确性/安全性提升约 10% |
+| RAG 回答"凭感觉"、无出处、易幻觉 | 向量 × 图谱 × 关键词三路召回 + RRF 融合 + `[ID]` 引用溯源 + SynthesisGuard 三层防幻觉门 + RAGAS 真实评测 |
+| 个人项目资源有限，本地训不动 7B | 华为云 A800 租借单卡训练；LoRA 低秩适配（rank=8）显存/成本低一个量级；权重双平台发布（魔搭 + HF） |
+| 12 家厂商 API 形态各异，切换成本高 | LLM Provider 工厂 + 轻量熔断器（429/5xx 重试与快速失败），管理员后台热切换 |
+| 健康数据出境与注入风险 | PII 脱敏（剔除姓名/手机号）+ DOMPurify XSS 净化 + SqlGuard 只读 SQL 守卫 + 租户隔离 |
+| 密钥安全 | JWT 密钥 / CRM Key / 嵌入密钥外部注入，缺失或弱密钥**拒绝启动**；会话版本号实现"锁定/登出/改密即失效" |
+| 跨境外传 15GB 权重屡传屡崩 | 国内镜像 hf-mirror 通道 + Xet 高性能续传（`HF_XET_HIGH_PERFORMANCE=1`），避开代理僵死与单请求不可续传的坑 |
+
+---
+
 ## 快速启动
+
+> **最快体验路径**：`docker-compose up -d`（MySQL/Redis/监控栈）→ 初始化数据库 → 启动后端 `mvn spring-boot:run` → 启动前端 `npm run dev` → 管理后台配置 AI Key 即可对话。详细步骤见下。
 
 ### 环境要求
 
@@ -781,7 +816,9 @@ VitalCortex/
 
 ---
 
-## 系统架构图
+## 部署拓扑简图（文字版）
+
+> 彩色架构图见上文「系统架构」章节。
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

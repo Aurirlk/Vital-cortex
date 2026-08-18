@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="960" viewBox="0 0 1200 960" font-family="'PingFang SC','Microsoft YaHei',system-ui,sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8b949e"/>
+    </marker>
+  </defs>
+
+  <!-- ============ ① 前端 ============ -->
+  <rect x="40" y="30" width="1120" height="110" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <text x="60" y="58" font-size="15" font-weight="bold" fill="#0050cb">① 前端 · Vue 3 + Element Plus + ECharts</text>
+
+  <rect x="60" y="72" width="200" height="56" rx="8" fill="#f0f5ff" stroke="#b9cdf0"/>
+  <text x="160" y="96" font-size="14" font-weight="bold" fill="#1f2328" text-anchor="middle">AI 健康分析</text>
+  <text x="160" y="116" font-size="12" fill="#57606a" text-anchor="middle">6 角色对话 · 工具增强</text>
+
+  <rect x="280" y="72" width="200" height="56" rx="8" fill="#f0f5ff" stroke="#b9cdf0"/>
+  <text x="380" y="96" font-size="14" font-weight="bold" fill="#1f2328" text-anchor="middle">网站小助手</text>
+  <text x="380" y="116" font-size="12" fill="#57606a" text-anchor="middle">意图识别自动分流</text>
+
+  <rect x="500" y="72" width="200" height="56" rx="8" fill="#f0f5ff" stroke="#b9cdf0"/>
+  <text x="600" y="96" font-size="14" font-weight="bold" fill="#1f2328" text-anchor="middle">健康数据</text>
+  <text x="600" y="116" font-size="12" fill="#57606a" text-anchor="middle">指标录入 · JSON 导入导出</text>
+
+  <rect x="720" y="72" width="200" height="56" rx="8" fill="#f0f5ff" stroke="#b9cdf0"/>
+  <text x="820" y="96" font-size="14" font-weight="bold" fill="#1f2328" text-anchor="middle">药品订阅</text>
+  <text x="820" y="116" font-size="12" fill="#57606a" text-anchor="middle">药品浏览 · 订阅提醒</text>
+
+  <rect x="940" y="72" width="200" height="56" rx="8" fill="#f0f5ff" stroke="#b9cdf0"/>
+  <text x="1040" y="96" font-size="14" font-weight="bold" fill="#1f2328" text-anchor="middle">管理后台</text>
+  <text x="1040" y="116" font-size="12" fill="#57606a" text-anchor="middle">AI 配置 · 用户 · 资讯</text>
+
+  <line x1="600" y1="140" x2="600" y2="168" stroke="#8b949e" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ============ ② 接入层 ============ -->
+  <rect x="40" y="172" width="1120" height="90" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <text x="60" y="200" font-size="15" font-weight="bold" fill="#0050cb">② 接入层 · 认证与韧性</text>
+
+  <rect x="60" y="212" width="250" height="34" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="185" y="234" font-size="12.5" fill="#1f2328" text-anchor="middle">JWT 会话版本号 · 即改即失效</text>
+
+  <rect x="332" y="212" width="250" height="34" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="457" y="234" font-size="12.5" fill="#1f2328" text-anchor="middle">CRM API Key · fail-closed</text>
+
+  <rect x="604" y="212" width="250" height="34" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="729" y="234" font-size="12.5" fill="#1f2328" text-anchor="middle">Sentinel 限流（登录/AI/上传）</text>
+
+  <rect x="876" y="212" width="250" height="34" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="1001" y="234" font-size="12.5" fill="#1f2328" text-anchor="middle">MDC traceId 全链路日志</text>
+
+  <line x1="600" y1="262" x2="600" y2="290" stroke="#8b949e" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ============ ③ AI 智能体核心 ============ -->
+  <rect x="40" y="294" width="1120" height="270" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <text x="60" y="322" font-size="15" font-weight="bold" fill="#0050cb">③ AI 智能体核心 · Spring Boot</text>
+
+  <!-- 列 A：Multi-Agent -->
+  <rect x="60" y="334" width="350" height="32" rx="6" fill="#f3eefc" stroke="#8250df"/>
+  <text x="235" y="355" font-size="13" font-weight="bold" fill="#8250df" text-anchor="middle">Multi-Agent 协调器（Supervisor）</text>
+  <rect x="60" y="372" width="350" height="170" rx="6" fill="#fafbfc" stroke="#e6e6e6"/>
+  <text x="80" y="396" font-size="13" fill="#24292f">全科医生 — 症状分析 · 分诊建议</text>
+  <text x="80" y="418" font-size="13" fill="#24292f">营养师 — 饮食规划</text>
+  <text x="80" y="440" font-size="13" fill="#24292f">心理咨询师 — 情绪疏导</text>
+  <text x="80" y="462" font-size="13" fill="#24292f">报告分析师 — 体检报告解读</text>
+  <text x="80" y="484" font-size="13" fill="#24292f">健康助手 — 通用健康咨询</text>
+  <text x="80" y="506" font-size="13" fill="#24292f">全能助手 — 兜底分流</text>
+  <text x="80" y="530" font-size="11" fill="#57606a">意图词表外部化（CrmConfig 可配置）</text>
+
+  <!-- 列 B：ReAct -->
+  <rect x="430" y="334" width="350" height="32" rx="6" fill="#e8f5ef" stroke="#2da44e"/>
+  <text x="605" y="355" font-size="13" font-weight="bold" fill="#1a7f37" text-anchor="middle">ReAct Agent · function calling</text>
+  <rect x="430" y="372" width="350" height="170" rx="6" fill="#fafbfc" stroke="#e6e6e6"/>
+  <text x="450" y="396" font-size="12.5" fill="#24292f">OpenAI function calling · 最多 5 轮自主决策</text>
+  <text x="450" y="414" font-size="11.5" fill="#57606a">工具轨迹落库，可审计回放</text>
+  <rect x="448" y="426" width="158" height="26" rx="4" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="527" y="444" font-size="11" fill="#1f2328" text-anchor="middle" font-family="Consolas,Menlo,monospace">search_drug</text>
+  <rect x="614" y="426" width="158" height="26" rx="4" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="693" y="444" font-size="11" fill="#1f2328" text-anchor="middle" font-family="Consolas,Menlo,monospace">get_health_data</text>
+  <rect x="448" y="458" width="158" height="26" rx="4" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="527" y="476" font-size="11" fill="#1f2328" text-anchor="middle" font-family="Consolas,Menlo,monospace">search_knowledge</text>
+  <rect x="614" y="458" width="158" height="26" rx="4" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="693" y="476" font-size="11" fill="#1f2328" text-anchor="middle" font-family="Consolas,Menlo,monospace">web_search</text>
+  <rect x="448" y="490" width="158" height="26" rx="4" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="527" y="508" font-size="11" fill="#1f2328" text-anchor="middle" font-family="Consolas,Menlo,monospace">get_chat_history</text>
+  <rect x="614" y="490" width="158" height="26" rx="4" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="693" y="508" font-size="11" fill="#1f2328" text-anchor="middle" font-family="Consolas,Menlo,monospace">execute_sql</text>
+
+  <!-- 列 C：Provider 工厂 -->
+  <rect x="800" y="334" width="300" height="32" rx="6" fill="#fff4e0" stroke="#d4a72c"/>
+  <text x="950" y="355" font-size="13" font-weight="bold" fill="#9a6700" text-anchor="middle">LLM Provider 工厂</text>
+  <rect x="800" y="372" width="300" height="170" rx="6" fill="#fafbfc" stroke="#e6e6e6"/>
+  <text x="820" y="396" font-size="12.5" fill="#24292f">12 家国内云厂商</text>
+  <text x="820" y="416" font-size="12" fill="#57606a">DeepSeek / 通义 / Kimi / GLM</text>
+  <text x="820" y="438" font-size="12" fill="#57606a">豆包 / 文心 / 混元 / MiniMax…</text>
+  <text x="820" y="470" font-size="12" font-weight="bold" fill="#1b7c83">＋ LocalVllmProvider</text>
+  <text x="820" y="490" font-size="11.5" fill="#24292f">自部署微调模型（vLLM :8000）</text>
+  <text x="820" y="510" font-size="11.5" fill="#57606a">HealthPulse-Qwen2.5-7B</text>
+  <text x="820" y="530" font-size="11" fill="#57606a">云端热切换 · 熔断重试</text>
+
+  <!-- 三层防幻觉 -->
+  <rect x="60" y="542" width="1080" height="20" rx="4" fill="#fef2f2" stroke="#ffd7d7"/>
+  <text x="600" y="556" font-size="12" fill="#cf222e" text-anchor="middle">三层防幻觉 SynthesisGuard：质量门（端水/重复检测）→ 合规门（剂量敏感/免责）→ 安全门（紧急就医提示）</text>
+
+  <line x1="600" y1="564" x2="600" y2="592" stroke="#8b949e" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ============ ④ 双路 RAG ============ -->
+  <rect x="40" y="596" width="1120" height="210" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <text x="60" y="624" font-size="15" font-weight="bold" fill="#0050cb">④ 双路 RAG 知识检索 · 引用溯源 + RAGAS 评测</text>
+
+  <rect x="60" y="636" width="350" height="30" rx="6" fill="#f0f5ff" stroke="#b9cdf0"/>
+  <text x="235" y="656" font-size="13" font-weight="bold" fill="#0050cb" text-anchor="middle">向量路（语义召回）</text>
+  <rect x="60" y="672" width="350" height="90" rx="6" fill="#fafbfc" stroke="#e6e6e6"/>
+  <text x="80" y="696" font-size="12.5" font-weight="bold" fill="#24292f">文章 ingestion 管线</text>
+  <text x="80" y="718" font-size="12.5" fill="#24292f">分块 → bge-m3 嵌入 → 向量库</text>
+  <text x="80" y="740" font-size="12.5" fill="#24292f">语义召回（余弦相似度）</text>
+
+  <rect x="430" y="636" width="350" height="30" rx="6" fill="#e8f5ef" stroke="#2da44e"/>
+  <text x="605" y="656" font-size="13" font-weight="bold" fill="#1a7f37" text-anchor="middle">图谱路（GraphRAG）</text>
+  <rect x="430" y="672" width="350" height="90" rx="6" fill="#fafbfc" stroke="#e6e6e6"/>
+  <text x="450" y="696" font-size="12.5" font-weight="bold" fill="#24292f">Neo4j 实体抽取 → 关系查询</text>
+  <text x="450" y="718" font-size="12.5" fill="#24292f">图谱关系注入上下文</text>
+  <text x="450" y="740" font-size="11.5" fill="#57606a">未启动自动降级（isConnected 兜底）</text>
+
+  <rect x="800" y="636" width="300" height="30" rx="6" fill="#fff8e6" stroke="#d4a72c"/>
+  <text x="950" y="656" font-size="13" font-weight="bold" fill="#9a6700" text-anchor="middle">关键词路</text>
+  <rect x="800" y="672" width="300" height="90" rx="6" fill="#fafbfc" stroke="#e6e6e6"/>
+  <text x="820" y="696" font-size="12.5" font-weight="bold" fill="#24292f">MySQL LIKE 召回</text>
+  <text x="820" y="718" font-size="12.5" fill="#24292f">标题匹配优先排序</text>
+  <text x="820" y="740" font-size="11.5" fill="#57606a">与向量/图谱双路 RRF 融合</text>
+
+  <rect x="60" y="770" width="1080" height="24" rx="4" fill="#f0f5ff" stroke="#b9cdf0"/>
+  <text x="600" y="786" font-size="12" fill="#0050cb" text-anchor="middle">RRF 融合排序 → Top-K 注入 AI 上下文（带 [ID] 引用溯源）｜RAGAS 评测：精确度 / 忠实度 / 相关性</text>
+
+  <line x1="600" y1="806" x2="600" y2="834" stroke="#8b949e" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ============ ⑤ 数据与基础设施 ============ -->
+  <rect x="40" y="838" width="1120" height="100" rx="12" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <text x="60" y="866" font-size="15" font-weight="bold" fill="#0050cb">⑤ 数据与基础设施</text>
+
+  <rect x="60" y="878" width="210" height="34" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="165" y="900" font-size="12.5" fill="#24292f" text-anchor="middle">MySQL 8 主库</text>
+  <rect x="282" y="878" width="210" height="34" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="387" y="900" font-size="12.5" fill="#24292f" text-anchor="middle">Redis 缓存 · 会话版本</text>
+  <rect x="504" y="878" width="210" height="34" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="609" y="900" font-size="12.5" fill="#24292f" text-anchor="middle">SQLite CRM 对话</text>
+  <rect x="726" y="878" width="210" height="34" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="831" y="900" font-size="12.5" fill="#24292f" text-anchor="middle">Neo4j 知识图谱</text>
+  <rect x="948" y="878" width="210" height="34" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="1053" y="900" font-size="12.5" fill="#24292f" text-anchor="middle">本地向量库（bge-m3）</text>
+
+  <text x="600" y="926" font-size="12" fill="#57606a" text-anchor="middle">基础设施：Docker Compose 一键启动 · Prometheus / Grafana 指标 · Loki 日志聚合 · Alertmanager 告警 · 微调权重发布 Hugging Face / 魔搭</text>
+</svg>
