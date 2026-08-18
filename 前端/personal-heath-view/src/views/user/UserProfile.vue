@@ -7,24 +7,24 @@
         <div class="profile-avatar">
           <img :src="userInfo.avatar || '/default-avatar.png'" alt="" class="profile-avatar__img" />
           <div class="profile-avatar__edit" @click="editAvatar">
-            <span></span>
+            <span>编辑</span>
           </div>
         </div>
         <div class="profile-info">
           <h1 class="profile-info__name">{{ userInfo.name || '' }}</h1>
           <p class="profile-info__account">{{ userInfo.account }}</p>
           <div class="profile-info__tags">
-            <span class="profile-tag profile-tag--role">{{ userInfo.role === 1 ? '' : '' }}</span>
+            <span class="profile-tag profile-tag--role">{{ userInfo.role === 1 ? '管理员' : '普通用户' }}</span>
             <span class="profile-tag profile-tag--vip">VIP</span>
           </div>
         </div>
         <button class="profile-edit-btn" @click="editProfile">
-          
+          编辑资料
         </button>
       </div>
     </div>
 
-    <!--  -->
+    <!-- 统计卡片 -->
     <div class="profile-stats">
       <div class="stat-item" v-for="stat in stats" :key="stat.label">
         <div class="stat-item__number">{{ stat.value }}</div>
@@ -32,10 +32,10 @@
       </div>
     </div>
 
-    <!--  -->
+    <!-- 功能菜单 -->
     <div class="profile-menu">
       <div class="menu-section">
-        <h3 class="menu-section__title"></h3>
+        <h3 class="menu-section__title">常用服务</h3>
         <div class="menu-grid">
           <div class="menu-item" v-for="item in serviceMenus" :key="item.label" @click="navigateTo(item.path)">
             <div class="menu-item__icon" :style="{ background: item.bg }">{{ item.icon }}</div>
@@ -45,7 +45,7 @@
       </div>
 
       <div class="menu-section">
-        <h3 class="menu-section__title"></h3>
+        <h3 class="menu-section__title">设置</h3>
         <div class="menu-list">
           <div class="menu-list-item" v-for="item in settingMenus" :key="item.label" @click="navigateTo(item.path)">
             <div class="menu-list-item__left">
@@ -58,9 +58,9 @@
       </div>
     </div>
 
-    <!--  -->
+    <!-- 退出登录 -->
     <div class="profile-footer">
-      <button class="logout-btn" @click="logout"></button>
+      <button class="logout-btn" @click="logout">退出登录</button>
     </div>
   </div>
 </template>
@@ -82,26 +82,26 @@ export default {
         email: "",
       },
       stats: [
-        { label: "", value: 0 },
-        { label: "", value: 0 },
-        { label: "AI", value: 0 },
-        { label: "", value: 0 },
+        { label: "我的收藏", value: 0 },
+        { label: "健康记录", value: 0 },
+        { label: "AI 对话", value: 0 },
+        { label: "用药提醒", value: 0 },
       ],
       serviceMenus: [
-        { icon: "", label: "", path: "/user/health-report", bg: "rgba(14, 165, 165, 0.08)" },
-        { icon: "", label: "", path: "/user/drug", bg: "rgba(0, 80, 203, 0.08)" },
-        { icon: "", label: "AI", path: "/user/assistant", bg: "rgba(168, 85, 247, 0.08)" },
-        { icon: "", label: "", path: "/user/user-health-model", bg: "rgba(255, 149, 0, 0.08)" },
-        { icon: "", label: "", path: "/user/my-save", bg: "rgba(255, 107, 129, 0.08)" },
-        { icon: "", label: "", path: "/user/message-center", bg: "rgba(51, 112, 255, 0.08)" },
+        { icon: "📊", label: "健康报告", path: "/user/health-report", bg: "rgba(14, 165, 165, 0.08)" },
+        { icon: "💊", label: "药品查询", path: "/user/drug", bg: "rgba(0, 80, 203, 0.08)" },
+        { icon: "🤖", label: "AI 助手", path: "/user/assistant", bg: "rgba(168, 85, 247, 0.08)" },
+        { icon: "🫀", label: "健康模型", path: "/user/user-health-model", bg: "rgba(255, 149, 0, 0.08)" },
+        { icon: "⭐", label: "我的收藏", path: "/user/my-save", bg: "rgba(255, 107, 129, 0.08)" },
+        { icon: "🔔", label: "消息中心", path: "/user/message-center", bg: "rgba(51, 112, 255, 0.08)" },
       ],
       settingMenus: [
-        { icon: "", label: "", path: "/user/profile-edit" },
-        { icon: "", label: "", path: "/user/change-password" },
-        { icon: "", label: "", path: "/user/notification-settings" },
-        { icon: "", label: "", path: "/user/theme-settings" },
-        { icon: "", label: "", path: "/user/help" },
-        { icon: "", label: "", path: "/user/about" },
+        { icon: "✏️", label: "编辑资料", path: "/user/profile-edit" },
+        { icon: "🔐", label: "修改密码", path: "/user/change-password" },
+        { icon: "🔔", label: "通知设置", path: "/user/notification-settings" },
+        { icon: "🎨", label: "主题设置", path: "/user/theme-settings" },
+        { icon: "❓", label: "帮助中心", path: "/user/help" },
+        { icon: "ℹ️", label: "关于我们", path: "/user/about" },
       ],
     };
   },
@@ -134,8 +134,8 @@ export default {
       }
     },
     editAvatar() {
-      // TODO: 
-      this.$message.info("");
+      // TODO: 实现头像上传
+      this.$message.info("头像编辑功能开发中");
     },
     editProfile() {
       this.$router.push("/user/profile-edit");
@@ -145,12 +145,12 @@ export default {
     },
     logout() {
       this.$swal.fire({
-        title: "",
-        text: "",
+        title: "确认退出",
+        text: "您确定要退出登录吗？",
         icon: "question",
         showCancelButton: true,
-        confirmButtonText: "",
-        cancelButtonText: "",
+        confirmButtonText: "退出",
+        cancelButtonText: "取消",
         confirmButtonColor: "#0050cb",
       }).then((result) => {
         if (result.isConfirmed) {

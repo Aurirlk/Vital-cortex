@@ -1,50 +1,50 @@
 <template>
   <div class="appointment-container">
     <div class="appointment-header">
-      <h1 class="page-title"></h1>
-      <p class="page-desc"></p>
+      <h1 class="page-title">预约挂号</h1>
+      <p class="page-desc">选择科室与医生，在线预约门诊服务</p>
     </div>
 
-    <!--  -->
+    <!-- 预约步骤 -->
     <div class="steps-bar">
       <div class="step" :class="{ 'step--active': currentStep >= 1, 'step--done': currentStep > 1 }">
         <div class="step__num">1</div>
-        <span></span>
+        <span>选择科室</span>
       </div>
       <div class="step-line" :class="{ 'step-line--active': currentStep > 1 }"></div>
       <div class="step" :class="{ 'step--active': currentStep >= 2, 'step--done': currentStep > 2 }">
         <div class="step__num">2</div>
-        <span></span>
+        <span>选择医生</span>
       </div>
       <div class="step-line" :class="{ 'step-line--active': currentStep > 2 }"></div>
       <div class="step" :class="{ 'step--active': currentStep >= 3, 'step--done': currentStep > 3 }">
         <div class="step__num">3</div>
-        <span></span>
+        <span>选择时间</span>
       </div>
       <div class="step-line" :class="{ 'step-line--active': currentStep > 3 }"></div>
       <div class="step" :class="{ 'step--active': currentStep >= 4 }">
         <div class="step__num">4</div>
-        <span></span>
+        <span>确认预约</span>
       </div>
     </div>
 
-    <!-- 1 -->
+    <!-- 步骤 1：选择科室 -->
     <div v-if="currentStep === 1" class="step-content">
-      <h2 class="section-title"></h2>
+      <h2 class="section-title">选择科室</h2>
       <div class="department-grid">
         <div v-for="dept in departments" :key="dept.id"
              class="dept-card" :class="{ 'dept-card--selected': selectedDept?.id === dept.id }"
              @click="selectDepartment(dept)">
-          <div class="dept-card__icon"></div>
+          <div class="dept-card__icon">🏥</div>
           <div class="dept-card__name">{{ dept.name }}</div>
           <div class="dept-card__desc">{{ dept.description }}</div>
         </div>
       </div>
     </div>
 
-    <!-- 2 -->
+    <!-- 步骤 2：选择医生 -->
     <div v-if="currentStep === 2" class="step-content">
-      <h2 class="section-title">{{ selectedDept?.name }} - </h2>
+      <h2 class="section-title">{{ selectedDept?.name }} - 选择医生</h2>
       <div class="doctor-grid">
         <div v-for="doctor in doctors" :key="doctor.id"
              class="doctor-card" :class="{ 'doctor-card--selected': selectedDoctor?.id === doctor.id }"
@@ -56,15 +56,15 @@
             <div class="doctor-card__expertise">{{ doctor.expertise }}</div>
           </div>
           <div class="doctor-card__status" :class="doctor.isOnline ? 'online' : 'offline'">
-            {{ doctor.isOnline ? '' : '' }}
+            {{ doctor.isOnline ? '在线' : '离线' }}
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 3 -->
+    <!-- 步骤 3：选择时间 -->
     <div v-if="currentStep === 3" class="step-content">
-      <h2 class="section-title"></h2>
+      <h2 class="section-title">选择就诊时间</h2>
       <div class="date-picker">
         <div v-for="date in availableDates" :key="date"
              class="date-btn" :class="{ 'date-btn--selected': selectedDate === date }"
@@ -76,56 +76,56 @@
         <div v-for="slot in timeSlots" :key="slot.id"
              class="slot-card" :class="{ 'slot-card--full': slot.bookedCount >= slot.maxPatients }"
              @click="selectSlot(slot)">
-          <div class="slot-card__time">{{ slot.timeSlot === 'morning' ? '' : slot.timeSlot === 'afternoon' ? '' : '' }}</div>
+          <div class="slot-card__time">{{ slot.timeSlot === 'morning' ? '上午' : slot.timeSlot === 'afternoon' ? '下午' : '晚间' }}</div>
           <div class="slot-card__count">
-             {{ slot.maxPatients - slot.bookedCount }} 
+             剩余 {{ slot.maxPatients - slot.bookedCount }} 个号源
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 4 -->
+    <!-- 步骤 4：确认预约 -->
     <div v-if="currentStep === 4" class="step-content">
-      <h2 class="section-title"></h2>
+      <h2 class="section-title">确认预约信息</h2>
       <div class="confirm-card">
         <div class="confirm-item">
-          <span class="confirm-label"></span>
+          <span class="confirm-label">预约科室：</span>
           <span class="confirm-value">{{ selectedDept?.name }}</span>
         </div>
         <div class="confirm-item">
-          <span class="confirm-label"></span>
+          <span class="confirm-label">预约医生：</span>
           <span class="confirm-value">{{ selectedDoctor?.name }} ({{ selectedDoctor?.title }})</span>
         </div>
         <div class="confirm-item">
-          <span class="confirm-label"></span>
-          <span class="confirm-value">{{ formatDate(selectedDate) }} {{ selectedSlot?.timeSlot === 'morning' ? '' : '' }}</span>
+          <span class="confirm-label">就诊时间：</span>
+          <span class="confirm-value">{{ formatDate(selectedDate) }} {{ selectedSlot?.timeSlot === 'morning' ? '上午' : selectedSlot?.timeSlot === 'afternoon' ? '下午' : '晚间' }}</span>
         </div>
         <div class="confirm-item">
-          <span class="label"></span>
-          <textarea v-model="symptomDesc" class="symptom-input" placeholder=""></textarea>
+          <span class="label">症状描述：</span>
+          <textarea v-model="symptomDesc" class="symptom-input" placeholder="请简要描述您的症状或就诊需求"></textarea>
         </div>
       </div>
       <div class="confirm-actions">
-        <button class="btn btn--outline" @click="currentStep = 3"></button>
-        <button class="btn btn--primary" @click="submitAppointment"></button>
+        <button class="btn btn--outline" @click="currentStep = 3">上一步</button>
+        <button class="btn btn--primary" @click="submitAppointment">确认预约</button>
       </div>
     </div>
 
-    <!--  -->
+    <!-- 我的预约 -->
     <div class="my-appointments">
-      <h2 class="section-title"></h2>
-      <div v-if="myAppointments.length === 0" class="empty-state"></div>
+      <h2 class="section-title">我的预约</h2>
+      <div v-if="myAppointments.length === 0" class="empty-state">暂无预约记录</div>
       <div v-else class="appointment-list">
         <div v-for="apt in myAppointments" :key="apt.id" class="apt-item">
           <div class="apt-item__info">
             <div class="apt-item__doctor">{{ apt.doctorName }} ({{ apt.doctorTitle }})</div>
             <div class="apt-item__dept">{{ apt.departmentName }}</div>
-            <div class="apt-item__time">{{ apt.appointmentDate }} {{ apt.timeSlot === 'morning' ? '' : '' }}</div>
+            <div class="apt-item__time">{{ apt.appointmentDate }} {{ apt.timeSlot === 'morning' ? '上午' : apt.timeSlot === 'afternoon' ? '下午' : '晚间' }}</div>
           </div>
           <div class="apt-item__status" :class="'status--' + apt.status">
-            {{ ['', '', '', '', ''][apt.status] }}
+            {{ ['待确认', '已确认', '已完成', '已取消', '已过期'][apt.status] || '未知' }}
           </div>
-          <button v-if="apt.status === 0" class="btn btn--text" @click="cancelApt(apt.id)"></button>
+          <button v-if="apt.status === 0" class="btn btn--text" @click="cancelApt(apt.id)">取消</button>
         </div>
       </div>
     </div>
@@ -169,7 +169,7 @@ export default {
     formatDate(date) {
       if (!date) return "";
       const d = new Date(date);
-      const weekdays = ["", "", "", "", "", "", ""];
+      const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
       return `${d.getMonth() + 1}/${d.getDate()} ${weekdays[d.getDay()]}`;
     },
     async loadDepartments() {
@@ -224,14 +224,14 @@ export default {
           symptomDescription: this.symptomDesc,
         });
         if (data.code === 200) {
-          this.$swal.fire({ title: "", icon: "success", timer: 1500, showConfirmButton: false });
+          this.$swal.fire({ title: "预约成功", icon: "success", timer: 1500, showConfirmButton: false });
           this.currentStep = 1;
           this.loadMyAppointments();
         } else {
-          this.$swal.fire({ title: "", text: data.msg, icon: "error" });
+          this.$swal.fire({ title: "预约失败", text: data.msg, icon: "error" });
         }
       } catch (e) {
-        this.$message.error("");
+        this.$message.error("预约提交失败");
       }
     },
     async cancelApt(id) {
