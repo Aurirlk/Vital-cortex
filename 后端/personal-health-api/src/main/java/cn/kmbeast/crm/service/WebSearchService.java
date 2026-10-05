@@ -1,6 +1,7 @@
 package cn.kmbeast.crm.service;
 
 import cn.kmbeast.config.AiConfig;
+import cn.kmbeast.core.http.HttpClientFactory;
 import cn.kmbeast.crm.dto.WebSearchResult;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
@@ -25,16 +26,18 @@ public class WebSearchService {
     @Resource
     private AiConfig aiConfig;
 
+    /** 2026-10-04：共享 HTTP 客户端（统一超时/连接池/线程池上限，避免各处自建导致线程与连接被放大 N 倍） */
+    @jakarta.annotation.Resource
+    private HttpClientFactory httpClientFactory;
+
     private OkHttpClient httpClient;
 
     private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
 
     @PostConstruct
     public void init() {
-        this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build();
+        // 2026-10-04：统一走共享工厂的短请求档（超时语义与原实现一致）
+        this.httpClient = httpClientFactory.shortClient();
     }
 
     /**

@@ -1,6 +1,7 @@
 package cn.kmbeast.crm.vectordb;
 
 import cn.kmbeast.config.AiConfig;
+import cn.kmbeast.core.http.HttpClientFactory;
 import cn.kmbeast.crm.CrmException;
 import cn.kmbeast.crm.config.CrmConfig;
 import com.alibaba.fastjson2.JSON;
@@ -26,6 +27,10 @@ public class EmbeddingService {
 
     @Resource
     private AiConfig aiConfig;
+
+    /** 2026-10-04：共享 HTTP 客户端（统一超时/连接池/线程池上限，避免各处自建导致线程与连接被放大 N 倍） */
+    @jakarta.annotation.Resource
+    private HttpClientFactory httpClientFactory;
 
     private OkHttpClient httpClient;
 
@@ -53,11 +58,8 @@ public class EmbeddingService {
 
     @PostConstruct
     public void init() {
-        this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(aiConfig.getConnectTimeout(), TimeUnit.MILLISECONDS)
-                .readTimeout(aiConfig.getReadTimeout(), TimeUnit.MILLISECONDS)
-                .connectionPool(new ConnectionPool(10, 5, TimeUnit.MINUTES))
-                .build();
+        // 2026-10-04：统一走共享工厂
+        this.httpClient = httpClientFactory.llmClient();
     }
 
     /**
