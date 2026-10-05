@@ -25,7 +25,7 @@
 </template>
 
 <script>
-// 
+//
 export default {
   name: "TagLine",
   data() {

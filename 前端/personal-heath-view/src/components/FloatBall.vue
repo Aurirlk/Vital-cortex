@@ -41,8 +41,20 @@ export default {
         const dy = ev.clientY - this.startY;
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
           this.moved = true;
-          this.position.x = Math.max(0, Math.min(window.innerWidth - 60, ev.clientX - (this.startX - this.position.x)));
-          this.position.y = Math.max(0, Math.min(window.innerHeight - 60, ev.clientY - (this.startY - this.position.y)));
+          this.position.x = Math.max(
+            0,
+            Math.min(
+              window.innerWidth - 60,
+              ev.clientX - (this.startX - this.position.x)
+            )
+          );
+          this.position.y = Math.max(
+            0,
+            Math.min(
+              window.innerHeight - 60,
+              ev.clientY - (this.startY - this.position.y)
+            )
+          );
         }
       };
 
@@ -52,7 +64,10 @@ export default {
         if (!this.moved) {
           this.$emit("click");
         } else {
-          localStorage.setItem("floatBallPosition", JSON.stringify(this.position));
+          localStorage.setItem(
+            "floatBallPosition",
+            JSON.stringify(this.position)
+          );
         }
       };
 
@@ -79,7 +94,16 @@ export default {
   z-index: 9999;
   user-select: none;
 }
-.float-ball:hover { transform: scale(1.1); }
-.float-ball .el-icon { color: #fff; margin-bottom: 2px; }
-.float-ball-text { font-size: 10px; color: #fff; white-space: nowrap; }
+.float-ball:hover {
+  transform: scale(1.1);
+}
+.float-ball .el-icon {
+  color: #fff;
+  margin-bottom: 2px;
+}
+.float-ball-text {
+  font-size: 10px;
+  color: #fff;
+  white-space: nowrap;
+}
 </style>

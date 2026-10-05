@@ -7,7 +7,7 @@
   </div>
 </template>
 <script>
-// 
+//
 import * as echarts from "echarts";
 export default {
   name: "BarChart",
@@ -71,7 +71,7 @@ export default {
         this.chart.resize();
       }
     },
-    // 
+    //
     init() {
       if (!this.$refs.chart) return;
       if (!this.values.length || !this.date.length) return;

@@ -63,7 +63,7 @@ export default {
   methods: {
     onCreated(editor) {
       this.editor = Object.seal(editor);
-      // 
+      //
       this.toolbarConfig.excludeKeys = ["group-video", "group-image"];
     },
   },
@@ -73,7 +73,7 @@ export default {
         console.log("", v1);
         this.content = v1;
       },
-      deep: true, // 
+      deep: true, //
       immediate: true,
     },
     content(newVal, oldVal) {

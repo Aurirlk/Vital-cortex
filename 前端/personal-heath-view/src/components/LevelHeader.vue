@@ -18,8 +18,12 @@
         </span>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item :icon="UserFilled" @click="userCenterPanel">个人中心</el-dropdown-item>
-            <el-dropdown-item :icon="Fold" @click="loginOut">退出登录</el-dropdown-item>
+            <el-dropdown-item :icon="UserFilled" @click="userCenterPanel"
+              >个人中心</el-dropdown-item
+            >
+            <el-dropdown-item :icon="Fold" @click="loginOut"
+              >退出登录</el-dropdown-item
+            >
           </el-dropdown-menu>
         </template>
       </el-dropdown>

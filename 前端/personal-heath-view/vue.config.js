@@ -9,10 +9,10 @@ module.exports = defineConfig({
     port: 21091,
     https: false,
     proxy: {
+      // 后端 context-path 本身含 /api 前缀，不能再剥掉 /api
       "/api": {
         target: "http://localhost:21090",
         changeOrigin: true,
-        pathRewrite: { "^/api": "" },
       },
     },
     client: {

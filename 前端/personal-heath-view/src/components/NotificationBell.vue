@@ -1,7 +1,9 @@
 <template>
   <div class="notification-bell" @click="showPanel = !showPanel">
     <span class="bell-icon"></span>
-    <span v-if="unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+    <span v-if="unreadCount > 0" class="badge">{{
+      unreadCount > 99 ? "99+" : unreadCount
+    }}</span>
 
     <!--  -->
     <div v-if="showPanel" class="notification-panel" @click.stop>
@@ -12,9 +14,13 @@
       <div class="panel-body">
         <div v-if="notifications.length === 0" class="empty-state"></div>
         <div v-else class="notification-list">
-          <div v-for="item in notifications" :key="item.id"
-               class="notification-item" :class="{ unread: !item.isRead }"
-               @click="handleClick(item)">
+          <div
+            v-for="item in notifications"
+            :key="item.id"
+            class="notification-item"
+            :class="{ unread: !item.isRead }"
+            @click="handleClick(item)"
+          >
             <div class="item-title">{{ item.title }}</div>
             <div class="item-content">{{ item.content }}</div>
             <div class="item-time">{{ formatTime(item.createTime) }}</div>
@@ -26,69 +32,75 @@
 </template>
 
 <script>
-import request from '@/utils/request.js'
-import { addWsListener, removeWsListener } from '@/utils/ws.js'
+import request from "@/utils/request.js";
+import { addWsListener, removeWsListener } from "@/utils/ws.js";
 
 export default {
-  name: 'NotificationBell',
+  name: "NotificationBell",
   data() {
     return {
       showPanel: false,
       unreadCount: 0,
-      notifications: []
-    }
+      notifications: [],
+    };
   },
   created() {
-    this.loadUnreadCount()
-    this.loadNotifications()
-    addWsListener('notification', this.onNotification)
+    this.loadUnreadCount();
+    this.loadNotifications();
+    addWsListener("notification", this.onNotification);
   },
   beforeUnmount() {
-    removeWsListener('notification', this.onNotification)
+    removeWsListener("notification", this.onNotification);
   },
   methods: {
     onNotification(data) {
-      this.unreadCount++
-      this.notifications.unshift(data)
+      this.unreadCount++;
+      this.notifications.unshift(data);
     },
     async loadUnreadCount() {
       try {
-        const { data } = await request.get('notification/unread')
-        if (data.code === 200) this.unreadCount = data.data
-      } catch (e) { console.error(e) }
+        const { data } = await request.get("notification/unread");
+        if (data.code === 200) this.unreadCount = data.data;
+      } catch (e) {
+        console.error(e);
+      }
     },
     async loadNotifications() {
       try {
-        const { data } = await request.get('notification/list')
-        if (data.code === 200) this.notifications = data.data
-      } catch (e) { console.error(e) }
+        const { data } = await request.get("notification/list");
+        if (data.code === 200) this.notifications = data.data;
+      } catch (e) {
+        console.error(e);
+      }
     },
     async markAllRead() {
       try {
-        await request.post('notification/readAll')
-        this.unreadCount = 0
-        this.notifications.forEach(n => n.isRead = 1)
-      } catch (e) { console.error(e) }
+        await request.post("notification/readAll");
+        this.unreadCount = 0;
+        this.notifications.forEach((n) => (n.isRead = 1));
+      } catch (e) {
+        console.error(e);
+      }
     },
     async handleClick(item) {
       if (!item.isRead) {
-        await request.post(`notification/read/${item.id}`)
-        item.isRead = 1
-        this.unreadCount = Math.max(0, this.unreadCount - 1)
+        await request.post(`notification/read/${item.id}`);
+        item.isRead = 1;
+        this.unreadCount = Math.max(0, this.unreadCount - 1);
       }
     },
     formatTime(time) {
-      if (!time) return ''
-      const d = new Date(time)
-      const now = new Date()
-      const diff = now - d
-      if (diff < 60000) return ''
-      if (diff < 3600000) return Math.floor(diff / 60000) + ''
-      if (diff < 86400000) return Math.floor(diff / 3600000) + ''
-      return d.toLocaleDateString()
-    }
-  }
-}
+      if (!time) return "";
+      const d = new Date(time);
+      const now = new Date();
+      const diff = now - d;
+      if (diff < 60000) return "";
+      if (diff < 3600000) return Math.floor(diff / 60000) + "";
+      if (diff < 86400000) return Math.floor(diff / 3600000) + "";
+      return d.toLocaleDateString();
+    },
+  },
+};
 </script>
 
 <style scoped>

@@ -3,11 +3,13 @@ import { ElMessage } from "element-plus";
 import { getToken, clearToken } from "@/utils/storage.js";
 
 /**
- * API  —  .env.development 
- *  .env.production 
- * 
+ * API  —  .env.development
+ *  .env.production
+ *
  */
-export const URL_API = process.env.VUE_APP_API_BASE || "http://localhost:21090/api/personal-health/v1.0";
+export const URL_API =
+  process.env.VUE_APP_API_BASE ||
+  "http://localhost:21090/api/personal-health/v1.0";
 
 const request = axios.create({
   baseURL: URL_API,

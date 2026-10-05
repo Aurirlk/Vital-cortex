@@ -9,7 +9,7 @@
     active-text-color="#f1f5f9"
     @select="handleSelect"
   >
-    <template v-for="(item, index) in routes" :key="index">
+    <template v-for="(item, index) in visibleRoutes" :key="index">
       <el-menu-item
         v-if="!item.children || item.children.length === 0"
         style="width: 100%"
@@ -33,6 +33,13 @@ export default {
       isCollapse: true,
       selectedMenuItem: "",
     };
+  },
+  computed: {
+    visibleRoutes() {
+      return (this.routes || []).filter(
+        (item) => item.name && item.name.trim() && !item.isHidden
+      );
+    },
   },
   props: {
     routes: {

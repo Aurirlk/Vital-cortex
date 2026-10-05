@@ -35,8 +35,7 @@
                 class="comment-clike"
                 size="small"
                 type="primary"
-                ></el-button
-              >
+              ></el-button>
             </div>
           </div>
         </el-col>
@@ -62,9 +61,7 @@
               "
               >{{ comment.userName }}</span
             >
-            <span v-if="comment.userId == userId" class="my-body-tag"
-              ></span
-            >
+            <span v-if="comment.userId == userId" class="my-body-tag"></span>
           </el-col>
         </el-row>
         <el-row style="padding: 8px 0">
@@ -99,7 +96,6 @@
                   "
                 >
                   <el-icon><Delete /></el-icon>
-                  
                 </span>
               </template>
             </el-popconfirm>
@@ -160,8 +156,7 @@
                   class="comment-clike"
                   size="small"
                   type="primary"
-                  ></el-button
-                >
+                ></el-button>
               </div>
             </div>
           </el-col>
@@ -185,9 +180,10 @@
                 <span style="color: #515767; padding: 0 5px">{{
                   commentChild.userName
                 }}</span>
-                <span v-if="commentChild.userId == userId" class="my-body-tag"
-                  ></span
-                >
+                <span
+                  v-if="commentChild.userId == userId"
+                  class="my-body-tag"
+                ></span>
                 <span
                   v-if="commentChild.replierName != null"
                   style="
@@ -197,7 +193,6 @@
                     font-size: 12px;
                   "
                 >
-                  
                 </span>
                 <el-avatar
                   v-if="commentChild.replierName != null"
@@ -213,8 +208,7 @@
                 <span
                   v-if="commentChild.replierId == userId"
                   class="my-body-tag"
-                  ></span
-                >
+                ></span>
                 <span
                   style="
                     letter-spacing: 1px;
@@ -252,7 +246,6 @@
                       "
                     >
                       <el-icon><Delete /></el-icon>
-                      
                     </span>
                   </template>
                 </el-popconfirm>
@@ -267,7 +260,6 @@
                   "
                 >
                   <el-icon><ChatDotRound /></el-icon>
-                  
                 </span>
                 <span
                   @click="upvote(commentChild)"
@@ -317,8 +309,7 @@
                         class="comment-clike"
                         size="small"
                         type="primary"
-                        ></el-button
-                      >
+                      ></el-button>
                     </div>
                   </div>
                 </el-col>
@@ -364,9 +355,10 @@
       </el-row>
       <template #footer>
         <span class="dialog-footer">
-          <button class="cannel-btn" @click="dialogVisibleReport = false">
-            
-          </button>
+          <button
+            class="cannel-btn"
+            @click="dialogVisibleReport = false"
+          ></button>
           <button class="yes-btn" @click="operationReport"></button>
         </span>
       </template>
@@ -443,15 +435,15 @@ export default {
     upvote(comment) {
       let upvoteList = comment.upvoteList ? comment.upvoteList.split(",") : [];
       if (upvoteList.length) {
-        // 
+        //
         if (comment.upvoteFlag) {
-          // 
+          //
           let index = upvoteList.indexOf(this.userData.id.toString());
           if (index !== -1) {
             upvoteList.splice(index, 1); // ID
           }
         } else {
-          // 
+          //
           if (!upvoteList.includes(this.userData.userId.toString())) {
             upvoteList.push(this.userData.userId.toString()); // ID
           }
@@ -472,7 +464,7 @@ export default {
           console.error(`-> `, err);
         });
     },
-    // 
+    //
     operationReport() {
       let reportItem = [];
       this.reports.forEach((entity) => {
@@ -482,7 +474,7 @@ export default {
         }
       });
       if (!reportItem.length) {
-        this.$message(``);
+        this.$message(`举报内容不能为空`);
         return;
       }
       this.$axios
@@ -493,15 +485,15 @@ export default {
           this.dialogVisibleReport = false;
           if (res.data.code == 200) {
             this.$swal.fire({
-              title: "",
-              text: "",
+              title: "举报成功",
+              text: "感谢您的反馈，我们已收到该举报",
               icon: "success",
               showConfirmButton: false,
               timer: 1100,
             });
           } else {
             this.$swal.fire({
-              title: "",
+              title: "操作失败",
               text: res.data.msg,
               icon: "error",
               showConfirmButton: false,
@@ -513,7 +505,7 @@ export default {
           console.error(` -> `, err);
         });
     },
-    // 
+    //
     reportItemClick(itemChild) {
       this.reports.forEach((entity) => {
         entity.list.forEach((child) => {
@@ -552,7 +544,7 @@ export default {
       this.comment = comment;
     },
     deleteComment(comment) {
-      // 
+      //
       this.$axios
         .delete(`evaluations/delete/${comment.id}`)
         .then((res) => {
@@ -568,7 +560,7 @@ export default {
     onFocus() {
       this.isFocused = true;
     },
-    // 
+    //
     onBlur() {
       if (this.content === "") {
         this.isFocused = false;
@@ -579,8 +571,8 @@ export default {
     commentClick() {
       if (this.content == "") {
         this.$swal.fire({
-          title: "",
-          text: "",
+          title: "提示",
+          text: "请输入评论内容后再提交",
           icon: "success",
           showConfirmButton: false,
           timer: 800,
@@ -598,8 +590,8 @@ export default {
           if (res.data.code == 200) {
             this.content = "";
             this.$swal.fire({
-              title: "",
-              text: "",
+              title: "评论成功",
+              text: "您的评论已发布",
               icon: "success",
               showConfirmButton: false,
               timer: 1100,
@@ -609,7 +601,7 @@ export default {
             }, 1100);
           } else {
             this.$swal.fire({
-              title: "",
+              title: "评论失败",
               text: res.data.msg,
               icon: "error",
               showConfirmButton: false,
@@ -621,7 +613,7 @@ export default {
           console.error(` -> `, err);
         });
     },
-    // 
+    //
     toggleReplyInput(comment) {
       this.replyText = `${comment.userName}...`;
       if (comment.showReplyInput == null) {
@@ -629,17 +621,17 @@ export default {
       }
       comment.showReplyInput = !comment.showReplyInput;
     },
-    // 
+    //
     toggleReplyInput1(comment) {
       if (comment.replyInputStatus == null) {
         comment.replyInputStatus = false;
       }
       comment.replyInputStatus = !comment.replyInputStatus;
     },
-    // 
+    //
     submitReply(comment) {
       if (this.replyContent == "") {
-        this.$message(``);
+        this.$message(`回复内容不能为空`);
         return;
       }
       const evaluationsDTO = {
@@ -655,19 +647,19 @@ export default {
             this.replyContent = "";
             comment.showReplyInput = false;
             this.$swal.fire({
-              title: "",
-              text: "",
+              title: "回复成功",
+              text: "您的回复已发布",
               icon: "success",
               showConfirmButton: false,
               timer: 1300,
             });
             setTimeout(() => {
-              // 
+              //
               this.loadCommentList();
             }, 1300);
           } else {
             this.$swal.fire({
-              title: "",
+              title: "回复失败",
               text: res.data.msg,
               icon: "error",
               showConfirmButton: false,
@@ -679,10 +671,10 @@ export default {
           console.error(` -> `, err);
         });
     },
-    // 
+    //
     submitReply1(comment) {
       if (this.replyChildContent == "") {
-        this.$message(``);
+        this.$message(`回复内容不能为空`);
         return;
       }
       const evaluationsDTO = {
@@ -699,19 +691,19 @@ export default {
             this.content = "";
             comment.replyInputStatus = false;
             this.$swal.fire({
-              title: "",
-              text: "",
+              title: "回复成功",
+              text: "您的回复已发布",
               icon: "success",
               showConfirmButton: false,
               timer: 1300,
             });
             setTimeout(() => {
-              // 
+              //
               this.loadCommentList();
             }, 1300);
           } else {
             this.$swal.fire({
-              title: "",
+              title: "回复失败",
               text: res.data.msg,
               icon: "error",
               showConfirmButton: false,
@@ -726,7 +718,7 @@ export default {
     goBack() {
       //       this.$router.go(-1);
     },
-    // 
+    //
     loadCommentList() {
       this.$axios
         .get(`evaluations/list/${this.contentId}/${this.contentType}`)
@@ -734,11 +726,11 @@ export default {
           if (res.data.code == 200) {
             this.commentList = res.data.data.data;
             this.evaluationsCount = res.data.data.evaluationsCount;
-            // 
+            //
             this.commentList.forEach((entity) => {
-              // 
+              //
               entity.time = timeAgo(entity.createTime);
-              // 
+              //
               entity.commentChildVOS.forEach(
                 (entity) => (entity.time = timeAgo(entity.createTime))
               );

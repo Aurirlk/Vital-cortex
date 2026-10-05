@@ -78,7 +78,7 @@ export default {
         });
         return;
       }
-      const hashedPwd = md5(md5(this.pwd));
+      const hashedPwd = this.pwd;
       const paramDTO = {
         userAccount: this.act,
         userPwd: hashedPwd,

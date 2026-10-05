@@ -35,7 +35,7 @@
   </div>
 </template>
 <script>
-// 
+//
 import * as echarts from "echarts";
 export default {
   name: "DialogLine",
@@ -60,7 +60,7 @@ export default {
   watch: {
     values: {
       handler(newVal) {
-        console.log('LineChart values:', newVal);
+        console.log("LineChart values:", newVal);
         this.$nextTick(() => {
           this.initChart();
         });
@@ -69,7 +69,7 @@ export default {
     },
     date: {
       handler(newVal) {
-        console.log('LineChart date:', newVal);
+        console.log("LineChart date:", newVal);
         this.$nextTick(() => {
           this.initChart();
         });
@@ -122,19 +122,19 @@ export default {
         this.chart.resize();
       }
     },
-    // 
+    //
     initChart() {
       if (!this.$refs.chart) return;
-      
+
       if (this.chart) {
         this.chart.dispose();
       }
       this.chart = echarts.init(this.$refs.chart);
-      
-      // 
-      const xData = this.date && this.date.length > 0 ? this.date : [''];
+
+      //
+      const xData = this.date && this.date.length > 0 ? this.date : [""];
       const yData = this.values && this.values.length > 0 ? this.values : [0];
-      
+
       let option = {
         grid: {
           left: 60,
@@ -145,15 +145,15 @@ export default {
         },
         tooltip: {
           trigger: "axis",
-          formatter: function(params) {
-            if (params[0].name === '') return '';
-            return params[0].name + ': ' + params[0].value;
+          formatter: function (params) {
+            if (params[0].name === "") return "";
+            return params[0].name + ": " + params[0].value;
           },
         },
         xAxis: {
-          type: 'category',
+          type: "category",
           data: xData,
-          axisLine: { show: true, lineStyle: { color: '#E5E6EB' } },
+          axisLine: { show: true, lineStyle: { color: "#E5E6EB" } },
           axisTick: { show: false },
           axisLabel: {
             color: "#666",
@@ -162,7 +162,7 @@ export default {
           },
         },
         yAxis: {
-          type: 'value',
+          type: "value",
           axisLine: { show: false },
           axisTick: { show: false },
           axisLabel: {
@@ -170,8 +170,8 @@ export default {
             fontSize: 12,
           },
           splitLine: {
-            lineStyle: { color: '#F0F0F0' }
-          }
+            lineStyle: { color: "#F0F0F0" },
+          },
         },
         series: [
           {
@@ -181,8 +181,8 @@ export default {
             data: yData,
             areaStyle: {
               color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: 'rgba(102, 126, 234, 0.3)' },
-                { offset: 1, color: 'rgba(102, 126, 234, 0.05)' }
+                { offset: 0, color: "rgba(102, 126, 234, 0.3)" },
+                { offset: 1, color: "rgba(102, 126, 234, 0.05)" },
               ]),
             },
             lineStyle: {
@@ -194,10 +194,10 @@ export default {
               borderColor: "#fff",
               borderWidth: 2,
             },
-            symbol: 'circle',
+            symbol: "circle",
             symbolSize: 6,
             label: {
-              show: xData.length <= 20 && xData[0] !== '',
+              show: xData.length <= 20 && xData[0] !== "",
               position: "top",
               color: "#666",
               fontSize: 11,
@@ -205,21 +205,21 @@ export default {
           },
         ],
       };
-      
-      // 
+
+      //
       if (!this.values || this.values.length === 0) {
         option.graphic = {
-          type: 'text',
-          left: 'center',
-          top: 'middle',
+          type: "text",
+          left: "center",
+          top: "middle",
           style: {
-            text: '',
+            text: "",
             fontSize: 14,
-            fill: '#999',
-          }
+            fill: "#999",
+          },
         };
       }
-      
+
       this.chart.setOption(option);
     },
   },

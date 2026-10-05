@@ -10,20 +10,51 @@
         <div class="login-left__features">
           <div class="feature-item">
             <div class="feature-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 11.5C21 16.75 16.75 21 11.5 21C10 21 8.75 20.75 7.5 20.25L3 21L4.5 17.25C3.5 15.75 3 14 3 11.5C3 6.25 7.25 2 12.5 2C17.75 2 21 6.25 21 11.5Z" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M8.5 11.5H14.5M11.5 8.5V14.5" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M21 11.5C21 16.75 16.75 21 11.5 21C10 21 8.75 20.75 7.5 20.25L3 21L4.5 17.25C3.5 15.75 3 14 3 11.5C3 6.25 7.25 2 12.5 2C17.75 2 21 6.25 21 11.5Z"
+                  stroke="white"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M8.5 11.5H14.5M11.5 8.5V14.5"
+                  stroke="white"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                />
               </svg>
             </div>
             <div class="feature-text">
               <div class="feature-title">AI 智能问诊</div>
-              <div class="feature-desc">多轮对话式健康咨询，支持 RAG 引用溯源</div>
+              <div class="feature-desc">
+                多轮对话式健康咨询，支持 RAG 引用溯源
+              </div>
             </div>
           </div>
           <div class="feature-item">
             <div class="feature-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 12H7L10 4L14 20L17 12H21" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3 12H7L10 4L14 20L17 12H21"
+                  stroke="white"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             </div>
             <div class="feature-text">
@@ -33,13 +64,48 @@
           </div>
           <div class="feature-item">
             <div class="feature-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="5" cy="5" r="2" stroke="white" stroke-width="1.6"/>
-                <circle cx="19" cy="5" r="2" stroke="white" stroke-width="1.6"/>
-                <circle cx="12" cy="12" r="2" stroke="white" stroke-width="1.6"/>
-                <circle cx="5" cy="19" r="2" stroke="white" stroke-width="1.6"/>
-                <circle cx="19" cy="19" r="2" stroke="white" stroke-width="1.6"/>
-                <path d="M7 5L10 10M17 5L14 10M10 14L7 17M14 14L17 17" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle cx="5" cy="5" r="2" stroke="white" stroke-width="1.6" />
+                <circle
+                  cx="19"
+                  cy="5"
+                  r="2"
+                  stroke="white"
+                  stroke-width="1.6"
+                />
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="2"
+                  stroke="white"
+                  stroke-width="1.6"
+                />
+                <circle
+                  cx="5"
+                  cy="19"
+                  r="2"
+                  stroke="white"
+                  stroke-width="1.6"
+                />
+                <circle
+                  cx="19"
+                  cy="19"
+                  r="2"
+                  stroke="white"
+                  stroke-width="1.6"
+                />
+                <path
+                  d="M7 5L10 10M17 5L14 10M10 14L7 17M14 14L17 17"
+                  stroke="white"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
               </svg>
             </div>
             <div class="feature-text">
@@ -49,10 +115,33 @@
           </div>
           <div class="feature-item">
             <div class="feature-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 3H7C5.9 3 5 3.9 5 5V21L8 19L11 21L12 20.5L13 21L16 19L19 21V8" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M19 8H14V3" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 13H15M9 16H13" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M14 3H7C5.9 3 5 3.9 5 5V21L8 19L11 21L12 20.5L13 21L16 19L19 21V8"
+                  stroke="white"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M19 8H14V3"
+                  stroke="white"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M9 13H15M9 16H13"
+                  stroke="white"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                />
               </svg>
             </div>
             <div class="feature-text">
@@ -86,15 +175,15 @@
 
         <!--  -->
         <div class="login-tabs">
-          <button 
-            class="login-tab" 
+          <button
+            class="login-tab"
             :class="{ 'login-tab--active': loginType === 'account' }"
             @click="loginType = 'account'"
           >
             账号登录
           </button>
-          <button 
-            class="login-tab" 
+          <button
+            class="login-tab"
             :class="{ 'login-tab--active': loginType === 'phone' }"
             @click="loginType = 'phone'"
           >
@@ -106,20 +195,20 @@
         <div v-if="loginType === 'account'" class="login-form__fields">
           <div class="form-field">
             <label class="form-label">账号</label>
-            <input 
-              v-model="act" 
-              class="form-input" 
-              placeholder="请输入账号（如 admin）" 
+            <input
+              v-model="act"
+              class="form-input"
+              placeholder="请输入账号（如 admin）"
               @keyup.enter="login"
             />
           </div>
           <div class="form-field">
             <label class="form-label">密码</label>
-            <input 
-              v-model="pwd" 
-              class="form-input" 
-              type="password" 
-              placeholder="请输入密码" 
+            <input
+              v-model="pwd"
+              class="form-input"
+              type="password"
+              placeholder="请输入密码"
               @keyup.enter="login"
             />
           </div>
@@ -129,48 +218,70 @@
         <div v-else class="login-form__fields">
           <div class="form-field">
             <label class="form-label">手机号</label>
-            <input 
-              v-model="phone" 
-              class="form-input" 
-              placeholder="请输入手机号" 
+            <input
+              v-model="phone"
+              class="form-input"
+              placeholder="请输入手机号"
               maxlength="11"
             />
           </div>
           <div class="form-field">
             <label class="form-label">短信验证码</label>
             <div class="form-field__row">
-              <input 
-                v-model="smsCode" 
-                class="form-input form-input--sms" 
-                placeholder="请输入验证码" 
+              <input
+                v-model="smsCode"
+                class="form-input form-input--sms"
+                placeholder="请输入验证码"
                 maxlength="6"
                 @keyup.enter="loginByPhone"
               />
-              <button 
-                class="sms-btn" 
+              <button
+                class="sms-btn"
                 :class="{ 'sms-btn--disabled': smsCooldown > 0 }"
                 :disabled="smsCooldown > 0"
                 @click="sendSmsCode"
               >
-                <svg v-if="smsCooldown <= 0" class="sms-btn__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <svg
+                  v-if="smsCooldown <= 0"
+                  class="sms-btn__icon"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M22 2L11 13"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M22 2L15 22L11 13L2 9L22 2Z"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
                 </svg>
-                <span>{{ smsCooldown > 0 ? `${smsCooldown}s 后重发` : '获取验证码' }}</span>
+                <span>{{
+                  smsCooldown > 0 ? `${smsCooldown}s 后重发` : "获取验证码"
+                }}</span>
               </button>
             </div>
           </div>
         </div>
 
         <!--  -->
-        <button 
-          class="login-btn" 
+        <button
+          class="login-btn"
           :class="{ 'login-btn--loading': loading }"
           @click="loginType === 'account' ? login() : loginByPhone()"
           :disabled="loading"
         >
           <span v-if="loading" class="login-btn__spinner"></span>
-          <span>{{ loading ? '登录中...' : '登录' }}</span>
+          <span>{{ loading ? "登录中..." : "登录" }}</span>
         </button>
 
         <!--  -->
@@ -179,18 +290,32 @@
           <span class="login-form__link" @click="toRegister">立即注册</span>
         </div>
 
+        <!-- 医生端独立入口（2026-10-04）：医生账号由管理员分配，不能在此注册 -->
+        <div class="login-form__footer">
+          <span class="login-form__text">我是医生</span>
+          <span class="login-form__link" @click="toDoctorLogin">
+            前往医生登录
+          </span>
+        </div>
+
         <!--  -->
         <div class="login-form__other">
           <div class="brand-divider"></div>
           <div class="other-login">
             <button class="other-login__btn" title="微信登录">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M8.5 11C9.33 11 10 10.33 10 9.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11ZM15.5 11C16.33 11 17 10.33 17 9.5S16.33 8 15.5 8 14 8.67 14 9.5 14.67 11 15.5 11ZM12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" fill="#07c160"/>
+                <path
+                  d="M8.5 11C9.33 11 10 10.33 10 9.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11ZM15.5 11C16.33 11 17 10.33 17 9.5S16.33 8 15.5 8 14 8.67 14 9.5 14.67 11 15.5 11ZM12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z"
+                  fill="#07c160"
+                />
               </svg>
             </button>
             <button class="other-login__btn" title="QQ">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z" fill="#12B7F5"/>
+                <path
+                  d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z"
+                  fill="#12B7F5"
+                />
               </svg>
             </button>
           </div>
@@ -205,7 +330,6 @@ const DELAY_TIME = 1300;
 import request from "@/utils/request.js";
 import { setToken } from "@/utils/storage.js";
 import { connectWs } from "@/utils/ws.js";
-import md5 from "js-md5";
 import BrandLogo from "@/components/BrandLogo.vue";
 import BrandDecoration from "@/components/BrandDecoration.vue";
 
@@ -228,7 +352,12 @@ export default {
       this.$router.push("/register");
     },
 
-    // 
+    // 医生端走独立账号体系（/doctor/login），与此处用户登录互不相通
+    toDoctorLogin() {
+      this.$router.push("/doctor/login");
+    },
+
+    //
     sendSmsCode() {
       if (!this.phone || this.phone.length !== 11) {
         this.$swal.fire({
@@ -240,7 +369,7 @@ export default {
         });
         return;
       }
-      // 
+      //
       this.smsCooldown = 60;
       const timer = setInterval(() => {
         this.smsCooldown--;
@@ -248,16 +377,16 @@ export default {
           clearInterval(timer);
         }
       }, 1000);
-        this.$swal.fire({
-          title: "成功",
-          text: "验证码已发送（演示环境默认 123456）",
-          icon: "success",
-          showConfirmButton: false,
-          timer: DELAY_TIME,
-        });
+      this.$swal.fire({
+        title: "成功",
+        text: "验证码已发送（演示环境默认 123456）",
+        icon: "success",
+        showConfirmButton: false,
+        timer: DELAY_TIME,
+      });
     },
 
-    // 
+    //
     async loginByPhone() {
       if (!this.phone || this.phone.length !== 11) {
         this.$swal.fire({
@@ -279,16 +408,16 @@ export default {
         });
         return;
       }
-      // 
+      //
       this.loading = true;
       try {
-        const hashedPwd = md5(md5("123456")); // 
+        const hashedPwd = "123456"; // 短信登录固定密码(原始)
         const paramDTO = { userAccount: this.phone, userPwd: hashedPwd };
         const { data } = await request.post(`user/login`, paramDTO);
         if (data.code !== 200) {
           this.$swal.fire({
-            title: "",
-            text: data.msg || "",
+            title: "登录失败",
+            text: data.msg || "账号或密码错误",
             icon: "error",
             showConfirmButton: false,
             timer: DELAY_TIME,
@@ -309,7 +438,7 @@ export default {
       }
     },
 
-    // 
+    //
     async login() {
       if (!this.act || !this.pwd) {
         this.$swal.fire({
@@ -322,13 +451,13 @@ export default {
         return;
       }
       this.loading = true;
-      const hashedPwd = md5(md5(this.pwd));
+      const hashedPwd = this.pwd;
       const paramDTO = { userAccount: this.act, userPwd: hashedPwd };
       try {
         const { data } = await request.post(`user/login`, paramDTO);
         if (data.code !== 200) {
           this.$swal.fire({
-            title: "",
+            title: "登录失败",
             text: data.msg,
             icon: "error",
             showConfirmButton: false,
@@ -489,8 +618,13 @@ export default {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
 }
 
 /* ====================  ==================== */
@@ -691,7 +825,9 @@ export default {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /*  */

@@ -43,7 +43,7 @@ export default {
   align-items: center;
   flex-wrap: wrap;
   user-select: none;
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
 
   span {
     margin-left: 8px;

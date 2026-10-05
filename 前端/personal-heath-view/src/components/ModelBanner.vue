@@ -1,15 +1,25 @@
 <template>
-  <div class="model-banner" v-if="bannerVisible && announcement"
-       :style="{ backgroundColor: bannerBgColor, color: bannerTextColor }">
+  <div
+    class="model-banner"
+    v-if="bannerVisible && announcement"
+    :style="{ backgroundColor: bannerBgColor, color: bannerTextColor }"
+  >
     <div class="banner-content" @click="goToAiChat">
       <el-icon class="banner-icon" :size="20"><MagicStick /></el-icon>
       <div class="banner-text">
         <span class="banner-title">{{ announcement.title }}</span>
-        <span class="banner-desc" v-if="announcement.content">{{ announcement.content }}</span>
+        <span class="banner-desc" v-if="announcement.content">{{
+          announcement.content
+        }}</span>
       </div>
     </div>
-    <el-button class="banner-close" text size="small" @click="closeBanner"
-               :style="{ color: bannerTextColor }">
+    <el-button
+      class="banner-close"
+      text
+      size="small"
+      @click="closeBanner"
+      :style="{ color: bannerTextColor }"
+    >
       <el-icon :size="16"><Close /></el-icon>
     </el-button>
   </div>
@@ -21,23 +31,23 @@ export default {
   data() {
     return {
       announcement: null,
-      bannerVisible: false
-    }
+      bannerVisible: false,
+    };
   },
   computed: {
     bannerBgColor() {
-      return this.announcement?.bgColor || '#409EFF';
+      return this.announcement?.bgColor || "#409EFF";
     },
     bannerTextColor() {
       const color = this.bannerBgColor;
-      if (!color) return '#fff';
-      const hex = color.replace('#', '');
+      if (!color) return "#fff";
+      const hex = color.replace("#", "");
       const r = parseInt(hex.substr(0, 2), 16);
       const g = parseInt(hex.substr(2, 2), 16);
       const b = parseInt(hex.substr(4, 2), 16);
       const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-      return brightness > 160 ? '#333' : '#fff';
-    }
+      return brightness > 160 ? "#333" : "#fff";
+    },
   },
   created() {
     this.loadBanner();
@@ -45,14 +55,14 @@ export default {
   methods: {
     async loadBanner() {
       // 检查 localStorage 是否已关闭
-      const closed = localStorage.getItem('modelBannerClosed');
+      const closed = localStorage.getItem("modelBannerClosed");
       if (closed) {
         const closedDate = new Date(closed);
         const today = new Date();
         if (closedDate.toDateString() === today.toDateString()) {
           return; // 当天不再显示
         }
-        localStorage.removeItem('modelBannerClosed');
+        localStorage.removeItem("modelBannerClosed");
       }
 
       try {
@@ -68,14 +78,14 @@ export default {
 
     closeBanner() {
       this.bannerVisible = false;
-      localStorage.setItem('modelBannerClosed', new Date().toISOString());
+      localStorage.setItem("modelBannerClosed", new Date().toISOString());
     },
 
     goToAiChat() {
-      this.$router.push('/user/ai-analysis');
-    }
-  }
-}
+      this.$router.push("/user/ai-analysis");
+    },
+  },
+};
 </script>
 
 <style scoped>

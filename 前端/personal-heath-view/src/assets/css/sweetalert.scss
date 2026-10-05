@@ -1,0 +1,353 @@
+/* ==========================================================================
+   SweetAlert2 全局弹窗定制
+   --------------------------------------------------------------------------
+   解决的问题：
+   1. 弹窗整体偏窄、确认区按钮偏小（默认 SweetAlert2 尺寸对中文场景不够友好）
+   2. 配色对比度不足，弱化的确认色（如 #667eea）在白底下发飘、看不清
+
+   设计基线：复用 src/styles/design-tokens.css 的 --xh-* 设计令牌，
+   主品牌色 #0050cb，与 Element Plus 侧保持一致。
+   作用域限定在 .swal2-container 内，避免污染 Element Plus 组件。
+   ========================================================================== */
+
+/* ---------- 1. 弹窗容器：加大尺寸、明确边界 ---------- */
+.swal2-container {
+  /* 弹窗底部按钮区是本次重点：加大间距，避免两个按钮挤在一起 */
+  --swal2-padding: 32px;
+  --swal2-border-radius: 16px;
+  --swal2-button-padding: 0 28px;
+  --swal2-button-font-size: 16px;
+  --swal2-button-radius: 10px;
+  --swal2-actions-gap: 12px;
+}
+
+.swal2-popup {
+  min-width: min(480px, 92vw);
+  max-width: min(600px, 94vw);
+  border-radius: var(--swal2-border-radius);
+  /* 柔和但有存在感的投影，让弹窗从背景里"浮"出来 */
+  box-shadow:
+    0 24px 64px rgba(15, 23, 42, 0.18),
+    0 4px 12px rgba(15, 23, 42, 0.08);
+  /* 顶部品牌色描边，替代默认灰边，强化层级 */
+  border: 1px solid var(--xh-border-soft, #e6ebf2);
+  border-top: 4px solid var(--xh-primary, #0050cb);
+  color: var(--xh-text-primary, #191c1e);
+  padding: var(--swal2-padding);
+}
+
+/* 图标区：给个淡色底衬，避免大图标孤零零飘在白色上 */
+.swal2-icon {
+  margin: 0 auto 20px;
+  width: 76px;
+  min-width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  position: relative;
+}
+
+.swal2-icon::before {
+  /* 圆形底衬 */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0.12;
+}
+
+.swal2-icon .swal2-icon-content {
+  position: relative;
+  z-index: 1;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.swal2-icon.swal2-warning {
+  color: #b45309;
+  border: 3px solid #f59e0b;
+}
+
+.swal2-icon.swal2-warning::before {
+  background: #f59e0b;
+}
+
+.swal2-icon.swal2-error {
+  color: #b91c1c;
+  border: 3px solid #ef4444;
+}
+
+.swal2-icon.swal2-error::before {
+  background: #ef4444;
+}
+
+.swal2-icon.swal2-success {
+  color: #047857;
+  border: 3px solid #10b981;
+}
+
+.swal2-icon.swal2-success::before {
+  background: #10b981;
+}
+
+.swal2-icon.swal2-info,
+.swal2-icon.swal2-question {
+  color: var(--xh-primary, #0050cb);
+  border: 3px solid var(--xh-primary, #0050cb);
+}
+
+.swal2-icon.swal2-info::before,
+.swal2-icon.swal2-question::before {
+  background: var(--xh-primary, #0050cb);
+}
+
+/* ---------- 2. 标题与正文：提升可读性 ---------- */
+.swal2-title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--xh-text-primary, #191c1e);
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.swal2-html-container {
+  margin: 0;
+  padding: 0;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--xh-text-secondary, #475569);
+  z-index: 1;
+  overflow-wrap: break-word;
+}
+
+/* ---------- 3. 确认区按钮：本次重点修复对象 ---------- */
+.swal2-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--swal2-actions-gap);
+  margin: 28px 0 0;
+  height: auto !important;
+  /* 覆盖 SweetAlert2 的 flex:1 hack，避免按钮被拉伸得又宽又扁 */
+  flex-wrap: wrap;
+}
+
+.swal2-actions:not(.swal2-loading) .swal2-styled[swal2-button]:not(.swal2-styled) {
+  margin: 0;
+}
+
+.swal2-button {
+  margin: 0 !important;
+  /* 尺寸：默认 1em 高太小，改为 48px 明确高度 */
+  min-width: 112px;
+  min-height: 48px;
+  padding: var(--swal2-button-padding) !important;
+  font-size: var(--swal2-button-font-size) !important;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--swal2-button-radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* 确认按钮：品牌蓝实心，替代默认浅蓝 #3080d3 */
+.swal2-confirm {
+  background-color: var(--xh-primary, #0050cb) !important;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 80, 203, 0.28);
+}
+
+.swal2-confirm:hover {
+  background-color: var(--xh-primary-dark, #0d3b6e) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 80, 203, 0.34);
+}
+
+.swal2-confirm:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 80, 203, 0.28);
+}
+
+.swal2-confirm:focus-visible {
+  outline: 3px solid rgba(0, 80, 203, 0.35);
+  outline-offset: 2px;
+}
+
+/* 取消按钮：白底 + 清晰描边，弱化但不隐形 */
+.swal2-cancel {
+  background-color: #fff !important;
+  color: var(--xh-text-secondary, #475569);
+  border-color: var(--xh-border, #d8deea) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.swal2-cancel:hover {
+  background-color: var(--xh-bg-hover, #f8fafc) !important;
+  border-color: var(--xh-primary, #0050cb) !important;
+  color: var(--xh-primary, #0050cb);
+}
+
+.swal2-cancel:focus-visible {
+  outline: 3px solid rgba(0, 80, 203, 0.28);
+  outline-offset: 2px;
+}
+
+/* ---------- 3.1 语义化确认按钮 ----------
+   用法：customClass: { confirmButton: "swal2-btn-warning" }
+   替代原先散落各处的 confirmButtonColor 硬编码（行内样式会盖过 CSS）。
+   语义：primary=普通保存/确认，warning=重置等不可逆但可回退，danger=注销/删除等不可逆
+   ------------------------------------------------------------------ */
+.swal2-confirm.swal2-btn-primary {
+  background-color: var(--xh-primary, #0050cb) !important;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 80, 203, 0.28);
+}
+
+.swal2-confirm.swal2-btn-primary:hover {
+  background-color: var(--xh-primary-dark, #0d3b6e) !important;
+}
+
+.swal2-confirm.swal2-btn-warning {
+  background-color: #d97706 !important;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.3);
+}
+
+.swal2-confirm.swal2-btn-warning:hover {
+  background-color: #b45309 !important;
+}
+
+.swal2-confirm.swal2-btn-danger {
+  background-color: var(--xh-error, #ef4444) !important;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.32);
+}
+
+.swal2-confirm.swal2-btn-danger:hover {
+  background-color: #b91c1c !important;
+}
+
+/* ---------- 4. 输入框（AI 配置的密码校验框会用到） ---------- */
+.swal2-input {
+  height: 48px;
+  border: 1.5px solid var(--xh-border, #d8deea);
+  border-radius: 10px;
+  font-size: 16px;
+  padding: 0 14px;
+  color: var(--xh-text-primary, #191c1e);
+  background: var(--xh-bg-card, #fff);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.swal2-input:focus {
+  border-color: var(--xh-primary, #0050cb);
+  box-shadow: 0 0 0 3px rgba(0, 80, 203, 0.12);
+  outline: none;
+}
+
+.swal2-input::placeholder {
+  color: var(--xh-text-muted, #647084);
+}
+
+.swal2-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--xh-text-secondary, #475569);
+  margin-bottom: 8px;
+  display: block;
+  text-align: left;
+}
+
+/* ---------- 5. 遮罩：从纯黑淡化为带冷调的深色 ---------- */
+.swal2-backdrop {
+  background: var(--xh-bg-mask, rgba(15, 23, 42, 0.5));
+  backdrop-filter: blur(2px);
+}
+
+/* ---------- 6. 深色模式适配 ---------- */
+html.dark .swal2-popup,
+html.dark body .swal2-popup {
+  background: #1f2430;
+  color: #e6e9ef;
+  border-color: #333a4a;
+  border-top-color: var(--xh-primary-light, #4a90d9);
+}
+
+html.dark .swal2-title {
+  color: #f1f5f9;
+}
+
+html.dark .swal2-html-container {
+  color: #b8c0cc;
+}
+
+html.dark .swal2-cancel {
+  background-color: #2a3140 !important;
+  color: #d5dae3;
+  border-color: #414a5c !important;
+}
+
+html.dark .swal2-cancel:hover {
+  background-color: #333c4d !important;
+  color: #ffffff;
+  border-color: var(--xh-primary-light, #4a90d9) !important;
+}
+
+html.dark .swal2-input {
+  background: #262d3a;
+  border-color: #414a5c;
+  color: #e6e9ef;
+}
+
+html.dark .swal2-backdrop {
+  background: rgba(8, 11, 18, 0.66);
+}
+
+/* ---------- 7. 无障碍：尊重系统「减少动态效果」偏好 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .swal2-button {
+    transition: none;
+  }
+
+  .swal2-confirm:hover,
+  .swal2-cancel:hover {
+    transform: none;
+  }
+}
+
+/* ---------- 8. 移动端窄屏适配 ---------- */
+@media (max-width: 480px) {
+  .swal2-popup {
+    min-width: auto;
+    padding: 24px 20px;
+  }
+
+  .swal2-actions {
+    flex-direction: column-reverse;
+  }
+
+  .swal2-button {
+    width: 100%;
+  }
+}

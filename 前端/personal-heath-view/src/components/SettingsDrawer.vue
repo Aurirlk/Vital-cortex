@@ -11,7 +11,11 @@
       <el-tab-pane label="个性化" name="personalization">
         <el-form label-width="100px">
           <el-form-item label="主题风格">
-            <el-select v-model="settings.theme" placeholder="请选择主题" @change="handleThemeChange">
+            <el-select
+              v-model="settings.theme"
+              placeholder="请选择主题"
+              @change="handleThemeChange"
+            >
               <el-option label="健康绿" value="health-green" />
               <el-option label="专业蓝" value="professional-blue" />
               <el-option label="暖橙" value="warm-orange" />
@@ -21,7 +25,13 @@
             </el-select>
           </el-form-item>
           <el-form-item label="字体大小">
-            <el-slider v-model="settings.fontSize" :min="12" :max="20" :step="1" show-stops />
+            <el-slider
+              v-model="settings.fontSize"
+              :min="12"
+              :max="20"
+              :step="1"
+              show-stops
+            />
           </el-form-item>
         </el-form>
       </el-tab-pane>
@@ -30,14 +40,20 @@
       <el-tab-pane label="网络" name="network">
         <el-form label-width="100px">
           <el-form-item label="搜索引擎">
-            <el-select v-model="settings.searchEngine" placeholder="请选择搜索引擎">
+            <el-select
+              v-model="settings.searchEngine"
+              placeholder="请选择搜索引擎"
+            >
               <el-option label="博查 AI" value="bocha" />
               <el-option label="Tavily" value="tavily" />
               <el-option label="DuckDuckGo" value="duckduckgo" />
             </el-select>
           </el-form-item>
           <el-form-item label="代理地址">
-            <el-input v-model="settings.proxy" placeholder="http://proxy:port" />
+            <el-input
+              v-model="settings.proxy"
+              placeholder="http://proxy:port"
+            />
           </el-form-item>
         </el-form>
       </el-tab-pane>
@@ -46,7 +62,10 @@
       <el-tab-pane label="AI 设置" name="ai">
         <el-form label-width="100px">
           <el-form-item label="AI 服务商">
-            <el-select v-model="settings.aiProvider" placeholder="请选择 AI 服务商">
+            <el-select
+              v-model="settings.aiProvider"
+              placeholder="请选择 AI 服务商"
+            >
               <el-option label="DeepSeek" value="deepseek" />
               <el-option label="通义千问" value="qwen" />
               <el-option label="Kimi" value="kimi" />
@@ -59,7 +78,12 @@
             <el-input v-model="settings.aiModel" placeholder="例如：qwen-max" />
           </el-form-item>
           <el-form-item label="Temperature">
-            <el-slider v-model="settings.temperature" :min="0" :max="2" :step="0.1" />
+            <el-slider
+              v-model="settings.temperature"
+              :min="0"
+              :max="2"
+              :step="0.1"
+            />
           </el-form-item>
         </el-form>
       </el-tab-pane>
@@ -88,11 +112,20 @@
 
           <el-form-item label="发音人" v-if="settings.voiceEnabled">
             <el-select v-model="settings.ttsVoice" placeholder="请选择发音人">
-              <el-option label="晓晓 (女声, 通用)" value="zh-CN-XiaoxiaoNeural" />
+              <el-option
+                label="晓晓 (女声, 通用)"
+                value="zh-CN-XiaoxiaoNeural"
+              />
               <el-option label="云希 (男声, 自然)" value="zh-CN-YunxiNeural" />
-              <el-option label="云健 (男声, 新闻)" value="zh-CN-YunjianNeural" />
+              <el-option
+                label="云健 (男声, 新闻)"
+                value="zh-CN-YunjianNeural"
+              />
               <el-option label="晓伊 (女童声)" value="zh-CN-XiaoyiNeural" />
-              <el-option label="云扬 (男声, 客服)" value="zh-CN-YunyangNeural" />
+              <el-option
+                label="云扬 (男声, 客服)"
+                value="zh-CN-YunyangNeural"
+              />
             </el-select>
           </el-form-item>
 
@@ -102,7 +135,7 @@
               :min="0.5"
               :max="2.0"
               :step="0.1"
-              :format-tooltip="val => val.toFixed(1) + 'x'"
+              :format-tooltip="(val) => val.toFixed(1) + 'x'"
             />
           </el-form-item>
 
@@ -173,82 +206,82 @@
 
 <script>
 export default {
-  name: 'SettingsDrawer',
+  name: "SettingsDrawer",
   data() {
     return {
       visible: false,
-      activeTab: 'personalization',
+      activeTab: "personalization",
       settings: {
-        theme: 'professional-blue',
+        theme: "professional-blue",
         fontSize: 14,
-        searchEngine: 'bocha',
-        proxy: '',
-        aiProvider: 'deepseek',
-        aiModel: '',
+        searchEngine: "bocha",
+        proxy: "",
+        aiProvider: "deepseek",
+        aiModel: "",
         temperature: 0.7,
         voiceEnabled: true,
         autoPlayTts: true,
-        ttsVoice: 'zh-CN-XiaoxiaoNeural',
+        ttsVoice: "zh-CN-XiaoxiaoNeural",
         ttsSpeed: 1.0,
         pushToTalk: false,
         autoRecognize: true,
         emotionAnalysis: true,
         toneAdaptation: true,
         antiWatering: true,
-        logLevel: 'info',
+        logLevel: "info",
         cacheEnabled: true,
-        monitoringEnabled: true
-      }
-    }
+        monitoringEnabled: true,
+      },
+    };
   },
   methods: {
     open() {
-      this.visible = true
-      this.loadSettings()
+      this.visible = true;
+      this.loadSettings();
     },
     handleClose() {
-      this.visible = false
+      this.visible = false;
     },
     handleThemeChange(theme) {
-      document.documentElement.setAttribute('data-theme', theme)
+      document.documentElement.setAttribute("data-theme", theme);
     },
     handleSave() {
-      localStorage.setItem('settings', JSON.stringify(this.settings))
-      this.$message.success('设置已保存')
-      this.visible = false
+      localStorage.setItem("settings", JSON.stringify(this.settings));
+      this.$message.success("设置已保存");
+      this.visible = false;
     },
     handleReset() {
       this.settings = {
-        theme: 'professional-blue',
+        theme: "professional-blue",
         fontSize: 14,
-        searchEngine: 'bocha',
-        proxy: '',
-        aiProvider: 'deepseek',
-        aiModel: '',
+        searchEngine: "bocha",
+        proxy: "",
+        aiProvider: "deepseek",
+        aiModel: "",
         temperature: 0.7,
         voiceEnabled: true,
         autoPlayTts: true,
-        ttsVoice: 'zh-CN-XiaoxiaoNeural',
+        ttsVoice: "zh-CN-XiaoxiaoNeural",
         ttsSpeed: 1.0,
         pushToTalk: false,
         autoRecognize: true,
         emotionAnalysis: true,
         toneAdaptation: true,
         antiWatering: true,
-        logLevel: 'info',
+        logLevel: "info",
         cacheEnabled: true,
-        monitoringEnabled: true
-      }
-      this.$message.info('已恢复默认设置')
+        monitoringEnabled: true,
+      };
+      this.$message.info("已恢复默认设置");
     },
     loadSettings() {
-      const saved = localStorage.getItem('settings')
+      const saved = localStorage.getItem("settings");
       if (saved) {
-        this.settings = { ...this.settings, ...JSON.parse(saved) }
+        this.settings = { ...this.settings, ...JSON.parse(saved) };
       }
-    }
-  }
-}
+    },
+  },
+};
 </script>
 
 <style scoped>

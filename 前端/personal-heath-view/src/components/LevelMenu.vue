@@ -18,7 +18,9 @@
               :class="{ 'nav-item--active': selectedIndex === index }"
               @click="menuClick(item.path, index)"
             >
-              <el-icon class="nav-item-icon" :size="20"><component :is="item.icon" /></el-icon>
+              <el-icon class="nav-item-icon" :size="20"
+                ><component :is="item.icon"
+              /></el-icon>
               <div v-if="selectedIndex === index" class="nav-indicator"></div>
             </div>
           </el-tooltip>
@@ -41,33 +43,87 @@
 
       <!--  -->
       <button class="record-btn" @click="healthDataRecord">
-        <svg class="record-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        <svg
+          class="record-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
         </svg>
         <span>记录健康</span>
       </button>
 
-      <!--  -->
-      <div class="bell-area" @click="messageCenter">
-        <el-badge :hidden="noReadMsg === 0" :value="noReadMsg">
-          <el-icon class="bell-icon"><Bell /></el-icon>
-        </el-badge>
-      </div>
+      <!-- 消息通知 -->
+      <el-popover
+        placement="bottom-end"
+        :width="320"
+        trigger="click"
+        popper-class="msg-popover"
+        @show="loadMsgList"
+      >
+        <template #reference>
+          <div class="bell-area">
+            <el-badge :hidden="noReadMsg === 0" :value="noReadMsg">
+              <el-icon class="bell-icon"><Bell /></el-icon>
+            </el-badge>
+          </div>
+        </template>
+        <div class="msg-panel">
+          <div class="msg-panel__header">
+            <span class="msg-panel__title">消息通知</span>
+            <span
+              v-if="msgList.length > 0"
+              class="msg-panel__all"
+              @click="messageCenter"
+              >查看全部</span
+            >
+          </div>
+          <div v-if="msgList.length === 0" class="msg-panel__empty">
+            <el-icon :size="36"><Bell /></el-icon>
+            <p>暂无未读消息</p>
+          </div>
+          <div
+            v-for="msg in msgList"
+            :key="msg.id"
+            class="msg-item"
+            @click="openMessage(msg)"
+          >
+            <div class="msg-item__dot"></div>
+            <div class="msg-item__body">
+              <div class="msg-item__title">{{ msg.title || "系统通知" }}</div>
+              <div class="msg-item__content">{{ msg.content }}</div>
+              <div class="msg-item__time">{{ msg.createTime }}</div>
+            </div>
+          </div>
+        </div>
+      </el-popover>
 
       <!--  -->
       <div class="user-area">
         <el-dropdown trigger="click">
           <div class="user-trigger">
-            <el-avatar :size="32" :src="userInfo.url"></el-avatar>
+            <el-avatar :size="32" :src="userInfo.url || '/default-avatar.svg'"></el-avatar>
             <span class="user-name">{{ userInfo.name }}</span>
             <el-icon class="arrow-icon"><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item :icon="User" @click="userCenterPanel">个人中心</el-dropdown-item>
-              <el-dropdown-item :icon="WarningFilled" @click="resetPwd">修改密码</el-dropdown-item>
-              <el-dropdown-item :icon="Setting" @click="openSettings">设置</el-dropdown-item>
-              <el-dropdown-item :icon="Back" @click="loginOut">退出登录</el-dropdown-item>
+              <el-dropdown-item :icon="User" @click="userCenterPanel"
+                >个人中心</el-dropdown-item
+              >
+              <el-dropdown-item :icon="WarningFilled" @click="resetPwd"
+                >修改密码</el-dropdown-item
+              >
+              <el-dropdown-item :icon="Setting" @click="openSettings"
+                >设置</el-dropdown-item
+              >
+              <el-dropdown-item :icon="Back" @click="loginOut"
+                >退出登录</el-dropdown-item
+              >
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -79,11 +135,48 @@
 <script>
 import { clearToken } from "@/utils/storage.js";
 import Logo from "@/components/Logo.vue";
-import { Upload, Bell, ArrowDown, User, WarningFilled, Back, Setting, HomeFilled, Star, FirstAidKit, ChatDotRound, Service, Calendar, EditPen, ShoppingCart, Check, Document } from "@element-plus/icons-vue";
+import {
+  Upload,
+  Bell,
+  ArrowDown,
+  User,
+  WarningFilled,
+  Back,
+  Setting,
+  HomeFilled,
+  Star,
+  FirstAidKit,
+  ChatDotRound,
+  Service,
+  Calendar,
+  EditPen,
+  ShoppingCart,
+  Check,
+  Document,
+} from "@element-plus/icons-vue";
 
 export default {
   name: "UserMenu",
-  components: { Logo, Upload, Bell, ArrowDown, User, WarningFilled, Back, Setting, HomeFilled, Star, FirstAidKit, ChatDotRound, Service, Calendar, EditPen, ShoppingCart, Check, Document },
+  components: {
+    Logo,
+    Upload,
+    Bell,
+    ArrowDown,
+    User,
+    WarningFilled,
+    Back,
+    Setting,
+    HomeFilled,
+    Star,
+    FirstAidKit,
+    ChatDotRound,
+    Service,
+    Calendar,
+    EditPen,
+    ShoppingCart,
+    Check,
+    Document,
+  },
   data() {
     return {
       selectedIndex: 0,
@@ -91,10 +184,13 @@ export default {
       defaultPath: "/user/news-record",
       filterText: "",
       noReadMsg: 0,
-      User, WarningFilled, Back, Setting,
+      msgList: [],
+      User,
+      WarningFilled,
+      Back,
+      Setting,
     };
-  },
-  props: {
+  },  props: {
     menus: { type: Array, required: true },
     userInfo: { type: Object, required: true },
   },
@@ -111,23 +207,45 @@ export default {
       sessionStorage.setItem("keyWord", this.filterText);
       this.$emit("eventListener", "search-detail");
     },
-    userCenterPanel() { this.$emit("eventListener", "center"); },
-    resetPwd() { this.$emit("eventListener", "resetPwd"); },
-    openSettings() { this.$emit("eventListener", "settings"); },
-    loginOut() { this.$emit("eventListener", "loginOut"); },
-    healthDataRecord() { this.$emit("eventListener", "healthDataRecord"); },
+    userCenterPanel() {
+      this.$emit("eventListener", "center");
+    },
+    resetPwd() {
+      this.$emit("eventListener", "resetPwd");
+    },
+    openSettings() {
+      this.$emit("eventListener", "settings");
+    },
+    loginOut() {
+      this.$emit("eventListener", "loginOut");
+    },
+    healthDataRecord() {
+      this.$emit("eventListener", "healthDataRecord");
+    },
     async loadMsgCount() {
       try {
         const userInfo = sessionStorage.getItem("userInfo");
         if (!userInfo) return;
         const userInfoEntity = JSON.parse(userInfo);
         const messageQueryDto = { userId: userInfoEntity.id, isRead: false };
-        const response = await this.$axios.post(`/message/query`, messageQueryDto);
+        const response = await this.$axios.post(
+          `/message/query`,
+          messageQueryDto
+        );
         const { data } = response;
         if (data.code === 200) {
           this.noReadMsg = data.data.length;
+          this.msgList = (data.data || []).slice(0, 8);
         }
-      } catch (e) { /* ignore */ }
+      } catch (e) {
+        /* ignore */
+      }
+    },
+    async loadMsgList() {
+      this.loadMsgCount();
+    },
+    openMessage(msg) {
+      this.messageCenter();
     },
     pathToDo(path) {
       if (this.$route.path !== path) {
@@ -189,7 +307,7 @@ export default {
   justify-content: center;
   border-radius: 10px;
   transition: all 0.25s ease;
-  color: #6B7280;
+  color: #6b7280;
 }
 
 .nav-item:hover {
@@ -199,7 +317,11 @@ export default {
 }
 
 .nav-item--active {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.12), rgba(118, 75, 162, 0.12));
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.12),
+    rgba(118, 75, 162, 0.12)
+  );
   color: #667eea;
 }
 
@@ -225,8 +347,14 @@ export default {
 }
 
 @keyframes indicator-in {
-  from { width: 0; opacity: 0; }
-  to { width: 24px; opacity: 1; }
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: 24px;
+    opacity: 1;
+  }
 }
 
 .header-right {
@@ -255,11 +383,11 @@ export default {
   padding: 6px 12px;
   font-size: 14px;
   width: 160px;
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .search-input::placeholder {
-  color: #9CA3AF;
+  color: #9ca3af;
 }
 
 .search-btn {
@@ -270,7 +398,7 @@ export default {
   font-weight: 500;
   cursor: pointer;
   transition: opacity 0.2s;
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .search-btn:hover {
@@ -281,7 +409,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 5px;
-  background: #10B981;
+  background: #10b981;
   color: #fff;
   border: none;
   padding: 7px 16px;
@@ -290,7 +418,7 @@ export default {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .record-btn:hover {
@@ -319,7 +447,7 @@ export default {
 
 .bell-icon {
   font-size: 20px;
-  color: #10B981;
+  color: #10b981;
 }
 
 .user-area {
@@ -349,11 +477,102 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .arrow-icon {
   font-size: 12px;
-  color: #9CA3AF;
+  color: #9ca3af;
+}
+</style>
+
+<style lang="scss">
+.msg-popover.el-popover {
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.msg-panel {
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  &__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+
+  &__all {
+    font-size: 12px;
+    color: #0050cb;
+    cursor: pointer;
+  }
+
+  &__empty {
+    padding: 32px 16px;
+    text-align: center;
+    color: #bbb;
+
+    p {
+      margin: 8px 0 0;
+      font-size: 13px;
+    }
+  }
+}
+
+.msg-item {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f7f7f7;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #f8faff;
+  }
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f56c6c;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  &__body {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  &__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 2px;
+  }
+
+  &__content {
+    font-size: 12px;
+    color: #888;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  &__time {
+    font-size: 11px;
+    color: #bbb;
+    margin-top: 4px;
+  }
 }
 </style>

@@ -1,7 +1,11 @@
 <template>
   <div class="service-container">
     <!--  -->
-    <div class="service-ball" @click="toggleChat" :class="{ 'is-open': showChat }">
+    <div
+      class="service-ball"
+      @click="toggleChat"
+      :class="{ 'is-open': showChat }"
+    >
       <div class="ball-icon">
         <span v-if="!showChat">AI</span>
         <span v-else>×</span>
@@ -39,7 +43,10 @@
             <div class="quick-item" @click="sendQuick('如何预约医生？')">
               <span>📅</span> 预约医生
             </div>
-            <div class="quick-item" @click="sendQuick('帮我分析一下最近的健康状况')">
+            <div
+              class="quick-item"
+              @click="sendQuick('帮我分析一下最近的健康状况')"
+            >
               <span>🩺</span> 健康分析
             </div>
           </div>
@@ -154,21 +161,18 @@ export default {
         // MM-25 整改：鉴权头统一为 token（后端 JwtInterceptor 读 token 头，
         // 原 Authorization: Bearer 实际无效导致客服球恒 401）；补 AbortController。
         this.abortController = new AbortController();
-        const response = await fetch(
-          URL_API + "/user/chat/stream",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              token: token,
-            },
-            signal: this.abortController.signal,
-            body: JSON.stringify({
-              message: msg,
-              sessionId: this.sessionId,
-            }),
-          }
-        );
+        const response = await fetch(URL_API + "/user/chat/stream", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            token: token,
+          },
+          signal: this.abortController.signal,
+          body: JSON.stringify({
+            message: msg,
+            sessionId: this.sessionId,
+          }),
+        });
 
         if (!response.ok) {
           throw new Error("服务响应异常");
@@ -187,7 +191,8 @@ export default {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          if (this.abortController && this.abortController.signal.aborted) break;
+          if (this.abortController && this.abortController.signal.aborted)
+            break;
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
@@ -210,7 +215,7 @@ export default {
                   this.sessionId = json.sessionId;
                 }
               } catch (e) {
-                // 
+                //
               }
             }
           }
@@ -517,7 +522,9 @@ export default {
 }
 
 @keyframes typing {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     opacity: 0.3;
     transform: translateY(0);
   }

@@ -136,7 +136,7 @@ export default {
 
 .settings-header {
   margin-bottom: 30px;
-  
+
   h2 {
     font-size: 24px;
     font-weight: 600;

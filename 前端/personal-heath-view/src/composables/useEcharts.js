@@ -1,16 +1,16 @@
 /**
- * useEcharts — ECharts 
+ * useEcharts — ECharts
  *
- *  <script setup> 
+ *  <script setup>
  *   import { useEcharts } from '@/composables/useEcharts'
  *   const { echarts } = useEcharts()
  *   const chart = echarts.init(document.getElementById('myChart'))
  *
- *  ECharts 
+ *  ECharts
  *  composable
  */
-import * as echarts from 'echarts'
+import * as echarts from "echarts";
 
 export function useEcharts() {
-  return { echarts }
+  return { echarts };
 }

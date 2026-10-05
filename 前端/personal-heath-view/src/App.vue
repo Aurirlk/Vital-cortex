@@ -12,7 +12,7 @@ export default {
   },
   watch: {
     $route(to) {
-      // 
+      //
       this.applyDarkModeForRoute(to.path);
     },
   },
@@ -22,7 +22,7 @@ export default {
       if (settings) {
         const parsed = JSON.parse(settings);
         if (parsed.isDarkMode) {
-          // 
+          //
           const currentPath = this.$route?.path || "";
           if (currentPath.startsWith("/user")) {
             document.documentElement.classList.add("dark");
