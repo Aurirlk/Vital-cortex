@@ -15,8 +15,8 @@
         <h3 class="news-title">{{ news.name }}</h3>
         <div style="font-size: 12px">
           <span class="news-tags">{{ news.tagName }}</span>
-          <span style="margin-left: 10px"
-            > {{ parseTime(news.createTime) }}</span
+          <span style="margin-left: 10px">
+            {{ parseTime(news.createTime) }}</span
           >
         </div>
       </el-col>

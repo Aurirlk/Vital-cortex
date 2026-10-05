@@ -11,72 +11,6 @@
       <ModelBanner />
       <router-view class="route-container"></router-view>
     </div>
-    <!-- 个人中心弹窗 -->
-    <el-dialog :show-close="true" v-model="dialogOperaion" width="26%" class="user-center-dialog" :style="{ marginTop: '15vh' }">
-      <template #title>
-        <div style="padding: 25px 0 0 20px">
-          <span style="font-size: 18px; font-weight: 800; color: #fff"
-            >个人中心</span
-          >
-        </div>
-      </template>
-      <el-row style="padding: 20px">
-        <el-row style="width: 100%">
-          <p style="font-size: 12px; padding: 3px 0; margin-bottom: 10px">
-            <span class="modelName">头像</span>
-          </p>
-          <el-upload
-            class="avatar-uploader"
-            :action="$uploadUrl"
-            :headers="$uploadHeaders"
-            :show-file-list="false"
-            :on-success="handleAvatarSuccess"
-          >
-            <img v-if="data.url" :src="data.url" class="avatar" />
-            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-          </el-upload>
-        </el-row>
-        <el-row style="width: 100%">
-          <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">昵称</span>
-          </p>
-          <input
-            class="modelInput"
-            type="text"
-            v-model="data.name"
-            placeholder="请输入昵称"
-          />
-        </el-row>
-        <el-row style="width: 100%">
-          <p style="font-size: 12px; padding: 3px 0">
-            <span class="modelName">邮箱</span>
-          </p>
-          <input
-            class="modelInput"
-            type="text"
-            v-model="data.email"
-            placeholder="请输入邮箱"
-          />
-        </el-row>
-      </el-row>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button
-            class="customer"
-            size="small"
-            @click="dialogOperaion = false"
-            >取消</el-button
-          >
-          <el-button
-            size="small"
-            class="customer primary-btn"
-            type="info"
-            @click="updateUserInfo"
-            >保存</el-button
-          >
-        </span>
-      </template>
-    </el-dialog>
     <!-- 修改密码弹窗 -->
     <el-dialog :show-close="true" v-model="dialogRetPwdOperaion" width="26%">
       <template #title>
@@ -316,9 +250,7 @@ export default {
   data() {
     return {
       userInfo: {},
-      data: {},
       pwdEntity: { oldPwd: "", newPwd: "", againPwd: "" },
-      dialogOperaion: false,
       dialogRetPwdOperaion: false,
       foodList: [],
       routers: [],
@@ -353,7 +285,7 @@ export default {
       const exists = this.isCheckHealthModelConfig.some(
         (item) => item.id === healthModel.id
       );
-      // 
+      //
       if (!exists) {
         this.isCheckHealthModelConfig.unshift(healthModel);
       } else {
@@ -363,37 +295,8 @@ export default {
     updateUserPwd() {
       this.resetPwd();
     },
-    async updateUserInfo() {
-      try {
-        const userUpdateDTO = {
-          userAvatar: this.data.url,
-          userName: this.data.name,
-          userEmail: this.data.email,
-        };
-        const resposne = await this.$axios.put(`/user/update`, userUpdateDTO);
-        const { data } = resposne;
-        if (data.code === 200) {
-          this.dialogOperaion = false;
-          this.tokenCheckLoad();
-          this.$swal.fire({
-            title: "保存成功",
-            text: data.msg,
-            icon: "success",
-            showConfirmButton: false,
-            timer: 1000,
-          });
-        }
-      } catch (e) {
-        this.dialogOperaion = false;
-        this.$swal.fire({
-          title: "保存失败",
-          text: e,
-          icon: "error",
-          showConfirmButton: false,
-          timer: 2000,
-        });
-        console.error(`保存用户信息失败:${e}`);
-      }
+    async updateUserPwd() {
+      this.resetPwd();
     },
     async resetPwd() {
       try {
@@ -407,8 +310,8 @@ export default {
           return;
         }
         const pwdDTO = {
-          oldPwd: this.$md5(this.$md5(oldPwd)),
-          newPwd: this.$md5(this.$md5(newPwd)),
+          oldPwd: oldPwd,
+          newPwd: newPwd,
         };
         const resposne = await this.$axios.put(`/user/updatePwd`, pwdDTO);
         const { data } = resposne;
@@ -435,18 +338,16 @@ export default {
       }
     },
     handleAvatarSuccess(res, file) {
+      // 个人中心头像上传已在 UserProfile.vue 实现，此处保留兼容入口
       if (res.code !== 200) {
         this.$message.error(`头像上传失败：${res.msg}`);
-        return;
       }
-      this.$message.success(`头像上传成功`);
-      this.data.url = res.data;
     },
-    // 
+    //
     eventListener(event) {
-      // 个人中心
+      // 个人中心：直接跳转到个人中心页
       if (event === "center") {
-        this.dialogOperaion = !this.dialogOperaion;
+        this.$router.push("/user/profile");
       }
       // 修改密码
       else if (event === "resetPwd") {
@@ -483,14 +384,14 @@ export default {
     foodChange() {
       const food = this.foodList[this.selecedFoodIndex - 1];
       const exists = this.isCheckFood.some((item) => item.id === food.id);
-      // 
+      //
       if (!exists) {
         this.isCheckFood.unshift(food);
       } else {
         console.log("该食物已存在");
       }
     },
-    // 
+    //
     async addUserHealthHistory() {
       const healthModels = this.isCheckHealthModelConfig.map((entity) => {
         return {
@@ -519,7 +420,7 @@ export default {
         console.error(`保存健康数据失败`, e);
       }
     },
-    // 
+    //
     async addDietHistory() {
       const foodIds = this.isCheckFood.map((entity) => entity.id).join(",");
       const foodNum = this.isCheckFood
@@ -575,12 +476,12 @@ export default {
         icon: "warning",
       });
       if (confirmed) {
-      // 清除 Token
-      clearToken();
+        // 清除 Token
+        clearToken();
         this.$router.push("/login");
       }
     },
-    // 
+    //
     loadSettings() {
       const settings = localStorage.getItem("userSettings");
       if (settings) {
@@ -602,7 +503,7 @@ export default {
       this.saveSettings();
     },
     applyDarkMode() {
-      //  CSS  body 
+      //  CSS  body
       if (this.settings.isDarkMode) {
         document.documentElement.classList.add("dark");
       } else {
@@ -612,31 +513,41 @@ export default {
     // Token
     async tokenCheckLoad() {
       try {
-        const res = await this.$axios.get('user/auth');
+        const res = await this.$axios.get("user/auth");
         if (res.data.code === 400) {
           clearToken();
           this.$message.error(res.data.msg);
-          this.$router.push('/login');
+          this.$router.push("/login");
           return;
         }
-        const { id: userId, userAvatar, userName, userRole, userEmail } = res.data.data;
-        sessionStorage.setItem('userInfo', JSON.stringify(res.data.data));
+        const {
+          id: userId,
+          userAvatar,
+          userName,
+          userRole,
+          userEmail,
+        } = res.data.data;
+        sessionStorage.setItem("userInfo", JSON.stringify(res.data.data));
         this.userInfo = {
           url: userAvatar,
           name: userName,
           role: userRole,
-          email: userEmail
+          email: userEmail,
         };
-        this.data = { ...this.userInfo };
-        const roleRouteKey = userRole === 1 ? 'admin' : 'user';
-        const roleRoute = router.options.routes.find(route => route.path.startsWith(`/${roleRouteKey}`));
+        const roleRouteKey = userRole === 1 ? "admin" : "user";
+        const roleRoute = router.options.routes.find((route) =>
+          route.path.startsWith(`/${roleRouteKey}`)
+        );
         if (roleRoute) {
-          this.routers = roleRoute.children;
+          // 个人中心入口已迁移到右上角用户头像下拉，不再显示在导航栏图标里
+          this.routers = (roleRoute.children || []).filter(
+            (item) => item.path !== "profile"
+          );
         } else {
-          console.error('');
+          console.error("");
         }
       } catch (error) {
-        console.error('Token:', error);
+        console.error("Token:", error);
       }
     },
   },

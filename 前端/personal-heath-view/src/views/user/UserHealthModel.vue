@@ -44,7 +44,9 @@
       </div>
     </div>
     <div style="padding: 30px 0">
-      <div style="margin: 20px 0; display: flex; align-items: center; gap: 16px;">
+      <div
+        style="margin: 20px 0; display: flex; align-items: center; gap: 16px"
+      >
         <!-- 选择模型 -->
         <el-select
           size="small"
@@ -71,11 +73,7 @@
           下载报告
         </el-button>
         <!-- 导入 JSON -->
-        <el-button
-          type="success"
-          size="small"
-          @click="showImportDialog = true"
-        >
+        <el-button type="success" size="small" @click="showImportDialog = true">
           <el-icon><Upload /></el-icon>
           导入 JSON
         </el-button>
@@ -206,16 +204,24 @@
     </div>
 
     <!-- JSON 导入 -->
-    <el-dialog v-model="showImportDialog" title="导入健康数据 JSON" width="700px">
+    <el-dialog
+      v-model="showImportDialog"
+      title="导入健康数据 JSON"
+      width="700px"
+    >
       <div style="margin-bottom: 16px">
         <el-alert type="info" :closable="false">
           <template #title>
             <div>
               <p><strong>JSON 字段说明</strong></p>
               <p>每条记录都是一个 JSON 对象，字段如下：</p>
-              <p>- <code>modelName</code>: 指标名称（必须与系统中已有指标一致）</p>
+              <p>
+                - <code>modelName</code>: 指标名称（必须与系统中已有指标一致）
+              </p>
               <p>- <code>value</code>: 测量值</p>
-              <p>- <code>recordTime</code>: 记录时间，格式 yyyy-MM-dd HH:mm:ss</p>
+              <p>
+                - <code>recordTime</code>: 记录时间，格式 yyyy-MM-dd HH:mm:ss
+              </p>
             </div>
           </template>
         </el-alert>
@@ -262,7 +268,7 @@ export default {
     return {
       usersHealthModelConfig: [],
       modelConfigList: [],
-      userHealthQueryDto: {}, // 
+      userHealthQueryDto: {}, //
       values: [],
       dates: [],
       tableData: [],
@@ -273,7 +279,7 @@ export default {
       searchTime: [],
       healthModelConfigId: null,
       reportLoading: false,
-      // 
+      //
       showImportDialog: false,
       importJson: "",
       importing: false,
@@ -315,11 +321,11 @@ export default {
       this.selectedRows.push(row);
       this.batchDelete();
     },
-    // 
+    //
     statusCheck(data) {
-      // 
+      //
       const inputValue = data.value;
-      // 
+      //
       const valueRange = data.valueRange;
       if (valueRange !== null && inputValue !== null) {
         const aryValueRange = valueRange.split(",");
@@ -331,15 +337,15 @@ export default {
         );
       }
     },
-    // 
+    //
     async batchDelete() {
       if (!this.selectedRows.length) {
-        this.$message(``);
+        this.$message(`请先选择要删除的记录`);
         return;
       }
       const confirmed = await this.$swalConfirm({
-        title: "",
-        text: ``,
+        title: "确认删除",
+        text: `确定要删除选中的 ${this.selectedRows.length} 条记录吗？此操作不可恢复。`,
         icon: "warning",
       });
       if (confirmed) {
@@ -351,7 +357,7 @@ export default {
           );
           if (response.data.code === 200) {
             this.$swal.fire({
-              title: "",
+              title: "删除成功",
               text: response.data.msg,
               icon: "success",
               showConfirmButton: false,
@@ -362,7 +368,7 @@ export default {
           }
         } catch (e) {
           this.$swal.fire({
-            title: "",
+            title: "删除失败",
             text: e,
             icon: "error",
             showConfirmButton: false,
@@ -372,12 +378,12 @@ export default {
         }
       }
     },
-    // 
+    //
     handleFilter() {
       this.currentPage = 1;
       this.fetchFreshData();
     },
-    // 
+    //
     async fetchFreshData() {
       try {
         let startTime = null;
@@ -389,7 +395,7 @@ export default {
           startTime = `${startDate.split("T")[0]}T00:00:00`;
           endTime = `${endDate.split("T")[0]}T23:59:59`;
         }
-        // 
+        //
         const params = {
           current: this.currentPage,
           size: this.pageSize,
@@ -408,87 +414,93 @@ export default {
         console.error(":", error);
       }
     },
-    // 
+    //
     handleFilterClear() {
       this.filterText = "";
       this.handleFilter();
     },
-    // 
+    //
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 
+    //
     resetQueryCondition() {
       this.searchTime = [];
       this.healthModelConfigId = null;
       this.fetchFreshData();
     },
-    // 
+    //
     handleSizeChange(val) {
       this.pageSize = val;
       this.currentPage = 1;
       this.fetchFreshData();
     },
-    // 
+    //
     handleCurrentChange(val) {
       this.currentPage = val;
       this.fetchFreshData();
     },
-    // 
+    //
     loadUserModelHavaRecord() {
       const modelId = this.userHealthQueryDto.healthModelConfigId;
       const time = this.userHealthQueryDto.time;
-      console.log(', modelId:', modelId, 'time:', time);
-      
+      console.log(", modelId:", modelId, "time:", time);
+
       if (!modelId) {
-        console.log('ID');
+        console.log("ID");
         return;
       }
-      
+
       this.$axios
         .get(`/user-health/timeQuery/${modelId}/${time}`)
         .then((response) => {
           const { data } = response;
-          console.log(':', data);
-          
+          console.log(":", data);
+
           if (data.code === 200 && data.data && data.data.length > 0) {
             const records = data.data;
-            console.log(':', records.length);
-            
-            this.values = records.map((entity) => parseFloat(entity.value)).reverse();
-            this.dates = records.map((entity) => {
-              if (entity.createTime) {
-                const dateStr = entity.createTime.replace('T', ' ').substring(0, 10);
-                const parts = dateStr.split('-');
-                return `${parts[1]}-${parts[2]}`;
-              }
-              return '';
-            }).reverse();
-            
-            console.log('values:', this.values);
-            console.log('dates:', this.dates);
+            console.log(":", records.length);
+
+            this.values = records
+              .map((entity) => parseFloat(entity.value))
+              .reverse();
+            this.dates = records
+              .map((entity) => {
+                if (entity.createTime) {
+                  const dateStr = entity.createTime
+                    .replace("T", " ")
+                    .substring(0, 10);
+                  const parts = dateStr.split("-");
+                  return `${parts[1]}-${parts[2]}`;
+                }
+                return "";
+              })
+              .reverse();
+
+            console.log("values:", this.values);
+            console.log("dates:", this.dates);
           } else {
-            console.log('');
+            console.log("");
             this.values = [];
             this.dates = [];
           }
         })
         .catch((error) => {
-          console.error(':', error);
+          console.error(":", error);
           this.values = [];
           this.dates = [];
         });
     },
-    // 
+    //
     modelChange() {
       this.loadUserModelHavaRecord();
     },
-    // 
+    //
     modelUserChange() {
-      // 
+      //
       this.fetchFreshData();
     },
-    // 
+    //
     loadHealthModelConfig() {
       this.$axios.post("/health-model-config/modelList").then((response) => {
         const { data } = response;
@@ -499,23 +511,28 @@ export default {
         }
       });
     },
-    // 
+    //
     defaultLoad() {
       if (this.modelConfigList && this.modelConfigList.length > 0) {
         // isGlobalfalse0
-        const userModel = this.modelConfigList.find(m => m.isGlobal === false || m.isGlobal === 0);
+        const userModel = this.modelConfigList.find(
+          (m) => m.isGlobal === false || m.isGlobal === 0
+        );
         if (userModel) {
           this.userHealthQueryDto.healthModelConfigId = userModel.id;
-          console.log(':', userModel.id, userModel.name);
+          console.log(":", userModel.id, userModel.name);
         } else {
-          // 
-          const globalModel = this.modelConfigList.find(m => m.isGlobal === true || m.isGlobal === 1);
+          //
+          const globalModel = this.modelConfigList.find(
+            (m) => m.isGlobal === true || m.isGlobal === 1
+          );
           if (globalModel) {
             this.userHealthQueryDto.healthModelConfigId = globalModel.id;
-            console.log(':', globalModel.id, globalModel.name);
+            console.log(":", globalModel.id, globalModel.name);
           } else {
-            this.userHealthQueryDto.healthModelConfigId = this.modelConfigList[0].id;
-            console.log(':', this.modelConfigList[0].id);
+            this.userHealthQueryDto.healthModelConfigId =
+              this.modelConfigList[0].id;
+            console.log(":", this.modelConfigList[0].id);
           }
         }
         // -1
@@ -523,38 +540,46 @@ export default {
         this.loadUserModelHavaRecord();
       }
     },
-    // 
+    //
     onSelectedTime(time) {
       this.userHealthQueryDto.time = time;
       this.loadUserModelHavaRecord();
     },
-    // 
+    //
     onDateRange(startDate, endDate) {
       this.loadUserModelHavaRecordByDateRange(startDate, endDate);
     },
-    // 
+    //
     loadUserModelHavaRecordByDateRange(startDate, endDate) {
       const modelId = this.userHealthQueryDto.healthModelConfigId;
       if (!modelId) return;
-      
-      const start = startDate.toISOString().split('T')[0] + 'T00:00:00';
-      const end = endDate.toISOString().split('T')[0] + 'T23:59:59';
-      
+
+      const start = startDate.toISOString().split("T")[0] + "T00:00:00";
+      const end = endDate.toISOString().split("T")[0] + "T23:59:59";
+
       this.$axios
-        .get(`/user-health/queryByDateRange?modelId=${modelId}&startTime=${start}&endTime=${end}`)
+        .get(
+          `/user-health/queryByDateRange?modelId=${modelId}&startTime=${start}&endTime=${end}`
+        )
         .then((response) => {
           const { data } = response;
           if (data.code === 200 && data.data && data.data.length > 0) {
             const records = data.data;
-            this.values = records.map((entity) => parseFloat(entity.value)).reverse();
-            this.dates = records.map((entity) => {
-              if (entity.createTime) {
-                const dateStr = entity.createTime.replace('T', ' ').substring(0, 10);
-                const parts = dateStr.split('-');
-                return `${parts[1]}-${parts[2]}`;
-              }
-              return '';
-            }).reverse();
+            this.values = records
+              .map((entity) => parseFloat(entity.value))
+              .reverse();
+            this.dates = records
+              .map((entity) => {
+                if (entity.createTime) {
+                  const dateStr = entity.createTime
+                    .replace("T", " ")
+                    .substring(0, 10);
+                  const parts = dateStr.split("-");
+                  return `${parts[1]}-${parts[2]}`;
+                }
+                return "";
+              })
+              .reverse();
           } else {
             this.values = [];
             this.dates = [];
@@ -565,38 +590,41 @@ export default {
           this.dates = [];
         });
     },
-    // 
+    //
     timeSelected() {},
     toRecord() {
       this.$router.push("/record");
     },
-    // 
+    //
     async downloadReport() {
       this.reportLoading = true;
       try {
-        const response = await this.$axios.get('/report/health-pdf', {
-          responseType: 'blob'
+        const response = await this.$axios.get("/report/health-pdf", {
+          responseType: "blob",
         });
 
-        // 
+        //
         const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
-        link.setAttribute('download', `_${new Date().toLocaleDateString()}.pdf`);
+        link.setAttribute(
+          "download",
+          `_${new Date().toLocaleDateString()}.pdf`
+        );
         document.body.appendChild(link);
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
 
-        this.$message.success('');
+        this.$message.success("");
       } catch (e) {
-        this.$message.error('');
-        console.error(':', e);
+        this.$message.error("");
+        console.error(":", e);
       } finally {
         this.reportLoading = false;
       }
     },
-    // 
+    //
     handleFileChange(file) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -611,11 +639,11 @@ export default {
       };
       reader.readAsText(file.raw);
     },
-    // 
+    //
     fillExample() {
       this.importJson = this.jsonTemplate;
     },
-    // 
+    //
     async handleImport() {
       if (!this.importJson.trim()) {
         this.$message.warning("JSON");
@@ -624,7 +652,7 @@ export default {
       try {
         const data = JSON.parse(this.importJson);
         let records = [];
-        
+
         //  {records: [...]}
         if (Array.isArray(data)) {
           records = data;
@@ -636,8 +664,10 @@ export default {
         }
 
         this.importing = true;
-        const response = await this.$axios.post("/user-health/import", { records });
-        
+        const response = await this.$axios.post("/user-health/import", {
+          records,
+        });
+
         if (response.data.code === 200) {
           const result = response.data.data;
           let msg = `${result.success}${result.fail}`;
@@ -645,7 +675,7 @@ export default {
             msg += `\n${result.errors[0]}`;
           }
           this.$swal.fire({
-            title: "",
+            title: "导入结果",
             text: msg,
             icon: result.fail > 0 ? "warning" : "success",
           });
@@ -660,12 +690,12 @@ export default {
         this.importing = false;
       }
     },
-    // 
+    //
     async exportHealthData() {
       this.exportLoading = true;
       try {
         const response = await this.$axios.get("/user-health/export");
-        
+
         if (response.data.code === 200) {
           const data = response.data.data;
           const json = JSON.stringify(data, null, 2);

@@ -208,14 +208,22 @@
           <p>
             <span class="modelName">指标名称</span>
           </p>
-          <input class="input-title" v-model="data.name" placeholder="例如：血压、心率" />
+          <input
+            class="input-title"
+            v-model="data.name"
+            placeholder="例如：血压、心率"
+          />
         </el-row>
         <!-- 单位 -->
         <el-row style="padding: 0 10px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
             <span class="modelName">单位</span>
           </p>
-          <input class="input-title" v-model="data.unit" placeholder="例如：mmHg、次/分钟" />
+          <input
+            class="input-title"
+            v-model="data.unit"
+            placeholder="例如：mmHg、次/分钟"
+          />
         </el-row>
         <!-- 符号 -->
         <el-row style="padding: 0 10px 0 0">
@@ -322,7 +330,7 @@ export default {
       this.isOperation = false;
       this.cover = "";
     },
-    // 
+    //
     updateOperation() {
       this.$axios
         .put("/health-model-config/update", this.data)
@@ -339,18 +347,18 @@ export default {
               showConfirmButton: false,
               timer: 1000,
             });
-            // 
+            //
             this.getAllModelConfig();
           }
         });
     },
-    // 
+    //
     updateModel(model) {
       this.data = model;
       this.dialogUserOperaion = true;
       this.isOperation = true;
     },
-    // 
+    //
     async deleteModel(model) {
       const confirmed = await this.$swalConfirm({
         title: "删除指标 " + model.name,
@@ -360,7 +368,7 @@ export default {
       if (confirmed) {
         const ids = [];
         ids.push(model.id);
-        // 
+        //
         this.$axios
           .post("/health-model-config/batchDelete", ids)
           .then((response) => {
@@ -373,9 +381,9 @@ export default {
                 showConfirmButton: false,
                 timer: 1000,
               });
-              // 
+              //
               this.getAllModelConfig();
-              // 
+              //
               this.selectedModel = this.selectedModel.filter(
                 (entity) => entity.id !== model.id
               );
@@ -386,7 +394,7 @@ export default {
     goBack() {
       this.$router.push("/user/news-record");
     },
-    // 
+    //
     toRecord() {
       const userHealths = this.selectedModel.map((entity) => {
         return {
@@ -402,7 +410,7 @@ export default {
             message: "健康数据已保存",
             type: "success",
           });
-          // 
+          //
           setTimeout(() => {
             this.$router.push("/user/news-record");
           }, 2000);
@@ -414,7 +422,7 @@ export default {
         (entity) => entity.id === model.id
       );
       if (!saveFlag) {
-        // 
+        //
         this.selectedModel.push(model);
       }
     },
@@ -464,7 +472,7 @@ export default {
     handleClick(pane) {
       // Element Plus 2.x: tab-click receives { props, paneName, index, ... }
       const tabName = pane.paneName || pane.props?.name || this.activeName;
-      // 
+      //
       this.userHealthModel = {};
       if (tabName === "first") {
         this.userHealthModel.isGlobal = true;
@@ -476,14 +484,12 @@ export default {
       this.getAllModelConfig();
     },
     getAllModelConfig() {
-      this.$axios
-        .post("/health-model-config/modelList")
-        .then((response) => {
-          const { data } = response;
-          if (data.code === 200) {
-            this.modelList = data.data;
-          }
-        });
+      this.$axios.post("/health-model-config/modelList").then((response) => {
+        const { data } = response;
+        if (data.code === 200) {
+          this.modelList = data.data;
+        }
+      });
     },
     getUserInfo() {
       const userInfo = sessionStorage.getItem("userInfo");

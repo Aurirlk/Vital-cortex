@@ -100,15 +100,15 @@ export default {
     };
   },
   created() {
-    // 1. 
+    // 1.
     this.getUserInfo();
-    // 2. 
+    // 2.
     this.loadAllUsersMessage();
-    // 3. 
+    // 3.
     this.loadAllMessageType();
   },
   methods: {
-    // 
+    //
     async clearMessage() {
       const confirmed = await this.$swalConfirm({
         title: "清空消息",
@@ -132,12 +132,12 @@ export default {
         }
       });
     },
-    // 
+    //
     replyEvalustions(message) {
       this.message = message;
       this.dialogEvaluationsOperation = true;
     },
-    // 
+    //
     messageTypeSelected(messageType) {
       this.messageQueryDto.messageType = messageType;
       this.loadAllUsersMessage();
@@ -146,7 +146,7 @@ export default {
       const userInfo = sessionStorage.getItem("userInfo");
       this.userInfo = JSON.parse(userInfo);
     },
-    // 
+    //
     loadAllMessageType() {
       this.$axios.get("/message/types").then((response) => {
         const { data } = response;

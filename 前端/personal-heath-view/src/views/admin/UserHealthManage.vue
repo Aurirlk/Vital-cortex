@@ -239,7 +239,7 @@ export default {
       searchTime: [],
       selectedRows: [],
       status: null,
-      userHealthQueryDto: {}, // 
+      userHealthQueryDto: {}, //
       messsageContent: "",
       tagsList: [],
       valuesRange: [10, 50],
@@ -265,11 +265,11 @@ export default {
     this.fetchFreshData();
   },
   methods: {
-    // 
+    //
     statusCheck(data) {
-      // 
+      //
       const inputValue = data.value;
-      // 
+      //
       const valueRange = data.valueRange;
       if (valueRange !== null && inputValue !== null) {
         const aryValueRange = valueRange.split(",");
@@ -289,11 +289,11 @@ export default {
       this.$message.success(`上传成功`);
       this.data.cover = res.data;
     },
-    // 
+    //
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 
+    //
     async batchDelete() {
       if (!this.selectedRows.length) {
         this.$message(`请选择要删除的记录`);
@@ -339,7 +339,7 @@ export default {
       this.searchTime = [];
       this.fetchFreshData();
     },
-    // 
+    //
     async updateOperation() {
       try {
         this.data.valueRange = this.valuesRange.join(",");
@@ -364,7 +364,7 @@ export default {
         this.$message.error("更新失败");
       }
     },
-    // 
+    //
     async addOperation() {
       try {
         // [20,252] ---> 20,252
@@ -400,7 +400,7 @@ export default {
           startTime = `${startDate.split("T")[0]}T00:00:00`;
           endTime = `${endDate.split("T")[0]}T23:59:59`;
         }
-        // 
+        //
         const params = {
           current: this.currentPage,
           size: this.pageSize,

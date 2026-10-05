@@ -30,7 +30,11 @@
           <span style="float: right">
             <el-button
               size="small"
-              style="background-color: rgb(96, 98, 102); color: rgb(247, 248, 249); border: none"
+              style="
+                background-color: rgb(96, 98, 102);
+                color: rgb(247, 248, 249);
+                border: none;
+              "
               class="customer"
               type="info"
               @click="allMessagePush"
@@ -53,9 +57,17 @@
               <span v-else>其他</span>
             </template>
           </el-table-column>
-          <el-table-column prop="receiverName" width="108" label="接收人"></el-table-column>
+          <el-table-column
+            prop="receiverName"
+            width="108"
+            label="接收人"
+          ></el-table-column>
           <el-table-column prop="content" label="消息内容"></el-table-column>
-          <el-table-column prop="createTime" width="168" label="发送时间"></el-table-column>
+          <el-table-column
+            prop="createTime"
+            width="168"
+            label="发送时间"
+          ></el-table-column>
           <el-table-column label="操作" width="88">
             <template #default="{ row }">
               <span class="text-button" @click="handleDelete(row)">删除</span>
@@ -102,17 +114,30 @@
                 <el-option label="营养师" value="nutritionist"></el-option>
                 <el-option label="心理师" value="psychologist"></el-option>
                 <el-option label="分析师" value="analyst"></el-option>
-                <el-option label="通用助手" value="general_assistant"></el-option>
+                <el-option
+                  label="通用助手"
+                  value="general_assistant"
+                ></el-option>
               </el-select>
             </el-col>
             <el-col :span="4">
-              <el-button size="small" style="background-color: #15559a; border: none" type="primary" @click="loadAiChatRecords">
-                <el-icon><Search /></el-icon> 
+              <el-button
+                size="small"
+                style="background-color: #15559a; border: none"
+                type="primary"
+                @click="loadAiChatRecords"
+              >
+                <el-icon><Search /></el-icon>
               </el-button>
             </el-col>
           </el-row>
 
-          <el-table :data="aiChatRecords" border style="width: 100%" max-height="500">
+          <el-table
+            :data="aiChatRecords"
+            border
+            style="width: 100%"
+            max-height="500"
+          >
             <el-table-column prop="id" label="ID" width="80"></el-table-column>
             <el-table-column prop="role" label="角色" width="100">
               <template #default="{ row }">
@@ -121,9 +146,21 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="sender" label="发送者" width="100"></el-table-column>
-            <el-table-column prop="content" label="对话内容" show-overflow-tooltip></el-table-column>
-            <el-table-column prop="createTime" label="时间" width="160"></el-table-column>
+            <el-table-column
+              prop="sender"
+              label="发送者"
+              width="100"
+            ></el-table-column>
+            <el-table-column
+              prop="content"
+              label="对话内容"
+              show-overflow-tooltip
+            ></el-table-column>
+            <el-table-column
+              prop="createTime"
+              label="时间"
+              width="160"
+            ></el-table-column>
           </el-table>
 
           <el-pagination
@@ -175,10 +212,18 @@
               <div style="padding: 20px">
                 <el-table :data="aiRoleStats" border style="width: 100%">
                   <el-table-column prop="name" label="角色"></el-table-column>
-                  <el-table-column prop="count" label="数量" width="100"></el-table-column>
+                  <el-table-column
+                    prop="count"
+                    label="数量"
+                    width="100"
+                  ></el-table-column>
                   <el-table-column prop="percent" label="占比" width="150">
                     <template #default="{ row }">
-                      <el-progress :percentage="row.percent" :stroke-width="10" :color="'#15559a'"></el-progress>
+                      <el-progress
+                        :percentage="row.percent"
+                        :stroke-width="10"
+                        :color="'#15559a'"
+                      ></el-progress>
                     </template>
                   </el-table-column>
                 </el-table>
@@ -191,8 +236,16 @@
               <div style="padding: 20px">
                 <el-table :data="aiTrendData" border style="width: 100%">
                   <el-table-column prop="date" label="日期"></el-table-column>
-                  <el-table-column prop="count" label="对话数" width="100"></el-table-column>
-                  <el-table-column prop="users" label="用户数" width="100"></el-table-column>
+                  <el-table-column
+                    prop="count"
+                    label="对话数"
+                    width="100"
+                  ></el-table-column>
+                  <el-table-column
+                    prop="users"
+                    label="用户数"
+                    width="100"
+                  ></el-table-column>
                 </el-table>
               </div>
             </div>
@@ -249,7 +302,7 @@ export default {
   name: "MessageManage",
   data() {
     return {
-      // 
+      //
       activeTab: "system",
 
       // ======  ======

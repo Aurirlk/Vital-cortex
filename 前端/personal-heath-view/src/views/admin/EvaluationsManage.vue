@@ -110,7 +110,12 @@
       ></el-pagination>
     </el-row>
     <!--  -->
-    <el-dialog title="数据统计" :show-close="false" v-model="reportDialog" width="35%">
+    <el-dialog
+      title="数据统计"
+      :show-close="false"
+      v-model="reportDialog"
+      width="35%"
+    >
       <template #title>
         <div style="padding: 25px 0 0 20px">
           <span style="font-size: 18px; font-weight: 800">数据统计报告</span>
@@ -248,13 +253,13 @@ export default {
     handleEvaluationsClose() {
       this.commentDialog = false;
     },
-    // 
+    //
     commentList(news) {
       this.data = news;
       this.commentDialog = true;
       this.loadEvaluationsList();
     },
-    // 
+    //
     async loadEvaluationsList() {
       try {
         const response = await this.$axios.get(
@@ -266,7 +271,7 @@ export default {
         console.error(``, error);
       }
     },
-    // 
+    //
     showPic(news) {
       this.data = news;
       this.coverDialog = true;
@@ -296,11 +301,11 @@ export default {
       this.data = {};
       this.commentDialog = false;
     },
-    // 
+    //
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 
+    //
     async batchDelete() {
       if (!this.selectedRows.length) {
         this.$message(`请选择要删除的评价`);
@@ -341,7 +346,7 @@ export default {
         }
       }
     },
-    // 
+    //
     highlightKeyword(text) {
       if (text == null) {
         return;
@@ -396,11 +401,11 @@ export default {
         this.$message.error("操作失败");
       }
     },
-    // 
+    //
     closeDialog() {
       this.dialogOperaion = false;
     },
-    // 
+    //
     clearFormData() {
       this.data = {};
       this.html = "";
@@ -417,7 +422,7 @@ export default {
           startTime = `${startDate.split("T")[0]}T00:00:00`;
           endTime = `${endDate.split("T")[0]}T23:59:59`;
         }
-        // 
+        //
         const params = {
           current: this.currentPage,
           size: this.pageSize,
@@ -431,7 +436,7 @@ export default {
         this.tableData = data.data;
         this.totalItems = data.total;
       } catch (error) {
-        // 
+        //
         console.error("Fetch data failed:", error);
       }
     },

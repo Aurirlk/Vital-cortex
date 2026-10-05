@@ -17,7 +17,10 @@
               >{{ !saveFlag ? "收藏" : "取消收藏" }}</el-button
             >
           </div>
-          <div class="news-detail-content" v-html="sanitizeHtml(newsInfo.content)"></div>
+          <div
+            class="news-detail-content"
+            v-html="sanitizeHtml(newsInfo.content)"
+          ></div>
         </div>
         <div class="news-detail-card" style="margin-top: 20px">
           <Evaluations :contentId="newsInfo.id" contentType="NEWS" />
@@ -92,7 +95,7 @@ export default {
         })
         .catch(() => {});
     },
-    // 
+    //
     saveNewsOperation() {
       this.$axios
         .post("/news-save/operation", { newsId: this.newsInfo.id })
@@ -123,9 +126,7 @@ export default {
               ${parsed.name || ""}
             </p>
             <p style="font-size:14px;line-height:1.8;color:#718096;margin-top:16px;">
-              ${
-                parsed.tagName || ""
-              }API
+              ${parsed.tagName || ""}API
             </p>
           `;
         }
@@ -174,7 +175,7 @@ export default {
   color: #111827;
   margin: 0 0 16px 0;
   line-height: 1.4;
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 .news-detail-meta {
@@ -246,7 +247,11 @@ export default {
 .news-tags {
   display: inline-block;
   padding: 3px 10px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.1),
+    rgba(118, 75, 162, 0.1)
+  );
   color: #667eea;
   border-radius: 12px;
   font-size: 11px;

@@ -176,7 +176,7 @@
             <template #title>
               <div>
                 <strong>AI 服务配置</strong> - 配置对话、推理与 Embedding 的 API
-                <br/>
+                <br />
                 <span style="font-size: 12px; color: #999">
                   API Key 仅存储在服务端，不会回显到前端
                 </span>
@@ -191,31 +191,34 @@
             </el-divider>
 
             <el-form-item label="服务商">
-              <el-select 
-                v-model="aiConfig.provider" 
+              <el-select
+                v-model="aiConfig.provider"
                 style="width: 100%"
                 @change="onProviderChange"
               >
-                <el-option 
-                  v-for="(config, key) in providers" 
-                  :key="key" 
-                  :label="config.name" 
+                <el-option
+                  v-for="(config, key) in providers"
+                  :key="key"
+                  :label="config.name"
                   :value="key"
                 />
               </el-select>
             </el-form-item>
-            
+
             <el-form-item label="OpenAI Base URL">
-              <el-input 
-                v-model="currentProvider.openaiBaseUrl" 
+              <el-input
+                v-model="currentProvider.openaiBaseUrl"
                 disabled
                 style="background-color: #f5f5f5"
               />
             </el-form-item>
-            
-            <el-form-item label="Anthropic Base URL" v-if="currentProvider.anthropicBaseUrl">
-              <el-input 
-                v-model="currentProvider.anthropicBaseUrl" 
+
+            <el-form-item
+              label="Anthropic Base URL"
+              v-if="currentProvider.anthropicBaseUrl"
+            >
+              <el-input
+                v-model="currentProvider.anthropicBaseUrl"
                 disabled
                 style="background-color: #f5f5f5"
               />
@@ -232,7 +235,9 @@
                 placeholder="对话 API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.chat.apiKey ? '已配置' : '未配置' }}</span>
+              <span class="form-tip">{{
+                aiConfig.chat.apiKey ? "已配置" : "未配置"
+              }}</span>
             </el-form-item>
 
             <el-form-item label="API 地址">
@@ -241,13 +246,18 @@
                 placeholder="对话 API 地址"
               />
             </el-form-item>
-            
+
             <el-form-item label="对话模型">
-              <el-select v-model="aiConfig.chat.model" style="width: 100%" allow-create filterable>
-                <el-option 
-                  v-for="model in currentProvider.models" 
-                  :key="model" 
-                  :label="model" 
+              <el-select
+                v-model="aiConfig.chat.model"
+                style="width: 100%"
+                allow-create
+                filterable
+              >
+                <el-option
+                  v-for="model in currentProvider.models"
+                  :key="model"
+                  :label="model"
                   :value="model"
                 />
               </el-select>
@@ -264,7 +274,9 @@
                 placeholder="推理 API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.reasoner.apiKey ? '已配置' : '未配置' }}</span>
+              <span class="form-tip">{{
+                aiConfig.reasoner.apiKey ? "已配置" : "未配置"
+              }}</span>
             </el-form-item>
 
             <el-form-item label="API 地址">
@@ -275,11 +287,16 @@
             </el-form-item>
 
             <el-form-item label="推理模型">
-              <el-select v-model="aiConfig.reasoner.model" style="width: 100%" allow-create filterable>
-                <el-option 
-                  v-for="model in currentProvider.models" 
-                  :key="model" 
-                  :label="model" 
+              <el-select
+                v-model="aiConfig.reasoner.model"
+                style="width: 100%"
+                allow-create
+                filterable
+              >
+                <el-option
+                  v-for="model in currentProvider.models"
+                  :key="model"
+                  :label="model"
                   :value="model"
                 />
               </el-select>
@@ -289,14 +306,16 @@
             <el-divider content-position="left">
               <el-icon><Connection /></el-icon> Embedding
             </el-divider>
-            
+
             <el-form-item label="API Key">
               <el-input
                 v-model="aiConfig.embedding.apiKey"
                 placeholder="Embedding API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.embedding.apiKey ? '已配置' : '未配置' }}</span>
+              <span class="form-tip">{{
+                aiConfig.embedding.apiKey ? "已配置" : "未配置"
+              }}</span>
             </el-form-item>
 
             <el-form-item label="API 地址">
@@ -357,7 +376,11 @@
 
           <!-- 操作按钮 -->
           <div class="config-actions">
-            <el-button type="primary" @click="saveConfig" :loading="configSaving">
+            <el-button
+              type="primary"
+              @click="saveConfig"
+              :loading="configSaving"
+            >
               <el-icon><Check /></el-icon> 保存配置
             </el-button>
             <el-button @click="loadConfig">
@@ -374,9 +397,15 @@
               <span>当前配置摘要</span>
             </template>
             <div class="config-summary">
-              <p><strong>当前服务商：</strong> {{ currentProvider.name || '未选择' }}</p>
-              <p><strong>API Key 状态：</strong> {{ aiConfig.apiKeyValid ? '已配置' : '未配置' }}</p>
-              <p><strong>配置说明：</strong> {{ aiConfig.summary || '无' }}</p>
+              <p>
+                <strong>当前服务商：</strong>
+                {{ currentProvider.name || "未选择" }}
+              </p>
+              <p>
+                <strong>API Key 状态：</strong>
+                {{ aiConfig.apiKeyValid ? "已配置" : "未配置" }}
+              </p>
+              <p><strong>配置说明：</strong> {{ aiConfig.summary || "无" }}</p>
             </div>
           </el-card>
         </div>
@@ -389,7 +418,7 @@
             <template #title>
               <div>
                 <strong>联网搜索配置</strong> - 配置 AI 使用的第三方搜索 API
-                <br/>
+                <br />
                 <span style="font-size: 12px; color: #999">
                   支持博查 AI、Tavily、DuckDuckGo 等搜索引擎
                 </span>
@@ -408,7 +437,10 @@
             </el-form-item>
 
             <el-form-item label="搜索提供商">
-              <el-select v-model="aiConfig.webSearch.provider" style="width: 100%">
+              <el-select
+                v-model="aiConfig.webSearch.provider"
+                style="width: 100%"
+              >
                 <el-option label="自动选择" value="auto" />
                 <el-option label="博查 AI" value="bocha" />
                 <el-option label="Tavily" value="tavily" />
@@ -429,7 +461,9 @@
                 placeholder="博查 AI API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.webSearch.bocha?.apiKey ? '已配置' : '未配置' }}</span>
+              <span class="form-tip">{{
+                aiConfig.webSearch.bocha?.apiKey ? "已配置" : "未配置"
+              }}</span>
             </el-form-item>
 
             <el-form-item label="博查 API 地址">
@@ -443,14 +477,16 @@
             <el-divider content-position="left" style="font-size: 13px">
               Tavily <span style="color: #999; font-size: 11px">1000</span>
             </el-divider>
-            
+
             <el-form-item label="Tavily API Key">
               <el-input
                 v-model="aiConfig.webSearch.tavily.apiKey"
                 placeholder="Tavily API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.webSearch.tavily?.apiKey ? '已配置' : '未配置' }}</span>
+              <span class="form-tip">{{
+                aiConfig.webSearch.tavily?.apiKey ? "已配置" : "未配置"
+              }}</span>
             </el-form-item>
 
             <el-form-item label="Tavily API 地址">
@@ -462,9 +498,10 @@
 
             <!-- DuckDuckGo -->
             <el-divider content-position="left" style="font-size: 13px">
-              DuckDuckGo <span style="color: #999; font-size: 11px">API Key</span>
+              DuckDuckGo
+              <span style="color: #999; font-size: 11px">API Key</span>
             </el-divider>
-            
+
             <el-form-item label="API 地址">
               <el-input
                 v-model="aiConfig.webSearch.duckduckgo.apiUrl"
@@ -475,7 +512,10 @@
 
             <!-- Serper -->
             <el-divider content-position="left" style="font-size: 13px">
-              Serper <span style="color: #999; font-size: 11px">Google 搜索，每月 100 次免费</span>
+              Serper
+              <span style="color: #999; font-size: 11px"
+                >Google 搜索，每月 100 次免费</span
+              >
             </el-divider>
 
             <el-form-item label="Serper API Key">
@@ -484,7 +524,9 @@
                 placeholder="Serper API Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.webSearch.serper?.apiKey ? '已配置' : '未配置' }}</span>
+              <span class="form-tip">{{
+                aiConfig.webSearch.serper?.apiKey ? "已配置" : "未配置"
+              }}</span>
             </el-form-item>
 
             <el-form-item label="Serper API 地址">
@@ -496,7 +538,10 @@
 
             <!-- SerpAPI -->
             <el-divider content-position="left" style="font-size: 13px">
-              SerpAPI <span style="color: #999; font-size: 11px">Google / Bing 搜索，每月 100 次免费</span>
+              SerpAPI
+              <span style="color: #999; font-size: 11px"
+                >Google / Bing 搜索，每月 100 次免费</span
+              >
             </el-divider>
 
             <el-form-item label="SerpAPI Key">
@@ -505,7 +550,9 @@
                 placeholder="SerpAPI Key"
                 show-password
               />
-              <span class="form-tip">{{ aiConfig.webSearch.serpapi?.apiKey ? '已配置' : '未配置' }}</span>
+              <span class="form-tip">{{
+                aiConfig.webSearch.serpapi?.apiKey ? "已配置" : "未配置"
+              }}</span>
             </el-form-item>
 
             <el-form-item label="SerpAPI 地址">
@@ -518,7 +565,11 @@
 
           <!-- 操作按钮 -->
           <div class="config-actions">
-            <el-button type="primary" @click="saveConfig" :loading="configSaving">
+            <el-button
+              type="primary"
+              @click="saveConfig"
+              :loading="configSaving"
+            >
               <el-icon><Check /></el-icon> 保存配置
             </el-button>
             <el-button @click="loadConfig">
@@ -600,29 +651,41 @@ export default {
       roleStats: [],
       trendData: [],
       aiConfig: {
-        provider: 'deepseek',
-        chat: { apiKey: '', apiUrl: '', model: 'deepseek-v4-flash' },
-        reasoner: { apiKey: '', apiUrl: '', model: 'deepseek-v4-pro' },
-        webSearch: { 
-          enabled: true, 
-          provider: 'auto',
-          bocha: { apiKey: '', apiUrl: 'https://api.bochaai.com/v1/web-search' },
-          tavily: { apiKey: '', apiUrl: 'https://api.tavily.com/search' },
-          duckduckgo: { apiUrl: 'https://api.duckduckgo.com/' },
-          serper: { apiKey: '', apiUrl: 'https://google.serper.dev/search' },
-          serpapi: { apiKey: '', apiUrl: 'https://serpapi.com/search' }
+        provider: "deepseek",
+        chat: { apiKey: "", apiUrl: "", model: "deepseek-v4-flash" },
+        reasoner: { apiKey: "", apiUrl: "", model: "deepseek-v4-pro" },
+        webSearch: {
+          enabled: true,
+          provider: "auto",
+          bocha: {
+            apiKey: "",
+            apiUrl: "https://api.bochaai.com/v1/web-search",
+          },
+          tavily: { apiKey: "", apiUrl: "https://api.tavily.com/search" },
+          duckduckgo: { apiUrl: "https://api.duckduckgo.com/" },
+          serper: { apiKey: "", apiUrl: "https://google.serper.dev/search" },
+          serpapi: { apiKey: "", apiUrl: "https://serpapi.com/search" },
         },
-        embedding: { apiKey: '', apiUrl: 'https://api.deepseek.com/v1/embeddings', model: 'text-embedding-3-small' },
-        common: { connectTimeout: 30000, readTimeout: 60000, maxTokens: 4096, maxHistoryRounds: 10 },
+        embedding: {
+          apiKey: "",
+          apiUrl: "https://api.deepseek.com/v1/embeddings",
+          model: "text-embedding-3-small",
+        },
+        common: {
+          connectTimeout: 30000,
+          readTimeout: 60000,
+          maxTokens: 4096,
+          maxHistoryRounds: 10,
+        },
         apiKeyValid: false,
-        summary: ''
+        summary: "",
       },
       providers: {},
       currentProvider: {
-        name: 'DeepSeek',
-        openaiBaseUrl: 'https://api.deepseek.com/v1/chat/completions',
-        anthropicBaseUrl: 'https://api.deepseek.com/anthropic',
-        models: ['deepseek-v4-flash', 'deepseek-v4-pro']
+        name: "DeepSeek",
+        openaiBaseUrl: "https://api.deepseek.com/v1/chat/completions",
+        anthropicBaseUrl: "https://api.deepseek.com/anthropic",
+        models: ["deepseek-v4-flash", "deepseek-v4-pro"],
       },
       configSaving: false,
       configVerified: false,
@@ -658,26 +721,27 @@ export default {
     },
     async verifyPassword() {
       const { value: password } = await this.$swal.fire({
-        title: "",
-        html: `<p style="margin-bottom:12px">AI</p>`,
+        title: "安全验证",
+        html: `<p style="margin-bottom:12px">该操作将修改 AI 服务商配置，请输入当前账号密码以继续。</p>`,
         input: "password",
-        inputLabel: "",
-        inputPlaceholder: "",
+        inputLabel: "登录密码",
+        inputPlaceholder: "请输入登录密码",
         showCancelButton: true,
-        confirmButtonText: "",
-        cancelButtonText: "",
-        confirmButtonColor: "#15559a",
-        inputValidator: (value) => { if (!value) return ""; }
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        customClass: { confirmButton: "swal2-btn-primary" },
+        inputValidator: (value) => {
+          if (!value) return "";
+        },
       });
       if (!password) {
         this.activeTab = "records";
         return;
       }
       try {
-        // 
+        //
         const userInfo = JSON.parse(sessionStorage.getItem("userInfo") || "{}");
-        const md5 = this.$md5;
-        const hashedPwd = md5(md5(password));
+        const hashedPwd = password;
         const res = await this.$axios.post("/user/login", {
           userAccount: userInfo.userEmail || userInfo.userAccount || "yangshu",
           userPwd: hashedPwd,
@@ -686,11 +750,11 @@ export default {
           this.configVerified = true;
           this.loadConfig();
         } else {
-          this.$swal.fire({ icon: "error", title: "", text: "" });
+          this.$swal.fire({ icon: "error", title: "验证失败", text: "密码错误或网络异常，请重试" });
           this.activeTab = "records";
         }
       } catch (e) {
-        this.$swal.fire({ icon: "error", title: "", text: "" });
+        this.$swal.fire({ icon: "error", title: "验证失败", text: "密码错误或网络异常，请重试" });
         this.activeTab = "records";
       }
     },
@@ -712,7 +776,7 @@ export default {
         if (res.data.code === 200) {
           const providersList = res.data.data;
           this.providers = {};
-          providersList.forEach(p => {
+          providersList.forEach((p) => {
             this.providers[p.key] = p;
           });
           this.updateCurrentProvider();
@@ -728,7 +792,9 @@ export default {
     },
     async onProviderChange(provider) {
       try {
-        const res = await this.$axios.post("/ai/config/switch-provider", { provider });
+        const res = await this.$axios.post("/ai/config/switch-provider", {
+          provider,
+        });
         if (res.data.code === 200) {
           this.$message.success("");
           this.loadConfig();
@@ -760,7 +826,7 @@ export default {
     async resetConfig() {
       try {
         await this.$confirm("", "", {
-          type: "warning"
+          type: "warning",
         });
         const res = await this.$axios.post("/ai/config/reset");
         if (res.data.code === 200) {

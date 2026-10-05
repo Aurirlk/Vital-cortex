@@ -13,7 +13,10 @@
             v-for="(news, index) in newsTopList"
           >
             <div class="top-news-card">
-              <div class="top-news-img cover-gradient" :style="coverGradient(news)"></div>
+              <div
+                class="top-news-img cover-gradient"
+                :style="coverStyle(news)"
+              ></div>
               <h3 class="news-title">{{ news.name }}</h3>
               <div class="top-news-meta">
                 <span class="news-tags">{{ news.tagName }}</span>
@@ -39,7 +42,10 @@
         v-for="(news, index) in newsList"
       >
         <div class="news-card">
-          <div class="news-card-img cover-gradient" :style="coverGradient(news)"></div>
+          <div
+            class="news-card-img cover-gradient"
+            :style="coverStyle(news)"
+          ></div>
           <div class="news-card-body">
             <h3 class="news-title">{{ news.name }}</h3>
             <div class="news-card-meta">
@@ -72,29 +78,38 @@ export default {
     this.loadAllTopNews();
   },
   methods: {
-    // 根据栏目返回主题渐变色（替换数据库里不相关的占位图）
-    coverGradient(news) {
+    // 封面样式：有真实图片时显示图片，否则用栏目渐变色兜底
+    coverStyle(news) {
+      if (news && news.cover) {
+        return {
+          background: `url(${news.cover}) center / cover no-repeat`,
+        };
+      }
       const map = {
-        "康复手册": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        "养生保健": "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
-        "疾病预防": "linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)",
-        "心理健康": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-        "运动健身": "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
-        "饮食健康": "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+        康复手册: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        养生保健: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+        疾病预防: "linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)",
+        心理健康: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+        运动健身: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+        饮食健康: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
       };
-      return { background: map[news.tagName] || "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" };
+      return {
+        background:
+          map[news.tagName] ||
+          "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      };
     },
-    // 
+    //
     onBannerClick(banner) {
       sessionStorage.setItem("newsInfo", JSON.stringify(banner));
       this.$router.push("/user/news-detail");
     },
-    // 
+    //
     newsItemClick(news) {
       sessionStorage.setItem("newsInfo", JSON.stringify(news));
       this.$router.push("/user/news-detail");
     },
-    // 
+    //
     parseTime(time) {
       return timeAgo(time);
     },
@@ -103,30 +118,39 @@ export default {
       this.loadAllNews();
     },
     loadAllTags() {
-      this.$axios.post('/tags/query', {}).then(response => {
-        const { data } = response;
-        if (data.code === 200) {
-          this.tagsList = data.data;
-          this.tagsList.unshift({ name: '', id: null });
-        }
-      }).catch(() => {});
+      this.$axios
+        .post("/tags/query", {})
+        .then((response) => {
+          const { data } = response;
+          if (data.code === 200) {
+            this.tagsList = data.data;
+            this.tagsList.unshift({ name: "", id: null });
+          }
+        })
+        .catch(() => {});
     },
     loadAllTopNews() {
       const newQueryDto = { isTop: true };
-      this.$axios.post('/news/query', newQueryDto).then(response => {
-        const { data } = response;
-        if (data.code === 200) {
-          this.newsTopList = data.data;
-        }
-      }).catch(() => {});
+      this.$axios
+        .post("/news/query", newQueryDto)
+        .then((response) => {
+          const { data } = response;
+          if (data.code === 200) {
+            this.newsTopList = data.data;
+          }
+        })
+        .catch(() => {});
     },
     loadAllNews() {
-      this.$axios.post('/news/query', this.newQueryDto).then(response => {
-        const { data } = response;
-        if (data.code === 200) {
-          this.newsList = data.data;
-        }
-      }).catch(() => {});
+      this.$axios
+        .post("/news/query", this.newQueryDto)
+        .then((response) => {
+          const { data } = response;
+          if (data.code === 200) {
+            this.newsList = data.data;
+          }
+        })
+        .catch(() => {});
     },
   },
 };
@@ -151,7 +175,7 @@ export default {
   overflow: hidden;
 
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -195,10 +219,13 @@ export default {
     content: "";
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.25) 0%, transparent 50%);
+    background: radial-gradient(
+      circle at 30% 20%,
+      rgba(255, 255, 255, 0.25) 0%,
+      transparent 50%
+    );
   }
 }
-
 
 .top-news-meta {
   font-size: 12px;
@@ -213,7 +240,11 @@ export default {
 .news-tags {
   display: inline-block;
   padding: 4px 12px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.15),
+    rgba(118, 75, 162, 0.15)
+  );
   color: #667eea;
   border-radius: 20px;
   font-size: 11px;
@@ -237,7 +268,7 @@ export default {
   position: relative;
 
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     bottom: 0;
     left: 0;

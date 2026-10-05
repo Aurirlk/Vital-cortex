@@ -26,8 +26,8 @@
             class="customer"
             type="info"
             @click="add()"
-            ><el-icon><Plus /></el-icon></el-button
-          >
+            ><el-icon><Plus /></el-icon
+          ></el-button>
         </span>
       </el-row>
     </el-row>
@@ -125,7 +125,7 @@ export default {
       searchTime: [],
       selectedRows: [],
       status: null,
-      tagsQueryDto: {}, // 
+      tagsQueryDto: {}, //
     };
   },
   watch: {
@@ -154,11 +154,11 @@ export default {
       this.data.userAvatar = res.data;
       console.log(this.data);
     },
-    // 
+    //
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 
+    //
     async batchDelete() {
       if (!this.selectedRows.length) {
         this.$message(`请选择要删除的标签`);
@@ -195,7 +195,7 @@ export default {
       this.searchTime = [];
       this.fetchFreshData();
     },
-    // 
+    //
     async updateOperation() {
       try {
         const response = await this.$axios.put("/tags/update", this.data);
@@ -215,7 +215,7 @@ export default {
         this.$message.error("更新失败");
       }
     },
-    // 
+    //
     async addOperation() {
       try {
         const response = await this.$axios.post("/tags/save", this.data);
@@ -233,7 +233,7 @@ export default {
     },
     async fetchFreshData() {
       try {
-        // 
+        //
         const params = {
           current: this.currentPage,
           size: this.pageSize,

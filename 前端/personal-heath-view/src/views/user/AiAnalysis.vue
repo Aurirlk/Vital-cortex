@@ -5,7 +5,9 @@
         <el-icon><MagicStick /></el-icon>
         AI 健康问诊
       </h2>
-      <span class="ai-subtitle">多角色智能健康助手，支持症状咨询、报告解读与营养建议</span>
+      <span class="ai-subtitle"
+        >多角色智能健康助手，支持症状咨询、报告解读与营养建议</span
+      >
     </div>
 
     <el-row :gutter="16">
@@ -23,7 +25,9 @@
               :class="['role-item', { 'role-active': currentRole === key }]"
               @click="switchRole(key)"
             >
-              <el-icon class="role-icon-el" :size="20"><component :is="role.icon" /></el-icon>
+              <el-icon class="role-icon-el" :size="20"
+                ><component :is="role.icon"
+              /></el-icon>
               <div class="role-info">
                 <div class="role-name">{{ role.name }}</div>
                 <div class="role-desc">{{ role.desc }}</div>
@@ -42,9 +46,13 @@
                  入口可用性由 /ai/config/capabilities 的 visionEnabled 控制：
                  管理端未配置多模态模型时保持置灰，避免 400/无效请求。 -->
             <el-tooltip
-              :content="capabilities.visionEnabled
-                ? '上传图片（单次最多 ' + capabilities.maxImages + ' 张，支持体检单/化验单/症状照片）'
-                : '当前模型不支持图片，请在管理端「AI配置」选择多模态模型后使用'"
+              :content="
+                capabilities.visionEnabled
+                  ? '上传图片（单次最多 ' +
+                    capabilities.maxImages +
+                    ' 张，支持体检单/化验单/症状照片）'
+                  : '当前模型不支持图片，请在管理端「AI配置」选择多模态模型后使用'
+              "
               placement="top"
             >
               <span>
@@ -54,29 +62,44 @@
                   :headers="uploadHeaders"
                   :on-success="handleFileUpload"
                   :before-upload="beforeImageUpload"
-                  :disabled="!capabilities.visionEnabled || uploadFiles.length >= capabilities.maxImages"
+                  :disabled="
+                    !capabilities.visionEnabled ||
+                    uploadFiles.length >= capabilities.maxImages
+                  "
                   accept="image/*"
-                  style="display:inline-block"
+                  style="display: inline-block"
                 >
                   <el-button
                     size="small"
                     type="primary"
                     plain
-                    :disabled="!capabilities.visionEnabled || uploadFiles.length >= capabilities.maxImages"
+                    :disabled="
+                      !capabilities.visionEnabled ||
+                      uploadFiles.length >= capabilities.maxImages
+                    "
                   >
                     <el-icon><Upload /></el-icon> 上传图片
                   </el-button>
                 </el-upload>
               </span>
             </el-tooltip>
-            <el-button size="small" type="success" plain @click="generateHealthReport">
+            <el-button
+              size="small"
+              type="success"
+              plain
+              @click="generateHealthReport"
+            >
               <el-icon><DataAnalysis /></el-icon> 生成健康报告
             </el-button>
           </div>
           <div v-if="uploadFiles.length > 0" class="file-list">
-            <div v-for="(file, index) in uploadFiles" :key="index" class="file-item">
+            <div
+              v-for="(file, index) in uploadFiles"
+              :key="index"
+              class="file-item"
+            >
               <el-icon><Document /></el-icon>
-              <span class="file-name">{{ file.name || '' + (index + 1) }}</span>
+              <span class="file-name">{{ file.name || "" + (index + 1) }}</span>
               <el-button type="text" size="small" @click="removeFile(index)">
                 <el-icon><Delete /></el-icon>
               </el-button>
@@ -90,11 +113,11 @@
         <div class="chat-panel">
           <div class="chat-header">
             <span class="current-role-badge">
-              <el-icon><component :is="roles[currentRole].icon" /></el-icon>
-              {{ roles[currentRole].name }}
+              <el-icon><component :is="currentRoleConfig.icon" /></el-icon>
+              {{ currentRoleConfig.name }}
             </span>
             <span v-if="currentConversationId" class="conv-id-badge">
-               #{{ currentConversationId }}
+              #{{ currentConversationId }}
             </span>
             <div>
               <el-button size="small" type="warning" plain @click="exportChat">
@@ -109,12 +132,14 @@
           <div class="chat-messages" ref="chatMessages">
             <div v-if="messages.length === 0" class="chat-empty">
               <div class="welcome-icon">
-                <el-icon :size="56"><component :is="roles[currentRole].icon" /></el-icon>
+                <el-icon :size="56"
+                  ><component :is="currentRoleConfig.icon"
+                /></el-icon>
               </div>
-              <p class="welcome-text">{{ roles[currentRole].welcome }}</p>
+              <p class="welcome-text">{{ currentRoleConfig.welcome }}</p>
               <div class="preset-list">
                 <div
-                  v-for="(q, i) in roles[currentRole].presets"
+                  v-for="(q, i) in currentRoleConfig.presets"
                   :key="i"
                   class="preset-item"
                   @click="sendPreset(q)"
@@ -137,33 +162,53 @@
                   <el-icon><User /></el-icon>
                 </span>
                 <span v-else>
-                  <el-icon :size="18"><component :is="roles[currentRole].icon" /></el-icon>
+                  <el-icon :size="18"
+                    ><component :is="currentRoleConfig.icon"
+                  /></el-icon>
                 </span>
               </div>
               <div class="message-content">
                 <div class="message-role">
-                  {{ msg.role === "user" ? "我" : roles[currentRole].name }}
-                </div>
-                <div v-if="msg.toolCalls && msg.toolCalls.length" style="margin-bottom: 6px">
-                  <span v-for="(tc, i) in msg.toolCalls" :key="i" class="tool-call-tag">
-                     {{ tc.tool }}
-                  </span>
+                  {{ msg.role === "user" ? "我" : currentRoleConfig.name }}
                 </div>
                 <div
-                  class="message-text"
-                  v-html="safeHtml(msg.content)"
-                ></div>
+                  v-if="msg.toolCalls && msg.toolCalls.length"
+                  style="margin-bottom: 6px"
+                >
+                  <span
+                    v-for="(tc, i) in msg.toolCalls"
+                    :key="i"
+                    class="tool-call-tag"
+                  >
+                    {{ tc.tool }}
+                  </span>
+                </div>
+                <div class="message-text" v-html="safeHtml(msg.content)"></div>
                 <div class="message-time">
                   {{ msg.createTime || formatTime(new Date()) }}
+                  <el-button
+                    v-if="msg.role === 'ai'"
+                    link
+                    type="primary"
+                    size="small"
+                    :loading="speakingIndex === index"
+                    @click="playTtsAudio(msg.content, index)"
+                    style="padding: 0 4px"
+                  >
+                    <el-icon><Service /></el-icon>朗读
+                  </el-button>
                 </div>
               </div>
             </div>
             <div v-if="loading" class="message-item message-ai">
               <div class="message-avatar">
-                <span><el-icon :size="18"><component :is="roles[currentRole].icon" /></el-icon></span>
+                <span
+                  ><el-icon :size="18"
+                    ><component :is="currentRoleConfig.icon" /></el-icon
+                ></span>
               </div>
               <div class="message-content">
-                <div class="message-role">{{ roles[currentRole].name }}</div>
+                <div class="message-role">{{ currentRoleConfig.name }}</div>
                 <div class="typing-indicator">
                   <span></span><span></span><span></span>
                 </div>
@@ -173,7 +218,10 @@
 
           <!--  功能开关 -  -->
           <div class="feature-bar">
-            <el-tooltip content="联网搜索：开启后 AI 可检索最新健康资讯" placement="top">
+            <el-tooltip
+              content="联网搜索：开启后 AI 可检索最新健康资讯"
+              placement="top"
+            >
               <el-button
                 :type="enableWebSearch ? 'primary' : 'info'"
                 size="small"
@@ -183,7 +231,10 @@
                 <el-icon><Search /></el-icon> 联网
               </el-button>
             </el-tooltip>
-            <el-tooltip content="深度思考：让 AI 进行更严谨的多步推理" placement="top">
+            <el-tooltip
+              content="深度思考：让 AI 进行更严谨的多步推理"
+              placement="top"
+            >
               <el-button
                 :type="enableDeepThink ? 'warning' : 'info'"
                 size="small"
@@ -193,7 +244,10 @@
                 <el-icon><MagicStick /></el-icon> 深度
               </el-button>
             </el-tooltip>
-            <el-tooltip content="知识库：开启后优先引用平台健康资料" placement="top">
+            <el-tooltip
+              content="知识库：开启后优先引用平台健康资料"
+              placement="top"
+            >
               <el-button
                 :type="enableKnowledgeBase ? 'success' : 'info'"
                 size="small"
@@ -203,7 +257,10 @@
                 <el-icon><Collection /></el-icon> 知识库
               </el-button>
             </el-tooltip>
-            <el-tooltip content="健康档案：允许 AI 读取您的健康记录" placement="top">
+            <el-tooltip
+              content="健康档案：允许 AI 读取您的健康记录"
+              placement="top"
+            >
               <el-button
                 :type="enableHealthData ? 'danger' : 'info'"
                 size="small"
@@ -213,7 +270,10 @@
                 <el-icon><FirstAidKit /></el-icon> 健康档案
               </el-button>
             </el-tooltip>
-            <el-tooltip content="流式输出：开启后 AI 回复逐字显示" placement="top">
+            <el-tooltip
+              content="流式输出：开启后 AI 回复逐字显示"
+              placement="top"
+            >
               <el-button
                 :type="enableStream ? '' : 'info'"
                 size="small"
@@ -224,7 +284,7 @@
               </el-button>
             </el-tooltip>
           </div>
-          
+
           <!--  -->
           <div class="chat-input-area">
             <el-input
@@ -289,75 +349,121 @@
             <div
               v-for="conv in recentConversations"
               :key="conv.id"
-              :class="['recent-item', { 'recent-active': currentConversationId === conv.id }]"
+              :class="[
+                'recent-item',
+                { 'recent-active': currentConversationId === conv.id },
+              ]"
               @click="loadConversation(conv)"
             >
-              <span class="recent-icon"><el-icon :size="16"><ChatDotRound /></el-icon></span>
-              <span class="recent-title">{{ conv.title || '' }}</span>
+              <span class="recent-icon"
+                ><el-icon :size="16"><ChatDotRound /></el-icon
+              ></span>
+              <span class="recent-title">{{ conv.title || "" }}</span>
             </div>
           </div>
-          
+
           <!--  参数设置 -->
           <div class="panel-title" style="margin-top: 16px">
             <el-icon><Setting /></el-icon>
             生成参数
           </div>
-          
+
           <!--  -  -->
           <div class="mode-tags-grid">
-            <span v-for="m in genModes" :key="m.key"
+            <span
+              v-for="m in genModes"
+              :key="m.key"
               :class="['mode-tag', { 'mode-active': genMode === m.key }]"
-              @click="setGenMode(m.key)">{{ m.label }}</span>
+              @click="setGenMode(m.key)"
+              >{{ m.label }}</span
+            >
           </div>
-          
+
           <!-- Temperature -->
           <div class="param-item">
             <div class="param-row">
               <span class="param-label">Temperature（创造性）</span>
               <span class="param-value">{{ temperature }}</span>
             </div>
-            <el-slider v-model="temperature" :min="0" :max="2" :step="0.1" :show-tooltip="false" size="small" />
+            <el-slider
+              v-model="temperature"
+              :min="0"
+              :max="2"
+              :step="0.1"
+              :show-tooltip="false"
+              size="small"
+            />
           </div>
-          
+
           <!-- Top P -->
           <div class="param-item">
             <div class="param-row">
               <span class="param-label">Top P</span>
               <span class="param-value">{{ topP }}</span>
             </div>
-            <el-slider v-model="topP" :min="0" :max="1" :step="0.05" :show-tooltip="false" size="small" />
+            <el-slider
+              v-model="topP"
+              :min="0"
+              :max="1"
+              :step="0.05"
+              :show-tooltip="false"
+              size="small"
+            />
           </div>
-          
+
           <!-- 重复惩罚 -->
           <div class="param-item">
             <div class="param-row">
               <span class="param-label">重复惩罚</span>
               <span class="param-value">{{ repetitionPenalty }}</span>
             </div>
-            <el-slider v-model="repetitionPenalty" :min="1" :max="2" :step="0.1" :show-tooltip="false" size="small" />
+            <el-slider
+              v-model="repetitionPenalty"
+              :min="1"
+              :max="2"
+              :step="0.1"
+              :show-tooltip="false"
+              size="small"
+            />
           </div>
-          
+
           <!-- 上下文轮数 -->
           <div class="param-item">
             <div class="param-row">
               <span class="param-label">上下文轮数</span>
               <span class="param-value">{{ contextRounds }}</span>
             </div>
-            <el-slider v-model="contextRounds" :min="0" :max="20" :step="1" :show-tooltip="false" size="small" />
+            <el-slider
+              v-model="contextRounds"
+              :min="0"
+              :max="20"
+              :step="1"
+              :show-tooltip="false"
+              size="small"
+            />
           </div>
-          
+
           <!-- 最大回复长度 -->
           <div class="param-item">
             <div class="param-row">
               <span class="param-label">最大回复长度（0 为不限制）</span>
-              <span class="param-value">{{ maxReplyLength === 0 ? '不限制' : maxReplyLength }}</span>
+              <span class="param-value">{{
+                maxReplyLength === 0 ? "不限制" : maxReplyLength
+              }}</span>
             </div>
-            <el-slider v-model="maxReplyLength" :min="0" :max="8192" :step="64" :show-tooltip="false" size="small" />
+            <el-slider
+              v-model="maxReplyLength"
+              :min="0"
+              :max="8192"
+              :step="64"
+              :show-tooltip="false"
+              size="small"
+            />
           </div>
         </div>
       </el-col>
     </el-row>
-    
+
     <!--  历史对话弹窗 -->
     <el-dialog v-model="showHistoryDialog" title="历史对话" width="600px">
       <div class="history-dialog-content">
@@ -374,7 +480,7 @@
         </div>
         <div class="history-list">
           <div v-if="filteredConversations.length === 0" class="no-history">
-            {{ historySearchKey ? '未找到匹配对话' : '暂无历史对话' }}
+            {{ historySearchKey ? "未找到匹配对话" : "暂无历史对话" }}
           </div>
           <div
             v-for="conv in filteredConversations"
@@ -383,10 +489,15 @@
               'history-item',
               { 'history-active': currentConversationId === conv.id },
             ]"
-            @click="loadConversation(conv); showHistoryDialog = false"
+            @click="
+              loadConversation(conv);
+              showHistoryDialog = false;
+            "
           >
             <div class="history-item-header">
-              <span class="history-icon"><el-icon :size="20"><ChatDotRound /></el-icon></span>
+              <span class="history-icon"
+                ><el-icon :size="20"><ChatDotRound /></el-icon
+              ></span>
               <span class="history-title">{{ conv.title }}</span>
               <el-button
                 type="text"
@@ -415,7 +526,7 @@ import { marked } from "marked";
 //  marked
 marked.setOptions({
   breaks: true, //  <br>
-  gfm: true,    //  GitHub Flavored Markdown
+  gfm: true, //  GitHub Flavored Markdown
 });
 
 export default {
@@ -427,7 +538,7 @@ export default {
       messages: [],
       loading: false,
       fileList: [],
-      uploadFiles: [],      // 
+      uploadFiles: [], //
       // Phase A：AI 能力开关（/ai/config/capabilities，图片多模态；语音待 roadmap §1.1）
       capabilities: {
         visionEnabled: false,
@@ -444,24 +555,24 @@ export default {
       healthConversationId: null,
       currentConversationId: null,
       conversations: [],
-      // 
+      //
       showHistoryDialog: false,
       historySearchKey: "",
-      // 
+      //
       enableStream: false,
       enableWebSearch: false,
       enableKnowledgeBase: true,
       enableDeepThink: false,
       enableHealthData: true,
-      // 
+      //
       isVoiceMode: false,
       isRecording: false,
-      recognition: null,
+      speakingIndex: null,
       voiceCancelled: false,
-      // 
+      //
       uploadUrl: URL_API + "/file/upload",
       uploadHeaders: {},
-      // 
+      //
       genMode: "balanced",
       temperature: 0.8,
       topP: 1.0,
@@ -486,7 +597,12 @@ export default {
           temp: 0.3,
           topP: 0.5,
           welcome: "您好，我是您的健康顾问，有什么可以帮您？",
-          presets: ["我最近总是失眠，怎么办？", "帮我分析一下体检报告", "高血压患者日常注意事项", "每天应该喝多少水"],
+          presets: [
+            "我最近总是失眠，怎么办？",
+            "帮我分析一下体检报告",
+            "高血压患者日常注意事项",
+            "每天应该喝多少水",
+          ],
         },
         doctor: {
           name: "AI 医生",
@@ -496,7 +612,12 @@ export default {
           temp: 0.2,
           topP: 0.3,
           welcome: "请描述您的症状，我会帮您分析并给出就医建议。",
-          presets: ["发烧 38.5℃ 需要去医院吗？", "咳嗽一周不好，什么原因", "头疼伴随恶心是怎么回事", "皮肤过敏起红疹怎么处理"],
+          presets: [
+            "发烧 38.5℃ 需要去医院吗？",
+            "咳嗽一周不好，什么原因",
+            "头疼伴随恶心是怎么回事",
+            "皮肤过敏起红疹怎么处理",
+          ],
         },
         nutritionist: {
           name: "营养师",
@@ -506,7 +627,12 @@ export default {
           temp: 0.6,
           topP: 0.8,
           welcome: "我是您的营养顾问，请告诉我您的饮食目标和偏好。",
-          presets: ["帮我制定一周减脂餐", "糖尿病患者应该怎么吃", "早餐吃什么比较有营养", "运动后怎么补充蛋白质"],
+          presets: [
+            "帮我制定一周减脂餐",
+            "糖尿病患者应该怎么吃",
+            "早餐吃什么比较有营养",
+            "运动后怎么补充蛋白质",
+          ],
         },
         psychologist: {
           name: "心理顾问",
@@ -516,7 +642,12 @@ export default {
           temp: 0.8,
           topP: 0.9,
           welcome: "我是您的心理顾问，愿意倾听您的烦恼。",
-          presets: ["最近压力很大，怎么缓解", "焦虑睡不着怎么办", "如何改善人际关系", "情绪低落时怎么自我调节"],
+          presets: [
+            "最近压力很大，怎么缓解",
+            "焦虑睡不着怎么办",
+            "如何改善人际关系",
+            "情绪低落时怎么自我调节",
+          ],
         },
         analyst: {
           name: "报告分析师",
@@ -526,7 +657,12 @@ export default {
           temp: 0.1,
           topP: 0.1,
           welcome: "请上传体检单或化验单，我会帮您解读关键指标。",
-          presets: ["帮我看看这份血常规报告", "肝功能指标偏高说明什么", "血脂报告怎么解读", "尿酸高要注意什么"],
+          presets: [
+            "帮我看看这份血常规报告",
+            "肝功能指标偏高说明什么",
+            "血脂报告怎么解读",
+            "尿酸高要注意什么",
+          ],
         },
         general_assistant: {
           name: "通用助手",
@@ -536,7 +672,12 @@ export default {
           temp: 0.5,
           topP: 0.5,
           welcome: "有什么我可以帮您的吗？",
-          presets: ["介绍一下这个平台的功能", "如何记录健康数据", "怎么预约医生", "平台的 AI 模型有哪些"],
+          presets: [
+            "介绍一下这个平台的功能",
+            "如何记录健康数据",
+            "怎么预约医生",
+            "平台的 AI 模型有哪些",
+          ],
         },
       },
     };
@@ -544,6 +685,16 @@ export default {
   computed: {
     safeHtml(html) {
       return sanitizeHtml(html);
+    },
+
+    // 当前角色配置的安全访问：历史会话的 agentType 可能不在 roles 中，避免渲染崩溃
+    currentRoleConfig() {
+      return (
+        this.roles[this.currentRole] ||
+        this.roles.consultant ||
+        this.roles.doctor ||
+        {}
+      );
     },
 
     recentConversations() {
@@ -554,8 +705,8 @@ export default {
         return this.conversations;
       }
       const key = this.historySearchKey.toLowerCase();
-      return this.conversations.filter(conv => 
-        conv.title && conv.title.toLowerCase().includes(key)
+      return this.conversations.filter(
+        (conv) => conv.title && conv.title.toLowerCase().includes(key)
       );
     },
   },
@@ -563,14 +714,14 @@ export default {
     this.loadConversations();
     // Phase A：拉取 AI 能力开关（visionEnabled 决定图片入口是否可用）
     this.loadCapabilities();
-    // 
+    //
     const token = getToken();
     if (token) {
       this.uploadHeaders = { token: token };
     }
   },
   beforeUnmount() {
-    //  SSE 
+    //  SSE
     if (this._abortController) {
       this._abortController.abort();
     }
@@ -586,123 +737,209 @@ export default {
       this.loadConversations();
     },
 
-    // ==================== 语音输入（Web Speech API） ====================
-    // MM-01/MM-11/MM-12/MM-13 整改：语音流程整体改为浏览器原生 SpeechRecognition——
-    // 原实现 MediaRecorder 录制 + sendVoiceToServer 里又启动一次 SpeechRecognition，
-    // 造成"按住录一遍 + 松开再识别一遍"的重复录音；且 MediaRecorder 无
-    // getUserMedia 存在性判断、无权限错误分支、无触摸事件。
-    startVoiceRecord() {
-      if (this.loading) return;
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        this.$message.warning('当前浏览器不支持语音输入，请使用 Chrome / Edge');
+    // ==================== 语音输入（后端 ASR） ====================
+    // 路线 A：浏览器采集 PCM → 编码为 WAV → POST /voice/asr（DashScope Paraformer）。
+    // 不采用 MediaRecorder 默认 webm/opus（DashScope 不接受），改用 Web Audio 原生采集，
+    // 兼容性更好且格式确定。
+    async startVoiceRecord() {
+      if (this.loading || this.isRecording) return;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        this.$message.warning("当前浏览器不支持录音，请使用 Chrome / Edge");
         return;
       }
-      // 上次识别未结束时先终止
-      if (this.recognition) {
-        try { this.recognition.abort(); } catch (e) { /* ignore */ }
-      }
-
-      const recognition = new SpeechRecognition();
-      this.recognition = recognition;
-      this.voiceCancelled = false;
-      recognition.lang = 'zh-CN';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      recognition.onresult = (event) => {
-        if (this.voiceCancelled) return;
-        const text = event.results[0][0].transcript;
-        if (text && text.trim()) {
-          this.inputMessage = text;
-          this.$message.success('已识别: ' + text);
-          this.sendMessage();
-        } else {
-          this.$message.warning('未识别到有效内容，请重试');
-        }
-      };
-      recognition.onerror = (event) => {
-        // MM-12：按 error.name 分支提示，不统一吞错
-        if (event.error === 'not-allowed') {
-          this.$message.error('麦克风权限被拒绝，请在浏览器地址栏允许使用麦克风');
-        } else if (event.error === 'no-speech') {
-          this.$message.warning('未检测到语音，请重试');
-        } else if (event.error === 'network') {
-          this.$message.error('语音识别网络异常，请检查网络后重试');
-        } else if (event.error === 'aborted') {
-          // 用户主动取消，静默
-        } else {
-          this.$message.error('语音识别失败: ' + event.error);
-        }
-      };
-      recognition.onend = () => {
-        this.isRecording = false;
-        this.recognition = null;
-      };
-
-      this.isRecording = true;
-      this.$message.info('请说话...');
       try {
-        recognition.start();
+        this.voiceCancelled = false;
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this._mediaStream = stream;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioCtx();
+        this._audioCtx = ctx;
+        const source = ctx.createMediaStreamSource(stream);
+        const processor = ctx.createScriptProcessor(4096, 1, 1);
+        const gain = ctx.createGain();
+        gain.gain.value = 0; // 静音监听，避免回声
+        this._audioBuffers = [];
+        processor.onaudioprocess = (e) => {
+          if (this.voiceCancelled) return;
+          const ch = e.inputBuffer.getChannelData(0);
+          this._audioBuffers.push(new Float32Array(ch));
+        };
+        source.connect(processor);
+        processor.connect(gain);
+        gain.connect(ctx.destination);
+        this._audioSource = source;
+        this._audioProcessor = processor;
+        this.isRecording = true;
+        this.$message.info("请说话，松开结束");
       } catch (e) {
         this.isRecording = false;
-        this.recognition = null;
-        this.$message.error('语音识别启动失败');
+        if (e && e.name === "NotAllowedError") {
+          this.$message.error("麦克风权限被拒绝，请在浏览器地址栏允许使用麦克风");
+        } else {
+          this.$message.error("录音启动失败");
+        }
+        this._cleanupAudio();
       }
     },
 
-    stopVoiceRecord() {
-      if (this.recognition && this.isRecording) {
-        this.voiceCancelled = false;
-        this.recognition.stop();
-        this.isRecording = false;
+    async stopVoiceRecord() {
+      if (!this.isRecording) return;
+      this.isRecording = false;
+      const buffers = this._audioBuffers || [];
+      const ctx = this._audioCtx;
+      const sampleRate = ctx ? ctx.sampleRate : 16000;
+      this._cleanupAudio();
+      if (this.voiceCancelled || !buffers.length) return;
+
+      // 拼接 PCM
+      let total = 0;
+      buffers.forEach((b) => (total += b.length));
+      const samples = new Float32Array(total);
+      let offset = 0;
+      buffers.forEach((b) => {
+        samples.set(b, offset);
+        offset += b.length;
+      });
+      const wavBlob = this._encodeWav(samples, sampleRate);
+
+      try {
+        const form = new FormData();
+        form.append("file", wavBlob, "recording.wav");
+        this.$message.info("识别中...");
+        const res = await this.$axios.post("/voice/asr", form);
+        if (res.data && res.data.code === 200 && res.data.data) {
+          const text = res.data.data;
+          if (text && text.trim()) {
+            this.inputMessage = text;
+            this.$message.success("已识别: " + text);
+            this.sendMessage();
+          } else {
+            this.$message.warning("未识别到有效内容，请重试");
+          }
+        } else {
+          this.$message.error((res.data && res.data.msg) || "语音识别失败");
+        }
+      } catch (e) {
+        console.error("ASR:", e);
+        this.$message.error("语音识别请求失败");
       }
     },
 
     cancelVoiceRecord() {
-      if (this.recognition && this.isRecording) {
-        // MM-03：先置取消标志再 abort，onresult 中据此丢弃识别结果
+      if (this.isRecording) {
         this.voiceCancelled = true;
-        this.recognition.abort();
         this.isRecording = false;
+        this._cleanupAudio();
       }
     },
 
-    async playTtsAudio(text) {
-      // MM-01 整改：后端 /ai/voice/tts 端点不存在，原实现必然 404。
-      // 改用浏览器 SpeechSynthesis 朗读（Chrome/Edge/Safari 均支持，
-      // 且无需上传任何音频数据到服务端）。
+    _cleanupAudio() {
+      if (this._audioProcessor) {
+        try { this._audioProcessor.disconnect(); } catch (e) { /* ignore */ }
+      }
+      if (this._audioSource) {
+        try { this._audioSource.disconnect(); } catch (e) { /* ignore */ }
+      }
+      if (this._audioCtx) {
+        try { this._audioCtx.close(); } catch (e) { /* ignore */ }
+      }
+      if (this._mediaStream) {
+        this._mediaStream.getTracks().forEach((t) => t.stop());
+      }
+      this._audioProcessor = null;
+      this._audioSource = null;
+      this._audioCtx = null;
+      this._mediaStream = null;
+      this._audioBuffers = null;
+    },
+
+    // 将 Float32 PCM 编码为 16-bit 单声道 WAV Blob
+    _encodeWav(samples, sampleRate) {
+      const dataSize = samples.length * 2;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+      const writeStr = (off, s) => {
+        for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+      };
+      writeStr(0, "RIFF");
+      view.setUint32(4, 36 + dataSize, true);
+      writeStr(8, "WAVE");
+      writeStr(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, 1, true); // 单声道
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true); // 16-bit
+      writeStr(36, "data");
+      view.setUint32(40, dataSize, true);
+      let off = 44;
+      for (let i = 0; i < samples.length; i++) {
+        let s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        off += 2;
+      }
+      return new Blob([view], { type: "audio/wav" });
+    },
+
+    // ==================== 语音输出（后端 TTS） ====================
+    // 路线 A：调用后端 /voice/tts 合成 mp3 并播放（Edge TTS，音质优于浏览器原生）。
+    async playTtsAudio(text, index) {
+      if (!text || !text.trim()) return;
       try {
-        if (!('speechSynthesis' in window)) {
-          this.$message.warning('当前浏览器不支持语音朗读');
-          return;
+        this.speakingIndex = index !== undefined ? index : null;
+        const form = new URLSearchParams();
+        form.append("text", text);
+        const res = await this.$axios.post("/voice/tts", form, {
+          responseType: "blob",
+        });
+        if (res.status !== 200) {
+          let msg = "语音合成失败";
+          try {
+            msg = (await res.data.text()) || msg;
+          } catch (e) {
+            /* ignore */
+          }
+          throw new Error(msg);
         }
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'zh-CN';
-        utterance.rate = 1.0;
-        window.speechSynthesis.speak(utterance);
+        const blob = res.data;
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          this.speakingIndex = null;
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          this.speakingIndex = null;
+          this.$message.error("语音播放失败");
+        };
+        await audio.play();
       } catch (error) {
-        console.error('TTS:', error);
-        this.$message.error('语音朗读不可用');
+        this.speakingIndex = null;
+        console.error("TTS:", error);
+        this.$message.error(
+          "语音朗读不可用：" + (error && error.message ? error.message : "")
+        );
       }
     },
 
-    // 
+    //
     sendPreset(question) {
       this.inputMessage = question;
       this.sendMessage();
     },
-    // 
+    //
     setGenMode(mode) {
       this.genMode = mode;
-      const m = this.genModes.find(x => x.key === mode);
+      const m = this.genModes.find((x) => x.key === mode);
       if (m && mode !== "custom") {
         this.temperature = m.temp;
         this.topP = m.topP;
       }
     },
-    // 
+    //
     async loadConversations() {
       try {
         //  agentType
@@ -715,17 +952,36 @@ export default {
         console.error(":", e);
       }
     },
-    // 
+    //
     newConversation() {
       this.currentConversationId = null;
       this.messages = [];
     },
-    // 
+    //
     async loadConversation(conv) {
+      if (!conv || !conv.id) return;
       this.currentConversationId = conv.id;
-      this.currentRole = conv.agentType;
-      this.temperature = this.roles[conv.agentType]?.temp || 0.5;
-      this.topP = this.roles[conv.agentType]?.topP || 0.5;
+      // 历史会话的 agentType 可能为 null 或不在前端 roles 中，做安全回退
+      this.currentRole = this.roles[conv.agentType] ? conv.agentType : "consultant";
+      // 从该角色的后端配置拉取最新参数（temperature / topP / maxRounds / 惩罚系数等），
+      // 让右侧"生成参数"面板同步刷新；如果接口失败则用前端兜底。
+      try {
+        const cfgRes = await this.$axios.get(`/ai/config/${this.currentRole}`);
+        if (cfgRes.data.code === 200 && cfgRes.data.data) {
+          const cfg = cfgRes.data.data;
+          if (cfg.temperature != null) this.temperature = Number(cfg.temperature);
+          if (cfg.topP != null) this.topP = Number(cfg.topP);
+          if (cfg.repetitionPenalty != null)
+            this.repetitionPenalty = Number(cfg.repetitionPenalty);
+          if (cfg.contextRounds != null)
+            this.contextRounds = Number(cfg.contextRounds);
+          if (cfg.maxReplyLength != null)
+            this.maxReplyLength = Number(cfg.maxReplyLength);
+        }
+      } catch (e) {
+        this.temperature = this.roles[this.currentRole]?.temp || 0.5;
+        this.topP = this.roles[this.currentRole]?.topP || 0.5;
+      }
 
       try {
         const response = await this.$axios.get(
@@ -734,13 +990,16 @@ export default {
         const { data } = response;
         if (data.code === 200) {
           this.messages = data.data || [];
-          this.scrollToBottom();
+          this.$nextTick(() => this.scrollToBottom());
+        } else {
+          this.$message.warning(data.msg || "加载消息失败");
         }
       } catch (e) {
-        console.error(":", e);
+        console.error("加载历史对话失败:", e);
+        this.$message.error("加载历史对话失败");
       }
     },
-    // 
+    //
     async deleteConversation(convId) {
       try {
         await this.$confirm("删除后不可恢复，是否继续？", "删除对话", {
@@ -765,7 +1024,7 @@ export default {
         }
       }
     },
-    // 
+    //
     async sendMessage() {
       const msg = this.inputMessage.trim();
       if (!msg || this.loading) return;
@@ -781,7 +1040,7 @@ export default {
 
       await this.sendAiMessage(msg);
     },
-    // AI  - SSE 
+    // AI  - SSE
     async sendAiMessage(msg) {
       const aiMsg = {
         role: "assistant",
@@ -797,12 +1056,18 @@ export default {
         const headers = { "Content-Type": "application/json" };
         if (token) headers["token"] = token;
 
-        // 
+        //
         let keywords = null;
         if (this.enableKnowledgeBase) {
           try {
-            const kwRes = await this.$axios.post("/ai/keywords/extract", { message: msg });
-            if (kwRes.data.code === 200 && kwRes.data.data && kwRes.data.data.length > 0) {
+            const kwRes = await this.$axios.post("/ai/keywords/extract", {
+              message: msg,
+            });
+            if (
+              kwRes.data.code === 200 &&
+              kwRes.data.data &&
+              kwRes.data.data.length > 0
+            ) {
               keywords = kwRes.data.data;
               console.log("[Dify] :", keywords);
             }
@@ -836,13 +1101,13 @@ export default {
           },
         };
 
-        // 
+        //
         const apiUrl = this.enableStream
           ? URL_API + "/ai/chat/stream"
           : URL_API + "/ai/chat";
 
         if (this.enableStream) {
-          // 
+          //
           const response = await fetch(apiUrl, {
             method: "POST",
             headers: headers,
@@ -875,13 +1140,15 @@ export default {
                 try {
                   const data = JSON.parse(raw);
                   this.handleAiSseEvent(currentEvent, data, aiMsg);
-                } catch (e) { /* ignore */ }
+                } catch (e) {
+                  /* ignore */
+                }
               }
             }
             this.scrollToBottom();
           }
         } else {
-          // 
+          //
           try {
             const response = await fetch(apiUrl, {
               method: "POST",
@@ -891,13 +1158,17 @@ export default {
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const result = await response.json();
-            
+
             let reply = "";
             if (result.code === 200 && result.data) {
-              reply = (result.data.reply || "")
-                .replace(/<think>[\s\S]*?<\/think>/gi, "");
+              reply = (result.data.reply || "").replace(
+                /<think>[\s\S]*?<\/think>/gi,
+                ""
+              );
               if (result.data.conversationId) {
-                this.currentConversationId = parseInt(result.data.conversationId);
+                this.currentConversationId = parseInt(
+                  result.data.conversationId
+                );
               }
             } else {
               reply = "" + (result.msg || "");
@@ -919,7 +1190,7 @@ export default {
       this.loading = false;
       this.scrollToBottom();
     },
-    //  AI SSE 
+    //  AI SSE
     handleAiSseEvent(event, data, aiMsg) {
       switch (event) {
         case "answer_chunk":
@@ -936,14 +1207,14 @@ export default {
           break;
       }
     },
-    // 
+    //
     clearChat() {
       this.currentConversationId = null;
       this.messages = [];
       this.uploadFiles = [];
       this.fileList = [];
     },
-    // 
+    //
     exportChat() {
       if (this.messages.length === 0) {
         this.$message.warning("");
@@ -952,7 +1223,7 @@ export default {
       const content = this.messages
         .map((m) => {
           const role =
-            m.role === "user" ? "" : this.roles[this.currentRole].name;
+            m.role === "user" ? "" : this.currentRoleConfig.name;
           return `[${m.createTime || ""}] ${role}:\n${m.content}\n`;
         })
         .join("\n");
@@ -987,7 +1258,9 @@ export default {
         return false;
       }
       if (this.uploadFiles.length >= this.capabilities.maxImages) {
-        this.$message.warning("单次最多上传 " + this.capabilities.maxImages + " 张图片");
+        this.$message.warning(
+          "单次最多上传 " + this.capabilities.maxImages + " 张图片"
+        );
         return false;
       }
       return true;
@@ -996,7 +1269,7 @@ export default {
       if (res.code === 200) {
         this.uploadFiles.push({
           url: res.data,
-          name: file.name
+          name: file.name,
         });
         this.$message.success("");
       } else {
@@ -1014,9 +1287,9 @@ export default {
         const headers = { "Content-Type": "application/json" };
         if (token) headers["token"] = token;
 
-        // 
+        //
         const msg = "";
-        
+
         const aiMsg = {
           role: "assistant",
           content: "",
@@ -1027,7 +1300,7 @@ export default {
         const requestBody = {
           conversationId: this.currentConversationId,
           message: msg,
-          role: "analyst", // 
+          role: "analyst", //
           temperature: 0.1,
           topP: 0.1,
           enableWebSearch: false,
@@ -1074,7 +1347,9 @@ export default {
               try {
                 const data = JSON.parse(raw);
                 this.handleAiSseEvent(currentEvent, data, aiMsg);
-              } catch (e) { /* ignore */ }
+              } catch (e) {
+                /* ignore */
+              }
             }
           }
           this.scrollToBottom();
@@ -1114,7 +1389,7 @@ export default {
         //  marked  Markdown
         return marked.parse(content);
       } catch (e) {
-        //  HTML 
+        //  HTML
         const escaped = content
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
@@ -1424,22 +1699,34 @@ export default {
   word-break: break-word;
 
   /* Markdown  */
-  :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
+  :deep(h1),
+  :deep(h2),
+  :deep(h3),
+  :deep(h4),
+  :deep(h5),
+  :deep(h6) {
     margin-top: 12px;
     margin-bottom: 8px;
     font-weight: 600;
     line-height: 1.4;
   }
 
-  :deep(h1) { font-size: 1.5em; }
-  :deep(h2) { font-size: 1.3em; }
-  :deep(h3) { font-size: 1.1em; }
+  :deep(h1) {
+    font-size: 1.5em;
+  }
+  :deep(h2) {
+    font-size: 1.3em;
+  }
+  :deep(h3) {
+    font-size: 1.1em;
+  }
 
   :deep(p) {
     margin: 8px 0;
   }
 
-  :deep(ul), :deep(ol) {
+  :deep(ul),
+  :deep(ol) {
     padding-left: 20px;
     margin: 8px 0;
   }
@@ -1452,7 +1739,7 @@ export default {
     background-color: rgba(0, 0, 0, 0.06);
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: "Courier New", Courier, monospace;
     font-size: 0.9em;
   }
 
@@ -1487,7 +1774,8 @@ export default {
     width: 100%;
   }
 
-  :deep(th), :deep(td) {
+  :deep(th),
+  :deep(td) {
     border: 1px solid #ddd;
     padding: 8px;
     text-align: left;
@@ -1771,14 +2059,14 @@ export default {
   padding: 6px 0;
   font-size: 12px;
   color: #666;
-  
+
   .file-name {
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  
+
   i {
     color: #667eea;
   }
@@ -2066,7 +2354,9 @@ export default {
 }
 
 @keyframes typing {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     opacity: 0.3;
     transform: translateY(0);
   }

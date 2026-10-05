@@ -26,8 +26,8 @@
             class="customer"
             type="info"
             @click="add()"
-            ><el-icon><Plus /></el-icon></el-button
-          >
+            ><el-icon><Plus /></el-icon
+          ></el-button>
         </span>
       </el-row>
     </el-row>
@@ -46,7 +46,11 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="name" width="218" label="指标名称"></el-table-column>
+        <el-table-column
+          prop="name"
+          width="218"
+          label="指标名称"
+        ></el-table-column>
         <el-table-column prop="isGlobal" label="适用范围" width="128">
           <template #default="{ row }">
             <span>{{ row.isGlobal ? "全局" : "个人" }}</span>
@@ -117,14 +121,22 @@
           <p>
             <span class="modelName">*</span>
           </p>
-          <input class="input-title" v-model="data.name" placeholder="请输入指标名称" />
+          <input
+            class="input-title"
+            v-model="data.name"
+            placeholder="请输入指标名称"
+          />
         </el-row>
         <!--  -->
         <el-row style="padding: 0 10px 0 0">
           <p style="font-size: 12px; padding: 3px 0">
             <span class="modelName">*</span>
           </p>
-          <input class="input-title" v-model="data.unit" placeholder="请输入单位" />
+          <input
+            class="input-title"
+            v-model="data.unit"
+            placeholder="请输入单位"
+          />
         </el-row>
         <!--  -->
         <el-row style="padding: 0 10px 0 0">
@@ -205,10 +217,11 @@ export default {
       pageSize: 10,
       totalItems: 0,
       dialogUserOperaion: false, //       isOperation: false, //       tableData: [],
+      allData: [],
       searchTime: [],
       selectedRows: [],
       status: null,
-      healthModelConfigQueryDto: {}, // 
+      healthModelConfigQueryDto: {}, //
       messsageContent: "",
       tagsList: [],
       valuesRange: [10, 50],
@@ -216,10 +229,11 @@ export default {
   },
   watch: {
     currentPage() {
-      this.fetchFreshData();
+      this.applyLocalPage();
     },
     pageSize() {
-      this.fetchFreshData();
+      this.currentPage = 1;
+      this.applyLocalPage();
     },
   },
   created() {
@@ -235,11 +249,11 @@ export default {
       });
       this.data.cover = res.data;
     },
-    // 
+    //
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 
+    //
     async batchDelete() {
       if (!this.selectedRows.length) {
         this.$message(`请选择要删除的指标`);
@@ -277,7 +291,7 @@ export default {
       this.searchTime = [];
       this.fetchFreshData();
     },
-    // 
+    //
     async updateOperation() {
       this.$axios
         .put("/health-model-config/update", this.data)
@@ -303,7 +317,7 @@ export default {
       this.data = {};
       this.valueRange = null;
     },
-    // 
+    //
     addOperation() {
       this.$axios
         .post("/health-model-config/config/save", this.data)
@@ -323,7 +337,7 @@ export default {
           console.log("=>", error);
         });
     },
-    // 
+    //
     async fetchFreshData() {
       try {
         this.tableData = [];
@@ -336,10 +350,10 @@ export default {
           startTime = `${startDate.split("T")[0]}T00:00:00`;
           endTime = `${endDate.split("T")[0]}T23:59:59`;
         }
-        // 
+        //
         const params = {
-          current: this.currentPage,
-          size: this.pageSize,
+          current: 1,
+          size: 1000,
           startTime: startTime,
           endTime: endTime,
           ...this.healthModelConfigQueryDto,
@@ -349,11 +363,19 @@ export default {
           params
         );
         const { data } = response;
-        this.tableData = data.data;
-        this.totalItems = data.total;
+        const list = Array.isArray(data.data) ? data.data : [];
+        this.allData = list;
+        this.totalItems = list.length;
+        this.applyLocalPage();
       } catch (error) {
-        console.error(":", error);
+        console.error("加载健康指标失败:", error);
+        this.$message.error("加载健康指标失败");
       }
+    },
+    applyLocalPage() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      const end = start + this.pageSize;
+      this.tableData = this.allData.slice(start, end);
     },
     add() {
       this.dialogUserOperaion = true;
@@ -369,11 +391,11 @@ export default {
     handleSizeChange(val) {
       this.pageSize = val;
       this.currentPage = 1;
-      this.fetchFreshData();
+      this.applyLocalPage();
     },
     handleCurrentChange(val) {
       this.currentPage = val;
-      this.fetchFreshData();
+      this.applyLocalPage();
     },
     handleEdit(row) {
       this.dialogUserOperaion = true;

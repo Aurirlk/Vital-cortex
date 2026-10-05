@@ -10,11 +10,7 @@
         :key="index"
         @click="newsItemClick(news)"
       >
-        <img
-          :src="news.cover"
-          :alt="news.name"
-          class="news-cover"
-        />
+        <img :src="coverUrl(news.cover)" :alt="news.name" class="news-cover" />
         <div class="news-info">
           <h3 class="news-title">{{ news.name }}</h3>
           <div class="news-meta">
@@ -28,6 +24,7 @@
 </template>
 <script>
 import { timeAgo } from "@/utils/data";
+import { URL_API } from "@/utils/request.js";
 export default {
   data() {
     return {
@@ -41,8 +38,17 @@ export default {
     parseTime(time) {
       return timeAgo(time);
     },
+    // 把后端存的 cover 字段处理成完整可加载的 URL：
+    //   - 空值 → 走默认占位图
+    //   - 以 http(s):// 开头 → 已是完整 URL
+    //   - 其他（相对路径如 articles/xxx.jpg）→ 拼 /file/getFile?fileName=
+    coverUrl(cover) {
+      if (!cover) return "/default-product.svg";
+      if (/^https?:\/\//.test(cover)) return cover;
+      return `${URL_API}/file/getFile?fileName=${encodeURIComponent(cover)}`;
+    },
     newsItemClick(newsSave) {
-      // 
+      //
       const news = {
         id: newsSave.newsId,
         name: newsSave.name,
@@ -135,7 +141,11 @@ export default {
 .news-tags {
   display: inline-block;
   padding: 2px 8px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.1),
+    rgba(118, 75, 162, 0.1)
+  );
   color: #667eea;
   border-radius: 12px;
   font-size: 11px;

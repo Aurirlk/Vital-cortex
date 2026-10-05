@@ -7,11 +7,19 @@
 
     <!-- 测评列表 -->
     <div v-if="!currentExam" class="exam-list">
-      <div v-for="exam in exams" :key="exam.id" class="exam-card" @click="startExam(exam)">
+      <div
+        v-for="exam in exams"
+        :key="exam.id"
+        class="exam-card"
+        @click="startExam(exam)"
+      >
         <div class="exam-card__header">
           <h3 class="exam-card__title">{{ exam.title }}</h3>
-          <span class="exam-card__difficulty" :class="'diff--' + exam.difficulty">
-            {{ ['简单', '中等', '困难'][exam.difficulty - 1] || '未知' }}
+          <span
+            class="exam-card__difficulty"
+            :class="'diff--' + exam.difficulty"
+          >
+            {{ ["简单", "中等", "困难"][exam.difficulty - 1] || "未知" }}
           </span>
         </div>
         <p class="exam-card__desc">{{ exam.description }}</p>
@@ -33,31 +41,59 @@
 
       <div class="question-card">
         <div class="question-card__header">
-          <span class="question-num">第 {{ currentIndex + 1 }}/{{ questions.length }} 题</span>
-          <span class="question-type">{{ ['单选', '多选', '判断', '填空', '简答', '其他'][currentQuestion.questionType] || '其他' }}</span>
+          <span class="question-num"
+            >第 {{ currentIndex + 1 }}/{{ questions.length }} 题</span
+          >
+          <span class="question-type">{{
+            ["单选", "多选", "判断", "填空", "简答", "其他"][
+              currentQuestion.questionType
+            ] || "其他"
+          }}</span>
         </div>
         <h3 class="question-title">{{ currentQuestion.title }}</h3>
 
         <!-- 选项 -->
         <div v-if="currentQuestion.questionType < 3" class="options-list">
-          <div v-for="(opt, idx) in parseOptions(currentQuestion.options)" :key="idx"
-               class="option-item" :class="{ 'option-item--selected': isOptionSelected(idx) }"
-               @click="selectOption(idx)">
-            <div class="option-radio">{{ ['A', 'B', 'C', 'D'][idx] }}</div>
+          <div
+            v-for="(opt, idx) in parseOptions(currentQuestion.options)"
+            :key="idx"
+            class="option-item"
+            :class="{ 'option-item--selected': isOptionSelected(idx) }"
+            @click="selectOption(idx)"
+          >
+            <div class="option-radio">{{ ["A", "B", "C", "D"][idx] }}</div>
             <span>{{ opt }}</span>
           </div>
         </div>
 
         <!-- 填空/简答 -->
         <div v-else class="text-answer">
-          <textarea v-model="answers[currentQuestion.id]" class="answer-input" placeholder="请输入您的答案"></textarea>
+          <textarea
+            v-model="answers[currentQuestion.id]"
+            class="answer-input"
+            placeholder="请输入您的答案"
+          ></textarea>
         </div>
       </div>
 
       <div class="quiz-nav">
-        <button class="btn btn--outline" :disabled="currentIndex === 0" @click="prevQuestion">上一题</button>
-        <button v-if="currentIndex < questions.length - 1" class="btn btn--primary" @click="nextQuestion">下一题</button>
-        <button v-else class="btn btn--success" @click="submitExam">交卷</button>
+        <button
+          class="btn btn--outline"
+          :disabled="currentIndex === 0"
+          @click="prevQuestion"
+        >
+          上一题
+        </button>
+        <button
+          v-if="currentIndex < questions.length - 1"
+          class="btn btn--primary"
+          @click="nextQuestion"
+        >
+          下一题
+        </button>
+        <button v-else class="btn btn--success" @click="submitExam">
+          交卷
+        </button>
       </div>
     </div>
 
@@ -65,11 +101,20 @@
     <div v-if="examResult" class="result-panel">
       <div class="result-card">
         <div class="result-score">
-          <div class="score-circle" :class="examResult.score >= currentExam.passScore ? 'pass' : 'fail'">
+          <div
+            class="score-circle"
+            :class="examResult.score >= currentExam.passScore ? 'pass' : 'fail'"
+          >
             <span class="score-num">{{ examResult.score }}</span>
             <span class="score-label">总分</span>
           </div>
-          <div class="score-status">{{ examResult.score >= currentExam.passScore ? '恭喜通过' : '继续加油' }}</div>
+          <div class="score-status">
+            {{
+              examResult.score >= currentExam.passScore
+                ? "恭喜通过"
+                : "继续加油"
+            }}
+          </div>
         </div>
         <div class="result-stats">
           <div class="stat-item">
@@ -81,13 +126,29 @@
             <div class="stat-label">总题数</div>
           </div>
           <div class="stat-item">
-            <div class="stat-value">{{ Math.round(examResult.correctCount / examResult.questionCount * 100) }}%</div>
+            <div class="stat-value">
+              {{
+                Math.round(
+                  (examResult.correctCount / examResult.questionCount) * 100
+                )
+              }}%
+            </div>
             <div class="stat-label">正确率</div>
           </div>
         </div>
         <div class="result-actions">
-          <button class="btn btn--outline" @click="currentExam = null; examResult = null">返回列表</button>
-          <button class="btn btn--primary" @click="viewAnswers">查看解析</button>
+          <button
+            class="btn btn--outline"
+            @click="
+              currentExam = null;
+              examResult = null;
+            "
+          >
+            返回列表
+          </button>
+          <button class="btn btn--primary" @click="viewAnswers">
+            查看解析
+          </button>
         </div>
       </div>
     </div>
@@ -100,10 +161,15 @@
         <div v-for="record in records" :key="record.id" class="record-item">
           <div class="record-item__info">
             <div class="record-item__score">{{ record.score }}</div>
-            <div class="record-item__detail">{{ record.correctCount }}/{{ record.questionCount }} 题</div>
+            <div class="record-item__detail">
+              {{ record.correctCount }}/{{ record.questionCount }} 题
+            </div>
           </div>
-          <div class="record-item__status" :class="record.score >= 60 ? 'pass' : 'fail'">
-            {{ record.score >= 60 ? '通过' : '未通过' }}
+          <div
+            class="record-item__status"
+            :class="record.score >= 60 ? 'pass' : 'fail'"
+          >
+            {{ record.score >= 60 ? "通过" : "未通过" }}
           </div>
         </div>
       </div>
@@ -145,7 +211,11 @@ export default {
   },
   methods: {
     parseOptions(options) {
-      try { return JSON.parse(options); } catch { return []; }
+      try {
+        return JSON.parse(options);
+      } catch {
+        return [];
+      }
     },
     isOptionSelected(idx) {
       return this.selectedOptions.includes(idx);
@@ -158,24 +228,32 @@ export default {
         if (i > -1) this.selectedOptions.splice(i, 1);
         else this.selectedOptions.push(idx);
       }
-      this.answers[this.currentQuestion.id] = this.selectedOptions.map(i => ['A', 'B', 'C', 'D'][i]).join(',');
+      this.answers[this.currentQuestion.id] = this.selectedOptions
+        .map((i) => ["A", "B", "C", "D"][i])
+        .join(",");
     },
     formatTime(seconds) {
       const m = Math.floor(seconds / 60);
       const s = seconds % 60;
-      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      return `${m.toString().padStart(2, "0")}:${s
+        .toString()
+        .padStart(2, "0")}`;
     },
     async loadExams() {
       try {
         const { data } = await request.get("quiz/exam/list");
         if (data.code === 200) this.exams = data.data;
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
     },
     async loadRecords() {
       try {
         const { data } = await request.get("quiz/records");
         if (data.code === 200) this.records = data.data;
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
     },
     async startExam(exam) {
       this.currentExam = exam;
@@ -186,14 +264,18 @@ export default {
       try {
         const { data } = await request.get(`quiz/exam/${exam.id}`);
         if (data.code === 200) {
-          const qData = await request.get("quiz/question/query", { params: { examId: exam.id } });
+          const qData = await request.get("quiz/question/query", {
+            params: { examId: exam.id },
+          });
           if (qData.data.code === 200) this.questions = qData.data.data;
         }
         const startData = await request.post(`quiz/start/${exam.id}`);
         if (startData.data.code === 200) {
           this.recordId = startData.data.data.id;
         }
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
       this.remainingTime = exam.durationMinutes * 60;
       this.timer = setInterval(() => {
         this.remainingTime--;
@@ -217,12 +299,15 @@ export default {
     },
     async submitExam() {
       if (this.timer) clearInterval(this.timer);
-      const answers = Object.keys(this.answers).map(qId => ({
+      const answers = Object.keys(this.answers).map((qId) => ({
         questionId: parseInt(qId),
         answer: this.answers[qId],
       }));
       try {
-        const { data } = await request.post(`quiz/submit/${this.recordId}`, answers);
+        const { data } = await request.post(
+          `quiz/submit/${this.recordId}`,
+          answers
+        );
         if (data.code === 200) {
           this.examResult = {
             score: data.data?.score || 0,
@@ -230,7 +315,9 @@ export default {
             questionCount: this.questions.length,
           };
         }
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
     },
     viewAnswers() {
       this.$message.info("题目解析功能开发中");
@@ -240,76 +327,342 @@ export default {
 </script>
 
 <style scoped>
-.quiz-container { max-width: 800px; margin: 0 auto; padding: 24px; }
-.quiz-header { text-align: center; margin-bottom: 32px; }
-.page-title { font-size: 28px; font-weight: 700; color: #1a1a1a; margin: 0 0 8px; }
-.page-desc { font-size: 15px; color: #999; margin: 0; }
+.quiz-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.quiz-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 8px;
+}
+.page-desc {
+  font-size: 15px;
+  color: #999;
+  margin: 0;
+}
 
-.exam-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-.exam-card { background: #fff; border-radius: 12px; padding: 20px; cursor: pointer; border: 2px solid #f0f0f0; transition: all 0.25s; }
-.exam-card:hover { border-color: #ff2442; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255,36,66,0.1); }
-.exam-card__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.exam-card__title { font-size: 16px; font-weight: 600; color: #1a1a1a; margin: 0; }
-.exam-card__difficulty { font-size: 12px; padding: 2px 8px; border-radius: 10px; }
-.diff--1 { background: rgba(7,193,96,0.1); color: #07c160; }
-.diff--2 { background: rgba(255,180,0,0.1); color: #ffb400; }
-.diff--3 { background: rgba(255,36,66,0.1); color: #ff2442; }
-.exam-card__desc { font-size: 13px; color: #666; margin: 0 0 12px; }
-.exam-card__meta { display: flex; gap: 16px; font-size: 12px; color: #999; margin-bottom: 12px; }
-.exam-card__btn { width: 100%; padding: 8px; background: linear-gradient(135deg, #ff2442, #ff6b81); color: #fff; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; }
+.exam-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+.exam-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  border: 2px solid #f0f0f0;
+  transition: all 0.25s;
+}
+.exam-card:hover {
+  border-color: #ff2442;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 36, 66, 0.1);
+}
+.exam-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.exam-card__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+.exam-card__difficulty {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.diff--1 {
+  background: rgba(7, 193, 96, 0.1);
+  color: #07c160;
+}
+.diff--2 {
+  background: rgba(255, 180, 0, 0.1);
+  color: #ffb400;
+}
+.diff--3 {
+  background: rgba(255, 36, 66, 0.1);
+  color: #ff2442;
+}
+.exam-card__desc {
+  font-size: 13px;
+  color: #666;
+  margin: 0 0 12px;
+}
+.exam-card__meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 12px;
+}
+.exam-card__btn {
+  width: 100%;
+  padding: 8px;
+  background: linear-gradient(135deg, #ff2442, #ff6b81);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+}
 
-.quiz-panel__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.quiz-timer { font-size: 18px; font-weight: 600; color: #ff2442; }
+.quiz-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.quiz-timer {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ff2442;
+}
 
-.question-card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
-.question-card__header { display: flex; justify-content: space-between; margin-bottom: 12px; }
-.question-num { font-size: 14px; color: #999; }
-.question-type { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: rgba(14,165,165,0.1); color: #0EA5A5; }
-.question-title { font-size: 16px; font-weight: 500; color: #1a1a1a; margin: 0 0 16px; }
+.question-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.question-card__header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.question-num {
+  font-size: 14px;
+  color: #999;
+}
+.question-type {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(14, 165, 165, 0.1);
+  color: #0ea5a5;
+}
+.question-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin: 0 0 16px;
+}
 
-.options-list { display: flex; flex-direction: column; gap: 10px; }
-.option-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 2px solid #f0f0f0; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
-.option-item:hover { border-color: #ff2442; }
-.option-item--selected { border-color: #ff2442; background: rgba(255,36,66,0.04); }
-.option-radio { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
-.option-item--selected .option-radio { border-color: #ff2442; background: #ff2442; color: #fff; }
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.option-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 2px solid #f0f0f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.option-item:hover {
+  border-color: #ff2442;
+}
+.option-item--selected {
+  border-color: #ff2442;
+  background: rgba(255, 36, 66, 0.04);
+}
+.option-radio {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+.option-item--selected .option-radio {
+  border-color: #ff2442;
+  background: #ff2442;
+  color: #fff;
+}
 
-.answer-input { width: 100%; padding: 12px; border: 2px solid #f0f0f0; border-radius: 10px; font-size: 14px; resize: vertical; min-height: 100px; box-sizing: border-box; }
-.answer-input:focus { outline: none; border-color: #ff2442; }
+.answer-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #f0f0f0;
+  border-radius: 10px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 100px;
+  box-sizing: border-box;
+}
+.answer-input:focus {
+  outline: none;
+  border-color: #ff2442;
+}
 
-.quiz-nav { display: flex; justify-content: space-between; }
-.btn { padding: 10px 24px; border-radius: 10px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
-.btn--primary { background: linear-gradient(135deg, #ff2442, #ff6b81); color: #fff; }
-.btn--outline { background: transparent; border: 2px solid #ff2442; color: #ff2442; }
-.btn--success { background: #07c160; color: #fff; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.quiz-nav {
+  display: flex;
+  justify-content: space-between;
+}
+.btn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+.btn--primary {
+  background: linear-gradient(135deg, #ff2442, #ff6b81);
+  color: #fff;
+}
+.btn--outline {
+  background: transparent;
+  border: 2px solid #ff2442;
+  color: #ff2442;
+}
+.btn--success {
+  background: #07c160;
+  color: #fff;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
-.result-panel { margin-bottom: 40px; }
-.result-card { background: #fff; border-radius: 16px; padding: 32px; text-align: center; }
-.result-score { margin-bottom: 24px; }
-.score-circle { width: 120px; height: 120px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 12px; }
-.score-circle.pass { background: rgba(7,193,96,0.1); border: 3px solid #07c160; }
-.score-circle.fail { background: rgba(255,36,66,0.1); border: 3px solid #ff2442; }
-.score-num { font-size: 36px; font-weight: 700; color: #1a1a1a; }
-.score-label { font-size: 14px; color: #999; }
-.score-status { font-size: 18px; font-weight: 600; }
+.result-panel {
+  margin-bottom: 40px;
+}
+.result-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+}
+.result-score {
+  margin-bottom: 24px;
+}
+.score-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+}
+.score-circle.pass {
+  background: rgba(7, 193, 96, 0.1);
+  border: 3px solid #07c160;
+}
+.score-circle.fail {
+  background: rgba(255, 36, 66, 0.1);
+  border: 3px solid #ff2442;
+}
+.score-num {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.score-label {
+  font-size: 14px;
+  color: #999;
+}
+.score-status {
+  font-size: 18px;
+  font-weight: 600;
+}
 
-.result-stats { display: flex; justify-content: center; gap: 40px; margin-bottom: 24px; }
-.stat-item { text-align: center; }
-.stat-value { font-size: 24px; font-weight: 700; color: #1a1a1a; }
-.stat-label { font-size: 13px; color: #999; }
+.result-stats {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-bottom: 24px;
+}
+.stat-item {
+  text-align: center;
+}
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.stat-label {
+  font-size: 13px;
+  color: #999;
+}
 
-.result-actions { display: flex; gap: 12px; justify-content: center; }
+.result-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
 
-.history-section { margin-top: 40px; }
-.section-title { font-size: 20px; font-weight: 600; color: #1a1a1a; margin: 0 0 16px; }
-.record-list { display: flex; flex-direction: column; gap: 10px; }
-.record-item { background: #fff; border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
-.record-item__info { flex: 1; }
-.record-item__score { font-size: 18px; font-weight: 700; color: #1a1a1a; }
-.record-item__detail { font-size: 13px; color: #999; }
-.record-item__status { font-size: 12px; padding: 2px 10px; border-radius: 10px; }
-.pass { background: rgba(7,193,96,0.1); color: #07c160; }
-.fail { background: rgba(255,36,66,0.1); color: #ff2442; }
-.empty-state { text-align: center; padding: 30px; color: #999; }
+.history-section {
+  margin-top: 40px;
+}
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 16px;
+}
+.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.record-item {
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.record-item__info {
+  flex: 1;
+}
+.record-item__score {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.record-item__detail {
+  font-size: 13px;
+  color: #999;
+}
+.record-item__status {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+.pass {
+  background: rgba(7, 193, 96, 0.1);
+  color: #07c160;
+}
+.fail {
+  background: rgba(255, 36, 66, 0.1);
+  color: #ff2442;
+}
+.empty-state {
+  text-align: center;
+  padding: 30px;
+  color: #999;
+}
 </style>

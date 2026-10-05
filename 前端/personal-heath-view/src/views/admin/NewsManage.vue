@@ -1,5 +1,13 @@
 <template>
-  <el-row style="background-color: #ffffff; padding: 20px; border-radius: 12px; width: 100%; box-sizing: border-box">
+  <el-row
+    style="
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      width: 100%;
+      box-sizing: border-box;
+    "
+  >
     <el-row style="padding: 15px 20px; margin-left: 10px">
       <el-row :gutter="16" align="middle">
         <el-col :span="4">
@@ -35,9 +43,9 @@
           <el-input
             size="default"
             style="width: 100%"
-          v-model="newsQueryDto.name"
-          placeholder="请输入资讯标题"
-          clearable
+            v-model="newsQueryDto.name"
+            placeholder="请输入资讯标题"
+            clearable
             @clear="handleFilterClear"
           >
             <template #append
@@ -63,8 +71,8 @@
             class="customer"
             type="info"
             @click="add()"
-            ><el-icon style="margin-right: 4px"><Plus /></el-icon></el-button
-          >
+            ><el-icon style="margin-right: 4px"><Plus /></el-icon
+          ></el-button>
         </el-col>
       </el-row>
     </el-row>
@@ -78,8 +86,8 @@
         <el-table-column prop="cover" width="80" label="封面">
           <template #default="{ row }">
             <img
-              :src="row.cover"
-              style="width: 48px; height: 34px; border-radius: 5px"
+              :src="row.cover || '/default-product.svg'"
+              style="width: 48px; height: 34px; border-radius: 5px; object-fit: cover"
             />
           </template>
         </el-table-column>
@@ -121,7 +129,7 @@
         <el-table-column prop="isBanner" width="128" label="Banner展示">
           <template #default="{ row }">
             <el-tag :type="row.isBanner ? 'success' : 'info'" size="small">
-              {{ row.isBanner ? '展示中' : '未展示' }}
+              {{ row.isBanner ? "展示中" : "未展示" }}
             </el-tag>
           </template>
         </el-table-column>
@@ -163,7 +171,7 @@
             <el-upload
               class="avatar-uploader"
               :action="$uploadUrl"
-            :headers="$uploadHeaders"
+              :headers="$uploadHeaders"
               :show-file-list="false"
               :on-success="handleAvatarSuccess"
             >
@@ -178,7 +186,8 @@
               size="small"
               style="margin-top: 90px"
               @click="showDefaultCoverDialog = true"
-            >选择默认封面</el-button>
+              >选择默认封面</el-button
+            >
           </div>
         </el-row>
         <!--  -->
@@ -279,21 +288,44 @@
       </template>
     </el-dialog>
     <!--  -->
-    <el-dialog v-model="showDefaultCoverDialog" title="选择默认封面" width="600px">
+    <el-dialog
+      v-model="showDefaultCoverDialog"
+      title="选择默认封面"
+      width="600px"
+    >
       <div style="display: flex; flex-wrap: wrap; gap: 12px; padding: 10px">
         <div
           v-for="(cover, index) in defaultCovers"
           :key="index"
-          style="cursor: pointer; border: 2px solid transparent; border-radius: 8px; overflow: hidden; transition: border-color 0.3s"
-          :style="{ borderColor: data.cover === cover.url ? '#409eff' : 'transparent' }"
+          style="
+            cursor: pointer;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: border-color 0.3s;
+          "
+          :style="{
+            borderColor: data.cover === cover.url ? '#409eff' : 'transparent',
+          }"
           @click="selectDefaultCover(cover.url)"
         >
-          <img :src="cover.url" :alt="cover.name" style="width: 160px; height: 100px; object-fit: cover; display: block" />
+          <img
+            :src="cover.url"
+            :alt="cover.name"
+            style="
+              width: 160px;
+              height: 100px;
+              object-fit: cover;
+              display: block;
+            "
+          />
         </div>
       </div>
       <template #footer>
         <el-button @click="showDefaultCoverDialog = false">取消</el-button>
-        <el-button type="primary" @click="showDefaultCoverDialog = false">确定</el-button>
+        <el-button type="primary" @click="showDefaultCoverDialog = false"
+          >确定</el-button
+        >
       </template>
     </el-dialog>
   </el-row>
@@ -317,7 +349,7 @@ export default {
       searchTime: [],
       selectedRows: [],
       status: null,
-      newsQueryDto: {}, // 
+      newsQueryDto: {}, //
       messsageContent: "",
       tagsList: [],
       showDefaultCoverDialog: false,
@@ -351,7 +383,7 @@ export default {
     onReceiveContent(html) {
       this.data.content = html;
     },
-    // 
+    //
     loadAllTags() {
       this.$axios.post(`/tags/query`, {}).then((response) => {
         const { data } = response;
@@ -366,15 +398,14 @@ export default {
         this.$message.error(`封面上传失败`);
         return;
       }
-      this.data.cover = "";
       this.$message.success(`封面上传成功`);
       this.data.cover = res.data;
     },
-    // 
+    //
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 
+    //
     async batchDelete() {
       if (!this.selectedRows.length) {
         this.$message(`请选择要删除的资讯`);
@@ -417,16 +448,26 @@ export default {
       this.searchTime = [];
       this.fetchFreshData();
     },
-    // 
+    //
     async updateOperation() {
       try {
-        const response = await this.$axios.put("/news/update", this.data);
+        const payload = {
+          id: this.data.id,
+          name: this.data.name,
+          content: this.data.content,
+          tagId: this.data.tagId,
+          cover: this.data.cover,
+          readerIds: this.data.readerIds,
+          isTop: this.data.isTop,
+          isBanner: this.data.isBanner,
+        };
+        const response = await this.$axios.put("/news/update", payload);
         this.$swal.fire({
-          title: "更新成功",
-          text: response.data.msg,
+          title: response.data.code === 200 ? "更新成功" : "更新失败",
+          text: response.data.msg || "",
           icon: response.data.code === 200 ? "success" : "error",
           showConfirmButton: false,
-          timer: 1000,
+          timer: 1500,
         });
         if (response.data.code === 200) {
           this.closeDialog();
@@ -434,14 +475,24 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
+        const msg = error.response?.data?.msg || error.message || "未知错误";
         console.error("更新资讯失败：", error);
-        this.$message.error("更新失败");
+        this.$message.error("更新失败: " + msg);
       }
     },
-    // 
+    //
     async addOperation() {
       try {
-        const response = await this.$axios.post("/news/save", this.data);
+        const payload = {
+          name: this.data.name,
+          content: this.data.content,
+          tagId: this.data.tagId,
+          cover: this.data.cover,
+          readerIds: this.data.readerIds,
+          isTop: this.data.isTop,
+          isBanner: this.data.isBanner,
+        };
+        const response = await this.$axios.post("/news/save", payload);
         this.$message[response.data.code === 200 ? "success" : "error"](
           response.data.msg
         );
@@ -451,8 +502,9 @@ export default {
           this.clearFormData();
         }
       } catch (error) {
+        const msg = error.response?.data?.msg || error.message || "未知错误";
         console.error("添加资讯失败：", error);
-        this.$message.error("添加失败");
+        this.$message.error("添加失败: " + msg);
       }
     },
     closeDialog() {
@@ -472,7 +524,7 @@ export default {
           startTime = `${startDate.split("T")[0]}T00:00:00`;
           endTime = `${endDate.split("T")[0]}T23:59:59`;
         }
-        // 
+        //
         const params = {
           current: this.currentPage,
           size: this.pageSize,

@@ -36,8 +36,8 @@
             class="customer"
             type="info"
             @click="add()"
-            ><el-icon><Plus /></el-icon></el-button
-          >
+            ><el-icon><Plus /></el-icon
+          ></el-button>
         </span>
       </el-row>
     </el-row>
@@ -48,15 +48,21 @@
         style="width: 100%"
         :header-cell-style="{ fontWeight: 600, color: '#606266' }"
       >
-        <el-table-column prop="userAvatar" width="60" label="头像" align="center">
+        <el-table-column
+          prop="userAvatar"
+          width="60"
+          label="头像"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-avatar
-              :size="32"
-              :src="row.userAvatar"
-            ></el-avatar>
+            <el-avatar :size="32" :src="row.userAvatar || '/default-avatar.svg'"></el-avatar>
           </template>
         </el-table-column>
-        <el-table-column prop="userName" label="用户名" min-width="100"></el-table-column>
+        <el-table-column
+          prop="userName"
+          label="用户名"
+          min-width="100"
+        ></el-table-column>
         <el-table-column
           prop="userAccount"
           min-width="110"
@@ -73,9 +79,16 @@
             <span>{{ row.userRole === 1 ? "管理员" : "普通用户" }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="isLogin" width="80" label="登录状态" align="center">
+        <el-table-column
+          prop="isLogin"
+          width="80"
+          label="登录状态"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-icon v-if="row.isLogin" style="margin-right: 3px; color: #e6a23c"
+            <el-icon
+              v-if="row.isLogin"
+              style="margin-right: 3px; color: #e6a23c"
               ><Warning
             /></el-icon>
             <el-icon v-else style="margin-right: 3px; color: #67c23a"
@@ -88,12 +101,24 @@
               content="禁止登录"
               placement="bottom-end"
             >
-              <span style="text-decoration: underline; text-decoration-style: dashed; font-size: 13px">禁止登录</span>
+              <span
+                style="
+                  text-decoration: underline;
+                  text-decoration-style: dashed;
+                  font-size: 13px;
+                "
+                >禁止登录</span
+              >
             </el-tooltip>
             <span v-else style="font-size: 13px">正常</span>
           </template>
         </el-table-column>
-        <el-table-column prop="isWord" width="80" label="禁言状态" align="center">
+        <el-table-column
+          prop="isWord"
+          width="80"
+          label="禁言状态"
+          align="center"
+        >
           <template #default="{ row }">
             <el-icon v-if="row.isWord" style="margin-right: 3px; color: #e6a23c"
               ><Warning
@@ -108,7 +133,14 @@
               content="已禁言"
               placement="bottom-end"
             >
-              <span style="text-decoration: underline; text-decoration-style: dashed; font-size: 13px">已禁言</span>
+              <span
+                style="
+                  text-decoration: underline;
+                  text-decoration-style: dashed;
+                  font-size: 13px;
+                "
+                >已禁言</span
+              >
             </el-tooltip>
             <span v-else style="font-size: 13px">正常</span>
           </template>
@@ -304,19 +336,21 @@ export default {
       dialogUserOperaion: false,
       isOperation: false,
       tableData: [],
+      allUserData: [],
       searchTime: [],
       selectedRows: [],
       status: null,
-      userQueryDto: {}, // 
+      userQueryDto: {}, //
       messsageContent: "",
     };
   },
   watch: {
     currentPage() {
-      this.fetchFreshData();
+      this.applyLocalPage();
     },
     pageSize() {
-      this.fetchFreshData();
+      this.currentPage = 1;
+      this.applyLocalPage();
     },
   },
   created() {
@@ -377,11 +411,11 @@ export default {
     async handleSwitchChange(id, status, operation) {
       try {
         let param = { id: id };
-        // 
+        //
         if (operation) {
           param.isLogin = status;
         } else {
-          // 
+          //
           param.isWord = status;
         }
         const response = await this.$axios.put(`/user/backUpdate`, param);
@@ -398,11 +432,11 @@ export default {
         console.error(`${e}`);
       }
     },
-    // 
+    //
     handleSelectionChange(selection) {
       this.selectedRows = selection;
     },
-    // 
+    //
     async batchDelete() {
       if (!this.selectedRows.length) {
         this.$message(`请选择要删除的用户`);
@@ -438,10 +472,10 @@ export default {
       this.searchTime = [];
       this.fetchFreshData();
     },
-    // 
+    //
     async updateOperation() {
       if (this.userPwd !== "") {
-        const pwd = this.$md5(this.$md5(this.userPwd));
+        const pwd = this.userPwd;
         this.data.userPwd = pwd;
       } else {
         this.data.userPwd = null;
@@ -449,25 +483,25 @@ export default {
       this.data.userAvatar = this.userAvatar;
       try {
         const response = await this.$axios.put("/user/backUpdate", this.data);
-          if (response.data.code === 200) {
-            this.fetchFreshData();
-            this.cannel();
-            this.$notify({
-              duration: 2000,
-              title: "更新成功",
-              message: "用户信息已更新",
-              type: "success",
-            });
-          }
-        } catch (error) {
-          console.error("更新用户信息失败：", error);
-          this.$message.error("更新失败");
+        if (response.data.code === 200) {
+          this.fetchFreshData();
+          this.cannel();
+          this.$notify({
+            duration: 2000,
+            title: "更新成功",
+            message: "用户信息已更新",
+            type: "success",
+          });
         }
-      },
-      // 
-      async addOperation() {
+      } catch (error) {
+        console.error("更新用户信息失败：", error);
+        this.$message.error("更新失败");
+      }
+    },
+    //
+    async addOperation() {
       if (this.userPwd !== "") {
-        this.data.userPwd = this.$md5(this.$md5(this.userPwd));
+        this.data.userPwd = this.userPwd;
       } else {
         this.data.userPwd = null;
       }
@@ -502,7 +536,6 @@ export default {
     },
     async fetchFreshData() {
       try {
-        this.tableData = [];
         let startTime = null;
         let endTime = null;
         if (this.searchTime != null && this.searchTime.length === 2) {
@@ -512,10 +545,10 @@ export default {
           startTime = `${startDate.split("T")[0]}T00:00:00`;
           endTime = `${endDate.split("T")[0]}T23:59:59`;
         }
-        // 
+        //
         const params = {
-          current: this.currentPage,
-          size: this.pageSize,
+          current: 1,
+          size: 1000,
           key: this.filterText,
           startTime: startTime,
           endTime: endTime,
@@ -523,11 +556,19 @@ export default {
         };
         const response = await this.$axios.post("/user/query", params);
         const { data } = response;
-        this.tableData = data.data;
-        this.totalItems = data.total;
+        const list = Array.isArray(data.data) ? data.data : [];
+        this.allUserData = list;
+        this.totalItems = list.length;
+        this.applyLocalPage();
       } catch (error) {
-        console.error(":", error);
+        console.error("加载用户失败:", error);
+        this.$message.error("加载用户数据失败");
       }
+    },
+    applyLocalPage() {
+      const start = (this.currentPage - 1) * this.pageSize;
+      const end = start + this.pageSize;
+      this.tableData = this.allUserData.slice(start, end);
     },
     add() {
       this.dialogUserOperaion = true;
@@ -543,18 +584,19 @@ export default {
     handleSizeChange(val) {
       this.pageSize = val;
       this.currentPage = 1;
-      this.fetchFreshData();
+      this.applyLocalPage();
     },
     handleCurrentChange(val) {
       this.currentPage = val;
-      this.fetchFreshData();
+      this.applyLocalPage();
     },
     handleEdit(row) {
       this.dialogUserOperaion = true;
       this.isOperation = true;
-      row.userPwd = null;
-      this.userAvatar = row.userAvatar;
-      this.data = { ...row };
+      const clean = { ...row };
+      clean.userPwd = null;
+      this.userAvatar = clean.userAvatar || "";
+      this.data = clean;
     },
     handleDelete(row) {
       this.selectedRows.push(row);

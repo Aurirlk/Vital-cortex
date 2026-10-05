@@ -35,7 +35,11 @@
         <span class="subtitle">管理系统各项运行参数与 AI 能力</span>
       </div>
       <div class="page-header-actions">
-        <el-button type="warning" @click="resetAllConfigs" :loading="resettingAll">
+        <el-button
+          type="warning"
+          @click="resetAllConfigs"
+          :loading="resettingAll"
+        >
           <el-icon><RefreshRight /></el-icon>
           重置全部配置
         </el-button>
@@ -43,10 +47,18 @@
     </div>
 
     <!--  -->
-    <el-tabs v-model="mainTab" type="border-card" @tab-change="handleMainTabChange">
+    <el-tabs
+      v-model="mainTab"
+      type="border-card"
+      @tab-change="handleMainTabChange"
+    >
       <!-- ============  ============ -->
       <el-tab-pane label="系统参数" name="system">
-        <el-tabs v-model="systemGroup" tab-position="left" @tab-change="handleSystemGroupChange">
+        <el-tabs
+          v-model="systemGroup"
+          tab-position="left"
+          @tab-change="handleSystemGroupChange"
+        >
           <el-tab-pane
             v-for="(configs, group) in systemConfigGroups"
             :key="group"
@@ -55,13 +67,22 @@
           >
             <div class="config-group-header">
               <span class="group-title">{{ getGroupLabel(group) }}</span>
-              <el-button type="primary" size="small" @click="saveSystemConfig(group)" :loading="saving">
+              <el-button
+                type="primary"
+                size="small"
+                @click="saveSystemConfig(group)"
+                :loading="saving"
+              >
                 <el-icon><Check /></el-icon>
                 保存配置
               </el-button>
             </div>
 
-            <el-form :model="editSystemConfigs[group]" label-width="140px" class="config-form">
+            <el-form
+              :model="editSystemConfigs[group]"
+              label-width="140px"
+              class="config-form"
+            >
               <el-form-item
                 v-for="config in configs"
                 :key="config.key"
@@ -122,144 +143,152 @@
         </el-tabs>
       </el-tab-pane>
 
-      <!-- ============ LLM ============ -->
+      <!-- ============ LLM (合并 AI 服务商 + 模型管理 + 智能体管理) ============ -->
       <el-tab-pane label="LLM" name="ai">
         <el-tabs v-model="aiTab" @tab-change="handleAiTabChange">
-          <!-- AI -->
+          <!-- AI 服务商配置 -->
           <el-tab-pane label="AI 服务商" name="provider">
             <el-form :model="aiConfig" label-width="140px" class="config-form">
               <el-divider content-position="left">AI</el-divider>
-              
+
               <el-form-item label="服务商">
-                <el-select 
-                  v-model="aiConfig.provider" 
+                <el-select
+                  v-model="aiConfig.provider"
                   style="width: 100%"
                   @change="onProviderChange"
                 >
-                  <el-option 
-                    v-for="(config, key) in providers" 
-                    :key="key" 
-                    :label="config.name" 
+                  <el-option
+                    v-for="(config, key) in providers"
+                    :key="key"
+                    :label="config.name"
                     :value="key"
                   />
                 </el-select>
               </el-form-item>
-              
+
               <el-form-item label="OpenAI Base URL">
-                <el-input 
-                  v-model="currentProvider.openaiBaseUrl" 
-                  disabled
-                  style="background-color: #f5f5f5"
-                />
-              </el-form-item>
-              
-              <el-form-item label="Anthropic Base URL" v-if="currentProvider.anthropicBaseUrl">
-                <el-input 
-                  v-model="currentProvider.anthropicBaseUrl" 
-                  disabled
-                  style="background-color: #f5f5f5"
+                <el-input
+                  v-model="currentProvider.openaiBaseUrl"
+                  placeholder="https://api.deepseek.com/v1/chat/completions"
                 />
               </el-form-item>
 
-              <el-divider content-position="left"></el-divider>
-              
+              <el-form-item
+                label="Anthropic Base URL"
+                v-if="currentProvider.anthropicBaseUrl !== null"
+              >
+                <el-input
+                  v-model="currentProvider.anthropicBaseUrl"
+                  placeholder="https://api.deepseek.com/anthropic"
+                />
+              </el-form-item>
+
+              <el-divider content-position="left">模型配置</el-divider>
+
               <el-form-item label="API Key">
-                <el-input 
-                  v-model="aiConfig.chat.apiKey" 
+                <el-input
+                  v-model="aiConfig.chat.apiKey"
                   placeholder="API Key"
                   show-password
                 />
               </el-form-item>
-              
-              <el-form-item label="API ">
-                <el-input 
-                  v-model="aiConfig.chat.apiUrl" 
-                  placeholder="API"
-                />
+
+              <el-form-item label="API 地址">
+                <el-input v-model="aiConfig.chat.apiUrl" placeholder="请输入 Chat API 地址" />
               </el-form-item>
-              
+
               <el-form-item label="聊天模型">
-                <el-select v-model="aiConfig.chat.model" style="width: 100%" allow-create filterable>
-                  <el-option 
-                    v-for="model in currentProvider.models" 
-                    :key="model" 
-                    :label="model" 
+                <el-select
+                  v-model="aiConfig.chat.model"
+                  style="width: 100%"
+                  allow-create
+                  filterable
+                >
+                  <el-option
+                    v-for="model in currentProvider.models"
+                    :key="model"
+                    :label="model"
                     :value="model"
                   />
                 </el-select>
               </el-form-item>
 
-              <el-divider content-position="left"></el-divider>
-              
+              <el-divider content-position="left">推理模型配置</el-divider>
+
               <el-form-item label="API Key">
-                <el-input 
-                  v-model="aiConfig.reasoner.apiKey" 
+                <el-input
+                  v-model="aiConfig.reasoner.apiKey"
                   placeholder="API Key"
                   show-password
                 />
               </el-form-item>
-              
+
               <el-form-item label="推理模型">
-                <el-select v-model="aiConfig.reasoner.model" style="width: 100%" allow-create filterable>
-                  <el-option 
-                    v-for="model in currentProvider.models" 
-                    :key="model" 
-                    :label="model" 
+                <el-select
+                  v-model="aiConfig.reasoner.model"
+                  style="width: 100%"
+                  allow-create
+                  filterable
+                >
+                  <el-option
+                    v-for="model in currentProvider.models"
+                    :key="model"
+                    :label="model"
                     :value="model"
                   />
                 </el-select>
               </el-form-item>
 
               <el-divider content-position="left">Embedding</el-divider>
-              
+
               <el-form-item label="API Key">
-                <el-input 
-                  v-model="aiConfig.embedding.apiKey" 
+                <el-input
+                  v-model="aiConfig.embedding.apiKey"
                   placeholder="API Key"
                   show-password
                 />
               </el-form-item>
-              
+
               <el-form-item label="Embedding 模型">
-                <el-input 
-                  v-model="aiConfig.embedding.model" 
+                <el-input
+                  v-model="aiConfig.embedding.model"
                   placeholder="Embedding"
                 />
               </el-form-item>
 
-              <el-divider content-position="left"></el-divider>
-              
-              <el-form-item label="(ms)">
-                <el-input-number 
-                  v-model="aiConfig.common.connectTimeout" 
-                  :min="5000" 
+              <el-divider content-position="left">超时配置</el-divider>
+
+              <el-form-item label="超时时间 (ms)">
+                <el-input-number
+                  v-model="aiConfig.common.connectTimeout"
+                  :min="5000"
                   :max="120000"
                   :step="1000"
                 />
               </el-form-item>
-              
-              <el-form-item label="(ms)">
-                <el-input-number 
-                  v-model="aiConfig.common.readTimeout" 
-                  :min="10000" 
+
+              <el-form-item label="超时时间 (ms)">
+                <el-input-number
+                  v-model="aiConfig.common.readTimeout"
+                  :min="10000"
                   :max="300000"
                   :step="5000"
                 />
               </el-form-item>
-              
-              <el-form-item label="Token">
-                <el-input-number 
-                  v-model="aiConfig.common.maxTokens" 
-                  :min="256" 
+
+              <el-form-item label="最大 Token 数">
+                <el-input-number
+                  v-model="aiConfig.common.maxTokens"
+                  :min="256"
                   :max="32768"
                   :step="256"
                 />
               </el-form-item>
-              
+
               <el-form-item label="最大历史轮数">
-                <el-input-number 
-                  v-model="aiConfig.common.maxHistoryRounds" 
-                  :min="1" 
+                <el-input-number
+                  v-model="aiConfig.common.maxHistoryRounds"
+                  :min="1"
                   :max="50"
                   :step="1"
                 />
@@ -267,26 +296,33 @@
             </el-form>
 
             <div class="config-actions">
-              <el-button type="primary" @click="saveAiConfig" :loading="aiSaving">
-                <el-icon><Check /></el-icon> 
+              <el-button
+                type="primary"
+                @click="saveAiConfig"
+                :loading="aiSaving"
+              >
+                <el-icon><Check /></el-icon>
               </el-button>
               <el-button @click="loadAiConfig">
-                <el-icon><Refresh /></el-icon> 
+                <el-icon><Refresh /></el-icon>
               </el-button>
             </div>
           </el-tab-pane>
 
-          <!--  -->
+          <!-- 联网搜索 -->
           <el-tab-pane label="联网搜索" name="websearch">
             <el-form :model="aiConfig" label-width="140px" class="config-form">
-              <el-divider content-position="left"></el-divider>
-              
+              <el-divider content-position="left">搜索服务配置</el-divider>
+
               <el-form-item label="启用联网搜索">
                 <el-switch v-model="aiConfig.webSearch.enabled" />
               </el-form-item>
-              
+
               <el-form-item label="搜索服务">
-                <el-select v-model="aiConfig.webSearch.provider" style="width: 100%">
+                <el-select
+                  v-model="aiConfig.webSearch.provider"
+                  style="width: 100%"
+                >
                   <el-option label="自动" value="auto" />
                   <el-option label="AI" value="bocha" />
                   <el-option label="Tavily" value="tavily" />
@@ -297,91 +333,488 @@
               </el-form-item>
 
               <el-divider content-position="left">AI</el-divider>
-              
-              <el-form-item label=" API Key">
-                <el-input 
-                  v-model="aiConfig.webSearch.bocha.apiKey" 
+
+              <el-form-item label="API Key">
+                <el-input
+                  v-model="aiConfig.webSearch.bocha.apiKey"
                   placeholder="AIAPI Key"
                   show-password
                 />
               </el-form-item>
-              
-              <el-form-item label=" API ">
-                <el-input 
-                  v-model="aiConfig.webSearch.bocha.apiUrl" 
+
+              <el-form-item label="API 地址">
+                <el-input
+                  v-model="aiConfig.webSearch.bocha.apiUrl"
                   placeholder="https://api.bochaai.com/v1/web-search"
                 />
               </el-form-item>
 
               <el-divider content-position="left">Tavily</el-divider>
-              
+
               <el-form-item label="Tavily API Key">
-                <el-input 
-                  v-model="aiConfig.webSearch.tavily.apiKey" 
+                <el-input
+                  v-model="aiConfig.webSearch.tavily.apiKey"
                   placeholder="TavilyAPI Key"
                   show-password
                 />
               </el-form-item>
-              
+
               <el-form-item label="Tavily API ">
-                <el-input 
-                  v-model="aiConfig.webSearch.tavily.apiUrl" 
+                <el-input
+                  v-model="aiConfig.webSearch.tavily.apiUrl"
                   placeholder="https://api.tavily.com/search"
                 />
               </el-form-item>
 
               <el-divider content-position="left">DuckDuckGo</el-divider>
-              
+
               <el-form-item label="API ">
-                <el-input 
-                  v-model="aiConfig.webSearch.duckduckgo.apiUrl" 
+                <el-input
+                  v-model="aiConfig.webSearch.duckduckgo.apiUrl"
                   placeholder="https://api.duckduckgo.com/"
                 />
               </el-form-item>
 
               <el-divider content-position="left">Serper</el-divider>
-              
+
               <el-form-item label="Serper API Key">
-                <el-input 
-                  v-model="aiConfig.webSearch.serper.apiKey" 
+                <el-input
+                  v-model="aiConfig.webSearch.serper.apiKey"
                   placeholder="SerperAPI Key"
                   show-password
                 />
               </el-form-item>
-              
+
               <el-form-item label="Serper API ">
-                <el-input 
-                  v-model="aiConfig.webSearch.serper.apiUrl" 
+                <el-input
+                  v-model="aiConfig.webSearch.serper.apiUrl"
                   placeholder="https://google.serper.dev/search"
                 />
               </el-form-item>
 
               <el-divider content-position="left">SerpAPI</el-divider>
-              
+
               <el-form-item label="SerpAPI Key">
-                <el-input 
-                  v-model="aiConfig.webSearch.serpapi.apiKey" 
+                <el-input
+                  v-model="aiConfig.webSearch.serpapi.apiKey"
                   placeholder="SerpAPIKey"
                   show-password
                 />
               </el-form-item>
-              
+
               <el-form-item label="SerpAPI ">
-                <el-input 
-                  v-model="aiConfig.webSearch.serpapi.apiUrl" 
+                <el-input
+                  v-model="aiConfig.webSearch.serpapi.apiUrl"
                   placeholder="https://serpapi.com/search"
                 />
               </el-form-item>
             </el-form>
 
             <div class="config-actions">
-              <el-button type="primary" @click="saveAiConfig" :loading="aiSaving">
-                <el-icon><Check /></el-icon> 
+              <el-button
+                type="primary"
+                @click="saveAiConfig"
+                :loading="aiSaving"
+              >
+                <el-icon><Check /></el-icon>
               </el-button>
               <el-button @click="loadAiConfig">
-                <el-icon><Refresh /></el-icon> 
+                <el-icon><Refresh /></el-icon>
               </el-button>
             </div>
+          </el-tab-pane>
+
+          <!-- 模型管理（合并自原独立标签页） -->
+          <el-tab-pane label="模型管理" name="model">
+            <div class="model-manage">
+              <el-alert
+                title="配置可用的 AI 模型，设置优先级决定默认使用顺序"
+                description="点击「添加模型」按钮配置新模型，拖拽或修改优先级数字调整顺序"
+                type="info"
+                show-icon
+                :closable="false"
+                style="margin-bottom: 20px"
+              />
+
+              <!-- 操作栏 -->
+              <div class="model-toolbar">
+                <el-button type="primary" @click="showAddModelDialog">
+                  <el-icon><Plus /></el-icon>
+                  添加模型
+                </el-button>
+                <el-button @click="loadModelList">
+                  <el-icon><Refresh /></el-icon>
+                  刷新
+                </el-button>
+              </div>
+
+              <!-- 模型列表 -->
+              <el-table
+                :data="modelList"
+                style="width: 100%"
+                v-loading="modelLoading"
+                row-key="providerKey"
+              >
+                <el-table-column label="优先级" width="100">
+                  <template #default="{ row }">
+                    <el-input-number
+                      v-model="row.priority"
+                      :min="1"
+                      :max="999"
+                      size="small"
+                      controls-position="right"
+                      style="width: 80px"
+                      @change="updateModelPriority(row)"
+                    />
+                  </template>
+                </el-table-column>
+                <el-table-column prop="providerName" label="厂商名称" width="200" />
+                <el-table-column prop="providerKey" label="标识" width="160" />
+                <el-table-column label="可用模型">
+                  <template #default="{ row }">
+                    <el-tag
+                      v-for="model in row.models"
+                      :key="model"
+                      size="small"
+                      style="margin-right: 4px; margin-bottom: 4px"
+                    >
+                      {{ model }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="当前状态" width="100">
+                  <template #default="{ row }">
+                    <el-tag :type="row.current ? 'success' : 'info'" size="small">
+                      {{ row.current ? "在线中" : "离线" }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="180">
+                  <template #default="{ row }">
+                    <el-button
+                      v-if="!row.current"
+                      type="primary"
+                      size="small"
+                      @click="switchModel(row)"
+                      :loading="modelSwitching"
+                    >
+                      切换使用
+                    </el-button>
+                    <el-tag v-else type="success" size="small">当前使用</el-tag>
+                    <el-button
+                      size="small"
+                      type="danger"
+                      @click="removeModel(row)"
+                    >
+                      移除
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+
+              <!-- 横幅通知配置 -->
+              <el-divider content-position="left">横幅通知配置</el-divider>
+              <el-form
+                :model="announcementForm"
+                label-width="120px"
+                class="config-form"
+                style="max-width: 600px"
+              >
+                <el-form-item label="关联模型">
+                  <el-select
+                    v-model="announcementForm.modelKey"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="item in modelList"
+                      :key="item.providerKey"
+                      :label="item.providerName"
+                      :value="item.providerKey"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="横幅标题">
+                  <el-input
+                    v-model="announcementForm.title"
+                    placeholder="如：本草大模型已上线"
+                  />
+                </el-form-item>
+                <el-form-item label="横幅描述">
+                  <el-input
+                    v-model="announcementForm.content"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="如：基于Qwen2.5-7B微调的医疗领域模型"
+                  />
+                </el-form-item>
+                <el-form-item label="背景颜色">
+                  <el-color-picker v-model="announcementForm.bgColor" />
+                </el-form-item>
+                <el-form-item label="立即启用">
+                  <el-switch
+                    v-model="announcementForm.isActive"
+                    :active-value="1"
+                    :inactive-value="0"
+                  />
+                </el-form-item>
+                <el-form-item>
+                  <el-button
+                    type="primary"
+                    @click="saveAnnouncement"
+                    :loading="announcementSaving"
+                  >
+                    保存横幅
+                  </el-button>
+                </el-form-item>
+              </el-form>
+
+              <!-- 现有横幅列表 -->
+              <el-divider content-position="left">已保存的横幅</el-divider>
+              <el-table
+                :data="announcementList"
+                style="width: 100%"
+                v-loading="announcementLoading"
+              >
+                <el-table-column prop="modelKey" label="关联模型" width="160" />
+                <el-table-column prop="title" label="标题" />
+                <el-table-column
+                  prop="content"
+                  label="描述"
+                  show-overflow-tooltip
+                />
+                <el-table-column label="颜色" width="80">
+                  <template #default="{ row }">
+                    <div
+                      :style="{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '4px',
+                        backgroundColor: row.bgColor,
+                      }"
+                    ></div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="80">
+                  <template #default="{ row }">
+                    <el-tag
+                      :type="row.isActive === 1 ? 'success' : 'info'"
+                      size="small"
+                    >
+                      {{ row.isActive === 1 ? "展示中" : "已关闭" }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="160">
+                  <template #default="{ row }">
+                    <el-button size="small" @click="editAnnouncement(row)"
+                      >编辑</el-button
+                    >
+                    <el-button
+                      size="small"
+                      type="danger"
+                      @click="deleteAnnouncement(row)"
+                      >删除</el-button
+                    >
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </el-tab-pane>
+
+          <!-- 智能体管理（合并自原独立标签页） -->
+          <el-tab-pane label="智能体管理" name="doctor">
+            <div class="doctor-cards" v-loading="doctorLoading">
+              <div
+                v-for="doctor in doctorList"
+                :key="doctor.key"
+                class="doctor-card"
+                :class="{ 'doctor-card--active': selectedDoctor === doctor.key }"
+                @click="selectDoctor(doctor)"
+              >
+                <div class="doctor-card-header">
+                  <el-icon :size="28" color="#667eea"
+                    ><component :is="doctor.icon"
+                  /></el-icon>
+                  <div class="doctor-card-title">
+                    <h3>{{ doctor.name }}</h3>
+                    <p>{{ doctor.description }}</p>
+                  </div>
+                </div>
+                <div class="doctor-card-params">
+                  <span class="param-item">Temp: {{ doctor.temperature }}</span>
+                  <span class="param-item">Top-P: {{ doctor.topP }}</span>
+                  <span class="param-item">上下文: {{ doctor.contextRounds }}轮</span>
+                  <span class="param-item">回复长度: {{ doctor.maxReplyLength }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="selectedDoctor" class="doctor-editor">
+              <div class="doctor-editor-header">
+                <h3>
+                  <el-icon><component :is="currentDoctorConfig.icon" /></el-icon>
+                  {{ currentDoctorConfig.name }} - 智能体配置
+                </h3>
+                <div class="doctor-editor-actions">
+                  <el-button @click="resetDoctorConfig" :loading="doctorResetting">
+                    <el-icon><RefreshRight /></el-icon>
+                    重置
+                  </el-button>
+                  <el-button
+                    type="primary"
+                    @click="saveDoctorConfig"
+                    :loading="doctorSaving"
+                  >
+                    <el-icon><Check /></el-icon>
+                    保存配置
+                  </el-button>
+                </div>
+              </div>
+
+              <el-form
+                :model="doctorEditForm"
+                label-width="140px"
+                class="config-form"
+              >
+                <el-form-item label="系统提示词">
+                  <el-input
+                    v-model="doctorEditForm.systemPrompt"
+                    type="textarea"
+                    :rows="12"
+                    placeholder="请输入该智能体的系统提示词"
+                  />
+                </el-form-item>
+
+                <el-row :gutter="24">
+                  <el-col :span="12">
+                    <el-form-item label="Temperature">
+                      <el-slider
+                        v-model="doctorEditForm.temperature"
+                        :min="0"
+                        :max="2"
+                        :step="0.1"
+                        show-input
+                      />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="Top-P">
+                      <el-slider
+                        v-model="doctorEditForm.topP"
+                        :min="0"
+                        :max="1"
+                        :step="0.05"
+                        show-input
+                      />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+
+                <el-row :gutter="24">
+                  <el-col :span="12">
+                    <el-form-item label="Max Tokens">
+                      <el-tooltip
+                        content="单次回复最大 token 数；留空则继承全局设置"
+                        placement="top"
+                      >
+                        <el-input-number
+                          v-model="doctorEditForm.maxTokens"
+                          :min="1"
+                          :max="8192"
+                          :step="128"
+                          controls-position="right"
+                          style="width: 100%"
+                        />
+                      </el-tooltip>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="Presence Penalty">
+                      <el-tooltip
+                        content="存在惩罚：正值会让模型避免重复已提及的主题"
+                        placement="top"
+                      >
+                        <el-slider
+                          v-model="doctorEditForm.presencePenalty"
+                          :min="-2"
+                          :max="2"
+                          :step="0.1"
+                          show-input
+                        />
+                      </el-tooltip>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+
+                <el-row :gutter="24">
+                  <el-col :span="12">
+                    <el-form-item label="Frequency Penalty">
+                      <el-tooltip
+                        content="频率惩罚：正值会让模型减少重复用词"
+                        placement="top"
+                      >
+                        <el-slider
+                          v-model="doctorEditForm.frequencyPenalty"
+                          :min="-2"
+                          :max="2"
+                          :step="0.1"
+                          show-input
+                        />
+                      </el-tooltip>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+
+                <el-row :gutter="24">
+                  <el-col :span="12">
+                    <el-form-item label="重复惩罚">
+                      <el-tooltip content="重复惩罚：正值抑制重复生成的内容（0~2）" placement="top">
+                        <el-slider
+                          v-model="doctorEditForm.repetitionPenalty"
+                          :min="0"
+                          :max="2"
+                          :step="0.1"
+                          show-input
+                        />
+                      </el-tooltip>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="上下文轮数">
+                      <el-tooltip content="携带的历史对话轮数（0~50），0 表示不携带历史" placement="top">
+                        <el-input-number
+                          v-model="doctorEditForm.contextRounds"
+                          :min="0"
+                          :max="50"
+                          :step="1"
+                          controls-position="right"
+                          style="width: 100%"
+                        />
+                      </el-tooltip>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+
+                <el-row :gutter="24">
+                  <el-col :span="12">
+                    <el-form-item label="最大回复长度">
+                      <el-tooltip content="单次回复的最大长度上限（0~32768），0 表示不限" placement="top">
+                        <el-input-number
+                          v-model="doctorEditForm.maxReplyLength"
+                          :min="0"
+                          :max="32768"
+                          :step="256"
+                          controls-position="right"
+                          style="width: 100%"
+                        />
+                      </el-tooltip>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </el-form>
+            </div>
+
+            <el-empty v-else description="请选择一个 AI 智能体进行配置" />
           </el-tab-pane>
         </el-tabs>
       </el-tab-pane>
@@ -391,66 +824,91 @@
         <el-tabs v-model="voiceTab" @tab-change="handleVoiceTabChange">
           <!-- ASR  -->
           <el-tab-pane label="语音识别 (ASR)" name="asr">
-            <el-form :model="voiceConfig.asr" label-width="140px" class="config-form">
-              <el-divider content-position="left">ASR Provider </el-divider>
-              
+            <el-form
+              :model="voiceConfig.asr"
+              label-width="140px"
+              class="config-form"
+            >
+              <el-divider content-position="left">ASR Provider 选择</el-divider>
+
               <el-form-item label="ASR 服务商">
-                <el-select 
-                  v-model="voiceConfig.asr.provider" 
+                <el-select
+                  v-model="voiceConfig.asr.provider"
                   style="width: 100%"
                   @change="onAsrProviderChange"
                 >
-                  <el-option label="FunASR ()" value="funasr" />
+                  <el-option label="FunASR (阿里云 DashScope)" value="funasr" />
                   <el-option label="OpenAI Whisper" value="whisper" />
-                  <el-option label=" ASR" value="qwen" />
+                  <el-option label="通义千问 ASR" value="qwen" />
                 </el-select>
               </el-form-item>
 
               <el-form-item label="API Key">
-                <el-input 
-                  v-model="voiceConfig.asr.apiKey" 
-                  placeholder=" DashScope API Key"
+                <el-input
+                  v-model="voiceConfig.asr.apiKey"
+                  placeholder="请输入 DashScope / OpenAI API Key"
                   show-password
                 />
               </el-form-item>
 
-              <el-form-item label="API ">
-                <el-input 
-                  v-model="voiceConfig.asr.apiUrl" 
+              <el-form-item label="API 地址">
+                <el-input
+                  v-model="voiceConfig.asr.apiUrl"
                   placeholder="https://dashscope.aliyuncs.com/api/v1/services/audio/asr/recognition"
                 />
               </el-form-item>
 
+              <el-form-item
+                label="端点基址"
+                v-if="voiceConfig.asr.provider === 'whisper'"
+              >
+                <el-input
+                  v-model="voiceConfig.asr.baseUrl"
+                  placeholder="留空则用 https://api.openai.com/v1（后端会自动拼 /audio/transcriptions）"
+                />
+                <div class="slider-tip">
+                  <span>兼容 Azure OpenAI / 本地 vLLM 等任意 OpenAI 协议端点</span>
+                </div>
+              </el-form-item>
+
               <el-form-item label="模型">
-                <el-select v-model="voiceConfig.asr.model" style="width: 100%" allow-create filterable>
-                  <el-option label="paraformer-zh ()" value="paraformer-zh" />
+                <el-select
+                  v-model="voiceConfig.asr.model"
+                  style="width: 100%"
+                  allow-create
+                  filterable
+                >
+                  <el-option label="paraformer-zh (中文)" value="paraformer-zh" />
                   <el-option label="paraformer-v2" value="paraformer-v2" />
                   <el-option label="whisper-1" value="whisper-1" />
                 </el-select>
               </el-form-item>
 
               <el-form-item label="语言">
-                <el-select v-model="voiceConfig.asr.language" style="width: 100%">
-                  <el-option label=" (zh-CN)" value="zh-CN" />
-                  <el-option label=" (en-US)" value="en-US" />
+                <el-select
+                  v-model="voiceConfig.asr.language"
+                  style="width: 100%"
+                >
+                  <el-option label="中文 (zh-CN)" value="zh-CN" />
+                  <el-option label="英文 (en-US)" value="en-US" />
                   <el-option label="自动检测" value="auto" />
                 </el-select>
               </el-form-item>
 
-              <el-form-item label=" (ms)">
-                <el-input-number 
-                  v-model="voiceConfig.asr.timeout" 
-                  :min="5000" 
-                  :max="120000" 
+              <el-form-item label="超时时间 (ms)">
+                <el-input-number
+                  v-model="voiceConfig.asr.timeout"
+                  :min="5000"
+                  :max="120000"
                   :step="5000"
                 />
               </el-form-item>
 
-              <el-divider content-position="left">Provider </el-divider>
+              <el-divider content-position="left">Provider 说明</el-divider>
               <el-alert
                 v-if="voiceConfig.asr.provider === 'funasr'"
-                title="FunASR ( DashScope)"
-                description=" DashScope API Key 500 "
+                title="FunASR (阿里云 DashScope)"
+                description="使用阿里云 DashScope 的 Paraformer 模型，需填写 DashScope API Key。异步提交 + 轮询，单次请求上限 500 秒，适合较长音频。"
                 type="info"
                 show-icon
                 :closable="false"
@@ -459,7 +917,7 @@
               <el-alert
                 v-else-if="voiceConfig.asr.provider === 'whisper'"
                 title="OpenAI Whisper"
-                description="OpenAI  OpenAI API Key"
+                description="走 OpenAI 兼容协议（POST {baseUrl}/audio/transcriptions），需填写 OpenAI API Key。同步返回结果，适合短语音输入。端点基址留空则使用官方地址。"
                 type="info"
                 show-icon
                 :closable="false"
@@ -467,8 +925,8 @@
               />
               <el-alert
                 v-else
-                title=" ASR"
-                description=" DashScope API Key"
+                title="通义千问 ASR"
+                description="使用阿里云通义千问语音识别，需填写 DashScope API Key。"
                 type="info"
                 show-icon
                 :closable="false"
@@ -479,55 +937,62 @@
 
           <!-- TTS  -->
           <el-tab-pane label="语音合成 (TTS)" name="tts">
-            <el-form :model="voiceConfig.tts" label-width="140px" class="config-form">
-              <el-divider content-position="left">TTS Provider </el-divider>
-              
+            <el-form
+              :model="voiceConfig.tts"
+              label-width="140px"
+              class="config-form"
+            >
+              <el-divider content-position="left">TTS Provider 选择</el-divider>
+
               <el-form-item label="TTS 服务商">
-                <el-select 
-                  v-model="voiceConfig.tts.provider" 
+                <el-select
+                  v-model="voiceConfig.tts.provider"
                   style="width: 100%"
                   @change="onTtsProviderChange"
                 >
-                  <el-option label="EdgeTTS (, )" value="edgetts" />
-                  <el-option label="CosyVoice ()" value="cosyvoice" />
+                  <el-option label="EdgeTTS (免费, 微软)" value="edgetts" />
+                  <el-option label="CosyVoice (阿里云)" value="cosyvoice" />
                   <el-option label="MiniMax TTS" value="minimax" />
                 </el-select>
               </el-form-item>
 
-              <el-form-item label="/" v-if="voiceConfig.tts.provider === 'edgetts'">
+              <el-form-item
+                label="音色"
+                v-if="voiceConfig.tts.provider === 'edgetts'"
+              >
                 <el-select v-model="voiceConfig.tts.voice" style="width: 100%">
-                  <el-option label=" (, )" value="zh-CN-XiaoxiaoNeural" />
-                  <el-option label=" ()" value="zh-CN-YunxiNeural" />
-                  <el-option label=" ()" value="zh-CN-YunjianNeural" />
-                  <el-option label=" ()" value="zh-CN-XiaoyiNeural" />
-                  <el-option label=" ()" value="zh-CN-YunyangNeural" />
+                  <el-option label="晓晓 (女声, 通用)" value="zh-CN-XiaoxiaoNeural" />
+                  <el-option label="云希 (男声, 通用)" value="zh-CN-YunxiNeural" />
+                  <el-option label="云健 (男声, 新闻)" value="zh-CN-YunjianNeural" />
+                  <el-option label="晓伊 (女声, 童声)" value="zh-CN-XiaoyiNeural" />
+                  <el-option label="云扬 (男声, 新闻)" value="zh-CN-YunyangNeural" />
                 </el-select>
               </el-form-item>
 
               <el-form-item label="API Key" v-else>
-                <el-input 
-                  v-model="voiceConfig.tts.apiKey" 
-                  placeholder=" TTS API Key"
+                <el-input
+                  v-model="voiceConfig.tts.apiKey"
+                  placeholder="请输入 TTS API Key"
                   show-password
                 />
               </el-form-item>
 
               <el-form-item label="语速">
-                <el-slider 
-                  v-model="voiceConfig.tts.speed" 
-                  :min="0.5" 
-                  :max="2.0" 
+                <el-slider
+                  v-model="voiceConfig.tts.speed"
+                  :min="0.5"
+                  :max="2.0"
                   :step="0.1"
                   show-stops
-                  :format-tooltip="val => val.toFixed(1) + 'x'"
+                  :format-tooltip="(val) => val.toFixed(1) + 'x'"
                 />
               </el-form-item>
 
               <el-form-item label="音量">
-                <el-slider 
-                  v-model="voiceConfig.tts.volume" 
-                  :min="0" 
-                  :max="100" 
+                <el-slider
+                  v-model="voiceConfig.tts.volume"
+                  :min="0"
+                  :max="100"
                   :step="10"
                 />
               </el-form-item>
@@ -539,20 +1004,20 @@
                 </el-radio-group>
               </el-form-item>
 
-              <el-form-item label=" (ms)">
-                <el-input-number 
-                  v-model="voiceConfig.tts.timeout" 
-                  :min="10000" 
-                  :max="300000" 
+              <el-form-item label="超时时间 (ms)">
+                <el-input-number
+                  v-model="voiceConfig.tts.timeout"
+                  :min="10000"
+                  :max="300000"
                   :step="10000"
                 />
               </el-form-item>
 
-              <el-divider content-position="left">Provider </el-divider>
+              <el-divider content-position="left">Provider 说明</el-divider>
               <el-alert
                 v-if="voiceConfig.tts.provider === 'edgetts'"
-                title="EdgeTTS (, )"
-                description=" Edge TTS  edge-ttspip install edge-tts"
+                title="EdgeTTS (免费, 微软)"
+                description="调用微软 Edge 浏览器的语音合成服务，无需 API Key。音质优于浏览器原生 speechSynthesis，但要求服务端能出网到 speech.platform.bing.com。"
                 type="success"
                 show-icon
                 :closable="false"
@@ -560,8 +1025,8 @@
               />
               <el-alert
                 v-else-if="voiceConfig.tts.provider === 'cosyvoice'"
-                title="CosyVoice ()"
-                description=" DashScope API Key"
+                title="CosyVoice (阿里云)"
+                description="使用阿里云 DashScope 的 CosyVoice 服务，需填写 DashScope API Key。"
                 type="info"
                 show-icon
                 :closable="false"
@@ -570,7 +1035,7 @@
               <el-alert
                 v-else
                 title="MiniMax TTS"
-                description="MiniMax  MiniMax API Key"
+                description="使用 MiniMax 语音合成服务，需填写 MiniMax API Key。"
                 type="info"
                 show-icon
                 :closable="false"
@@ -581,11 +1046,15 @@
 
           <!-- VAD  -->
           <el-tab-pane label="语音活动检测 (VAD)" name="vad">
-            <el-form :model="voiceConfig.vad" label-width="140px" class="config-form">
-              <el-divider content-position="left"> (VAD)</el-divider>
-              
+            <el-form
+              :model="voiceConfig.vad"
+              label-width="140px"
+              class="config-form"
+            >
+              <el-divider content-position="left">VAD 参数</el-divider>
+
               <el-form-item label="启用 VAD">
-                <el-switch 
+                <el-switch
                   v-model="voiceConfig.vad.enabled"
                   active-text="开启"
                   inactive-text="关闭"
@@ -593,13 +1062,13 @@
               </el-form-item>
 
               <el-form-item label="灵敏度" v-if="voiceConfig.vad.enabled">
-                <el-slider 
-                  v-model="voiceConfig.vad.sensitivity" 
-                  :min="0.1" 
-                  :max="1.0" 
+                <el-slider
+                  v-model="voiceConfig.vad.sensitivity"
+                  :min="0.1"
+                  :max="1.0"
                   :step="0.1"
                   show-stops
-                  :format-tooltip="val => (val * 100).toFixed(0) + '%'"
+                  :format-tooltip="(val) => (val * 100).toFixed(0) + '%'"
                 />
                 <div class="slider-tip">
                   <span>低</span>
@@ -607,228 +1076,58 @@
                 </div>
               </el-form-item>
 
-              <el-divider content-position="left">VAD </el-divider>
+              <el-divider content-position="left">VAD 说明</el-divider>
               <el-alert
-                title=" (Voice Activity Detection)"
-                description="VAD 1.  2.  3.  TTS "
+                title="语音活动检测 (Voice Activity Detection)"
+                description="VAD 用于在录音过程中自动检测用户是否还在说话：1. 开启后可在静音时自动结束录音；2. 灵敏度越高越容易判定为「说话结束」；3. 当前对话页录音为「按住说话」模式，松开即提交，VAD 参数暂未接入录音流程，仅作预留。"
                 type="info"
                 show-icon
                 :closable="false"
               />
+
+              <el-divider content-position="left">连通性自测</el-divider>
+              <el-alert
+                title="服务端出网探测"
+                description="TTS 默认走微软 Edge TTS（免费免 Key）；ASR 的 funasr=阿里云 DashScope、whisper=OpenAI 兼容端点，两者都需 API Key 且服务端能出到对应域名。保存配置后可点下方按钮验证服务端是否真的连得上（与浏览器是否能出网无关）。"
+                type="warning"
+                show-icon
+                :closable="false"
+              />
+              <el-form-item>
+                <el-space>
+                  <el-button size="small" :loading="voiceTesting" @click="testVoiceConnection('tts')">
+                    测试 TTS 合成
+                  </el-button>
+                  <el-button size="small" :loading="voiceTesting" @click="testVoiceConnection('asr')">
+                    测试 ASR 识别
+                  </el-button>
+                  <span
+                    v-if="voiceTestResult"
+                    class="voice-test-result"
+                    :class="voiceTestResult.success ? 'is-ok' : 'is-fail'"
+                  >
+                    {{ voiceTestResult.success ? "✓" : "✗" }}
+                    {{ voiceTestResult.provider }} ·
+                    {{ voiceTestResult.durationMs }}ms ·
+                    {{ voiceTestResult.message }}
+                  </span>
+                </el-space>
+              </el-form-item>
             </el-form>
           </el-tab-pane>
         </el-tabs>
 
-        <!-- / -->
+        <!-- 语音配置操作区 -->
         <div class="config-actions">
-          <!-- MM-01 整改：后端不存在 /ai/voice/config/get|update 端点（语音模块为空壳），
-               保存必然失败。在语音后端落地前禁用保存，避免管理员填写大量配置后
-               被 404 静默吞掉。 -->
-          <el-tooltip content="语音后端尚未实现，配置暂无法保存" placement="top">
-            <span>
-              <el-button type="primary" disabled :loading="saving">
-                <el-icon><Check /></el-icon> 
-              </el-button>
-            </span>
-          </el-tooltip>
+          <el-button type="primary" :loading="voiceSaving" @click="saveVoiceConfig">
+            <el-icon><Check /></el-icon>保存配置
+          </el-button>
           <el-button @click="loadVoiceConfig">
-            <el-icon><Refresh /></el-icon> 
+            <el-icon><Refresh /></el-icon>
           </el-button>
         </div>
       </el-tab-pane>
 
-      <!-- ============ 模型管理 & 横幅通知 ============ -->
-      <el-tab-pane label="模型管理" name="model">
-        <div class="model-manage">
-          <el-alert
-            title="切换模型后 C 端用户刷新页面即可看到效果"
-            description="从 13 个可用模型中选择一个上线，并可配置 C 端通知横幅"
-            type="info"
-            show-icon
-            :closable="false"
-            style="margin-bottom: 20px"
-          />
-
-          <!-- 模型列表 -->
-          <el-table :data="modelList" style="width: 100%" v-loading="modelLoading">
-            <el-table-column prop="providerName" label="厂商名称" width="200" />
-            <el-table-column prop="providerKey" label="标识" width="160" />
-            <el-table-column label="可用模型">
-              <template #default="{ row }">
-                <el-tag
-                  v-for="model in row.models"
-                  :key="model"
-                  size="small"
-                  style="margin-right: 4px"
-                >
-                  {{ model }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="当前状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="row.current ? 'success' : 'info'" size="small">
-                  {{ row.current ? '在线中' : '离线' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="120">
-              <template #default="{ row }">
-                <el-button
-                  v-if="!row.current"
-                  type="primary"
-                  size="small"
-                  @click="switchModel(row)"
-                  :loading="modelSwitching"
-                >
-                  切换使用
-                </el-button>
-                <el-tag v-else type="success" size="small">当前使用</el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
-
-          <!-- 横幅通知配置 -->
-          <el-divider content-position="left">横幅通知配置</el-divider>
-          <el-form :model="announcementForm" label-width="120px" class="config-form" style="max-width: 600px">
-            <el-form-item label="关联模型">
-              <el-select v-model="announcementForm.modelKey" style="width: 100%">
-                <el-option
-                  v-for="item in modelList"
-                  :key="item.providerKey"
-                  :label="item.providerName"
-                  :value="item.providerKey"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="横幅标题">
-              <el-input v-model="announcementForm.title" placeholder="如：本草大模型已上线" />
-            </el-form-item>
-            <el-form-item label="横幅描述">
-              <el-input v-model="announcementForm.content" type="textarea" :rows="3" placeholder="如：基于Qwen2.5-7B微调的医疗领域模型" />
-            </el-form-item>
-            <el-form-item label="背景颜色">
-              <el-color-picker v-model="announcementForm.bgColor" />
-            </el-form-item>
-            <el-form-item label="立即启用">
-              <el-switch v-model="announcementForm.isActive" :active-value="1" :inactive-value="0" />
-            </el-form-item>
-            <el-form-item>
-              <el-button type="primary" @click="saveAnnouncement" :loading="announcementSaving">
-                保存横幅
-              </el-button>
-            </el-form-item>
-          </el-form>
-
-          <!-- 现有横幅列表 -->
-          <el-divider content-position="left">已保存的横幅</el-divider>
-          <el-table :data="announcementList" style="width: 100%" v-loading="announcementLoading">
-            <el-table-column prop="modelKey" label="关联模型" width="160" />
-            <el-table-column prop="title" label="标题" />
-            <el-table-column prop="content" label="描述" show-overflow-tooltip />
-            <el-table-column label="颜色" width="80">
-              <template #default="{ row }">
-                <div :style="{ width: '24px', height: '24px', borderRadius: '4px', backgroundColor: row.bgColor }"></div>
-              </template>
-            </el-table-column>
-            <el-table-column label="状态" width="80">
-              <template #default="{ row }">
-                <el-tag :type="row.isActive === 1 ? 'success' : 'info'" size="small">
-                  {{ row.isActive === 1 ? '展示中' : '已关闭' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="160">
-              <template #default="{ row }">
-                <el-button size="small" @click="editAnnouncement(row)">编辑</el-button>
-                <el-button size="small" type="danger" @click="deleteAnnouncement(row)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
-      </el-tab-pane>
-
-      <!-- ============ AI ============ -->
-      <el-tab-pane label="AI" name="doctor">
-        <div class="doctor-cards" v-loading="doctorLoading">
-          <div
-            v-for="doctor in doctorList"
-            :key="doctor.key"
-            class="doctor-card"
-            :class="{ 'doctor-card--active': selectedDoctor === doctor.key }"
-            @click="selectDoctor(doctor)"
-          >
-            <div class="doctor-card-header">
-              <el-icon :size="28" color="#667eea"><component :is="doctor.icon" /></el-icon>
-              <div class="doctor-card-title">
-                <h3>{{ doctor.name }}</h3>
-                <p>{{ doctor.description }}</p>
-              </div>
-            </div>
-            <div class="doctor-card-params">
-              <span class="param-item">Temp: {{ doctor.temperature }}</span>
-              <span class="param-item">Top-P: {{ doctor.topP }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="selectedDoctor" class="doctor-editor">
-          <div class="doctor-editor-header">
-            <h3>
-              <el-icon><component :is="currentDoctorConfig.icon" /></el-icon>
-              {{ currentDoctorConfig.name }} - 智能体配置
-            </h3>
-            <div class="doctor-editor-actions">
-              <el-button @click="resetDoctorConfig" :loading="doctorResetting">
-                <el-icon><RefreshRight /></el-icon>
-                重置
-              </el-button>
-              <el-button type="primary" @click="saveDoctorConfig" :loading="doctorSaving">
-                <el-icon><Check /></el-icon>
-                保存配置
-              </el-button>
-            </div>
-          </div>
-
-          <el-form :model="doctorEditForm" label-width="140px" class="config-form">
-            <el-form-item label="系统提示词">
-              <el-input
-                v-model="doctorEditForm.systemPrompt"
-                type="textarea"
-                :rows="12"
-                placeholder="请输入该智能体的系统提示词"
-              />
-            </el-form-item>
-
-            <el-row :gutter="24">
-              <el-col :span="12">
-                <el-form-item label="Temperature">
-                  <el-slider
-                    v-model="doctorEditForm.temperature"
-                    :min="0"
-                    :max="2"
-                    :step="0.1"
-                    show-input
-                  />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="Top-P">
-                  <el-slider
-                    v-model="doctorEditForm.topP"
-                    :min="0"
-                    :max="1"
-                    :step="0.05"
-                    show-input
-                  />
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </el-form>
-        </div>
-
-        <el-empty v-else description="请选择一个 AI 智能体进行配置" />
-      </el-tab-pane>
     </el-tabs>
 
     <!--  -->
@@ -846,14 +1145,14 @@ export default {
   name: "SystemConfigManage",
   data() {
     return {
-      // 
+      //
       passwordDialogVisible: false,
       passwordForm: { password: "" },
       verifying: false,
       passwordVerified: false,
       passwordCallback: null,
 
-      // 
+      //
       mainTab: "system",
 
       // ======  ======
@@ -868,29 +1167,41 @@ export default {
       // ====== LLM ======
       aiTab: "provider",
       aiConfig: {
-        provider: 'deepseek',
-        chat: { apiKey: '', apiUrl: '', model: 'deepseek-v4-flash' },
-        reasoner: { apiKey: '', apiUrl: '', model: 'deepseek-v4-pro' },
-        webSearch: { 
-          enabled: true, 
-          provider: 'auto',
-          bocha: { apiKey: '', apiUrl: 'https://api.bochaai.com/v1/web-search' },
-          tavily: { apiKey: '', apiUrl: 'https://api.tavily.com/search' },
-          duckduckgo: { apiUrl: 'https://api.duckduckgo.com/' },
-          serper: { apiKey: '', apiUrl: 'https://google.serper.dev/search' },
-          serpapi: { apiKey: '', apiUrl: 'https://serpapi.com/search' }
+        provider: "deepseek",
+        chat: { apiKey: "", apiUrl: "", model: "deepseek-v4-flash" },
+        reasoner: { apiKey: "", apiUrl: "", model: "deepseek-v4-pro" },
+        webSearch: {
+          enabled: true,
+          provider: "auto",
+          bocha: {
+            apiKey: "",
+            apiUrl: "https://api.bochaai.com/v1/web-search",
+          },
+          tavily: { apiKey: "", apiUrl: "https://api.tavily.com/search" },
+          duckduckgo: { apiUrl: "https://api.duckduckgo.com/" },
+          serper: { apiKey: "", apiUrl: "https://google.serper.dev/search" },
+          serpapi: { apiKey: "", apiUrl: "https://serpapi.com/search" },
         },
-        embedding: { apiKey: '', apiUrl: 'https://api.deepseek.com/v1/embeddings', model: 'text-embedding-3-small' },
-        common: { connectTimeout: 30000, readTimeout: 60000, maxTokens: 4096, maxHistoryRounds: 10 },
+        embedding: {
+          apiKey: "",
+          apiUrl: "https://api.deepseek.com/v1/embeddings",
+          model: "text-embedding-3-small",
+        },
+        common: {
+          connectTimeout: 30000,
+          readTimeout: 60000,
+          maxTokens: 4096,
+          maxHistoryRounds: 10,
+        },
         apiKeyValid: false,
-        summary: ''
+        summary: "",
       },
       providers: {},
       currentProvider: {
-        name: 'DeepSeek',
-        openaiBaseUrl: 'https://api.deepseek.com/v1/chat/completions',
-        anthropicBaseUrl: 'https://api.deepseek.com/anthropic',
-        models: ['deepseek-v4-flash', 'deepseek-v4-pro']
+        name: "DeepSeek",
+        openaiBaseUrl: "https://api.deepseek.com/v1/chat/completions",
+        anthropicBaseUrl: "https://api.deepseek.com/anthropic",
+        models: ["deepseek-v4-flash", "deepseek-v4-pro"],
       },
       aiSaving: false,
 
@@ -903,40 +1214,45 @@ export default {
       modelSwitching: false,
       announcementList: [],
       announcementForm: {
-        modelKey: 'zhikangyun-local',
-        title: '',
-        content: '',
-        bgColor: '#67C23A',
-        isActive: 1
+        modelKey: "zhikangyun-local",
+        title: "",
+        content: "",
+        bgColor: "#67C23A",
+        isActive: 1,
       },
       announcementLoading: false,
       announcementSaving: false,
 
       voiceConfig: {
         asr: {
-          provider: 'funasr',
-          apiKey: '',
-          apiUrl: 'https://dashscope.aliyuncs.com/api/v1/services/audio/asr/recognition',
-          model: 'paraformer-zh',
-          language: 'zh-CN',
-          timeout: 30000
+          provider: "funasr",
+          apiKey: "",
+          apiUrl:
+            "https://dashscope.aliyuncs.com/api/v1/services/audio/asr/recognition",
+          // OpenAI 兼容 ASR 端点基址：Whisper 走 baseUrl+/audio/transcriptions；留空则用官方
+          baseUrl: "",
+          model: "paraformer-zh",
+          language: "zh-CN",
+          timeout: 30000,
         },
         tts: {
-          provider: 'edgetts',
-          apiKey: '',
-          apiUrl: '',
-          voice: 'zh-CN-XiaoxiaoNeural',
+          provider: "edgetts",
+          apiKey: "",
+          apiUrl: "",
+          voice: "zh-CN-XiaoxiaoNeural",
           speed: 1.0,
           volume: 100,
-          format: 'mp3',
-          timeout: 60000
+          format: "mp3",
+          timeout: 60000,
         },
         vad: {
           enabled: true,
-          sensitivity: 0.5
-        }
+          sensitivity: 0.5,
+        },
       },
       voiceSaving: false,
+      voiceTesting: false,
+      voiceTestResult: null,
 
       // ====== AI ======
       doctorLoading: false,
@@ -947,11 +1263,17 @@ export default {
         systemPrompt: "",
         temperature: 0.5,
         topP: 0.5,
+        maxTokens: 2048,
+        presencePenalty: 0,
+        frequencyPenalty: 0,
+        repetitionPenalty: 1.0,
+        contextRounds: 5,
+        maxReplyLength: 2048,
       },
       doctorSaving: false,
       doctorResetting: false,
 
-      // 
+      //
       groupLabels: {
         mysql: "MySQL",
         server: "服务器",
@@ -979,7 +1301,7 @@ export default {
     },
 
     handleMainTabChange(tab) {
-      if (tab === 'model') {
+      if (tab === "model") {
         this.loadModelList();
         this.loadAnnouncements();
       }
@@ -989,7 +1311,8 @@ export default {
       try {
         const res = await this.$axios.get("/system/config/all");
         if (res.data.code === 200) {
-          const groups = res.data.data.groups || {};
+          // 后端直接返回 { group: [...], ... } 格式，不嵌套在 groups 下
+          const groups = res.data.data || {};
           this.systemConfigGroups = groups;
 
           this.editSystemConfigs = {};
@@ -1004,7 +1327,7 @@ export default {
           }
         }
       } catch (e) {
-        console.error("", e);
+        console.error("加载系统配置失败", e);
         this.$message.error("加载系统配置失败");
       }
     },
@@ -1075,20 +1398,33 @@ export default {
         showCancelButton: true,
         confirmButtonText: "确认重置",
         cancelButtonText: "取消",
-        confirmButtonColor: "#e6a23c",
-        inputValidator: (value) => { if (!value) return "请输入密码"; },
+        customClass: { confirmButton: "swal2-btn-warning" },
+        inputValidator: (value) => {
+          if (!value) return "请输入密码";
+        },
       });
 
       if (!password) return;
 
       try {
-        const verifyRes = await this.$axios.post("/system/config/verify-password", { password });
+        const verifyRes = await this.$axios.post(
+          "/system/config/verify-password",
+          { password }
+        );
         if (verifyRes.data.code !== 200) {
-          this.$swal.fire({ icon: "error", title: "验证失败", text: "密码错误，无法重置配置" });
+          this.$swal.fire({
+            icon: "error",
+            title: "验证失败",
+            text: "密码错误，无法重置配置",
+          });
           return;
         }
       } catch (e) {
-        this.$swal.fire({ icon: "error", title: "验证失败", text: "验证过程发生错误" });
+        this.$swal.fire({
+          icon: "error",
+          title: "验证失败",
+          text: "验证过程发生错误",
+        });
         return;
       }
 
@@ -1096,13 +1432,27 @@ export default {
       try {
         const res = await this.$axios.post("/system/config/reset/mysql");
         if (res.data.code === 200) {
-          this.$swal.fire({ icon: "success", title: "重置成功", text: "系统配置已恢复默认", timer: 2000, showConfirmButton: false });
+          this.$swal.fire({
+            icon: "success",
+            title: "重置成功",
+            text: "系统配置已恢复默认",
+            timer: 2000,
+            showConfirmButton: false,
+          });
           await this.loadSystemConfigs();
         } else {
-          this.$swal.fire({ icon: "error", title: "重置失败", text: res.data.message || "" });
+          this.$swal.fire({
+            icon: "error",
+            title: "重置失败",
+            text: res.data.message || "",
+          });
         }
       } catch (e) {
-        this.$swal.fire({ icon: "error", title: "重置失败", text: e.response?.data?.message || "" });
+        this.$swal.fire({
+          icon: "error",
+          title: "重置失败",
+          text: e.response?.data?.message || "",
+        });
       } finally {
         this.resettingAll = false;
       }
@@ -1173,7 +1523,7 @@ export default {
         if (res.data.code === 200) {
           const providersList = res.data.data;
           this.providers = {};
-          providersList.forEach(p => {
+          providersList.forEach((p) => {
             this.providers[p.key] = p;
           });
           this.updateCurrentProvider();
@@ -1191,7 +1541,9 @@ export default {
 
     async onProviderChange(provider) {
       try {
-        const res = await this.$axios.post("/ai/config/switch-provider", { provider });
+        const res = await this.$axios.post("/ai/config/switch-provider", {
+          provider,
+        });
         if (res.data.code === 200) {
           this.$message.success("切换服务商成功");
           this.loadAiConfig();
@@ -1223,13 +1575,13 @@ export default {
 
     // ====================  ====================
     handleVoiceTabChange(tab) {
-      //  tab 
+      //  tab
       console.log(" tab:", tab);
     },
 
     async loadVoiceConfig() {
       try {
-        const res = await this.$axios.get("/ai/voice/config/get");
+        const res = await this.$axios.get("/voice/config");
         if (res.data.code === 200) {
           const data = res.data.data;
           if (data.asr) this.voiceConfig.asr = data.asr;
@@ -1237,19 +1589,24 @@ export default {
           if (data.vad) this.voiceConfig.vad = data.vad;
         }
       } catch (e) {
-        console.error(":", e);
+        console.error("加载语音配置失败:", e);
       }
     },
 
     async saveVoiceConfig() {
       this.voiceSaving = true;
       try {
-        const res = await this.$axios.post("/ai/voice/config/update", this.voiceConfig);
+        const res = await this.$axios.post(
+          "/voice/config",
+          this.voiceConfig
+        );
         if (res.data.code === 200) {
           this.$message.success("语音配置保存成功");
           this.lastSaveTime = new Date().toLocaleString();
+          // 保存后重新加载，确保回显值与后端一致（避免脱敏串残留）
+          await this.loadVoiceConfig();
         } else {
-          this.$message.error(res.data.msg || "");
+          this.$message.error(res.data.msg || "保存失败");
         }
       } catch (e) {
         this.$message.error("语音配置保存失败");
@@ -1258,31 +1615,69 @@ export default {
       }
     },
 
+    /**
+     * 服务端语音链路连通性自测。
+     * 探测发生在后端（服务端出网），与浏览器能否访问外网无关——
+     * 因此即使浏览器能上网、服务端被防火墙拦掉，这里也会如实报失败。
+     */
+    async testVoiceConnection(type) {
+      this.voiceTesting = true;
+      this.voiceTestResult = null;
+      try {
+        const res = await this.$axios.post("/voice/test", null, {
+          params: { type },
+        });
+        const data = res.data && res.data.data;
+        if (data) {
+          this.voiceTestResult = data;
+          if (data.success) {
+            this.$message.success(
+              `${data.provider} 链路正常（${data.durationMs}ms）`
+            );
+          } else {
+            this.$message.error(`${data.provider} 链路失败：${data.message}`);
+          }
+        } else {
+          this.$message.error(res.data.msg || "自测请求失败");
+        }
+      } catch (e) {
+        this.$message.error("自测请求异常，请检查后端服务");
+      } finally {
+        this.voiceTesting = false;
+      }
+    },
+
     onAsrProviderChange(provider) {
-      //  provider 
-      if (provider === 'funasr') {
-        this.voiceConfig.asr.apiUrl = 'https://dashscope.aliyuncs.com/api/v1/services/audio/asr/recognition';
-        this.voiceConfig.asr.model = 'paraformer-zh';
-      } else if (provider === 'whisper') {
-        this.voiceConfig.asr.apiUrl = 'https://api.openai.com/v1/audio/transcriptions';
-        this.voiceConfig.asr.model = 'whisper-1';
-      } else if (provider === 'qwen') {
-        this.voiceConfig.asr.apiUrl = 'https://dashscope.aliyuncs.com/api/v1/services/audio/asr/recognition';
-        this.voiceConfig.asr.model = 'paraformer-zh';
+      //  provider
+      if (provider === "funasr") {
+        this.voiceConfig.asr.apiUrl =
+          "https://dashscope.aliyuncs.com/api/v1/services/audio/asr/recognition";
+        this.voiceConfig.asr.model = "paraformer-zh";
+      } else if (provider === "whisper") {
+        // 后端按 baseUrl + /audio/transcriptions 拼接，这里只给基址（留空则用 OpenAI 官方）
+        this.voiceConfig.asr.baseUrl = "https://api.openai.com/v1";
+        this.voiceConfig.asr.apiUrl =
+          "https://api.openai.com/v1/audio/transcriptions";
+        this.voiceConfig.asr.model = "whisper-1";
+      } else if (provider === "qwen") {
+        this.voiceConfig.asr.apiUrl =
+          "https://dashscope.aliyuncs.com/api/v1/services/audio/asr/recognition";
+        this.voiceConfig.asr.model = "paraformer-zh";
       }
     },
 
     onTtsProviderChange(provider) {
-      //  provider 
-      if (provider === 'edgetts') {
-        this.voiceConfig.tts.voice = 'zh-CN-XiaoxiaoNeural';
-        this.voiceConfig.tts.apiUrl = '';
-      } else if (provider === 'cosyvoice') {
-        this.voiceConfig.tts.voice = 'cosyvoice-v1';
-        this.voiceConfig.tts.apiUrl = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text2audio/generation';
-      } else if (provider === 'minimax') {
-        this.voiceConfig.tts.voice = 'male-qn-qingse';
-        this.voiceConfig.tts.apiUrl = 'https://api.minimax.chat/v1/t2a_v2';
+      //  provider
+      if (provider === "edgetts") {
+        this.voiceConfig.tts.voice = "zh-CN-XiaoxiaoNeural";
+        this.voiceConfig.tts.apiUrl = "";
+      } else if (provider === "cosyvoice") {
+        this.voiceConfig.tts.voice = "cosyvoice-v1";
+        this.voiceConfig.tts.apiUrl =
+          "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2audio/generation";
+      } else if (provider === "minimax") {
+        this.voiceConfig.tts.voice = "male-qn-qingse";
+        this.voiceConfig.tts.apiUrl = "https://api.minimax.chat/v1/t2a_v2";
       }
     },
 
@@ -1304,10 +1699,55 @@ export default {
     selectDoctor(doctor) {
       this.selectedDoctor = doctor.key;
       this.currentDoctorConfig = doctor;
-      this.doctorEditForm = {
+      // 从后端拉取完整运行时参数（maxTokens / presencePenalty / frequencyPenalty）
+      this.$axios
+        .get(`/ai/config/${doctor.key}`)
+        .then((res) => {
+          if (res.data.code === 200 && res.data.data) {
+            const d = res.data.data;
+            this.currentDoctorConfig = { ...this.currentDoctorConfig, ...d };
+            this.doctorEditForm = {
+              systemPrompt: d.systemPrompt || "",
+              temperature: d.temperature != null ? Number(d.temperature) : 0.5,
+              topP: d.topP != null ? Number(d.topP) : 0.5,
+              maxTokens: d.maxTokens != null ? Number(d.maxTokens) : 2048,
+              presencePenalty:
+                d.presencePenalty != null ? Number(d.presencePenalty) : 0,
+              frequencyPenalty:
+                d.frequencyPenalty != null ? Number(d.frequencyPenalty) : 0,
+              repetitionPenalty:
+                d.repetitionPenalty != null ? Number(d.repetitionPenalty) : 1.0,
+              contextRounds:
+                d.contextRounds != null ? Number(d.contextRounds) : 5,
+              maxReplyLength:
+                d.maxReplyLength != null ? Number(d.maxReplyLength) : 2048,
+            };
+            return;
+          }
+          this.doctorEditForm = this.makeFallbackDoctorForm(doctor);
+        })
+        .catch(() => {
+          this.doctorEditForm = this.makeFallbackDoctorForm(doctor);
+        });
+    },
+    makeFallbackDoctorForm(doctor) {
+      return {
         systemPrompt: doctor.systemPrompt || "",
-        temperature: doctor.temperature || 0.5,
-        topP: doctor.topP || 0.5,
+        temperature: doctor.temperature != null ? Number(doctor.temperature) : 0.5,
+        topP: doctor.topP != null ? Number(doctor.topP) : 0.5,
+        maxTokens: doctor.maxTokens != null ? Number(doctor.maxTokens) : 2048,
+        presencePenalty:
+          doctor.presencePenalty != null ? Number(doctor.presencePenalty) : 0,
+        frequencyPenalty:
+          doctor.frequencyPenalty != null
+            ? Number(doctor.frequencyPenalty)
+            : 0,
+        repetitionPenalty:
+          doctor.repetitionPenalty != null ? Number(doctor.repetitionPenalty) : 1.0,
+        contextRounds:
+          doctor.contextRounds != null ? Number(doctor.contextRounds) : 5,
+        maxReplyLength:
+          doctor.maxReplyLength != null ? Number(doctor.maxReplyLength) : 2048,
       };
     },
 
@@ -1316,20 +1756,45 @@ export default {
         this.$message.warning("请填写系统提示词");
         return;
       }
+      // 后端 /ai/config/{role} PUT 需要管理员密码验证
+      const { value: password } = await this.$swal.fire({
+        title: "保存智能体配置",
+        html: `<p style="margin-bottom:12px">将保存 <b>${this.currentDoctorConfig.name}</b> 的配置</p>`,
+        input: "password",
+        inputLabel: "管理员密码",
+        inputPlaceholder: "请输入管理员密码",
+        inputAttributes: { autocapitalize: "off", autocorrect: "off" },
+        showCancelButton: true,
+        confirmButtonText: "确认保存",
+        cancelButtonText: "取消",
+        customClass: { confirmButton: "swal2-btn-primary" },
+        inputValidator: (value) => {
+          if (!value) return "请输入密码";
+        },
+      });
+      if (!password) return;
+
       this.doctorSaving = true;
       try {
-        const res = await this.$axios.put(`/ai/config/${this.selectedDoctor}`, this.doctorEditForm);
+        const res = await this.$axios.put(
+          `/ai/config/${this.selectedDoctor}`,
+          { ...this.doctorEditForm, password }
+        );
         if (res.data.code === 200) {
           this.$message.success("智能体配置保存成功");
           this.lastSaveTime = new Date().toLocaleString();
           await this.loadDoctorConfigs();
-          const doctor = this.doctorList.find(d => d.key === this.selectedDoctor);
+          const doctor = this.doctorList.find(
+            (d) => d.key === this.selectedDoctor
+          );
           if (doctor) this.selectDoctor(doctor);
         } else {
-          this.$message.error(res.data.message || "");
+          this.$message.error(res.data.msg || res.data.message || "保存失败");
         }
       } catch (e) {
-        this.$message.error(": " + (e.response?.data?.message || e.message));
+        this.$message.error(
+          "保存失败: " + (e.response?.data?.msg || e.response?.data?.message || e.message)
+        );
       } finally {
         this.doctorSaving = false;
       }
@@ -1346,40 +1811,65 @@ export default {
         showCancelButton: true,
         confirmButtonText: "确认重置",
         cancelButtonText: "取消",
-        confirmButtonColor: "#667eea",
-        inputValidator: (value) => { if (!value) return "请输入密码"; },
+        customClass: { confirmButton: "swal2-btn-primary" },
+        inputValidator: (value) => {
+          if (!value) return "请输入密码";
+        },
       });
 
       if (!password) return;
 
       this.doctorResetting = true;
       try {
-        const res = await this.$axios.post(`/ai/config/${this.selectedDoctor}/reset`, { password });
+        const res = await this.$axios.post(
+          `/ai/config/${this.selectedDoctor}/reset`,
+          { password }
+        );
         if (res.data.code === 200) {
-          this.$swal.fire({ icon: "success", title: "重置成功", text: `${this.currentDoctorConfig.name} 已恢复默认配置`, timer: 1500, showConfirmButton: false });
+          this.$swal.fire({
+            icon: "success",
+            title: "重置成功",
+            text: `${this.currentDoctorConfig.name} 已恢复默认配置`,
+            timer: 1500,
+            showConfirmButton: false,
+          });
           await this.loadDoctorConfigs();
-          const doctor = this.doctorList.find(d => d.key === this.selectedDoctor);
+          const doctor = this.doctorList.find(
+            (d) => d.key === this.selectedDoctor
+          );
           if (doctor) this.selectDoctor(doctor);
         } else {
-          this.$swal.fire({ icon: "error", title: "重置失败", text: res.data.message || "" });
+          this.$swal.fire({
+            icon: "error",
+            title: "重置失败",
+            text: res.data.message || "",
+          });
         }
       } catch (e) {
-        this.$swal.fire({ icon: "error", title: "重置失败", text: e.response?.data?.message || "" });
+        this.$swal.fire({
+          icon: "error",
+          title: "重置失败",
+          text: e.response?.data?.message || "",
+        });
       } finally {
         this.doctorResetting = false;
       }
     },
 
-    // ====================  ====================
+    // ==================== 模型管理 ====================
     async loadModelList() {
       this.modelLoading = true;
       try {
         const res = await this.$axios.get("/ai/config/models");
         if (res.data.code === 200) {
-          this.modelList = res.data.data || [];
+          // 后端返回的列表，给每个模型加上优先级字段（默认按原始顺序）
+          this.modelList = (res.data.data || []).map((item, index) => ({
+            ...item,
+            priority: item.priority || (index + 1) * 10,
+          }));
         }
       } catch (e) {
-        console.error("", e);
+        console.error("加载模型列表失败", e);
         this.$message.error("加载模型列表失败");
       } finally {
         this.modelLoading = false;
@@ -1391,19 +1881,70 @@ export default {
       try {
         const res = await this.$axios.post("/ai/config/switch-model", {
           providerKey: row.providerKey,
-          model: row.models?.[0] || ''
+          model: row.models?.[0] || "",
         });
         if (res.data.code === 200) {
-          this.$message.success(` ${row.providerName}`);
+          this.$message.success(`已切换到 ${row.providerName}`);
           await this.loadModelList();
         } else {
           this.$message.error(res.data.msg || "");
         }
       } catch (e) {
-        this.$message.error(": " + (e.response?.data?.message || e.message));
+        this.$message.error("切换失败: " + (e.response?.data?.message || e.message));
       } finally {
         this.modelSwitching = false;
       }
+    },
+
+    showAddModelDialog() {
+      // 弹出添加模型对话框
+      this.$prompt("请输入模型标识（如 deepseek）", "添加模型", {
+        confirmButtonText: "添加",
+        cancelButtonText: "取消",
+        inputPlaceholder: "模型标识",
+        inputValidator: (val) => {
+          if (!val) return "请输入模型标识";
+          if (this.modelList.some((m) => m.providerKey === val)) {
+            return "该模型标识已存在";
+          }
+          return true;
+        },
+      }).then(({ value }) => {
+        if (value) {
+          // 检查是否在已知厂商列表中
+          if (this.providers[value]) {
+            const provider = this.providers[value];
+            this.modelList.push({
+              providerKey: value,
+              providerName: provider.name,
+              models: provider.models || [],
+              current: false,
+              priority: this.modelList.length + 1,
+            });
+            this.$message.success(`已添加 ${provider.name}`);
+          } else {
+            this.$message.warning("未找到该厂商配置，请先在「AI 服务商」中配置");
+          }
+        }
+      }).catch(() => {});
+    },
+
+    removeModel(row) {
+      this.$confirm(`确定要移除 ${row.providerName} 吗？`, "移除确认", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      }).then(() => {
+        this.modelList = this.modelList.filter(
+          (m) => m.providerKey !== row.providerKey
+        );
+        this.$message.success(`已移除 ${row.providerName}`);
+      }).catch(() => {});
+    },
+
+    updateModelPriority(row) {
+      // 优先级修改后自动排序
+      this.modelList.sort((a, b) => (a.priority || 999) - (b.priority || 999));
     },
 
     async loadAnnouncements() {
@@ -1427,15 +1968,18 @@ export default {
       }
       this.announcementSaving = true;
       try {
-        const res = await this.$axios.post("/ai/announcement/save", this.announcementForm);
+        const res = await this.$axios.post(
+          "/ai/announcement/save",
+          this.announcementForm
+        );
         if (res.data.code === 200) {
           this.$message.success("横幅保存成功");
           this.announcementForm = {
-            modelKey: 'zhikangyun-local',
-            title: '',
-            content: '',
-            bgColor: '#67C23A',
-            isActive: 0
+            modelKey: "zhikangyun-local",
+            title: "",
+            content: "",
+            bgColor: "#67C23A",
+            isActive: 0,
           };
           await this.loadAnnouncements();
         } else {
@@ -1454,14 +1998,16 @@ export default {
         modelKey: row.modelKey,
         title: row.title,
         content: row.content,
-        bgColor: row.bgColor || '#67C23A',
-        isActive: row.isActive
+        bgColor: row.bgColor || "#67C23A",
+        isActive: row.isActive,
       };
     },
 
     async deleteAnnouncement(row) {
       try {
-        const res = await this.$axios.post("/ai/announcement/delete", { id: row.id });
+        const res = await this.$axios.post("/ai/announcement/delete", {
+          id: row.id,
+        });
         if (res.data.code === 200) {
           this.$message.success("横幅删除成功");
           await this.loadAnnouncements();
@@ -1479,6 +2025,21 @@ export default {
 <style scoped>
 .system-config-manage {
   padding: 20px;
+}
+
+/* 语音连通性自测结果 */
+.voice-test-result {
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.voice-test-result.is-ok {
+  color: #67c23a;
+}
+
+.voice-test-result.is-fail {
+  color: #f56c6c;
 }
 
 .page-header {
@@ -1589,7 +2150,11 @@ export default {
 
 .doctor-card--active {
   border-color: #667eea;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.05),
+    rgba(118, 75, 162, 0.05)
+  );
 }
 
 .doctor-card-header {
@@ -1654,5 +2219,16 @@ export default {
 .doctor-editor-actions {
   display: flex;
   gap: 8px;
+}
+
+/* 模型管理工具栏 */
+.model-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.model-manage {
+  padding: 0;
 }
 </style>

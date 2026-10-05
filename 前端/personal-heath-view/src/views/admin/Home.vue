@@ -3,11 +3,7 @@
     <!--  -->
     <aside class="admin-sidebar" :class="{ collapsed: flag }">
       <div class="sidebar-logo">
-        <Logo
-          sysName=""
-          :flag="flag"
-          :bag="colorLogo"
-        />
+        <Logo sysName="" :flag="flag" :bag="colorLogo" />
       </div>
       <nav class="sidebar-nav">
         <AdminMenu
@@ -27,19 +23,22 @@
           <span class="collapse-btn" @click="toggleSidebar">
             <el-icon :size="20"><Fold v-if="!flag" /><Expand v-else /></el-icon>
           </span>
-          <span class="breadcrumb-text"> / {{ tag || '' }}</span>
+          <span class="breadcrumb-text"> / {{ tag || "" }}</span>
         </div>
         <div class="admin-header-right">
           <el-dropdown class="user-dropdown" popper-class="admin-user-dropdown">
             <span class="dropdown-trigger">
-              <el-avatar :size="32" :src="userInfo.url" />
+              <el-avatar :size="32" :src="userInfo.url || '/default-avatar.svg'" />
               <span class="user-name">{{ userInfo.name }}</span>
               <el-icon :size="12"><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="eventListener('center')"></el-dropdown-item>
-                <el-dropdown-item divided @click="eventListener('loginOut')"></el-dropdown-item>
+                <el-dropdown-item
+                  :icon="Back"
+                  @click="eventListener('loginOut')"
+                  >退出登录</el-dropdown-item
+                >
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -52,64 +51,17 @@
       </main>
     </div>
   </div>
-  <!--  dialog -->
-  <el-dialog :show-close="false" v-model="dialogOperaion" width="min(90vw, 480px)">
-    <template #title>
-      <div style="padding: 25px 0 0 20px">
-        <span style="font-size: 18px; font-weight: 800"></span>
-      </div>
-    </template>
-    <el-row style="padding: 10px 20px 20px 20px">
-      <el-row>
-        <p style="font-size: 12px; padding: 3px 0; margin-bottom: 10px">
-          <span class="modelName">*</span>
-        </p>
-        <el-upload
-          class="avatar-uploader"
-          :action="$uploadUrl"
-            :headers="$uploadHeaders"
-          :show-file-list="false"
-          :on-success="handleAvatarSuccess"
-        >
-          <img
-            v-if="userInfo.url"
-            :src="userInfo.url"
-            style="width: 80px; height: 80px"
-          />
-          <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-        </el-upload>
-      </el-row>
-      <el-row>
-        <p style="font-size: 12px; padding: 3px 0">
-          <span class="modelName">*</span>
-        </p>
-        <el-input v-model="userInfo.name" placeholder="" />
-      </el-row>
-      <el-row>
-        <p style="font-size: 12px; padding: 3px 0">
-          <span class="modelName">*</span>
-        </p>
-        <el-input v-model="userInfo.email" placeholder="" />
-      </el-row>
-    </el-row>
-    <template #footer>
-      <span class="dialog-footer">
-        <el-button class="customer" size="small" @click="dialogOperaion = false"></el-button>
-        <el-button size="small" class="customer primary-btn" type="info" @click="updateUserInfo"></el-button>
-      </span>
-    </template>
-  </el-dialog>
 </template>
 <script>
 import request from "@/utils/request.js";
 import router from "@/router/index";
 import { clearToken } from "@/utils/storage";
-import { Fold, Expand, ArrowDown } from "@element-plus/icons-vue";
+import { Fold, Expand, ArrowDown, Back } from "@element-plus/icons-vue";
 import AdminMenu from "@/components/VerticalMenu.vue";
 import Logo from "@/components/Logo.vue";
 export default {
   name: "Admin",
-  components: { Logo, AdminMenu, Fold, Expand, ArrowDown },
+  components: { Logo, AdminMenu, Fold, Expand, ArrowDown, Back },
   data() {
     return {
       adminRoutes: [],
@@ -126,7 +78,6 @@ export default {
       bag: "rgb(246,246,246)",
       colorLogo: "#e2e8f0",
       bagMenu: "transparent",
-      dialogOperaion: false,
     };
   },
   created() {
@@ -139,66 +90,22 @@ export default {
   },
 
   methods: {
-    async updateUserInfo() {
-      try {
-        const userUpdateDTO = {
-          userAvatar: this.userInfo.url,
-          userName: this.userInfo.name,
-          userEmail: this.userInfo.email,
-        };
-        const resposne = await this.$axios.put(`/user/update`, userUpdateDTO);
-        const { data } = resposne;
-        if (data.code === 200) {
-          this.dialogOperaion = false;
-    this.tokenCheckLoad();
-          this.$swal.fire({
-            title: "",
-            text: data.msg,
-            icon: "success",
-            showConfirmButton: false,
-            timer: 1000,
-          });
-        }
-      } catch (e) {
-        this.dialogOperaion = false;
-        this.$swal.fire({
-          title: "",
-          text: e,
-          icon: "error",
-          showConfirmButton: false,
-          timer: 2000,
-        });
-        console.error(`:${e}`);
-      }
-    },
-    handleAvatarSuccess(res, file) {
-      if (res.code !== 200) {
-        this.$message.error(``);
-        return;
-      }
-      this.$message.success(``);
-      this.userInfo.url = res.data;
-    },
     eventListener(event) {
-      // 
-      if (event === "center") {
-        this.dialogOperaion = true;
-      }
-      // 
+      // 退出登录
       if (event === "loginOut") {
         this.loginOut();
       }
     },
     async loginOut() {
       const confirmed = await this.$swalConfirm({
-        title: "",
-        text: ``,
+        title: "确认退出",
+        text: "您确定要退出登录吗？",
         icon: "warning",
       });
       if (confirmed) {
         this.$swal.fire({
-          title: "",
-          text: "1s ",
+          title: "已退出",
+          text: "正在跳转登录页...",
           icon: "success",
           showConfirmButton: false,
           timer: 1000,
@@ -232,13 +139,13 @@ export default {
     async tokenCheckLoad() {
       try {
         const res = await request.get("user/auth");
-        // 
+        //
         if (res.data.code === 400) {
           this.$message.error(res.data.msg);
           this.$router.push("/login");
           return;
         }
-        // 
+        //
         const {
           id,
           userAvatar: url,
@@ -247,7 +154,7 @@ export default {
           userEmail: email,
         } = res.data.data;
         this.userInfo = { id, url, name, role, email };
-        // 
+        //
         const rolePath = role === 1 ? "/admin" : "/user";
         const targetMenu = router.options.routes.find(
           (route) => route.path === rolePath

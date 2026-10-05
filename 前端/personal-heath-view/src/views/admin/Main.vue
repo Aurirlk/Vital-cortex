@@ -83,7 +83,7 @@ export default {
     time(createTime) {
       return timeAgo(createTime);
     },
-    // 
+    //
     loadMessages() {
       const messageQueryDto = {
         current: 1,
