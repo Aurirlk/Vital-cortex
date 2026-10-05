@@ -1,55 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  医院医生 Mapper
+  2026-10-03 变更：
+    1. 医生与 user 解耦 → 新增 username/password/need_init_password 等账号字段
+    2. 新增职称枚举 title_level、擅长领域 specialties、多科室 dept_ids
+    3. 新增分页查询与远程搜索，支撑「科室树 + 医生列表」与 <DoctorSelect> 组件
+  结构基线见 docs/数据表结构基线-20261003.md
+-->
 <mapper namespace="cn.kmbeast.mapper.HospitalDoctorMapper">
-    <insert id="save" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO hospital_doctor (user_id, name, avatar, title, department_id, introduction, expertise,
-                                     qualifications, is_online, sort_order, status, create_time)
-        VALUES (#{userId}, #{name}, #{avatar}, #{title}, #{departmentId}, #{introduction}, #{expertise},
-                #{qualifications}, #{isOnline}, #{sortOrder}, #{status}, #{createTime})
-    </insert>
-    <update id="update">
-        UPDATE hospital_doctor
-        <set>
-            <if test="name != null">name = #{name},</if>
-            <if test="avatar != null">avatar = #{avatar},</if>
-            <if test="title != null">title = #{title},</if>
-            <if test="departmentId != null">department_id = #{departmentId},</if>
-            <if test="introduction != null">introduction = #{introduction},</if>
-            <if test="expertise != null">expertise = #{expertise},</if>
-            <if test="qualifications != null">qualifications = #{qualifications},</if>
-            <if test="isOnline != null">is_online = #{isOnline},</if>
-            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
-            <if test="status != null">status = #{status},</if>
-        </set>
-        WHERE id = #{id}
-    </update>
-    <delete id="batchDelete">
-        DELETE FROM hospital_doctor WHERE id IN
-        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
-    </delete>
-    <select id="queryByDepartment" resultMap="DoctorResultMap">
-        SELECT d.*, dep.name AS department_name
-        FROM hospital_doctor d
-        LEFT JOIN department dep ON dep.id = d.department_id
-        WHERE d.status = 1
-        <if test="departmentId != null">AND d.department_id = #{departmentId}</if>
-        ORDER BY d.sort_order ASC
-    </select>
-    <select id="getById" resultMap="DoctorResultMap">
-        SELECT d.*, dep.name AS department_name
-        FROM hospital_doctor d
-        LEFT JOIN department dep ON dep.id = d.department_id
-        WHERE d.id = #{id}
-    </select>
-    <select id="queryAll" resultMap="DoctorResultMap">
-        SELECT d.*, dep.name AS department_name
-        FROM hospital_doctor d
-        LEFT JOIN department dep ON dep.id = d.department_id
-        WHERE d.status = 1 ORDER BY d.sort_order ASC
-    </select>
+
     <resultMap id="DoctorResultMap" type="cn.kmbeast.pojo.vo.DoctorVO">
         <id column="id" property="id"/>
         <result column="user_id" property="userId"/>
+        <result column="legacy_user_id" property="legacyUserId"/>
+        <result column="username" property="username"/>
+        <result column="title_level" property="titleLevel"/>
+        <result column="dept_ids" property="deptIds"/>
+        <result column="specialties" property="specialties"/>
+        <result column="reg_no" property="regNo"/>
+        <result column="gender" property="gender"/>
+        <result column="email" property="email"/>
+        <result column="phone" property="phone"/>
+        <result column="visit_count" property="visitCount"/>
+        <result column="rating" property="rating"/>
         <result column="name" property="name"/>
         <result column="avatar" property="avatar"/>
         <result column="title" property="title"/>
@@ -64,4 +38,181 @@
         <result column="update_time" property="updateTime"/>
         <result column="department_name" property="departmentName"/>
     </resultMap>
+
+    <!-- 查询列：显式列出字段，避免 SELECT * 在表结构变更时静默错映射 -->
+    <sql id="BaseColumns">
+        d.id, d.legacy_user_id, d.username, d.title_level, d.dept_ids, d.specialties,
+        d.reg_no, d.gender, d.email, d.phone, d.visit_count, d.rating,
+        d.name, d.avatar, d.title, d.department_id, d.introduction, d.expertise,
+        d.qualifications, d.is_online, d.sort_order, d.status, d.create_time, d.update_time
+    </sql>
+
+    <!-- 认证专用列：含 password，绝不能用于对外返回的查询 -->
+    <sql id="AuthColumns">
+        d.id, d.username, d.password, d.salt, d.need_init_password, d.name, d.avatar,
+        d.title, d.title_level, d.department_id, d.dept_ids, d.status,
+        d.legacy_user_id, d.specialties, d.email, d.phone
+    </sql>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO hospital_doctor (username, password, salt, need_init_password,
+                                     name, avatar, title, title_level, department_id, dept_ids,
+                                     introduction, expertise, qualifications, specialties,
+                                     reg_no, gender, email, phone, is_online, visit_count, rating,
+                                     sort_order, status, create_time)
+        VALUES (#{username}, #{password}, #{salt},
+                <choose>
+                    <when test="needInitPassword != null">#{needInitPassword}</when>
+                    <otherwise>0</otherwise>
+                </choose>,
+                #{name}, #{avatar}, #{title},
+                <choose>
+                    <when test="titleLevel != null">#{titleLevel}</when>
+                    <otherwise>'ATTENDING'</otherwise>
+                </choose>,
+                #{departmentId}, #{deptIds},
+                #{introduction}, #{expertise}, #{qualifications}, #{specialties},
+                #{regNo}, #{gender}, #{email}, #{phone}, #{isOnline},
+                <choose>
+                    <when test="visitCount != null">#{visitCount}</when>
+                    <otherwise>0</otherwise>
+                </choose>,
+                <choose>
+                    <when test="rating != null">#{rating}</when>
+                    <otherwise>5.00</otherwise>
+                </choose>,
+                #{sortOrder}, #{status}, #{createTime})
+    </insert>
+
+    <update id="update">
+        UPDATE hospital_doctor
+        <set>
+            <if test="username != null">username = #{username},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="title != null">title = #{title},</if>
+            <if test="titleLevel != null">title_level = #{titleLevel},</if>
+            <if test="departmentId != null">department_id = #{departmentId},</if>
+            <if test="deptIds != null">dept_ids = #{deptIds},</if>
+            <if test="introduction != null">introduction = #{introduction},</if>
+            <if test="expertise != null">expertise = #{expertise},</if>
+            <if test="qualifications != null">qualifications = #{qualifications},</if>
+            <if test="specialties != null">specialties = #{specialties},</if>
+            <if test="regNo != null">reg_no = #{regNo},</if>
+            <if test="gender != null">gender = #{gender},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="isOnline != null">is_online = #{isOnline},</if>
+            <if test="visitCount != null">visit_count = #{visitCount},</if>
+            <if test="rating != null">rating = #{rating},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="departmentId != null">update_time = NOW(),</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="batchDelete">
+        DELETE FROM hospital_doctor WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <select id="queryByDepartment" resultMap="DoctorResultMap">
+        SELECT <include refid="BaseColumns"/>, dep.name AS department_name
+        FROM hospital_doctor d
+        LEFT JOIN department dep ON dep.id = d.department_id
+        WHERE d.status = 1
+        <if test="departmentId != null">AND d.department_id = #{departmentId}</if>
+        ORDER BY d.sort_order ASC
+    </select>
+
+    <select id="getById" resultMap="DoctorResultMap">
+        SELECT <include refid="BaseColumns"/>, dep.name AS department_name
+        FROM hospital_doctor d
+        LEFT JOIN department dep ON dep.id = d.department_id
+        WHERE d.id = #{id}
+    </select>
+
+    <select id="queryAll" resultMap="DoctorResultMap">
+        SELECT <include refid="BaseColumns"/>, dep.name AS department_name
+        FROM hospital_doctor d
+        LEFT JOIN department dep ON dep.id = d.department_id
+        WHERE d.status = 1 ORDER BY d.sort_order ASC
+    </select>
+
+    <!-- ==================== 医生独立账号体系 ==================== -->
+
+    <!-- 认证专用：返回 HospitalDoctor（含 password），仅供登录流程 -->
+    <select id="getByUsername" resultType="cn.kmbeast.pojo.entity.HospitalDoctor">
+        SELECT <include refid="AuthColumns"/>
+        FROM hospital_doctor d
+        WHERE d.username = #{username}
+        LIMIT 1
+    </select>
+
+    <update id="updatePassword">
+        UPDATE hospital_doctor
+        SET password = #{password},
+            salt = #{salt},
+            need_init_password = #{needInitPassword},
+            update_time = NOW()
+        WHERE id = #{doctorId}
+    </update>
+
+    <select id="countByUsername" resultType="int">
+        SELECT COUNT(*) FROM hospital_doctor
+        WHERE username = #{username}
+        <if test="excludeId != null">AND id != #{excludeId}</if>
+    </select>
+
+    <!-- ==================== 分页与远程搜索 ==================== -->
+
+    <sql id="DoctorFilter">
+        <if test="name != null and name != ''">AND d.name LIKE CONCAT('%', #{name}, '%')</if>
+        <if test="deptId != null">
+            AND (d.department_id = #{deptId}
+                 OR JSON_CONTAINS(d.dept_ids, CAST(#{deptId} AS JSON), '$'))
+        </if>
+        <if test="titleLevel != null and titleLevel != ''">AND d.title_level = #{titleLevel}</if>
+        <if test="status != null">AND d.status = #{status}</if>
+    </sql>
+
+    <select id="queryDoctorPage" resultMap="DoctorResultMap">
+        SELECT <include refid="BaseColumns"/>, dep.name AS department_name
+        FROM hospital_doctor d
+        LEFT JOIN department dep ON dep.id = d.department_id
+        <where>
+            <include refid="DoctorFilter"/>
+        </where>
+        ORDER BY d.sort_order ASC, d.id ASC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countDoctorPage" resultType="int">
+        SELECT COUNT(*)
+        FROM hospital_doctor d
+        <where>
+            <include refid="DoctorFilter"/>
+        </where>
+    </select>
+
+    <!-- 选择器远程搜索：只返回启用医生，按匹配度排序（姓名前缀 > 包含） -->
+    <select id="searchForSelect" resultMap="DoctorResultMap">
+        SELECT <include refid="BaseColumns"/>, dep.name AS department_name
+        FROM hospital_doctor d
+        LEFT JOIN department dep ON dep.id = d.department_id
+        WHERE d.status = 1
+        <if test="keyword != null and keyword != ''">
+            AND (d.name LIKE CONCAT('%', #{keyword}, '%')
+                 OR d.username LIKE CONCAT('%', #{keyword}, '%')
+                 OR d.title LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="deptId != null">AND d.department_id = #{deptId}</if>
+        ORDER BY
+            CASE WHEN d.name LIKE CONCAT(#{keyword}, '%') THEN 0
+                 WHEN d.name LIKE CONCAT('%', #{keyword}, '%') THEN 1
+                 ELSE 2 END,
+            d.sort_order ASC, d.id ASC
+        LIMIT #{limit}
+    </select>
 </mapper>

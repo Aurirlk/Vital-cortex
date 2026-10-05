@@ -21,7 +21,9 @@
     </delete>
     <select id="query" resultMap="AppointmentResultMap">
         SELECT a.*, u.user_name AS patient_name, u.user_phone AS patient_phone,
-               d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name
+               d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name,
+               CASE a.time_slot WHEN 'morning' THEN '上午' WHEN 'afternoon' THEN '下午'
+                    WHEN 'evening' THEN '晚间' ELSE a.time_slot END AS time_slot_name
         FROM appointment a
         LEFT JOIN `user` u ON u.id = a.patient_id
         LEFT JOIN hospital_doctor d ON d.id = a.doctor_id
@@ -50,7 +52,9 @@
     </select>
     <select id="getById" resultMap="AppointmentResultMap">
         SELECT a.*, u.user_name AS patient_name, u.user_phone AS patient_phone,
-               d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name
+               d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name,
+               CASE a.time_slot WHEN 'morning' THEN '上午' WHEN 'afternoon' THEN '下午'
+                    WHEN 'evening' THEN '晚间' ELSE a.time_slot END AS time_slot_name
         FROM appointment a
         LEFT JOIN `user` u ON u.id = a.patient_id
         LEFT JOIN hospital_doctor d ON d.id = a.doctor_id
@@ -79,6 +83,9 @@
         <result column="doctor_name" property="doctorName"/>
         <result column="doctor_title" property="doctorTitle"/>
         <result column="department_name" property="departmentName"/>
+        <!-- 时段中文名：医生端列表直接展示，省得前端各处 if/else。
+             CASE 覆盖排班表在用的 morning/afternoon/evening 三种取值。 -->
+        <result column="time_slot_name" property="timeSlotName"/>
     </resultMap>
 
     <!-- 统计查询 -->
@@ -106,5 +113,76 @@
         GROUP BY a.doctor_id, d.name, d.title
         ORDER BY count DESC
         LIMIT #{limit}
+    </select>
+
+    <!-- ==================== 医生端专用（2026-10-04） ====================
+         约定：doctorId 一律由服务端从 token 取出后传入，
+         绝不允许来自前端请求体/查询串 —— 否则医生可改参数查看他人接诊数据。 -->
+
+    <!-- 某位医生在指定日期区间的预约（医生端「我的接诊」列表） -->
+    <select id="queryByDoctorAndDateRange" resultMap="AppointmentResultMap">
+        SELECT a.*, u.user_name AS patient_name, u.user_phone AS patient_phone,
+               d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name,
+               CASE a.time_slot WHEN 'morning' THEN '上午' WHEN 'afternoon' THEN '下午'
+                    WHEN 'evening' THEN '晚间' ELSE a.time_slot END AS time_slot_name
+        FROM appointment a
+        LEFT JOIN `user` u ON u.id = a.patient_id
+        LEFT JOIN hospital_doctor d ON d.id = a.doctor_id
+        LEFT JOIN department dep ON dep.id = a.department_id
+        WHERE a.doctor_id = #{doctorId}
+        <if test="fromDate != null">AND a.appointment_date &gt;= #{fromDate}</if>
+        <if test="toDate != null">AND a.appointment_date &lt;= #{toDate}</if>
+        <if test="status != null">AND a.status = #{status}</if>
+        ORDER BY a.appointment_date ASC, a.time_slot ASC, a.serial_number ASC
+    </select>
+
+    <!-- 医生端概览：一次拿到 今日/本周/累计 三个数字 -->
+    <select id="summaryByDoctor" resultType="map">
+        SELECT
+            COUNT(*)                                                                  AS totalCount,
+            SUM(CASE WHEN a.appointment_date = CURDATE() THEN 1 ELSE 0 END)           AS todayCount,
+            SUM(CASE WHEN a.appointment_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 6 DAY)
+                     THEN 1 ELSE 0 END)                                              AS weekCount,
+            SUM(CASE WHEN a.status = 0 THEN 1 ELSE 0 END)                             AS pendingCount,
+            SUM(CASE WHEN a.status = 2 THEN 1 ELSE 0 END)                             AS completedCount
+        FROM appointment a
+        WHERE a.doctor_id = #{doctorId}
+    </select>
+
+    <!-- 就诊确认：把预约置为「已完成(2)」。
+         两道防线写进 SQL：
+           1) doctor_id = #{doctorId} —— 医生 A 无法操作医生 B 的预约
+           2) status IN (0,1)          —— 仅「待接诊/已预约」可流转，天然幂等，
+                                          重复提交或对已完成再提交都影响 0 行
+         Service 层据此判断是否成功，以便区分「越权」与「重复提交」。 -->
+    <update id="completeByDoctor">
+        UPDATE appointment
+        SET status = 2, update_time = NOW()
+        WHERE id = #{id} AND doctor_id = #{doctorId} AND status IN (0, 1)
+    </update>
+
+    <!-- ============ 医患关系校验（防「遍历 patientId 查全库患者档案」） ============
+         医生端「患者详情」必须先过这一关：只有与该医生存在预约关系的患者才可查看。
+         若不加此校验，医生可构造 patientId=1..N 遍历全库患者健康档案。
+         判定口径：存在任意状态的预约即视为有医患关系
+         （含历史已完成的，否则医生无法复诊老患者）。 -->
+    <select id="countDoctorPatientRelation" resultType="integer">
+        SELECT COUNT(*) FROM appointment
+        WHERE doctor_id = #{doctorId} AND patient_id = #{patientId}
+    </select>
+
+    <!-- 该患者与我有预约关系的「最近一条预约」——用于详情页默认定位到具体那一条 -->
+    <select id="getLatestByDoctorAndPatient" resultMap="AppointmentResultMap">
+        SELECT a.*, u.user_name AS patient_name, u.user_phone AS patient_phone,
+               d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name,
+               CASE a.time_slot WHEN 'morning' THEN '上午' WHEN 'afternoon' THEN '下午'
+                    WHEN 'evening' THEN '晚间' ELSE a.time_slot END AS time_slot_name
+        FROM appointment a
+        LEFT JOIN `user` u ON u.id = a.patient_id
+        LEFT JOIN hospital_doctor d ON d.id = a.doctor_id
+        LEFT JOIN department dep ON dep.id = a.department_id
+        WHERE a.doctor_id = #{doctorId} AND a.patient_id = #{patientId}
+        ORDER BY a.appointment_date DESC, a.id DESC
+        LIMIT 1
     </select>
 </mapper>

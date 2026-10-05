@@ -22,4 +22,43 @@
     <select id="getByAppointmentId" resultType="cn.kmbeast.pojo.entity.VisitRecord">
         SELECT * FROM visit_record WHERE appointment_id = #{appointmentId}
     </select>
+
+    <!-- ============ 医生端患者详情（2026-10-04） ============ -->
+
+    <resultMap id="VisitRecordMap" type="cn.kmbeast.pojo.vo.VisitRecordVO">
+        <id column="id" property="id"/>
+        <result column="appointment_id" property="appointmentId"/>
+        <result column="patient_id" property="patientId"/>
+        <result column="doctor_id" property="doctorId"/>
+        <result column="chief_complaint" property="chiefComplaint"/>
+        <result column="present_illness" property="presentIllness"/>
+        <result column="diagnosis" property="diagnosis"/>
+        <result column="prescription" property="prescription"/>
+        <result column="examination_results" property="examinationResults"/>
+        <result column="follow_up_plan" property="followUpPlan"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="doctor_name" property="doctorName"/>
+        <result column="doctor_title" property="doctorTitle"/>
+        <result column="appointment_date" property="appointmentDate"/>
+        <result column="time_slot" property="timeSlot"/>
+    </resultMap>
+
+    <!-- 某患者的历史就诊记录，倒序，limit 由 Service 封顶防拖库 -->
+    <select id="queryByPatientId" resultMap="VisitRecordMap">
+        SELECT vr.*, d.name AS doctor_name, d.title AS doctor_title,
+               a.appointment_date, a.time_slot
+        FROM visit_record vr
+        LEFT JOIN hospital_doctor d ON d.id = vr.doctor_id
+        LEFT JOIN appointment a ON a.id = vr.appointment_id
+        WHERE vr.patient_id = #{patientId}
+        ORDER BY vr.create_time DESC
+        <if test="limit != null">LIMIT #{limit}</if>
+    </select>
+
+    <!-- 已存在就诊记录的预约 ID：用于详情页把「已接诊」按钮置灰，
+         避免医生重复点击触发 visit_record.appointment_id 唯一约束冲突 -->
+    <select id="countByAppointmentId" resultType="integer">
+        SELECT COUNT(*) FROM visit_record WHERE appointment_id = #{appointmentId}
+    </select>
 </mapper>

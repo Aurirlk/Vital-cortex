@@ -1,29 +1,91 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  科室 Mapper（2026-10-03 支持多级层级）
+
+  变更：
+    1. save/update 支持 parent_id / code / level / leader_id / phone / location / intro
+    2. 列名显式列出，不用 SELECT *（表结构变更后避免静默错映射）
+    3. 新增 countDoctorByDepartment：按科室统计医生数（含多科室医生）
+  结构基线见 docs/数据表结构基线-20261003.md
+-->
 <mapper namespace="cn.kmbeast.mapper.DepartmentMapper">
+
+    <sql id="BaseColumns">
+        d.id, d.parent_id, d.level, d.name, d.code, d.description, d.cover,
+        d.leader_id, d.phone, d.location, d.intro, d.sort_order, d.status,
+        d.create_time, d.update_time
+    </sql>
+
     <insert id="save" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO department (name, description, cover, sort_order, status, create_time)
-        VALUES (#{name}, #{description}, #{cover}, #{sortOrder}, #{status}, #{createTime})
+        INSERT INTO department (parent_id, level, name, code, description, cover,
+                                leader_id, phone, location, intro, sort_order, status, create_time)
+        VALUES (
+            <choose><when test="parentId != null">#{parentId}</when><otherwise>0</otherwise></choose>,
+            <choose><when test="level != null">#{level}</when><otherwise>1</otherwise></choose>,
+            #{name}, #{code}, #{description}, #{cover}, #{leaderId}, #{phone},
+            #{location}, #{intro}, #{sortOrder}, #{status}, #{createTime}
+        )
     </insert>
+
     <update id="update">
         UPDATE department
         <set>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="level != null">level = #{level},</if>
             <if test="name != null">name = #{name},</if>
+            <if test="code != null">code = #{code},</if>
             <if test="description != null">description = #{description},</if>
             <if test="cover != null">cover = #{cover},</if>
+            <if test="leaderId != null">leader_id = #{leaderId},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="location != null">location = #{location},</if>
+            <if test="intro != null">intro = #{intro},</if>
             <if test="sortOrder != null">sort_order = #{sortOrder},</if>
             <if test="status != null">status = #{status},</if>
         </set>
         WHERE id = #{id}
     </update>
+
     <delete id="batchDelete">
         DELETE FROM department WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
     </delete>
+
     <select id="queryAll" resultType="cn.kmbeast.pojo.entity.Department">
-        SELECT * FROM department WHERE status = 1 ORDER BY sort_order ASC
+        SELECT <include refid="BaseColumns"/>
+        FROM department d
+        WHERE d.status = 1
+        ORDER BY d.sort_order ASC, d.id ASC
     </select>
+
     <select id="getById" resultType="cn.kmbeast.pojo.entity.Department">
-        SELECT * FROM department WHERE id = #{id}
+        SELECT <include refid="BaseColumns"/>
+        FROM department d
+        WHERE d.id = #{id}
+    </select>
+
+    <!--
+      按科室统计启用医生数。两种情况都计入：
+        1. 医生主科室 department_id = 该科室
+        2. 医生 dept_ids（JSON 数组）包含该科室 —— 支持一个医生兼多科
+      用 UNION 后在外层按科室聚合，避免 OR 条件导致索引失效。
+    -->
+    <select id="countDoctorByDepartment" resultType="map">
+        SELECT dept_id AS deptId, COUNT(*) AS cnt FROM (
+            SELECT d.department_id AS dept_id
+            FROM hospital_doctor d
+            WHERE d.status = 1 AND d.department_id IS NOT NULL
+            UNION ALL
+            SELECT CAST(jt.dept_id AS UNSIGNED) AS dept_id
+            FROM hospital_doctor d
+            JOIN JSON_TABLE(
+                COALESCE(NULLIF(d.dept_ids, ''), '[]'),
+                '$[*]' COLUMNS (dept_id VARCHAR(20) PATH '$')
+            ) jt
+            WHERE d.status = 1 AND d.dept_ids IS NOT NULL AND d.dept_ids <> ''
+        ) t
+        WHERE t.dept_id IS NOT NULL AND t.dept_id <> 0
+        GROUP BY t.dept_id
     </select>
 </mapper>

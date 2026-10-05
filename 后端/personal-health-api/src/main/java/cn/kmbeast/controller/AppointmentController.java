@@ -6,6 +6,7 @@ import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.extend.AppointmentQueryDto;
 import cn.kmbeast.pojo.entity.*;
 import cn.kmbeast.pojo.vo.AppointmentVO;
+import cn.kmbeast.pojo.vo.DepartmentVO;
 import cn.kmbeast.pojo.vo.DoctorVO;
 import cn.kmbeast.service.AppointmentService;
 import org.springframework.web.bind.annotation.*;
@@ -29,19 +30,19 @@ public class AppointmentController {
         return appointmentService.getDepartments();
     }
 
-    @Protector(role = "admin")
+    @Protector(role = "管理员")
     @PostMapping("/department/save")
     public Result<Void> saveDepartment(@RequestBody Department department) {
         return appointmentService.saveDepartment(department);
     }
 
-    @Protector(role = "admin")
+    @Protector(role = "管理员")
     @PutMapping("/department/update")
     public Result<Void> updateDepartment(@RequestBody Department department) {
         return appointmentService.updateDepartment(department);
     }
 
-    @Protector(role = "admin")
+    @Protector(role = "管理员")
     @PostMapping("/department/batchDelete")
     public Result<Void> deleteDepartments(@RequestBody List<Long> ids) {
         return appointmentService.deleteDepartments(ids);
@@ -55,25 +56,72 @@ public class AppointmentController {
         return appointmentService.getDoctors(departmentId);
     }
 
+    /**
+     * 医生分页列表（可扩展性改造）
+     *
+     * <p>原 {@code /doctors} 一次性返回全部医生，医生数量增长后前端下拉会卡死。
+     * 本接口支持「姓名模糊 + 科室 + 职称 + 状态」筛选并后端分页，
+     * 供管理端「科室树 + 医生列表」使用。
+     */
+    @Protector
+    @GetMapping("/doctors/page")
+    public Result<List<DoctorVO>> getDoctorsPage(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Integer departmentId,
+            @RequestParam(required = false) String titleLevel,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "1") Integer current,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return appointmentService.getDoctorsPage(
+                name, departmentId, titleLevel, status, current, size);
+    }
+
+    /**
+     * 医生远程搜索（供 {@code <DoctorSelect>} 组件的 remote-method 调用）
+     *
+     * <p>输入关键字即时检索，只返回启用中的医生，最多 limit 条。
+     * 支持多科室医生（走 {@code dept_ids} 的 JSON_CONTAINS 匹配）。
+     */
+    @Protector
+    @GetMapping("/doctors/search")
+    public Result<List<DoctorVO>> searchDoctors(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer departmentId,
+            @RequestParam(defaultValue = "20") Integer limit) {
+        return appointmentService.searchDoctors(keyword, departmentId, limit);
+    }
+
+    /**
+     * 科室树（科室支持多级层级后的导航结构）
+     *
+     * <p>返回带 {@code children} 与 {@code doctorCount} 的树形结构，
+     * 供管理端左侧科室树与医生端导览使用。
+     */
+    @Protector
+    @GetMapping("/departments/tree")
+    public Result<List<DepartmentVO>> getDepartmentTree() {
+        return appointmentService.getDepartmentTree();
+    }
+
     @Protector
     @GetMapping("/doctor/{id}")
     public Result<DoctorVO> getDoctorById(@PathVariable Integer id) {
         return appointmentService.getDoctorById(id);
     }
 
-    @Protector(role = "admin")
+    @Protector(role = "管理员")
     @PostMapping("/doctor/save")
     public Result<Void> saveDoctor(@RequestBody HospitalDoctor doctor) {
         return appointmentService.saveDoctor(doctor);
     }
 
-    @Protector(role = "admin")
+    @Protector(role = "管理员")
     @PutMapping("/doctor/update")
     public Result<Void> updateDoctor(@RequestBody HospitalDoctor doctor) {
         return appointmentService.updateDoctor(doctor);
     }
 
-    @Protector(role = "admin")
+    @Protector(role = "管理员")
     @PostMapping("/doctor/batchDelete")
     public Result<Void> deleteDoctors(@RequestBody List<Long> ids) {
         return appointmentService.deleteDoctors(ids);
@@ -97,19 +145,19 @@ public class AppointmentController {
         return appointmentService.getAvailableSchedules(departmentId, date);
     }
 
-    @Protector(role = "admin")
+    @Protector(role = "管理员")
     @PostMapping("/schedule/save")
     public Result<Void> saveSchedule(@RequestBody DoctorSchedule schedule) {
         return appointmentService.saveSchedule(schedule);
     }
 
-    @Protector(role = "admin")
+    @Protector(role = "管理员")
     @PutMapping("/schedule/update")
     public Result<Void> updateSchedule(@RequestBody DoctorSchedule schedule) {
         return appointmentService.updateSchedule(schedule);
     }
 
-    @Protector(role = "admin")
+    @Protector(role = "管理员")
     @PostMapping("/schedule/batchDelete")
     public Result<Void> deleteSchedules(@RequestBody List<Long> ids) {
         return appointmentService.deleteSchedules(ids);

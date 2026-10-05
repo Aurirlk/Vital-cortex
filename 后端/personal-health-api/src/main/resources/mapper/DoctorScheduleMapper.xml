@@ -36,4 +36,22 @@
     <update id="decrementBookedCount">
         UPDATE doctor_schedule SET booked_count = GREATEST(booked_count - 1, 0), version = version + 1 WHERE id = #{id}
     </update>
+
+    <!-- ==================== 医生端专用（2026-10-04） ====================
+         doctorId 同样必须来自 token，不得由前端传入。 -->
+
+    <!-- 某位医生在日期区间的全部排班（含已停诊），用于「我的排班」列表 -->
+    <select id="queryByDoctorAndRange" resultType="cn.kmbeast.pojo.entity.DoctorSchedule">
+        SELECT * FROM doctor_schedule
+        WHERE doctor_id = #{doctorId}
+        <if test="fromDate != null">AND schedule_date &gt;= #{fromDate}</if>
+        <if test="toDate != null">AND schedule_date &lt;= #{toDate}</if>
+        ORDER BY schedule_date ASC, time_slot ASC
+    </select>
+
+    <!-- 归属校验：该排班是否属于指定医生。
+         医生改/停自己的排班前必须先过这一关，防止篡改 id 操作他人排班。 -->
+    <select id="countByIdAndDoctor" resultType="integer">
+        SELECT COUNT(*) FROM doctor_schedule WHERE id = #{id} AND doctor_id = #{doctorId}
+    </select>
 </mapper>
