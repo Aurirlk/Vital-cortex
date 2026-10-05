@@ -83,3 +83,13 @@ hs_err_pid*.log
 replay_pid*.log
 # 编译产物备份目录
 target_bak*
+
+# ---- 2026-10-05 补充：运行时产物与旧构建，不应进仓库 ----
+# Redis 持久化文件（运行时生成，体积大且含运行时状态）
+dump.rdb
+# 前端旧构建产物（构建输出不入库，由 CI/本地构建产生）
+前端/personal-heath-view/dist_old_*/
+前端/personal-heath-view/dist/
+# Python 缓存
+__pycache__/
+*.pyc
