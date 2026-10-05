@@ -28,8 +28,6 @@ public class AgentCoordinator {
     @Resource
     private cn.kmbeast.crm.config.CrmConfig crmConfig;
 
-    private OkHttpClient httpClient;
-    private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
 
     /** Agent 角色定义（AG-11：词表可从 crm.intent.keywords 配置覆盖） */
     private final Map<String, AgentRole> AGENT_ROLES = new LinkedHashMap<>();
@@ -90,11 +88,9 @@ public class AgentCoordinator {
                 log.warn("[AgentCoordinator] 意图词表配置解析失败，使用内置默认: {}", e.getMessage());
             }
         }
-        httpClient = new OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build();
+        // 2026-10-04：原实现在这里自建了一个 OkHttpClient，但整个类从未发起过
+        // 任何 HTTP 请求（意图识别是纯关键词打分），白白占一套 Dispatcher 线程池 +
+        // ConnectionPool。已删除。
         log.info("AgentCoordinator 初始化完成，共加载 {} 个 Agent 角色", AGENT_ROLES.size());
     }
 

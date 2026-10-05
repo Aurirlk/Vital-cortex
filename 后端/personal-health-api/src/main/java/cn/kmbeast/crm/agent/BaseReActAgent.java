@@ -1,6 +1,7 @@
 package cn.kmbeast.crm.agent;
 
 import cn.kmbeast.config.AiConfig;
+import cn.kmbeast.core.http.HttpClientFactory;
 import cn.kmbeast.crm.CrmException;
 import cn.kmbeast.crm.agent.model.ReActResponse;
 import cn.kmbeast.crm.agent.model.ToolCall;
@@ -31,6 +32,10 @@ public abstract class BaseReActAgent {
 
     @Resource
     protected ToolRegistry toolRegistry;
+
+    /** 2026-10-04：共享 HTTP 客户端工厂（统一超时/连接池/线程池上限） */
+    @Resource
+    protected HttpClientFactory httpClientFactory;
 
     protected OkHttpClient httpClient;
 
@@ -100,18 +105,151 @@ public abstract class BaseReActAgent {
         return (configured != null && !configured.isEmpty()) ? configured : DEFAULT_SYSTEM_PROMPT;
     }
 
+    /**
+     * 本轮的角色类型（2026-10-04 新增）。
+     *
+     * <p><b>背景</b>：{@code AgentCoordinator} 定义了 6 个专业角色（全科医生/营养师/
+     * 心理咨询师/报告分析师/健康助手/全能助手），并实现了意图识别，
+     * 但<b>对话主流程从未调用它</b> —— 角色定义形同虚设，所有问题都走同一套 prompt。
+     *
+     * <p><b>⚠️ 必须用 ThreadLocal 而非普通字段</b>：{@code BaseReActAgent} 是
+     * {@code @Service} 单例，被所有用户请求共享。若用实例字段，
+     * 并发场景下 A 用户的角色提示会串到 B 用户身上 —— 属于严重的上下文泄露。
+     */
+    private final ThreadLocal<String> roleHint = new ThreadLocal<>();
+
+    /** Harness 生成的追问指令（无缺失槽位时为 null） */
+    private final ThreadLocal<String> guidancePrompt = new ThreadLocal<>();
+
+    /**
+     * 设置角色提示（由 Controller 层在调用前根据意图识别结果设置）
+     *
+     * @param roleType 角色编码，如 doctor / nutritionist；null 视为默认角色
+     */
+    public void setRoleHint(String roleType) {
+        roleHint.set((roleType == null || roleType.isBlank()) ? "general_assistant" : roleType);
+    }
+
+    public String getRoleHint() {
+        String v = roleHint.get();
+        return v != null ? v : "general_assistant";
+    }
+
+    /**
+     * 设置数据引导指令（由 {@code HarnessEngine} 生成）
+     *
+     * @param prompt 追问话术；null 或空串表示档案已完整
+     */
+    public void setGuidancePrompt(String prompt) {
+        if (prompt == null || prompt.isBlank()) {
+            guidancePrompt.remove();
+        } else {
+            guidancePrompt.set(prompt);
+        }
+    }
+
+    /**
+     * 角色专属指令表。
+     *
+     * <p>比动态改 system prompt 更稳的做法是<b>追加段落</b>：
+     * 基础能力（工具用法、免责声明）来自配置里的 prompt，不动；
+     * 这里只追加「本轮以什么身份、侧重什么」，模型既保留通用能力又获得角色聚焦。
+     */
+    private static final Map<String, String> ROLE_INSTRUCTIONS = Map.of(
+            "doctor", """
+                    ## 本轮角色：全科医生
+                    侧重症状分析、分诊建议与用药指导。
+                    遇到可能危及生命的症状（胸痛、呼吸困难、意识障碍、剧烈头痛伴呕吐等），
+                    必须首先明确建议立即就医或拨打急救电话，不要继续追问细节。
+                    """,
+            "nutritionist", """
+                    ## 本轮角色：营养师
+                    侧重饮食规划、营养搭配与体重管理。
+                    给建议时尽量给出可执行的具体食物与份量，而不是笼统的「少吃多餐」。
+                    如涉及热量摄入，需要先了解用户的身高体重（若未提供应主动询问）。
+                    """,
+            "psychologist", """
+                    ## 本轮角色：心理咨询师
+                    侧重情绪疏导、压力管理与心理支持。
+                    遇到自伤/自杀意念等高危信号时，优先进行安全评估并建议寻求专业帮助，
+                    不要停留在一般性的情绪建议。
+                    """,
+            "analyst", """
+                    ## 本轮角色：报告分析师
+                    侧重体检报告解读与异常指标分析。
+                    解读时先说明该指标正常范围，再判断异常程度，最后给出建议。
+                    涉及具体数值时优先调用 get_health_data 工具取真实数据，不要凭空推测。
+                    """,
+            "consultant", """
+                    ## 本轮角色：健康助手
+                    侧重健康生活方式建议：运动、 作息、季节性养生、预防保健。
+                    """,
+            "general_assistant", """
+                    ## 本轮角色：全能助手
+                    根据问题类型自行判断侧重方向，必要时提示用户可以切换到更专业的角色。
+                    """
+    );
+
+    /**
+     * 组装最终 system prompt = 基础能力 + 角色指令 + 数据追问指令。
+     *
+     * <p>相比直接替换 prompt，追加方式的好处：
+     * 管理员在 {@code crm.react.prompt} 里配的通用能力不会被角色覆盖丢失。
+     *
+     * <p><b>2026-10-04 关键改动：读取即清除（一次性消费）</b>。
+     * 角色与引导只对<b>本轮对话</b>有效，实现方式是读出来的同时 {@code remove()}。
+     * 原因：本类是 @Service 单例，上下文存在 ThreadLocal 里，而 Tomcat 会复用线程。
+     * 若依赖「每个调用方都在 finally 里记得调 {@code clearConversationContext()}」，
+     * 只要有一个调用方漏掉（项目里就有 {@code CrmChatController} 两条路径从未清理），
+     * 下一个复用该线程的用户就会读到上一位的角色指令——这是健康咨询场景下
+     * 可能误导用户（比如把营养问题当心理问题回应）的上下文泄露。
+     * 改成读取即消费后，即使调用方完全忘记清理，最坏情况也只是本轮没有角色增强，
+     * 而不是把别人的角色带进来。显式清理仍保留，作为可读性更好的意图表达。
+     */
+    protected String enhanceSystemPrompt() {
+        StringBuilder sb = new StringBuilder(getSystemPrompt());
+        // get + remove：一次性取出，取完即失效
+        String role = roleHint.get();
+        roleHint.remove();
+        String instruction = ROLE_INSTRUCTIONS.get(role);
+        if (instruction != null) {
+            sb.append("\n\n").append(instruction);
+        }
+        String guidance = guidancePrompt.get();
+        guidancePrompt.remove();
+        if (guidance != null) {
+            sb.append(guidance);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 清理本线程的对话上下文。
+     *
+     * <p><b>必须调用</b>：Tomcat 线程池会复用线程，若不清理，
+     * 下一个请求（可能是另一个用户）会读到上一个请求遗留的角色提示与追问指令。
+     * 建议在 Controller 的 finally 里调用。
+     */
+    public void clearConversationContext() {
+        roleHint.remove();
+        guidancePrompt.remove();
+    }
+
+    /**
+     * 2026-10-04：改为从 {@link HttpClientFactory} 取共享实例。
+     * 原来这里自建 client，与另外 4 处 LLM 调用方各占一套线程池与连接池。
+     */
     @PostConstruct
     public void initHttpClient() {
-        this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(aiConfig.getConnectTimeout(), TimeUnit.MILLISECONDS)
-                .readTimeout(aiConfig.getReadTimeout(), TimeUnit.MILLISECONDS)
-                .connectionPool(new ConnectionPool(10, 5, TimeUnit.MINUTES))
-                .build();
+        this.httpClient = httpClientFactory.llmClient();
     }
 
     protected List<Map<String, Object>> buildInitialMessages(List<Map<String, String>> userMessages) {
         List<Map<String, Object>> messages = new ArrayList<>();
-        messages.add(buildMap("role", "system", "content", getSystemPrompt()));
+        // 2026-10-04：用 enhanceSystemPrompt() 追加角色指令与数据追问指令，
+        // 而不是裸的 getSystemPrompt()，让 AgentCoordinator 的角色路由
+        // 与 HarnessEngine 的槽位引导真正进入对话流程。
+        messages.add(buildMap("role", "system", "content", enhanceSystemPrompt()));
         if (userMessages != null) {
             for (Map<String, String> msg : userMessages) {
                 messages.add(buildMap("role", msg.get("role"), "content", msg.get("content")));
