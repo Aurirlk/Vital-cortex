@@ -1,5 +1,13 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 import { getToken } from "@/utils/storage.js";
+import {
+  getRole,
+  canAccess,
+  homeOf,
+  isDoctorLoggedIn,
+  clearDoctorToken,
+  ROLE_DOCTOR,
+} from "@/utils/doctorAuth.js";
 
 const routes = [
   {
@@ -13,6 +21,43 @@ const routes = [
   {
     path: "/register",
     component: () => import(`@/views/register/Register.vue`),
+  },
+
+  // ==================== 医生端（独立账号体系，与用户端隔离） ====================
+  {
+    path: "/doctor/login",
+    component: () => import(`@/views/doctor/DoctorLogin.vue`),
+  },
+  {
+    path: "/doctor",
+    component: () => import(`@/views/doctor/DoctorLayout.vue`),
+    redirect: "/doctor/home",
+    children: [
+      {
+        name: "医生工作台",
+        path: "home",
+        component: () => import(`@/views/doctor/DoctorHome.vue`),
+        meta: { requireAuth: true, role: "医生" },
+      },
+      {
+        name: "我的接诊",
+        path: "appointments",
+        component: () => import(`@/views/doctor/DoctorAppointments.vue`),
+        meta: { requireAuth: true, role: "医生" },
+      },
+      {
+        name: "患者详情",
+        path: "patient",
+        component: () => import(`@/views/doctor/PatientDetail.vue`),
+        meta: { requireAuth: true, role: "医生" },
+      },
+      {
+        name: "我的排班",
+        path: "schedules",
+        component: () => import(`@/views/doctor/DoctorSchedules.vue`),
+        meta: { requireAuth: true, role: "医生" },
+      },
+    ],
   },
   {
     path: "/message",
@@ -88,9 +133,9 @@ const routes = [
       },
       {
         path: "drugManage",
-        name: "药品管理",
-        icon: "FirstAidKit",
-        component: () => import(`@/views/admin/DrugManage.vue`),
+        name: "商城管理",
+        icon: "ShoppingCart",
+        component: () => import(`@/views/admin/MallManage.vue`),
         meta: { requireAuth: true },
       },
       {
@@ -116,10 +161,9 @@ const routes = [
       },
       {
         path: "mallManage",
-        name: "商城管理",
-        icon: "ShoppingCart",
-        component: () => import(`@/views/admin/MallManage.vue`),
+        redirect: "drugManage",
         meta: { requireAuth: true },
+        isHidden: true,
       },
       {
         path: "followupManage",
@@ -133,13 +177,6 @@ const routes = [
         name: "审计日志",
         icon: "Warning",
         component: () => import(`@/views/admin/AuditManage.vue`),
-        meta: { requireAuth: true },
-      },
-      {
-        path: "agentManage",
-        name: "智能体",
-        icon: "Cpu",
-        component: () => import(`@/views/admin/AgentManagement.vue`),
         meta: { requireAuth: true },
       },
     ],
@@ -211,15 +248,6 @@ const routes = [
         meta: { requireAuth: true },
       },
       {
-        name: "药品查询",
-        path: "drug",
-        icon: "FirstAidKit",
-        component: () => import(`@/views/user/Drug.vue`),
-        meta: {
-          requireAuth: true,
-        },
-      },
-      {
         name: "个人中心",
         path: "profile",
         icon: "User",
@@ -263,6 +291,14 @@ const routes = [
         component: () => import(`@/views/user/Report.vue`),
         meta: { requireAuth: true },
       },
+      {
+        name: "设置",
+        path: "settings",
+        icon: "Setting",
+        component: () => import(`@/views/user/UserSettings.vue`),
+        meta: { requireAuth: true },
+        isHidden: true,
+      },
     ],
   },
 ];
@@ -277,16 +313,41 @@ router.onError((error) => {
 });
 
 router.beforeEach((to, from, next) => {
+  // ============ 医生端独立守卫 ============
+  // 医生走 doctor-token 与 /doctor/login，与用户端 token 互不相通。
+  if (to.path.startsWith("/doctor")) {
+    if (to.path === "/doctor/login") {
+      // 已登录的医生不必再进登录页
+      return isDoctorLoggedIn() ? next("/doctor/home") : next();
+    }
+    if (!isDoctorLoggedIn()) {
+      clearDoctorToken();
+      return next("/doctor/login");
+    }
+    return next();
+  }
+
+  // ============ 用户端 / 管理端守卫 ============
   if (to.meta.requireAuth) {
     const token = getToken();
-    if (token !== null) {
-      next();
-    } else {
-      next("/login");
+    if (token === null) {
+      return next("/login");
     }
-  } else {
-    next();
+
+    // 2026-10-04：原先只判 token 是否存在，医生/用户/管理员可以互相进对方页面。
+    // 现在按路径前缀校验角色 —— 这是体验层拦截，真正的边界在后端
+    // JwtInterceptor + DoctorIsolation。
+    const role = getRole("user");
+    if (!canAccess(to.path, role)) {
+      console.warn(
+        `[Router] 越权访问被拦截: path=${to.path}, role=${role}，已跳回各自首页`
+      );
+      return next(homeOf(role));
+    }
+    return next();
   }
+
+  return next();
 });
 
 export default router;
