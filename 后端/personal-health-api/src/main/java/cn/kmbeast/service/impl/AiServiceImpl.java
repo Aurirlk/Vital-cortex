@@ -1,6 +1,7 @@
 package cn.kmbeast.service.impl;
 
 import cn.kmbeast.config.AiConfig;
+import cn.kmbeast.core.http.HttpClientFactory;
 import cn.kmbeast.config.AiPromptConfig;
 import cn.kmbeast.core.graph.KnowledgeGraphService;
 import cn.kmbeast.core.guard.OutputValidator;
@@ -49,6 +50,10 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private AiConfig aiConfig;
+
+    /** 2026-10-04：共享 HTTP 客户端（统一超时/连接池/线程池上限，避免各处自建导致线程与连接被放大 N 倍） */
+    @jakarta.annotation.Resource
+    private HttpClientFactory httpClientFactory;
 
     @Resource
     private AiChatRecordMapper aiChatRecordMapper;
@@ -102,11 +107,8 @@ public class AiServiceImpl implements AiService {
 
     @jakarta.annotation.PostConstruct
     public void init() {
-        this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(aiConfig.getConnectTimeout(), TimeUnit.MILLISECONDS)
-                .readTimeout(aiConfig.getReadTimeout(), TimeUnit.MILLISECONDS)
-                .connectionPool(new ConnectionPool(10, 5, TimeUnit.MINUTES))
-                .build();
+        // 2026-10-04：统一走共享工厂
+        this.httpClient = httpClientFactory.llmClient();
     }
 
     private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
@@ -129,6 +131,14 @@ public class AiServiceImpl implements AiService {
             Double topP = chatRequest.getTopP() != null
                     ? chatRequest.getTopP()
                     : AiPromptConfig.getTopP(agentType);
+            Integer maxTokens = chatRequest.getMaxReplyLength() != null && chatRequest.getMaxReplyLength() > 0
+                    ? chatRequest.getMaxReplyLength()
+                    : (AiPromptConfig.getMaxTokens(agentType) != null
+                            ? AiPromptConfig.getMaxTokens(agentType) : aiConfig.getMaxTokens());
+            Double presencePenalty = AiPromptConfig.getPresencePenalty(agentType);
+            Double frequencyPenalty = chatRequest.getRepetitionPenalty() != null
+                    ? (chatRequest.getRepetitionPenalty() > 1.0 ? chatRequest.getRepetitionPenalty() - 1.0 : 0.0)
+                    : AiPromptConfig.getFrequencyPenalty(agentType);
 
             if (conversationId == null) {
                 AiConversation newConversation = chatCacheService.createConversation(userId, agentType, null);
@@ -207,7 +217,13 @@ public class AiServiceImpl implements AiService {
             requestBody.put("messages", messages);
             requestBody.put("temperature", temperature);
             requestBody.put("top_p", topP);
-            requestBody.put("max_tokens", aiConfig.getMaxTokens());
+            requestBody.put("max_tokens", maxTokens);
+            if (presencePenalty != null) {
+                requestBody.put("presence_penalty", presencePenalty);
+            }
+            if (frequencyPenalty != null) {
+                requestBody.put("frequency_penalty", frequencyPenalty);
+            }
 
             log.info("AI请求: userId={}, conversationId={}, role={}, model={}, webSearch={}, deepThink={}",
                     userId, conversationId, agentType, 
@@ -288,6 +304,14 @@ public class AiServiceImpl implements AiService {
             Double topP = chatRequest.getTopP() != null
                     ? chatRequest.getTopP()
                     : AiPromptConfig.getTopP(agentType);
+            Integer maxTokens = chatRequest.getMaxReplyLength() != null && chatRequest.getMaxReplyLength() > 0
+                    ? chatRequest.getMaxReplyLength()
+                    : (AiPromptConfig.getMaxTokens(agentType) != null
+                            ? AiPromptConfig.getMaxTokens(agentType) : aiConfig.getMaxTokens());
+            Double presencePenalty = AiPromptConfig.getPresencePenalty(agentType);
+            Double frequencyPenalty = chatRequest.getRepetitionPenalty() != null
+                    ? (chatRequest.getRepetitionPenalty() > 1.0 ? chatRequest.getRepetitionPenalty() - 1.0 : 0.0)
+                    : AiPromptConfig.getFrequencyPenalty(agentType);
 
             if (conversationId == null) {
                 AiConversation newConversation = chatCacheService.createConversation(userId, agentType, null);
@@ -396,14 +420,12 @@ public class AiServiceImpl implements AiService {
             requestBody.put("temperature", temperature);
             requestBody.put("top_p", topP);
             requestBody.put("stream", true);
-            if (chatRequest.getMaxReplyLength() != null && chatRequest.getMaxReplyLength() > 0) {
-                requestBody.put("max_tokens", chatRequest.getMaxReplyLength());
-            } else {
-                requestBody.put("max_tokens", aiConfig.getMaxTokens());
+            requestBody.put("max_tokens", maxTokens);
+            if (presencePenalty != null) {
+                requestBody.put("presence_penalty", presencePenalty);
             }
-            if (chatRequest.getRepetitionPenalty() != null) {
-                requestBody.put("frequency_penalty", chatRequest.getRepetitionPenalty() > 1.0
-                        ? chatRequest.getRepetitionPenalty() - 1.0 : 0.0);
+            if (frequencyPenalty != null) {
+                requestBody.put("frequency_penalty", frequencyPenalty);
             }
 
             StringBuilder fullReply = new StringBuilder();

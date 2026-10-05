@@ -1,6 +1,7 @@
 package cn.kmbeast.core.provider;
 
 import cn.kmbeast.config.AiConfig;
+import cn.kmbeast.core.http.HttpClientFactory;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
@@ -25,6 +26,10 @@ public class LLMProviderFactory {
     @Resource
     private AiConfig aiConfig;
 
+    /** 2026-10-04：共享 HTTP 客户端（统一超时/连接池/线程池上限，避免各处自建导致线程与连接被放大 N 倍） */
+    @jakarta.annotation.Resource
+    private HttpClientFactory httpClientFactory;
+
     private OkHttpClient httpClient;
 
     private final Map<String, LLMProvider> cache = new ConcurrentHashMap<>();
@@ -37,11 +42,8 @@ public class LLMProviderFactory {
             configured = DeepSeekProvider.ID;
         }
         cachedProviderId = normalize(configured);
-        this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(aiConfig.getConnectTimeout(), TimeUnit.MILLISECONDS)
-                .readTimeout(aiConfig.getReadTimeout(), TimeUnit.MILLISECONDS)
-                .connectionPool(new ConnectionPool(10, 5, TimeUnit.MINUTES))
-                .build();
+        // 2026-10-04：统一走共享工厂（原为自建，与其他 LLM 调用方重复占用连接池）
+        this.httpClient = httpClientFactory.llmClient();
         log.info("[LLMProviderFactory] active provider = {} (configured: {})", cachedProviderId, configured);
     }
 

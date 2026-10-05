@@ -7,6 +7,7 @@ import cn.kmbeast.pojo.entity.AiConversation;
 import cn.kmbeast.service.AiChatCacheService;
 import cn.kmbeast.service.HistoryStorageService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,79 @@ public class AiChatCacheServiceImpl implements AiChatCacheService {
 
     private final ConcurrentHashMap<Integer, List<AiChatRecord>> messageCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Integer, AiConversation> conversationCache = new ConcurrentHashMap<>();
+
+    /**
+     * 缓存容量上限（2026-10-03 新增）。
+     *
+     * <p>此前两个 {@code ConcurrentHashMap} <b>无上限、无淘汰、无 TTL</b>，
+     * 而类中又没有定时清理，导致每次 AI 对话都往里 put，长期运行必然 OOM。
+     * 配合启动类新加的 {@code @EnableScheduling}，现由 {@link #evictOversizedCache()} 定期兜底。
+     */
+    private static final int MAX_CACHED_CONVERSATIONS = 500;
+
+    /** 单个会话最多缓存的消息条数，超出后丢弃最旧的（完整历史仍在 MySQL 中） */
+    private static final int MAX_MESSAGES_PER_CONVERSATION = 100;
+
+    /**
+     * 定时清理超限缓存（每 10 分钟）。
+     *
+     * <p>⚠️ 本方法此前不存在，且启动类缺少 {@code @EnableScheduling}，
+     * 是「无界缓存必然 OOM」隐患的关键一环。开启后请观察日志中的淘汰记录。
+     */
+    @Scheduled(fixedDelay = 10 * 60 * 1000, initialDelay = 60 * 1000)
+    public void evictOversizedCache() {
+        try {
+            int evictedConversations = 0;
+            int truncatedSessions = 0;
+
+            // 1) 会话数超限：按 lastMessageTime 由旧到新淘汰，保证最近活跃的会话留在内存
+            if (conversationCache.size() > MAX_CACHED_CONVERSATIONS) {
+                List<Integer> ids = new ArrayList<>(conversationCache.keySet());
+                ids.sort(Comparator.comparing(
+                        (Integer id) -> {
+                            AiConversation c = conversationCache.get(id);
+                            return c == null || c.getLastMessageTime() == null
+                                    ? LocalDateTime.MIN : c.getLastMessageTime();
+                        },
+                        Comparator.nullsFirst(Comparator.naturalOrder())));
+                int removeCount = conversationCache.size() - MAX_CACHED_CONVERSATIONS;
+                for (int i = 0; i < removeCount && i < ids.size(); i++) {
+                    conversationCache.remove(ids.get(i));
+                    messageCache.remove(ids.get(i));
+                    evictedConversations++;
+                }
+            }
+
+            // 2) 单会话消息数超限：截断保留最近 N 条（完整历史可从 MySQL 重新加载）
+            for (Map.Entry<Integer, List<AiChatRecord>> entry : messageCache.entrySet()) {
+                List<AiChatRecord> msgs = entry.getValue();
+                if (msgs != null && msgs.size() > MAX_MESSAGES_PER_CONVERSATION) {
+                    int overflow = msgs.size() - MAX_MESSAGES_PER_CONVERSATION;
+                    for (int i = 0; i < overflow; i++) {
+                        // List.remove(int) 返回「被移除的那个元素」而非 boolean，
+                        // 写成 if (!msgs.remove(0)) 会编译失败（!AiChatRecord 不是布尔表达式），
+                        // 且语义也不对：返回的元素可能是 null 但删除其实成功了。
+                        // 这里只关心「删没删掉」，用 isEmpty 兜底。
+                        if (msgs.isEmpty()) {
+                            break;
+                        }
+                        msgs.remove(0);
+                    }
+                    truncatedSessions++;
+                }
+            }
+
+            if (evictedConversations > 0 || truncatedSessions > 0) {
+                log.info("[Cache] 缓存清理: 淘汰会话={}, 截断会话={}, 当前会话数={}/{}, 当前消息数={}",
+                        evictedConversations, truncatedSessions,
+                        conversationCache.size(), MAX_CACHED_CONVERSATIONS,
+                        messageCache.values().stream().mapToInt(List::size).sum());
+            }
+        } catch (Exception e) {
+            // 清理失败绝不能影响主流程
+            log.warn("[Cache] 缓存清理异常: {}", e.getMessage());
+        }
+    }
 
     @Override
     @Transactional
@@ -207,14 +281,9 @@ public class AiChatCacheServiceImpl implements AiChatCacheService {
         return stats;
     }
 
-    @Override
-    public void persistToFile(Integer conversationId) {}
-
-    @Override
-    public boolean loadFromFile(Integer conversationId) { return false; }
-
-    @Override
-    public Map<String, Object> restoreAllFromJson() { return Collections.emptyMap(); }
+    // 2026-10-03 移除了 persistToFile / loadFromFile / restoreAllFromJson 三个空实现，
+    // 原因与接口中的说明一致：真实持久化由 HistoryStorageService 承担，
+    // 保留空壳只会让「从 JSON 备份恢复」接口返回假成功（详见 AiChatCacheService 注释）。
 
     private String getRoleName(String agentType) {
         switch (agentType != null ? agentType : "") {

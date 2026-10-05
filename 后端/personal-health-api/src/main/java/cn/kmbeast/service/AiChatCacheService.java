@@ -101,25 +101,19 @@ public interface AiChatCacheService {
      */
     Map<String, Object> getCacheStats();
 
-    /**
-     * 将缓存持久化到JSON文件
-     *
-     * @param conversationId 会话ID
-     */
-    void persistToFile(Integer conversationId);
-
-    /**
-     * 从JSON文件加载缓存
-     *
-     * @param conversationId 会话ID
-     * @return 是否加载成功
-     */
-    boolean loadFromFile(Integer conversationId);
-
-    /**
-     * 从所有JSON备份文件恢复数据到数据库
-     *
-     * @return 恢复结果统计
-     */
-    Map<String, Object> restoreAllFromJson();
+    // =========================================================================
+    // 2026-10-03 移除的接口：persistToFile / loadFromFile / restoreAllFromJson
+    //
+    // 移除原因：这三个方法的实现全是空壳（{} / return false / return emptyMap）。
+    //   其中 restoreAllFromJson 还被 POST /ai/restore-from-json 调用，
+    //   管理员点「从 JSON 备份恢复」会拿到 code=200 的「成功」响应但什么都没发生
+    //   ——典型的静默失败，比直接报错更危险。
+    //
+    // 实际持久化早已由 HistoryStorageService 承担
+    //   （saveConversation / loadConversations / loadMessages 均为真实实现，
+    //     且它就是主存储、并非「备份」），因此不存在需要「从 JSON 备份恢复」的场景。
+    //
+    // 如未来确需离线备份能力，应重新设计为独立的 BackupService，
+    // 而不是在缓存类里挂三个没有实现的方法。
+    // =========================================================================
 }

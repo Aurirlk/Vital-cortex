@@ -22,6 +22,23 @@ public class AiPromptConfig {
         private String systemPrompt;
         private Double temperature;
         private Double topP;
+        /** 单角色最大 token 数；null 表示继承全局 ai.max-tokens */
+        private Integer maxTokens;
+        /** 存在惩罚（-2.0 ~ 2.0） */
+        private Double presencePenalty;
+        /** 频率惩罚（-2.0 ~ 2.0） */
+        private Double frequencyPenalty;
+        /** 重复惩罚（0.0 ~ 2.0），用于抑制重复生成的内容 */
+        private Double repetitionPenalty;
+        /** 上下文轮数：携带的历史对话轮数（0 表示不携带历史） */
+        private Integer contextRounds;
+        /** 最大回复长度（0 表示不限） */
+        private Integer maxReplyLength;
+
+        public PresetConfig(String systemPrompt, Double temperature, Double topP) {
+            // 默认重复惩罚 1.0、上下文 5 轮、最大回复长度 2048（与前端兜底一致）
+            this(systemPrompt, temperature, topP, null, 0.0, 0.0, 1.0, 5, 2048);
+        }
     }
 
     @Data
@@ -255,7 +272,13 @@ public class AiPromptConfig {
                 PRESETS.put(role, new PresetConfig(
                         pc.getString("systemPrompt"),
                         pc.getDouble("temperature"),
-                        pc.getDouble("topP")));
+                        pc.getDouble("topP"),
+                        pc.getInteger("maxTokens"),
+                        pc.getDouble("presencePenalty"),
+                        pc.getDouble("frequencyPenalty"),
+                        pc.getDouble("repetitionPenalty"),
+                        pc.getInteger("contextRounds"),
+                        pc.getInteger("maxReplyLength")));
                 loaded++;
             }
             log.info("[Prompt] 已从外部文件加载 {} 个角色提示词: {}", loaded, PROMPTS_FILE.getAbsolutePath());
@@ -282,6 +305,12 @@ public class AiPromptConfig {
                 item.put("systemPrompt", pc.getSystemPrompt());
                 item.put("temperature", pc.getTemperature());
                 item.put("topP", pc.getTopP());
+                item.put("maxTokens", pc.getMaxTokens());
+                item.put("presencePenalty", pc.getPresencePenalty());
+                item.put("frequencyPenalty", pc.getFrequencyPenalty());
+                item.put("repetitionPenalty", pc.getRepetitionPenalty());
+                item.put("contextRounds", pc.getContextRounds());
+                item.put("maxReplyLength", pc.getMaxReplyLength());
                 presets.put(e.getKey(), item);
             }
             root.put("presets", presets);
@@ -309,6 +338,18 @@ public class AiPromptConfig {
         return getConfig(role).getTopP();
     }
 
+    public static Integer getMaxTokens(String role) {
+        return getConfig(role).getMaxTokens();
+    }
+
+    public static Double getPresencePenalty(String role) {
+        return getConfig(role).getPresencePenalty();
+    }
+
+    public static Double getFrequencyPenalty(String role) {
+        return getConfig(role).getFrequencyPenalty();
+    }
+
     public static void updateConfig(String role, PresetConfig config) {
         PRESETS.put(role, config);
         // SEC-16：热更新写回外部文件，重启不丢
@@ -331,6 +372,12 @@ public class AiPromptConfig {
                 item.put("systemPrompt", config.getSystemPrompt());
                 item.put("temperature", config.getTemperature());
                 item.put("topP", config.getTopP());
+                item.put("maxTokens", config.getMaxTokens());
+                item.put("presencePenalty", config.getPresencePenalty());
+                item.put("frequencyPenalty", config.getFrequencyPenalty());
+                item.put("repetitionPenalty", config.getRepetitionPenalty());
+                item.put("contextRounds", config.getContextRounds());
+                item.put("maxReplyLength", config.getMaxReplyLength());
             }
             result.add(item);
         }
@@ -346,8 +393,15 @@ public class AiPromptConfig {
             PRESETS.put(role, new PresetConfig(
                 defaultConfig.getSystemPrompt(),
                 defaultConfig.getTemperature(),
-                defaultConfig.getTopP()
+                defaultConfig.getTopP(),
+                defaultConfig.getMaxTokens(),
+                defaultConfig.getPresencePenalty(),
+                defaultConfig.getFrequencyPenalty(),
+                defaultConfig.getRepetitionPenalty(),
+                defaultConfig.getContextRounds(),
+                defaultConfig.getMaxReplyLength()
             ));
+            persistExternalOverrides();
             return true;
         }
         return false;
@@ -359,5 +413,6 @@ public class AiPromptConfig {
     public static void resetAllToDefault() {
         PRESETS.clear();
         PRESETS.putAll(DEFAULT_PRESETS);
+        persistExternalOverrides();
     }
 }

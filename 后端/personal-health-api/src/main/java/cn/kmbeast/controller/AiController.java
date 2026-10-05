@@ -359,6 +359,12 @@ public class AiController {
         result.put("systemPrompt", config.getSystemPrompt());
         result.put("temperature", config.getTemperature());
         result.put("topP", config.getTopP());
+        result.put("maxTokens", config.getMaxTokens());
+        result.put("presencePenalty", config.getPresencePenalty());
+        result.put("frequencyPenalty", config.getFrequencyPenalty());
+        result.put("repetitionPenalty", config.getRepetitionPenalty());
+        result.put("contextRounds", config.getContextRounds());
+        result.put("maxReplyLength", config.getMaxReplyLength());
         return ApiResult.success(result);
     }
 
@@ -374,22 +380,73 @@ public class AiController {
             return ApiResult.error("角色不存在");
         }
 
+        // 修改配置需要管理员密码验证
+        String password = (String) configData.get("password");
+        if (password == null || password.isEmpty()) {
+            return ApiResult.error("请输入管理员密码");
+        }
+        Integer userId = LocalThreadHolder.getUserId();
+        User admin = userMapper.getByActive(User.builder().id(userId).build());
+        if (admin == null || !passwordEncoder.matches(password, admin.getUserPwd())) {
+            return ApiResult.error("密码验证失败");
+        }
+
         String systemPrompt = (String) configData.getOrDefault("systemPrompt", existing.getSystemPrompt());
         Double temperature = configData.containsKey("temperature")
                 ? ((Number) configData.get("temperature")).doubleValue() : existing.getTemperature();
         Double topP = configData.containsKey("topP")
                 ? ((Number) configData.get("topP")).doubleValue() : existing.getTopP();
+        Integer maxTokens = configData.containsKey("maxTokens")
+                ? (configData.get("maxTokens") == null ? null : ((Number) configData.get("maxTokens")).intValue())
+                : existing.getMaxTokens();
+        Double presencePenalty = configData.containsKey("presencePenalty")
+                ? (configData.get("presencePenalty") == null ? null : ((Number) configData.get("presencePenalty")).doubleValue())
+                : existing.getPresencePenalty();
+        Double frequencyPenalty = configData.containsKey("frequencyPenalty")
+                ? (configData.get("frequencyPenalty") == null ? null : ((Number) configData.get("frequencyPenalty")).doubleValue())
+                : existing.getFrequencyPenalty();
+        Double repetitionPenalty = configData.containsKey("repetitionPenalty")
+                ? (configData.get("repetitionPenalty") == null ? null : ((Number) configData.get("repetitionPenalty")).doubleValue())
+                : existing.getRepetitionPenalty();
+        Integer contextRounds = configData.containsKey("contextRounds")
+                ? (configData.get("contextRounds") == null ? null : ((Number) configData.get("contextRounds")).intValue())
+                : existing.getContextRounds();
+        Integer maxReplyLength = configData.containsKey("maxReplyLength")
+                ? (configData.get("maxReplyLength") == null ? null : ((Number) configData.get("maxReplyLength")).intValue())
+                : existing.getMaxReplyLength();
 
         // 参数校验
-        if (temperature < 0 || temperature > 2) {
+        if (temperature == null || temperature < 0 || temperature > 2) {
             return ApiResult.error("Temperature 必须在 0-2 之间");
         }
-        if (topP < 0 || topP > 1) {
+        if (topP == null || topP < 0 || topP > 1) {
             return ApiResult.error("Top-P 必须在 0-1 之间");
         }
+        if (maxTokens != null && (maxTokens < 1 || maxTokens > 8192)) {
+            return ApiResult.error("Max Tokens 必须在 1-8192 之间");
+        }
+        if (presencePenalty != null && (presencePenalty < -2 || presencePenalty > 2)) {
+            return ApiResult.error("Presence Penalty 必须在 -2~2 之间");
+        }
+        if (frequencyPenalty != null && (frequencyPenalty < -2 || frequencyPenalty > 2)) {
+            return ApiResult.error("Frequency Penalty 必须在 -2~2 之间");
+        }
+        if (repetitionPenalty != null && (repetitionPenalty < 0 || repetitionPenalty > 2)) {
+            return ApiResult.error("重复惩罚必须在 0~2 之间（>1 减少重复，<1 鼓励重复）");
+        }
+        if (contextRounds != null && (contextRounds < 0 || contextRounds > 50)) {
+            return ApiResult.error("上下文轮数必须在 0~50 之间");
+        }
+        if (maxReplyLength != null && (maxReplyLength < 0 || maxReplyLength > 32768)) {
+            return ApiResult.error("最大回复长度必须在 0~32768 之间（0 = 不限制）");
+        }
 
-        AiPromptConfig.updateConfig(role, new AiPromptConfig.PresetConfig(systemPrompt, temperature, topP));
-        log.info("[AI配置] 角色 {} 配置已更新: temp={}, topP={}", role, temperature, topP);
+        AiPromptConfig.updateConfig(role, new AiPromptConfig.PresetConfig(
+                systemPrompt, temperature, topP, maxTokens, presencePenalty, frequencyPenalty,
+                repetitionPenalty, contextRounds, maxReplyLength));
+        log.info("[AI配置] 管理员 {} 更新角色 {} 配置: temp={}, topP={}, maxTokens={}, presencePenalty={}, frequencyPenalty={}, repetitionPenalty={}, contextRounds={}, maxReplyLength={}",
+                userId, role, temperature, topP, maxTokens, presencePenalty, frequencyPenalty,
+                repetitionPenalty, contextRounds, maxReplyLength);
         return ApiResult.success("配置已更新");
     }
 
@@ -449,12 +506,22 @@ public class AiController {
 
     /**
      * 从JSON备份文件恢复数据到数据库（管理员）
+     *
+     * @deprecated 2026-10-03 该功能是空壳：底层 {@code restoreAllFromJson()} 恒返回空集合，
+     *     调用本接口只会得到 code=200 的「成功」响应但实际什么都没发生（静默失败）。
+     *     真实持久化一直由 {@code HistoryStorageService} 承担，且它就是主存储、并非备份，
+     *     因此不存在「从 JSON 备份恢复」的场景。现改为明确返回废弃说明，
+     *     待确认无前端依赖后再移除本端点。
      */
+    @Deprecated
     @Protector(role = "管理员")
     @PostMapping(value = "/restore-from-json")
     public Result<Map<String, Object>> restoreFromJson() {
-        log.info("[AI] 开始从JSON备份文件恢复数据到数据库");
-        Map<String, Object> result = chatCacheService.restoreAllFromJson();
+        log.warn("[AI] /ai/restore-from-json 被调用，但该功能从未实现，现返回明确的废弃说明");
+        Map<String, Object> result = new HashMap<>();
+        result.put("deprecated", true);
+        result.put("message", "该功能从未实现，已废弃。AI 对话数据直接存储于数据库，无需从 JSON 备份恢复。");
+        result.put("action", "如需离线备份，请使用数据库层面的备份工具（mysqldump）。");
         return ApiResult.success(result);
     }
 }
