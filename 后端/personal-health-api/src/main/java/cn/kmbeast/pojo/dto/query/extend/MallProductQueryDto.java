@@ -8,6 +8,7 @@ import lombok.EqualsAndHashCode;
 @Data
 public class MallProductQueryDto extends QueryDto {
     private Integer categoryId;
+    private String productType;
     private String name;
     private Integer status;
     private Integer isHot;

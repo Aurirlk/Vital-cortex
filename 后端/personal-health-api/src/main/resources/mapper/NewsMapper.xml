@@ -1,36 +1,68 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  内容 Mapper（2026-10-03 news 吸收 post 后统一为一张 news 表）
+
+  关键约定：
+    1. 标题统一用 title 字段；旧 name 迁移期并存（title 由 name 回填），
+       查询时若传 name 关键字，需同时匹配 title 与 name 以兼容存量数据。
+    2. content_type 区分 NEWS资讯 / POST帖子 / ARTICLE文章；不传时不过滤，
+       保证旧接口行为不变；显式传值时按类型筛选。
+    3. 列名显式列出，避免 SELECT * 在表结构变更后静默错映射。
+  结构基线见 docs/数据表结构基线-20261003.md
+-->
 <mapper namespace="cn.kmbeast.mapper.NewsMapper">
 
-    <insert id="save">
-        INSERT INTO news (name, content, tag_id, cover, reader_ids, is_top, is_banner, create_time)
-        VALUES (#{name}, #{content}, #{tagId}, #{cover}, #{readerIds}, #{isTop}, #{isBanner}, #{createTime})
+    <sql id="BaseColumns">
+        n.id, n.content_type, n.user_id, n.title, n.name, n.summary, n.content,
+        n.tag_id, n.cover, n.reader_ids, n.view_count, n.like_count,
+        n.favorite_count, n.comment_count, n.share_count, n.hot_score,
+        n.is_top, n.is_banner, n.status, n.published_at, n.create_time, n.updated_at
+    </sql>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO news (content_type, user_id, title, name, summary, content, tag_id, cover,
+                          view_count, like_count, favorite_count, comment_count, share_count,
+                          hot_score, status, is_top, is_banner, published_at, create_time, updated_at)
+        VALUES (
+            <choose>
+                <when test="contentType != null and contentType != ''">#{contentType}</when>
+                <otherwise>'NEWS'</otherwise>
+            </choose>,
+            #{userId}, #{title}, #{name}, #{summary}, #{content}, #{tagId}, #{cover},
+            <choose><when test="viewCount != null">#{viewCount}</when><otherwise>0</otherwise></choose>,
+            <choose><when test="likeCount != null">#{likeCount}</when><otherwise>0</otherwise></choose>,
+            <choose><when test="favoriteCount != null">#{favoriteCount}</when><otherwise>0</otherwise></choose>,
+            <choose><when test="commentCount != null">#{commentCount}</when><otherwise>0</otherwise></choose>,
+            <choose><when test="shareCount != null">#{shareCount}</when><otherwise>0</otherwise></choose>,
+            <choose><when test="hotScore != null">#{hotScore}</when><otherwise>0</otherwise></choose>,
+            <choose><when test="status != null">#{status}</when><otherwise>1</otherwise></choose>,
+            #{isTop}, #{isBanner}, #{publishedAt}, #{createTime}, #{updatedAt}
+        )
     </insert>
 
     <update id="update">
         UPDATE news
         <set>
-            <if test="name != null and name != ''">
-                name = #{name},
-            </if>
-            <if test="content != null and content != ''">
-                content = #{content},
-            </if>
-            <if test="tagId != null">
-                tag_id = #{tagId},
-            </if>
-            <if test="cover != null and cover != ''">
-                cover = #{cover},
-            </if>
-            <if test="readerIds != null and readerIds != ''">
-                reader_ids = #{readerIds},
-            </if>
-            <if test="isTop != null">
-                is_top = #{isTop},
-            </if>
-            <if test="isBanner != null">
-                is_banner = #{isBanner},
-            </if>
+            <if test="contentType != null and contentType != ''">content_type = #{contentType},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="title != null and title != ''">title = #{title},</if>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="summary != null">summary = #{summary},</if>
+            <if test="content != null and content != ''">content = #{content},</if>
+            <if test="tagId != null">tag_id = #{tagId},</if>
+            <if test="cover != null and cover != ''">cover = #{cover},</if>
+            <if test="readerIds != null and readerIds != ''">reader_ids = #{readerIds},</if>
+            <if test="viewCount != null">view_count = #{viewCount},</if>
+            <if test="likeCount != null">like_count = #{likeCount},</if>
+            <if test="favoriteCount != null">favorite_count = #{favoriteCount},</if>
+            <if test="commentCount != null">comment_count = #{commentCount},</if>
+            <if test="shareCount != null">share_count = #{shareCount},</if>
+            <if test="hotScore != null">hot_score = #{hotScore},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="isTop != null">is_top = #{isTop},</if>
+            <if test="isBanner != null">is_banner = #{isBanner},</if>
+            <if test="publishedAt != null">published_at = #{publishedAt},</if>
         </set>
         WHERE id = #{id}
     </update>
@@ -42,83 +74,54 @@
         </foreach>
     </delete>
 
-    <select id="query" resultMap="BaseResultMap">
+    <sql id="QueryFilter">
+        <if test="name != null and name != ''">
+            <!-- 迁移期兼容：同时匹配统一标题 title 与旧字段 name -->
+            AND (n.title LIKE CONCAT('%', #{name}, '%') OR n.name LIKE CONCAT('%', #{name}, '%'))
+        </if>
+        <if test="contentType != null and contentType != ''">AND n.content_type = #{contentType}</if>
+        <if test="userId != null">AND n.user_id = #{userId}</if>
+        <if test="tagId != null">AND n.tag_id = #{tagId}</if>
+        <if test="isTop != null">AND n.is_top = #{isTop}</if>
+        <if test="isBanner != null">AND n.is_banner = #{isBanner}</if>
+        <if test="status != null">AND n.status = #{status}</if>
+        <if test="startTime != null and endTime != null">AND n.create_time BETWEEN #{startTime} AND #{endTime}</if>
+    </sql>
 
-        SELECT n.*,t.name AS tag_name
+    <select id="query" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>, t.name AS tag_name
         FROM news n
         LEFT JOIN tags t ON t.id = n.tag_id
         <where>
-            <if test="name != null and name != ''">
-                AND n.name LIKE concat('%',#{name},'%')
-            </if>
-            <if test="tagId != null">
-                AND n.tag_id = #{tagId}
-            </if>
-            <if test="isTop != null">
-                AND n.is_top = #{isTop}
-            </if>
-            <if test="isBanner != null">
-                AND n.is_banner = #{isBanner}
-            </if>
-            <if test="startTime != null and endTime != null">
-                AND n.create_time BETWEEN #{startTime} AND #{endTime}
-            </if>
+            <include refid="QueryFilter"/>
         </where>
-        ORDER BY n.id DESC
+        ORDER BY n.is_top DESC, n.id DESC
         <if test="current != null and size != null">
             LIMIT #{current},#{size}
         </if>
     </select>
 
     <select id="queryCount" resultType="integer">
-
         SELECT COUNT(*)
         FROM news n
         <where>
-            <if test="name != null and name != ''">
-                AND n.name LIKE concat('%',#{name},'%')
-            </if>
-            <if test="tagId != null">
-                AND n.tag_id = #{tagId}
-            </if>
-            <if test="isTop != null">
-                AND n.is_top = #{isTop}
-            </if>
-            <if test="isBanner != null">
-                AND n.is_banner = #{isBanner}
-            </if>
-            <if test="startTime != null and endTime != null">
-                AND n.create_time BETWEEN #{startTime} AND #{endTime}
-            </if>
+            <include refid="QueryFilter"/>
         </where>
-
     </select>
-
-    <!-- 通用查询映射结果 -->
-    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.vo.NewsVO">
-        <id column="id" property="id"/>
-        <result column="name" property="name"/>
-        <result column="content" property="content"/>
-        <result column="tag_id" property="tagId"/>
-        <result column="cover" property="cover"/>
-        <result column="reader_ids" property="readerIds"/>
-        <result column="is_top" property="isTop"/>
-        <result column="is_banner" property="isBanner"/>
-        <result column="create_time" property="createTime"/>
-        <result column="tag_name" property="tagName"/>
-    </resultMap>
 
     <!-- RAG知识库检索 — 多关键词匹配标题和内容 -->
     <select id="ragSearch" resultMap="BaseResultMap">
-        SELECT DISTINCT n.*, t.name AS tag_name
+        SELECT DISTINCT <include refid="BaseColumns"/>, t.name AS tag_name
         FROM news n
         LEFT JOIN tags t ON t.id = n.tag_id
         WHERE
         <foreach collection="keywords" item="kw" separator=" OR ">
-            n.name LIKE CONCAT('%', #{kw}, '%') OR n.content LIKE CONCAT('%', #{kw}, '%')
+            n.title LIKE CONCAT('%', #{kw}, '%')
+            OR n.name LIKE CONCAT('%', #{kw}, '%')
+            OR n.content LIKE CONCAT('%', #{kw}, '%')
         </foreach>
         ORDER BY
-            (CASE WHEN n.name LIKE CONCAT('%', #{keywords[0]}, '%') THEN 0 ELSE 1 END),
+            (CASE WHEN n.title LIKE CONCAT('%', #{keywords[0]}, '%') THEN 0 ELSE 1 END),
             n.is_top DESC,
             n.create_time DESC
         LIMIT #{limit}
@@ -126,10 +129,181 @@
 
     <!-- RAG ingestion：全量文章（用于向量库灌数） -->
     <select id="selectAllForRag" resultMap="BaseResultMap">
-        SELECT n.*, t.name AS tag_name
+        SELECT <include refid="BaseColumns"/>, t.name AS tag_name
         FROM news n
         LEFT JOIN tags t ON t.id = n.tag_id
         WHERE n.content IS NOT NULL AND n.content != ''
         ORDER BY n.id ASC
     </select>
+
+    <!-- 按 ID 批量查资讯（2026-10-04 表合并：服务「我的收藏」列表）
+         IN 查询避免逐条 select 的 N+1 问题 -->
+    <select id="selectByIds" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>, t.name AS tag_name
+        FROM news n
+        LEFT JOIN tags t ON t.id = n.tag_id
+        WHERE n.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+
+    <!-- ==================== 帖子能力（post 表并入 news） ====================
+         帖子 = news 表中 content_type='POST' 的行。
+         每条语句都强制带该条件，避免与资讯（NEWS）混淆。 -->
+
+    <sql id="PostFilter">
+        n.content_type = 'POST'
+        <if test="dto != null">
+            <if test="dto.title != null and dto.title != ''">
+                AND n.title LIKE CONCAT('%', #{dto.title}, '%')
+            </if>
+            <if test="dto.tagId != null">AND n.tag_id = #{dto.tagId}</if>
+            <if test="dto.userId != null">AND n.user_id = #{dto.userId}</if>
+            <if test="dto.status != null">AND n.status = #{dto.status}</if>
+            <if test="dto.isTop != null">AND n.is_top = #{dto.isTop}</if>
+            <if test="dto.keyword != null and dto.keyword != ''">
+                AND (n.title LIKE CONCAT('%', #{dto.keyword}, '%')
+                     OR n.content LIKE CONCAT('%', #{dto.keyword}, '%'))
+            </if>
+        </if>
+    </sql>
+
+    <select id="queryPosts" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>, t.name AS tag_name
+        FROM news n
+        LEFT JOIN tags t ON t.id = n.tag_id
+        <where>
+            <include refid="PostFilter"/>
+            <if test="dto != null and dto.startTime != null and dto.endTime != null">
+                AND n.create_time BETWEEN #{dto.startTime} AND #{dto.endTime}
+            </if>
+        </where>
+        <!-- orderBy=hot 时按热度倒序，否则按置顶+时间 -->
+        <choose>
+            <when test="dto != null and dto.orderBy != null and dto.orderBy == 'hot'">
+                ORDER BY n.hot_score DESC, n.id DESC
+            </when>
+            <otherwise>
+                ORDER BY n.is_top DESC, n.id DESC
+            </otherwise>
+        </choose>
+        <if test="dto != null and dto.current != null and dto.size != null">
+            LIMIT #{dto.current}, #{dto.size}
+        </if>
+    </select>
+
+    <select id="countPosts" resultType="integer">
+        SELECT COUNT(*)
+        FROM news n
+        <where>
+            <include refid="PostFilter"/>
+            <if test="dto != null and dto.startTime != null and dto.endTime != null">
+                AND n.create_time BETWEEN #{dto.startTime} AND #{dto.endTime}
+            </if>
+        </where>
+    </select>
+
+    <select id="getPostById" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>, t.name AS tag_name
+        FROM news n
+        LEFT JOIN tags t ON t.id = n.tag_id
+        WHERE n.id = #{id} AND n.content_type = 'POST'
+    </select>
+
+    <insert id="insertPost" useGeneratedKeys="true" keyProperty="post.id">
+        INSERT INTO news (content_type, user_id, title, name, content, cover, tag_id,
+                          view_count, like_count, favorite_count, comment_count, share_count,
+                          hot_score, status, is_top, create_time, update_time)
+        VALUES ('POST', #{post.userId}, #{post.title}, #{post.title}, #{post.content}, #{post.cover},
+                #{post.tagId}, COALESCE(#{post.viewCount}, 0), COALESCE(#{post.likeCount}, 0),
+                COALESCE(#{post.favoriteCount}, 0), COALESCE(#{post.commentCount}, 0),
+                COALESCE(#{post.shareCount}, 0), COALESCE(#{post.hotScore}, 0),
+                COALESCE(#{post.status}, 1), COALESCE(#{post.isTop}, 0),
+                #{post.createTime}, #{post.updateTime})
+    </insert>
+
+    <update id="updatePost">
+        UPDATE news
+        <set>
+            <if test="post.title != null">title = #{post.title},</if>
+            <if test="post.content != null">content = #{post.content},</if>
+            <if test="post.cover != null">cover = #{post.cover},</if>
+            <if test="post.tagId != null">tag_id = #{post.tagId},</if>
+            <if test="post.status != null">status = #{post.status},</if>
+            <if test="post.isTop != null">is_top = #{post.isTop},</if>
+            <if test="post.updateTime != null">update_time = #{post.updateTime},</if>
+        </set>
+        WHERE id = #{post.id} AND content_type = 'POST'
+    </update>
+
+    <!-- 软删除：置 status=2（已下架），保留数据便于回溯与审计 -->
+    <update id="deletePost">
+        UPDATE news SET status = 2, update_time = NOW()
+        WHERE content_type = 'POST' AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <update id="incrementPostView">
+        UPDATE news SET view_count = COALESCE(view_count, 0) + 1
+        WHERE id = #{id} AND content_type = 'POST'
+    </update>
+
+    <!-- delta 为 +1/-1；GREATEST 兜底防止减成负数 -->
+    <update id="addPostLikeCount">
+        UPDATE news SET like_count = GREATEST(COALESCE(like_count, 0) + #{delta}, 0)
+        WHERE id = #{id} AND content_type = 'POST'
+    </update>
+
+    <update id="addPostFavoriteCount">
+        UPDATE news SET favorite_count = GREATEST(COALESCE(favorite_count, 0) + #{delta}, 0)
+        WHERE id = #{id} AND content_type = 'POST'
+    </update>
+
+    <update id="incrementPostCommentCount">
+        UPDATE news SET comment_count = COALESCE(comment_count, 0) + 1
+        WHERE id = #{id} AND content_type = 'POST'
+    </update>
+
+    <update id="updatePostHotScore">
+        UPDATE news SET hot_score = #{hotScore}
+        WHERE id = #{id} AND content_type = 'POST'
+    </update>
+
+    <select id="countPostsToday" resultType="integer">
+        SELECT COUNT(*) FROM news
+        WHERE content_type = 'POST' AND DATE(create_time) = CURDATE()
+    </select>
+
+    <select id="topPostsByHotScore" resultType="map">
+        SELECT id, title, hot_score AS hotScore, view_count AS viewCount, like_count AS likeCount
+        FROM news
+        WHERE content_type = 'POST' AND status = 1
+        ORDER BY hot_score DESC, view_count DESC
+        LIMIT #{limit}
+    </select>
+
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.vo.NewsVO">
+        <id column="id" property="id"/>
+        <result column="content_type" property="contentType"/>
+        <result column="user_id" property="userId"/>
+        <result column="title" property="title"/>
+        <result column="name" property="name"/>
+        <result column="summary" property="summary"/>
+        <result column="content" property="content"/>
+        <result column="tag_id" property="tagId"/>
+        <result column="cover" property="cover"/>
+        <result column="reader_ids" property="readerIds"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="favorite_count" property="favoriteCount"/>
+        <result column="comment_count" property="commentCount"/>
+        <result column="share_count" property="shareCount"/>
+        <result column="hot_score" property="hotScore"/>
+        <result column="is_top" property="isTop"/>
+        <result column="is_banner" property="isBanner"/>
+        <result column="status" property="status"/>
+        <result column="published_at" property="publishedAt"/>
+        <result column="create_time" property="createTime"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="tag_name" property="tagName"/>
+    </resultMap>
 </mapper>

@@ -9,6 +9,8 @@ import java.time.LocalDateTime;
 public class MallProduct {
     private Integer id;
     private Integer categoryId;
+    /** 商品类型：drug=药品, device=医疗器械, health=保健品 */
+    private String productType;
     private String name;
     private String description;
     private String cover;

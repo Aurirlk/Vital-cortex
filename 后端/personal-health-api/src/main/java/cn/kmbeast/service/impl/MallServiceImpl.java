@@ -177,8 +177,19 @@ public class MallServiceImpl implements MallService {
     }
 
     @Override
+    public Result<Void> updateOrderStatus(MallOrder order) {
+        orderMapper.update(order);
+        return ApiResult.success();
+    }
+
+    @Override
     public Result<List<MallOrderVO>> getUserOrders(Integer userId) {
         return ApiResult.success(orderMapper.queryByUserId(userId));
+    }
+
+    @Override
+    public Result<List<MallOrderVO>> getAllOrders() {
+        return ApiResult.success(orderMapper.queryAll());
     }
 
     @Override

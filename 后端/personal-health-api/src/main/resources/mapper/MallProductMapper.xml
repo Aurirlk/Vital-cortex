@@ -2,13 +2,14 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.kmbeast.mapper.MallProductMapper">
     <insert id="save" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO mall_product (category_id, name, description, cover, price, original_price, stock, sales_count, unit, status, is_hot, is_new, create_time)
-        VALUES (#{categoryId}, #{name}, #{description}, #{cover}, #{price}, #{originalPrice}, #{stock}, #{salesCount}, #{unit}, #{status}, #{isHot}, #{isNew}, #{createTime})
+        INSERT INTO mall_product (category_id, product_type, name, description, cover, price, original_price, stock, sales_count, unit, status, is_hot, is_new, create_time)
+        VALUES (#{categoryId}, #{productType}, #{name}, #{description}, #{cover}, #{price}, #{originalPrice}, #{stock}, #{salesCount}, #{unit}, #{status}, #{isHot}, #{isNew}, #{createTime})
     </insert>
     <update id="update">
         UPDATE mall_product
         <set>
             <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="productType != null">product_type = #{productType},</if>
             <if test="name != null">name = #{name},</if>
             <if test="description != null">description = #{description},</if>
             <if test="cover != null">cover = #{cover},</if>
@@ -32,6 +33,7 @@
         LEFT JOIN product_category pc ON pc.id = p.category_id
         <where>
             <if test="categoryId != null">AND p.category_id = #{categoryId}</if>
+            <if test="productType != null and productType != ''">AND p.product_type = #{productType}</if>
             <if test="name != null and name != ''">AND p.name LIKE CONCAT('%', #{name}, '%')</if>
             <if test="status != null">AND p.status = #{status}</if>
             <if test="isHot != null">AND p.is_hot = #{isHot}</if>
@@ -48,6 +50,7 @@
         SELECT COUNT(*) FROM mall_product p
         <where>
             <if test="categoryId != null">AND p.category_id = #{categoryId}</if>
+            <if test="productType != null and productType != ''">AND p.product_type = #{productType}</if>
             <if test="name != null and name != ''">AND p.name LIKE CONCAT('%', #{name}, '%')</if>
             <if test="status != null">AND p.status = #{status}</if>
             <if test="isHot != null">AND p.is_hot = #{isHot}</if>
@@ -71,6 +74,7 @@
     <resultMap id="ProductResultMap" type="cn.kmbeast.pojo.vo.MallProductVO">
         <id column="id" property="id"/>
         <result column="category_id" property="categoryId"/>
+        <result column="product_type" property="productType"/>
         <result column="name" property="name"/>
         <result column="description" property="description"/>
         <result column="cover" property="cover"/>

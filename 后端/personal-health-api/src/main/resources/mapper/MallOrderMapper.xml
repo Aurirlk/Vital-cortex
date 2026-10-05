@@ -18,6 +18,11 @@
     <select id="queryByUserId" resultMap="OrderResultMap">
         SELECT o.* FROM mall_order o WHERE o.user_id = #{userId} ORDER BY o.create_time DESC
     </select>
+    <select id="queryAll" resultMap="OrderResultMap">
+        SELECT o.*, u.user_name AS user_name FROM mall_order o
+        LEFT JOIN `user` u ON u.id = o.user_id
+        ORDER BY o.create_time DESC
+    </select>
     <select id="getById" resultMap="OrderResultMap">
         SELECT o.* FROM mall_order o WHERE o.id = #{id}
     </select>
@@ -28,6 +33,7 @@
         <id column="id" property="id"/>
         <result column="order_no" property="orderNo"/>
         <result column="user_id" property="userId"/>
+        <result column="user_name" property="userName"/>
         <result column="total_amount" property="totalAmount"/>
         <result column="actual_amount" property="actualAmount"/>
         <result column="status" property="status"/>

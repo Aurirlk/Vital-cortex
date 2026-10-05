@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+  统一评论 Mapper（2026-10-03 合并 evaluations + post_reply）
+
+  设计要点：
+    1. 多态：target_type + target_id，避免为每个内容类型建一张评论表
+    2. 树形：parent_id，一级评论 parent_id IS NULL
+    3. 软删：status=0，避免父评论删除后子回复「塌陷」或产生悬空引用
+    4. 列表查询用 JOIN 一次性取回评论人昵称/头像，规避 N+1 调用
+    5. 列名显式列出，不用 SELECT *
+-->
+<mapper namespace="cn.kmbeast.mapper.CommentMapper">
+
+    <sql id="BaseColumns">
+        c.id, c.target_type, c.target_id, c.user_id, c.reply_to_id, c.parent_id,
+        c.content, c.like_count, c.upvote_list, c.status, c.create_time
+    </sql>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO comment (target_type, target_id, user_id, reply_to_id, parent_id,
+                             content, like_count, upvote_list, status, create_time)
+        VALUES (#{targetType}, #{targetId}, #{userId}, #{replyToId}, #{parentId},
+                #{content},
+                <choose><when test="likeCount != null">#{likeCount}</when><otherwise>0</otherwise></choose>,
+                #{upvoteList},
+                <choose><when test="status != null">#{status}</when><otherwise>1</otherwise></choose>,
+                #{createTime})
+    </insert>
+
+    <update id="update">
+        UPDATE comment
+        <set>
+            <if test="content != null and content != ''">content = #{content},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="softDelete">
+        UPDATE comment SET status = 0 WHERE id = #{id}
+    </update>
+
+    <delete id="batchDelete">
+        DELETE FROM comment WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <!-- 一级评论：JOIN 用户表补昵称/头像，并统计子回复数（一次查完，避免 N+1） -->
+    <select id="queryRoots" resultMap="CommentResultMap">
+        SELECT <include refid="BaseColumns"/>,
+               u.user_name AS user_name,
+               u.user_avatar AS user_avatar,
+               (SELECT COUNT(*) FROM comment ch
+                 WHERE ch.parent_id = c.id AND ch.status = 1) AS child_count
+        FROM comment c
+        LEFT JOIN user u ON u.id = c.user_id
+        WHERE c.status = 1
+          AND c.parent_id IS NULL
+          AND c.target_type = #{targetType}
+          AND c.target_id = #{targetId}
+        ORDER BY c.create_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countRoots" resultType="int">
+        SELECT COUNT(*)
+        FROM comment c
+        WHERE c.status = 1 AND c.parent_id IS NULL
+          AND c.target_type = #{targetType}
+          AND c.target_id = #{targetId}
+    </select>
+
+    <!-- 子回复：补被回复人昵称 -->
+    <select id="queryChildren" resultMap="CommentResultMap">
+        SELECT <include refid="BaseColumns"/>,
+               u.user_name AS user_name,
+               u.user_avatar AS user_avatar,
+               rt.user_name AS reply_to_name
+        FROM comment c
+        LEFT JOIN user u ON u.id = c.user_id
+        LEFT JOIN user rt ON rt.id = c.reply_to_id
+        WHERE c.status = 1 AND c.parent_id = #{parentId}
+        ORDER BY c.create_time ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="countChildren" resultType="int">
+        SELECT COUNT(*) FROM comment c
+        WHERE c.status = 1 AND c.parent_id = #{parentId}
+    </select>
+
+    <select id="getById" resultMap="CommentResultMap">
+        SELECT <include refid="BaseColumns"/>,
+               u.user_name AS user_name,
+               u.user_avatar AS user_avatar,
+               rt.user_name AS reply_to_name
+        FROM comment c
+        LEFT JOIN user u ON u.id = c.user_id
+        LEFT JOIN user rt ON rt.id = c.reply_to_id
+        WHERE c.id = #{id}
+    </select>
+
+    <update id="increaseLikeCount">
+        UPDATE comment SET like_count = like_count + 1 WHERE id = #{id}
+    </update>
+
+    <!-- 下限保护：GREATEST 避免并发下减为负数 -->
+    <update id="decreaseLikeCount">
+        UPDATE comment SET like_count = GREATEST(like_count - 1, 0) WHERE id = #{id}
+    </update>
+
+    <update id="updateUpvoteList">
+        UPDATE comment SET upvote_list = #{upvoteList} WHERE id = #{id}
+    </update>
+
+    <select id="queryByUser" resultMap="CommentResultMap">
+        SELECT <include refid="BaseColumns"/>,
+               u.user_name AS user_name,
+               u.user_avatar AS user_avatar
+        FROM comment c
+        LEFT JOIN user u ON u.id = c.user_id
+        WHERE c.status = 1 AND c.user_id = #{userId}
+        ORDER BY c.create_time DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countByUser" resultType="int">
+        SELECT COUNT(*) FROM comment c WHERE c.status = 1 AND c.user_id = #{userId}
+    </select>
+
+    <resultMap id="CommentResultMap" type="cn.kmbeast.pojo.vo.CommentVO">
+        <id column="id" property="id"/>
+        <result column="target_type" property="targetType"/>
+        <result column="target_id" property="targetId"/>
+        <result column="user_id" property="userId"/>
+        <result column="reply_to_id" property="replyToId"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="content" property="content"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="upvote_list" property="upvoteList"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="user_name" property="userName"/>
+        <result column="user_avatar" property="userAvatar"/>
+        <result column="reply_to_name" property="replyToName"/>
+        <result column="child_count" property="childCount"/>
+    </resultMap>
+</mapper>

@@ -12,14 +12,15 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${server.cors.origins:${SERVER_CORS_ORIGINS:http://localhost:8080,http://localhost:21091}}")
-    private String allowedOrigins;
-
+    /**
+     * 本地开发放开所有来源（含 localhost / 127.0.0.1 / 局域网 IP / file://），
+     * 避免前端直连后端时被浏览器 CORS 拦截。
+     * 生产环境请改为具体的可信来源（allowedOriginPatterns 指定域名）。
+     */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        String[] origins = allowedOrigins.split(",");
         registry.addMapping("/**")
-                .allowedOrigins(origins)
+                .allowedOriginPatterns("*")
                 .allowedHeaders("*")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowCredentials(true)

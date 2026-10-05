@@ -46,12 +46,21 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     @Override
     public Map<String, Object> getAllConfigs() {
         List<SystemConfigEntity> all = systemConfigMapper.findAll();
-        // 结构：{ group: { key: value } }，敏感值统一掩码
+        // 结构：{ group: [ { key, value, description, valueType, sensitive, defaultValue }, ... ] }
+        // 敏感值在 list 内统一掩码，前端可基于 description/valueType 渲染表单
         Map<String, Object> result = new LinkedHashMap<>();
         for (SystemConfigEntity cfg : all) {
-            Map<String, Object> group = (Map<String, Object>) result.computeIfAbsent(
-                    cfg.getConfigGroup(), k -> new LinkedHashMap<String, Object>());
-            group.put(cfg.getConfigKey(), maskIfSensitive(cfg));
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> list = (List<Map<String, Object>>) result.computeIfAbsent(
+                    cfg.getConfigGroup(), k -> new ArrayList<>());
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("key", cfg.getConfigKey());
+            item.put("value", maskIfSensitive(cfg));
+            item.put("description", cfg.getDescription());
+            item.put("valueType", cfg.getValueType());
+            item.put("sensitive", cfg.getSensitive());
+            item.put("defaultValue", cfg.getDefaultValue());
+            list.add(item);
         }
         return result;
     }

@@ -30,7 +30,9 @@ public interface MallService {
     // 订单
     Result<MallOrderVO> createOrder(Integer userId, Integer addressId, String remark);
     Result<Void> payOrder(Integer orderId, String paymentMethod);
+    Result<Void> updateOrderStatus(MallOrder order);
     Result<List<MallOrderVO>> getUserOrders(Integer userId);
+    Result<List<MallOrderVO>> getAllOrders();
     Result<MallOrderVO> getOrderById(Integer id);
 
     // 收货地址

@@ -1,16 +1,100 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.kmbeast.mapper.NotificationMapper">
+
+    <!-- 显式列清单：合并 message 后实体新增了 message_type/sender_id/source/
+         link_url/biz_type/biz_id 等字段，用 SELECT * 在字段顺序变化时会错位 -->
+    <sql id="BaseColumns">
+        n.id, n.user_id, n.title, n.content, n.type, n.message_type,
+        n.is_read, n.sender_id, n.related_id, n.source,
+        n.link_url, n.biz_type, n.biz_id, n.create_time
+    </sql>
+
     <insert id="save" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO notification (user_id, title, content, type, is_read, related_id, create_time)
-        VALUES (#{userId}, #{title}, #{content}, #{type}, #{isRead}, #{relatedId}, #{createTime})
+        INSERT INTO notification
+            (user_id, title, content, type, message_type, is_read, sender_id,
+             related_id, source, link_url, biz_type, biz_id, create_time)
+        VALUES
+            (#{userId}, #{title}, #{content}, #{type},
+             COALESCE(#{messageType}, 1), COALESCE(#{isRead}, 0), #{senderId},
+             #{relatedId}, #{source}, #{linkUrl}, #{bizType}, #{bizId}, #{createTime})
     </insert>
-    <update id="markAsRead">UPDATE notification SET is_read = 1 WHERE id = #{id}</update>
-    <update id="markAllAsRead">UPDATE notification SET is_read = 1 WHERE user_id = #{userId} AND is_read = 0</update>
+
+    <!-- 批量插入：系统通知要推给全站用户，逐条 insert 会产生 N 次网络往返 -->
+    <insert id="batchSave">
+        INSERT INTO notification
+            (user_id, title, content, type, message_type, is_read, sender_id,
+             related_id, source, create_time)
+        VALUES
+        <foreach collection="list" item="m" separator=",">
+            (#{m.userId}, #{m.title}, #{m.content}, COALESCE(#{m.type}, 0),
+             COALESCE(#{m.messageType}, 1), COALESCE(#{m.isRead}, 0), #{m.senderId},
+             #{m.relatedId}, #{m.source},
+             COALESCE(#{m.createTime}, NOW()))
+        </foreach>
+    </insert>
+
+    <update id="markAsRead">
+        UPDATE notification SET is_read = 1 WHERE id = #{id}
+    </update>
+
+    <update id="markAllAsRead">
+        UPDATE notification SET is_read = 1 WHERE user_id = #{userId} AND is_read = 0
+    </update>
+
     <select id="queryByUserId" resultType="cn.kmbeast.pojo.entity.Notification">
-        SELECT * FROM notification WHERE user_id = #{userId} ORDER BY create_time DESC
+        SELECT <include refid="BaseColumns"/>
+        FROM notification n
+        WHERE n.user_id = #{userId}
+        ORDER BY n.create_time DESC
     </select>
+
     <select id="countUnread" resultType="integer">
-        SELECT COUNT(*) FROM notification WHERE user_id = #{userId} AND is_read = 0
+        SELECT COUNT(*) FROM notification
+        WHERE user_id = #{userId} AND is_read = 0
+    </select>
+
+    <!-- ==================== 消息中心（合并自 message 表） ==================== -->
+
+    <select id="queryMessages" resultType="cn.kmbeast.pojo.entity.Notification">
+        SELECT <include refid="BaseColumns"/>
+        FROM notification n
+        <where>
+            n.user_id = #{userId}
+            <if test="messageType != null">AND n.message_type = #{messageType}</if>
+            <!-- isRead 是 Boolean，null 表示「全部」；true→1 false→0 -->
+            <if test="isRead != null">AND n.is_read = #{isRead}</if>
+        </where>
+        ORDER BY n.create_time DESC
+        <if test="offset != null and size != null">
+            LIMIT #{offset}, #{size}
+        </if>
+    </select>
+
+    <select id="countMessages" resultType="integer">
+        SELECT COUNT(*)
+        FROM notification n
+        <where>
+            n.user_id = #{userId}
+            <if test="messageType != null">AND n.message_type = #{messageType}</if>
+            <if test="isRead != null">AND n.is_read = #{isRead}</if>
+        </where>
+    </select>
+
+    <!-- 带 user_id 条件：防止删他人消息 -->
+    <delete id="batchDelete">
+        DELETE FROM notification
+        WHERE user_id = #{userId}
+          AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <!-- 消息类型字典：返回该用户实际收到过的分类及数量，供前端下拉框展示 -->
+    <select id="queryMessageTypes" resultType="map">
+        SELECT n.message_type AS type, COUNT(*) AS cnt
+        FROM notification n
+        WHERE n.user_id = #{userId}
+        GROUP BY n.message_type
+        ORDER BY n.message_type
     </select>
 </mapper>

@@ -1,22 +1,36 @@
 package cn.kmbeast.controller;
 
 import cn.kmbeast.aop.Protector;
+import cn.kmbeast.config.AiConfig;
 import cn.kmbeast.config.SentinelBlockHandlers;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.utils.IdFactoryUtil;
 import cn.kmbeast.utils.PathUtils;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * 文件前端控制器
@@ -52,6 +66,16 @@ public class FileController {
      */
     @Value("${my-server.public-base-url:}")
     private String publicBaseUrl;
+
+    @Resource
+    private AiConfig aiConfig;
+
+    /** AI 映射用的 HTTP 客户端（短超时，best-effort） */
+    private static final OkHttpClient AI_CLIENT = new OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .build();
+    private static final MediaType JSON_MEDIA = MediaType.parse("application/json; charset=utf-8");
 
     /**
      * 允许的文件类型
@@ -96,6 +120,394 @@ public class FileController {
     @PostMapping("/video/upload")
     public Result<Map<String, String>> videoUpload(@RequestParam("file") MultipartFile multipartFile) {
         return uploadFile(multipartFile);
+    }
+
+    // ==================== 文件解析为 JSON（AI 辅助导入） ====================
+
+    /**
+     * 将上传的结构化文件（JSON / CSV / TSV / XLSX / TXT）解析为 JSON 数组，
+     * 供药品 / 商品批量导入使用；可选 AI 映射到目标字段结构。
+     *
+     * @param file   上传文件
+     * @param target 目标结构：drug(药品) / product(商城商品) / generic(不映射)
+     * @param useAi  是否调用大模型把表头/字段映射到目标结构（缺 API Key 时自动降级为原样输出）
+     */
+    @Protector
+    @PostMapping("/parse-to-json")
+    public Result<Map<String, Object>> parseToJson(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "target", required = false) String target,
+            @RequestParam(value = "ai", defaultValue = "false") boolean useAi) {
+        if (file == null || file.isEmpty()) {
+            return ApiResult.error("上传文件不能为空");
+        }
+        String originalName = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
+        String ext = originalName.contains(".")
+                ? originalName.substring(originalName.lastIndexOf('.')).toLowerCase()
+                : "";
+        try {
+            byte[] bytes = file.getBytes();
+            List<Map<String, Object>> rows = parseStructuredFile(bytes, ext);
+            if (rows.isEmpty()) {
+                return ApiResult.error("未能从文件中解析出任何数据行");
+            }
+            boolean aiMapped = false;
+            String mappedSchema = target == null || target.isEmpty() ? "generic" : target;
+            if (useAi && !"generic".equals(mappedSchema)) {
+                List<Map<String, Object>> mapped = aiMapRows(rows, mappedSchema);
+                if (mapped != null && !mapped.isEmpty()) {
+                    rows = mapped;
+                    aiMapped = true;
+                } else {
+                    log.warn("[File] AI 映射失败或未配置 Key，使用原始解析结果: target={}", mappedSchema);
+                }
+            }
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("rows", rows);
+            result.put("count", rows.size());
+            result.put("schema", mappedSchema);
+            result.put("aiMapped", aiMapped);
+            return ApiResult.success(result);
+        } catch (Exception e) {
+            log.error("[File] 解析文件失败: {}", originalName, e);
+            return ApiResult.error("文件解析失败：" + e.getMessage());
+        }
+    }
+
+    /** 按扩展名解析结构化文件为行对象列表 */
+    private List<Map<String, Object>> parseStructuredFile(byte[] bytes, String ext) throws IOException {
+        switch (ext) {
+            case ".json":
+                return parseJsonFile(bytes);
+            case ".csv":
+                return parseDelimited(bytes, ',');
+            case ".tsv":
+                return parseDelimited(bytes, '\t');
+            case ".xlsx":
+                return parseXlsx(bytes);
+            case ".txt":
+                return parseTxt(bytes);
+            default:
+                throw new IllegalArgumentException("不支持的文件类型：" + ext + "（支持 json/csv/tsv/xlsx/txt）");
+        }
+    }
+
+    private List<Map<String, Object>> parseJsonFile(byte[] bytes) {
+        Object obj = JSON.parse(new String(bytes, StandardCharsets.UTF_8));
+        JSONArray arr;
+        if (obj instanceof JSONArray) {
+            arr = (JSONArray) obj;
+        } else if (obj instanceof JSONObject) {
+            JSONObject jo = (JSONObject) obj;
+            if (jo.getJSONArray("rows") != null) {
+                arr = jo.getJSONArray("rows");
+            } else if (jo.getJSONArray("data") != null) {
+                arr = jo.getJSONArray("data");
+            } else {
+                arr = new JSONArray();
+                arr.add(jo);
+            }
+        } else {
+            throw new IllegalArgumentException("JSON 顶层必须是数组或对象");
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (int i = 0; i < arr.size(); i++) {
+            Object item = arr.get(i);
+            if (item instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> row = new LinkedHashMap<>((Map<String, Object>) item);
+                rows.add(row);
+            } else if (item != null) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("value", String.valueOf(item));
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    /** CSV/TSV 解析：首行作表头，支持引号包裹字段 */
+    private List<Map<String, Object>> parseDelimited(byte[] bytes, char delimiter) throws IOException {
+        String content = new String(bytes, StandardCharsets.UTF_8);
+        // 去掉 UTF-8 BOM
+        if (content.startsWith("\uFEFF")) {
+            content = content.substring(1);
+        }
+        List<List<String>> table = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new StringReader(content))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.trim().isEmpty()) {
+                    continue;
+                }
+                table.add(splitCsvLine(line, delimiter));
+            }
+        }
+        return rowsFromTable(table);
+    }
+
+    private List<String> splitCsvLine(String line, char delimiter) {
+        List<String> fields = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        boolean inQuotes = false;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (inQuotes) {
+                if (c == '"') {
+                    if (i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                        sb.append('"');
+                        i++;
+                    } else {
+                        inQuotes = false;
+                    }
+                } else {
+                    sb.append(c);
+                }
+            } else {
+                if (c == '"') {
+                    inQuotes = true;
+                } else if (c == delimiter) {
+                    fields.add(sb.toString().trim());
+                    sb.setLength(0);
+                } else {
+                    sb.append(c);
+                }
+            }
+        }
+        fields.add(sb.toString().trim());
+        return fields;
+    }
+
+    /** XLSX 解析：ZIP 中的 sharedStrings.xml + sheet1.xml，不依赖 POI */
+    private List<Map<String, Object>> parseXlsx(byte[] bytes) throws IOException {
+        List<String> shared = new ArrayList<>();
+        List<List<String>> table = new ArrayList<>();
+        try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                String name = entry.getName();
+                if (name.equals("xl/sharedStrings.xml")) {
+                    shared = parseSharedStrings(readEntry(zis));
+                } else if (name.equals("xl/worksheets/sheet1.xml")
+                        || name.matches("xl/worksheets/sheet\\d+\\.xml")) {
+                    table = parseSheetXml(readEntry(zis), shared);
+                    break;
+                }
+            }
+        }
+        return rowsFromTable(table);
+    }
+
+    private byte[] readEntry(ZipInputStream zis) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = zis.read(buf)) != -1) {
+            bos.write(buf, 0, n);
+        }
+        return bos.toByteArray();
+    }
+
+    private List<String> parseSharedStrings(byte[] xml) {
+        List<String> list = new ArrayList<>();
+        String s = new String(xml, StandardCharsets.UTF_8);
+        int idx = 0;
+        while ((idx = s.indexOf("<si>", idx)) != -1) {
+            int end = s.indexOf("</si>", idx);
+            if (end == -1) {
+                break;
+            }
+            String si = s.substring(idx + 4, end);
+            StringBuilder text = new StringBuilder();
+            int t = 0;
+            while ((t = si.indexOf("<t", t)) != -1) {
+                int ts = si.indexOf('>', t);
+                int te = si.indexOf("</t>", ts);
+                if (ts == -1 || te == -1) {
+                    break;
+                }
+                text.append(si, ts + 1, te);
+                t = te + 4;
+            }
+            list.add(text.toString().replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+                    .replace("&#10;", "\n").replace("&quot;", "\"").replace("&apos;", "'"));
+            idx = end + 5;
+        }
+        return list;
+    }
+
+    private List<List<String>> parseSheetXml(byte[] xml, List<String> shared) {
+        List<List<String>> table = new ArrayList<>();
+        String s = new String(xml, StandardCharsets.UTF_8);
+        int rowIdx = 0;
+        while ((rowIdx = s.indexOf("<row", rowIdx)) != -1) {
+            int rowEnd = s.indexOf("</row>", rowIdx);
+            if (rowEnd == -1) {
+                break;
+            }
+            String rowXml = s.substring(rowIdx, rowEnd + 6);
+            List<String> cells = new ArrayList<>();
+            int cIdx = 0;
+            while ((cIdx = rowXml.indexOf("<c ", cIdx)) != -1) {
+                int cEnd = rowXml.indexOf("</c>", cIdx);
+                if (cEnd == -1) {
+                    break;
+                }
+                String cellXml = rowXml.substring(cIdx, cEnd + 4);
+                String type = "";
+                int tPos = cellXml.indexOf(" t=\"");
+                if (tPos != -1) {
+                    type = cellXml.substring(tPos + 4, cellXml.indexOf('"', tPos + 4));
+                }
+                int vPos = cellXml.indexOf("<v>");
+                String val = "";
+                if (vPos != -1) {
+                    int vEnd = cellXml.indexOf("</v>", vPos);
+                    val = cellXml.substring(vPos + 3, vEnd);
+                }
+                if ("s".equals(type)) {
+                    try {
+                        val = shared.get(Integer.parseInt(val.trim()));
+                    } catch (Exception ignored) {
+                        val = "";
+                    }
+                }
+                cells.add(val.trim());
+                cIdx = cEnd + 4;
+            }
+            if (!cells.isEmpty()) {
+                table.add(cells);
+            }
+            rowIdx = rowEnd + 6;
+        }
+        return table;
+    }
+
+    /** TXT：先试 JSON，再试分隔符，最后按行原样 */
+    private List<Map<String, Object>> parseTxt(byte[] bytes) {
+        String content = new String(bytes, StandardCharsets.UTF_8);
+        String trimmed = content.trim();
+        if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+            try {
+                return parseJsonFile(bytes);
+            } catch (Exception ignored) {
+                // 继续按分隔符处理
+            }
+        }
+        if (trimmed.contains("\t")) {
+            try {
+                return parseDelimited(bytes, '\t');
+            } catch (Exception ignored) {
+            }
+        }
+        if (trimmed.contains(",")) {
+            try {
+                return parseDelimited(bytes, ',');
+            } catch (Exception ignored) {
+            }
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (String line : content.split("\\r?\\n")) {
+            if (line.trim().isEmpty()) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("value", line.trim());
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    /** 表头 + 行数据 → 行对象列表 */
+    private List<Map<String, Object>> rowsFromTable(List<List<String>> table) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        if (table.isEmpty()) {
+            return rows;
+        }
+        List<String> headers = table.get(0);
+        for (int i = 1; i < table.size(); i++) {
+            List<String> line = table.get(i);
+            Map<String, Object> row = new LinkedHashMap<>();
+            for (int j = 0; j < headers.size(); j++) {
+                String header = headers.get(j);
+                if (header == null || header.isEmpty()) {
+                    header = "col" + (j + 1);
+                }
+                String value = j < line.size() ? line.get(j) : "";
+                row.put(header, value);
+            }
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    /** 调用大模型把行数据映射到目标字段结构（best-effort，失败返回 null） */
+    private List<Map<String, Object>> aiMapRows(List<Map<String, Object>> rows, String target) {
+        String apiKey = aiConfig.getApiKey();
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            return null;
+        }
+        String fieldDef = "drug".equals(target)
+                ? "name(名称), genericName(通用名), category(分类), specification(规格), manufacturer(生产厂家), price(价格,数字), unit(单位), description(说明), isOtc(是否OTC 1/0), stock(库存,数字), cover(图片URL)"
+                : "name(名称), productType(类型: drug/device/health), categoryId(分类ID,数字,没有就省略), description(描述), cover(图片URL), price(价格,数字), originalPrice(原价,数字), stock(库存,数字), unit(单位), isHot(是否热销 1/0), isNew(是否新品 1/0)";
+        JSONObject body = new JSONObject();
+        body.put("model", aiConfig.getModel());
+        body.put("temperature", 0.1);
+        JSONArray messages = new JSONArray();
+        JSONObject sys = new JSONObject();
+        sys.put("role", "system");
+        sys.put("content", "你是数据整理助手。把用户给的数据行转换成 JSON 数组，每行是一个对象，只包含目标字段：" + fieldDef
+                + "。能匹配的字段就匹配，不能匹配的省略；价格/库存等数字字段转成数字；无法确定的字段不要编造。只输出 JSON 数组，不要输出任何其他文字。");
+        messages.add(sys);
+        JSONObject user = new JSONObject();
+        user.put("role", "user");
+        user.put("content", JSON.toJSONString(rows));
+        messages.add(user);
+        body.put("messages", messages);
+        try {
+            Request request = new Request.Builder()
+                    .url(aiConfig.getApiUrl())
+                    .header("Authorization", "Bearer " + apiKey)
+                    .post(RequestBody.create(body.toJSONString(), JSON_MEDIA))
+                    .build();
+            try (Response response = AI_CLIENT.newCall(request).execute()) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    log.warn("[File] AI 映射 HTTP 失败: {}", response.code());
+                    return null;
+                }
+                String respBody = response.body().string();
+                JSONObject jo = JSON.parseObject(respBody);
+                String content = jo.getJSONArray("choices").getJSONObject(0)
+                        .getJSONObject("message").getString("content");
+                if (content == null) {
+                    return null;
+                }
+                // 去掉可能的 ```json 围栏
+                content = content.trim();
+                if (content.startsWith("```")) {
+                    content = content.replaceAll("^```[a-zA-Z]*\\n?", "").replaceAll("```$", "").trim();
+                }
+                int start = content.indexOf('[');
+                int end = content.lastIndexOf(']');
+                if (start >= 0 && end > start) {
+                    content = content.substring(start, end + 1);
+                }
+                JSONArray arr = JSON.parseArray(content);
+                List<Map<String, Object>> result = new ArrayList<>();
+                for (int i = 0; i < arr.size(); i++) {
+                    Object item = arr.get(i);
+                    if (item instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> row = new LinkedHashMap<>((Map<String, Object>) item);
+                        result.add(row);
+                    }
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("[File] AI 映射异常: {}", e.getMessage());
+            return null;
+        }
     }
 
     /**

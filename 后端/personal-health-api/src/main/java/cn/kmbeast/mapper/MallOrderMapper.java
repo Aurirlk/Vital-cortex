@@ -14,6 +14,7 @@ public interface MallOrderMapper {
     void save(MallOrder order);
     void update(MallOrder order);
     List<MallOrderVO> queryByUserId(@Param("userId") Integer userId);
+    List<MallOrderVO> queryAll();
     MallOrderVO getById(@Param("id") Integer id);
     MallOrder getByOrderNo(@Param("orderNo") String orderNo);
     Integer count();

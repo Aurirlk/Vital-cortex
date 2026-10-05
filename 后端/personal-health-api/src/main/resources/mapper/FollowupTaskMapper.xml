@@ -24,14 +24,14 @@
         FROM followup_task t
         LEFT JOIN `user` u ON u.id = t.patient_id
         LEFT JOIN hospital_doctor d ON d.id = t.doctor_id
-        WHERE t.patient_id = #{patientId} ORDER BY t.create_time DESC
+        WHERE (#{patientId} = 0 OR t.patient_id = #{patientId}) ORDER BY t.create_time DESC
     </select>
     <select id="queryByDoctorId" resultMap="TaskResultMap">
         SELECT t.*, u.user_name AS patient_name, d.name AS doctor_name
         FROM followup_task t
         LEFT JOIN `user` u ON u.id = t.patient_id
         LEFT JOIN hospital_doctor d ON d.id = t.doctor_id
-        WHERE t.doctor_id = #{doctorId} ORDER BY t.create_time DESC
+        WHERE (#{doctorId} = 0 OR t.doctor_id = #{doctorId}) ORDER BY t.create_time DESC
     </select>
     <select id="getById" resultMap="TaskResultMap">
         SELECT t.*, u.user_name AS patient_name, d.name AS doctor_name

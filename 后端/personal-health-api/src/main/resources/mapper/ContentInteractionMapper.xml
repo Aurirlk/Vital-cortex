@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.ContentInteractionMapper">
+
+    <insert id="insert">
+        INSERT INTO content_interaction
+            (target_type, target_id, user_id, action_type, reason, status, create_time)
+        VALUES
+            (#{targetType}, #{targetId}, #{userId}, #{actionType}, #{reason},
+             COALESCE(#{status}, 1), NOW())
+        ON DUPLICATE KEY UPDATE
+            -- 重复交互时只更新理由与状态，不新增行（依赖 uk_interaction 唯一键）
+            reason = VALUES(reason),
+            status = COALESCE(VALUES(status), status)
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM content_interaction
+        WHERE target_type = #{targetType}
+          AND target_id   = #{targetId}
+          AND user_id     = #{userId}
+          AND action_type = #{actionType}
+    </delete>
+
+    <select id="countInteraction" resultType="integer">
+        SELECT COUNT(*) FROM content_interaction
+        WHERE target_type = #{targetType}
+          AND target_id   = #{targetId}
+          AND user_id     = #{userId}
+          AND action_type = #{actionType}
+    </select>
+
+    <select id="countByTarget" resultType="map">
+        SELECT action_type, COUNT(*) AS cnt
+        FROM content_interaction
+        WHERE target_type = #{targetType}
+          AND target_id   = #{targetId}
+        GROUP BY action_type
+    </select>
+
+    <!-- 我的收藏：取该用户收藏过的资讯 ID，倒序（最近收藏在前） -->
+    <select id="queryFavoritedNewsIds" resultType="int">
+        SELECT target_id
+        FROM content_interaction
+        WHERE user_id     = #{userId}
+          AND action_type = 'FAVORITE'
+          AND target_type = 'NEWS'
+        ORDER BY create_time DESC
+        <if test="limit != null">LIMIT #{limit}</if>
+    </select>
+
+    <!-- 举报列表：字段别名对齐合并前的 post_report 表结构，
+         供 AuditManage.vue 继续按 id/user_id/post_id/reason/status 消费 -->
+    <select id="queryPendingReports" resultType="map">
+        SELECT ci.id                AS id,
+               ci.user_id           AS user_id,
+               ci.target_id         AS post_id,
+               NULL                 AS reply_id,
+               ci.reason            AS reason,
+               ci.status            AS status,
+               ci.create_time       AS create_time,
+               ci.update_time       AS update_time
+        FROM content_interaction ci
+        WHERE ci.action_type = 'REPORT'
+        <if test="status != null">AND ci.status = #{status}</if>
+        ORDER BY ci.create_time DESC
+        <if test="limit != null">LIMIT #{limit}</if>
+    </select>
+
+    <update id="handleReport">
+        UPDATE content_interaction
+        SET status = #{status}, update_time = NOW()
+        WHERE id = #{id} AND action_type = 'REPORT'
+    </update>
+</mapper>
