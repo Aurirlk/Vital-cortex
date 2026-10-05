@@ -261,8 +261,8 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- 默认管理员 (密码: 123456)
 INSERT IGNORE INTO `user` (`id`, `user_account`, `user_name`, `user_pwd`, `user_role`, `is_login`, `is_word`) VALUES
-(1, 'admin', '管理员', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', 1, 0, 0),
-(2, 'user', '普通用户', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH', 2, 0, 0);
+(1, 'admin', '管理员', '$2a$10$HEbR7/pgslM4n7FCsYUAuuLQhMmK3e.78I5A.WjNRwqozsO4rOT.u', 1, 0, 0),
+(2, 'user', '普通用户', '$2a$10$HEbR7/pgslM4n7FCsYUAuuLQhMmK3e.78I5A.WjNRwqozsO4rOT.u', 2, 0, 0);
 
 -- 默认健康模型
 INSERT IGNORE INTO `health_model_config` (`id`, `user_id`, `name`, `detail`, `cover`, `unit`, `symbol`, `value_range`, `is_global`, `category`) VALUES
