@@ -3,6 +3,10 @@ package cn.kmbeast.controller;
 import cn.kmbeast.aop.Pager;
 import cn.kmbeast.aop.Protector;
 import cn.kmbeast.config.SentinelBlockHandlers;
+import cn.kmbeast.context.LocalThreadHolder;
+import cn.kmbeast.mapper.UserMapper;
+import cn.kmbeast.mapper.UserStatsMapper;
+import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.extend.UserQueryDto;
 import cn.kmbeast.pojo.dto.update.UserLoginDTO;
@@ -16,6 +20,7 @@ import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +30,12 @@ public class UserController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private UserStatsMapper userStatsMapper;
+
+    @Resource
+    private UserMapper userMapper;
 
     /**
      * 用户登录
@@ -51,6 +62,34 @@ public class UserController {
         return userService.auth();
     }
 
+    /**
+     * 获取当前登录用户完整信息（个人中心用，与 /auth 等价）
+     */
+    @Protector
+    @GetMapping(value = "/info")
+    @ResponseBody
+    public Result<UserVO> info() {
+        return userService.auth();
+    }
+
+    /**
+     * 个人中心统计：收藏数 / 健康记录数 / AI对话数 / 用药订阅数 / 预约数 / 订单数
+     */
+    @Protector
+    @GetMapping(value = "/stats")
+    @ResponseBody
+    public Result<Map<String, Object>> stats() {
+        Integer userId = LocalThreadHolder.getUserId();
+        Map<String, Object> data = new HashMap<>();
+        data.put("favoriteCount", userStatsMapper.countFavorites(userId));
+        data.put("healthRecordCount", userStatsMapper.countHealthRecords(userId));
+        data.put("aiChatCount", userStatsMapper.countAiChats(userId));
+        data.put("drugSubscribeCount", userStatsMapper.countDrugSubscriptions(userId));
+        data.put("appointmentCount", userStatsMapper.countAppointments(userId));
+        data.put("orderCount", userStatsMapper.countOrders(userId));
+        return ApiResult.success(data);
+    }
+
 
     /**
      * 通过ID查询用户信息
@@ -63,6 +102,25 @@ public class UserController {
     @ResponseBody
     public Result<UserVO> getById(@PathVariable Integer id) {
         return userService.getById(id);
+    }
+
+    /**
+     * 患者/用户远程搜索（2026-10-03 新增，供 {@code <PatientSelect>} 与医生端使用）
+     *
+     * <p>支持按姓名 / 账号 / 手机号（含后4位）模糊匹配，仅返回普通用户（role=2）。
+     * 手机号来自本次库表整理新增的 {@code user.phone} 字段。
+     *
+     * @param keyword 搜索关键字（可空，空则按默认顺序返回前 limit 条）
+     * @param limit   返回条数上限
+     */
+    @Protector
+    @GetMapping(value = "/search")
+    @ResponseBody
+    public Result<List<User>> search(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "20") Integer limit) {
+        int max = (limit == null || limit <= 0) ? 20 : Math.min(limit, 50);
+        return ApiResult.success(userMapper.searchForSelect(keyword, max));
     }
 
 
@@ -174,6 +232,34 @@ public class UserController {
     @ResponseBody
     public Result<List<ChartVO>> query(@PathVariable Integer day) {
         return userService.daysQuery(day);
+    }
+
+    /**
+     * 获取用户设置
+     *
+     * @return Result<Map<String, Object>> 用户设置
+     */
+    @Protector
+    @GetMapping(value = "/settings")
+    @ResponseBody
+    public Result<Map<String, Object>> getSettings() {
+        Integer userId = LocalThreadHolder.getUserId();
+        Map<String, Object> settings = userService.getUserSettings(userId);
+        return ApiResult.success(settings);
+    }
+
+    /**
+     * 更新用户设置
+     *
+     * @param settings 设置信息
+     * @return Result<String> 响应结果
+     */
+    @Protector
+    @PutMapping(value = "/settings")
+    @ResponseBody
+    public Result<String> updateSettings(@RequestBody Map<String, Object> settings) {
+        Integer userId = LocalThreadHolder.getUserId();
+        return userService.updateUserSettings(userId, settings);
     }
 
 }

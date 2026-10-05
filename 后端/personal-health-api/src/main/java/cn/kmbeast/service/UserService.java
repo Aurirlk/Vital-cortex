@@ -43,4 +43,21 @@ public interface UserService {
 
     Result<List<ChartVO>> daysQuery(Integer day);
 
+    /**
+     * 获取用户设置
+     *
+     * @param userId 用户ID
+     * @return 用户设置
+     */
+    Map<String, Object> getUserSettings(Integer userId);
+
+    /**
+     * 更新用户设置
+     *
+     * @param userId 用户ID
+     * @param settings 设置信息
+     * @return 响应结果
+     */
+    Result<String> updateUserSettings(Integer userId, Map<String, Object> settings);
+
 }

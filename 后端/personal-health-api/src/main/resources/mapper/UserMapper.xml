@@ -7,6 +7,8 @@
                           user_pwd,
                           user_avatar,
                           user_email,
+                          phone,
+                          phone_verified,
                           user_role,
                           is_login,
                           is_word,
@@ -16,6 +18,11 @@
                 #{userPwd},
                 #{userAvatar},
                 #{userEmail},
+                #{phone},
+                <choose>
+                    <when test="phoneVerified != null">#{phoneVerified}</when>
+                    <otherwise>0</otherwise>
+                </choose>,
                 #{userRole},
                 #{isLogin},
                 #{isWord},
@@ -38,6 +45,12 @@
             </if>
             <if test="userEmail != null">
                 user_email = #{userEmail},
+            </if>
+            <if test="phone != null">
+                phone = #{phone},
+            </if>
+            <if test="phoneVerified != null">
+                phone_verified = #{phoneVerified},
             </if>
             <if test="isLogin != null">
                 is_login = #{isLogin},
@@ -80,6 +93,9 @@
             <if test="userAccount != null and userAccount != ''">
                 AND u.user_account = #{userAccount}
             </if>
+            <if test="phone != null and phone != ''">
+                AND u.phone = #{phone}
+            </if>
         </where>
         LIMIT 1
     </select>
@@ -98,6 +114,9 @@
             </if>
             <if test="userEmail != null and userEmail != ''">
                 AND u.user_email LIKE concat('%',#{userEmail},'%')
+            </if>
+            <if test="phone != null and phone != ''">
+                AND u.phone LIKE concat('%',#{phone},'%')
             </if>
             <if test="role != null">
                 AND u.role = #{role}
@@ -133,6 +152,9 @@
             <if test="userEmail != null and userEmail != ''">
                 AND u.user_email LIKE concat('%',#{userEmail},'%')
             </if>
+            <if test="phone != null and phone != ''">
+                AND u.phone LIKE concat('%',#{phone},'%')
+            </if>
             <if test="role != null">
                 AND u.role = #{role}
             </if>
@@ -157,6 +179,8 @@
         <result column="user_pwd" property="userPwd"/>
         <result column="user_avatar" property="userAvatar"/>
         <result column="user_email" property="userEmail"/>
+        <result column="phone" property="phone"/>
+        <result column="phone_verified" property="phoneVerified"/>
         <result column="user_role" property="userRole"/>
         <result column="is_login" property="isLogin"/>
         <result column="is_word" property="isWord"/>
@@ -170,9 +194,48 @@
         SELECT u.* FROM user u WHERE u.id = #{userId}
     </select>
 
-    <!-- 根据手机号(账号)查找用户 -->
+    <!-- 根据手机号查找用户
+         2026-10-03 修正：原实现是 WHERE user_account = #{userAccount}，
+         拿手机号去匹配逻辑账号（admin/lily），永远不会命中
+         —— 这正是短信登录 100% 失败的根源。现改为匹配真正的 phone 字段。 -->
     <select id="findByPhone" resultMap="BaseResultMap">
-        SELECT u.* FROM user u WHERE u.user_account = #{userAccount} LIMIT 1
+        SELECT u.* FROM user u WHERE u.phone = #{phone} LIMIT 1
+    </select>
+
+    <!-- 统一登录标识查找：账号或手机号任一命中即可。
+         用途：登录页「账号登录」与「短信登录」共用一套后端逻辑。 -->
+    <select id="findByIdentifier" resultMap="BaseResultMap">
+        SELECT u.* FROM user u
+        WHERE (u.user_account = #{identifier} OR u.phone = #{identifier})
+        LIMIT 1
+    </select>
+
+    <!-- 患者选择器远程搜索：姓名 / 账号 / 手机号（含后4位）模糊匹配
+         供 <PatientSelect> 组件与医生端「我的患者」使用；仅返回普通用户（role=2）。 -->
+    <select id="searchForSelect" resultMap="BaseResultMap">
+        SELECT u.id, u.user_account, u.user_name, u.user_avatar, u.user_email,
+               u.phone, u.phone_verified, u.user_role, u.is_login, u.is_word,
+               u.is_vip, u.vip_expire_time, u.create_time
+        FROM user u
+        WHERE u.user_role = 2
+        <if test="keyword != null and keyword != ''">
+            AND (u.user_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR u.user_account LIKE CONCAT('%', #{keyword}, '%')
+                 OR u.phone LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY
+            CASE WHEN u.user_name LIKE CONCAT(#{keyword}, '%') THEN 0
+                 WHEN u.phone LIKE CONCAT(#{keyword}, '%') THEN 1
+                 ELSE 2 END,
+            u.id ASC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 手机号占用校验（注册/绑定用，excludeId 用于排除自身） -->
+    <select id="countByPhone" resultType="int">
+        SELECT COUNT(*) FROM user
+        WHERE phone = #{phone}
+        <if test="excludeId != null">AND id != #{excludeId}</if>
     </select>
 
 </mapper>

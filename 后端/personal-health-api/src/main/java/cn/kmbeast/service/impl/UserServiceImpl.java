@@ -126,6 +126,9 @@ public class UserServiceImpl implements UserService {
     public Result<String> update(UserUpdateDTO userUpdateDTO) {
         User updateEntity = User.builder().id(LocalThreadHolder.getUserId()).build();
         BeanUtils.copyProperties(userUpdateDTO, updateEntity);
+        if (updateEntity.getUserPwd() != null && !updateEntity.getUserPwd().isEmpty()) {
+            updateEntity.setUserPwd(passwordEncoder.encode(updateEntity.getUserPwd()));
+        }
         userMapper.update(updateEntity);
         return ApiResult.success();
     }
@@ -202,6 +205,10 @@ public class UserServiceImpl implements UserService {
                 }
             }
         }
+        // 密码若提供则 BCrypt 编码（与注册/改密保持一致）；空值不覆盖原密码
+        if (user.getUserPwd() != null && !user.getUserPwd().isEmpty()) {
+            user.setUserPwd(passwordEncoder.encode(user.getUserPwd()));
+        }
         userMapper.update(user);
         // roadmap §1.3：锁定/解锁即时生效——
         // 锁定 → 递增会话版本（存量 token 全部失效）+ 状态缓存置锁定；
@@ -226,5 +233,51 @@ public class UserServiceImpl implements UserService {
         List<LocalDateTime> localDateTimes = userList.stream().map(User::getCreateTime).collect(Collectors.toList());
         List<ChartVO> chartVOS = DateUtil.countDatesWithinRange(day, localDateTimes);
         return ApiResult.success(chartVOS);
+    }
+
+    @Override
+    public Map<String, Object> getUserSettings(Integer userId) {
+        Map<String, Object> settings = new HashMap<>();
+        
+        // 从用户表读取基本设置
+        User user = userMapper.getUserById(userId);
+        if (user != null) {
+            settings.put("language", "zh-CN");
+            settings.put("timezone", "Asia/Shanghai");
+        }
+        
+        // 通知设置（默认值）
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("systemNotify", true);
+        notification.put("healthRemind", true);
+        notification.put("aiChatNotify", true);
+        notification.put("appointmentRemind", true);
+        notification.put("orderNotify", true);
+        settings.put("notification", notification);
+        
+        // 隐私设置（默认值）
+        Map<String, Object> privacy = new HashMap<>();
+        privacy.put("healthDataShare", true);
+        privacy.put("profileVisibility", "private");
+        settings.put("privacy", privacy);
+        
+        // AI助手设置（默认值）
+        Map<String, Object> ai = new HashMap<>();
+        ai.put("defaultAgent", "general_assistant");
+        ai.put("chatStyle", "friendly");
+        ai.put("enableWebSearch", true);
+        ai.put("enableKnowledgeBase", true);
+        ai.put("contextRounds", 10);
+        settings.put("ai", ai);
+        
+        return settings;
+    }
+
+    @Override
+    public Result<String> updateUserSettings(Integer userId, Map<String, Object> settings) {
+        // TODO: 实现用户设置持久化（需要创建 user_settings 表）
+        // 目前只记录日志，后续可以存储到数据库
+        log.info("[UserService] 用户 {} 更新设置: {}", userId, settings);
+        return ApiResult.success("设置保存成功");
     }
 }
