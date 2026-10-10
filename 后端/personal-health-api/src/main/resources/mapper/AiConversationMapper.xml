@@ -39,6 +39,12 @@
         SELECT * FROM ai_conversation WHERE id = #{id}
     </select>
 
+    <!-- 2026-10-07 新增：供 chat_history/ 磁盘副本的孤儿文件清理使用。
+         批量删除只删 MySQL 不删 JSON 曾导致孤儿堆积，此查询用于比对「MySQL 侧还存在哪些会话」。 -->
+    <select id="selectIdsByUserId" resultType="java.lang.Integer">
+        SELECT id FROM ai_conversation WHERE user_id = #{userId}
+    </select>
+
     <select id="queryByUserId" resultMap="BaseResultMap">
         SELECT *
         FROM ai_conversation

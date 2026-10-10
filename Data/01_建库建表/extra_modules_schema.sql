@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS `quiz_answer` (
 CREATE TABLE IF NOT EXISTS `mall_product` (
   `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `category_id` INT DEFAULT NULL COMMENT '分类ID',
+  `product_type` VARCHAR(20) DEFAULT 'health' COMMENT '商品类型: drug=药品, device=医疗器械, health=保健品',
   `name` VARCHAR(200) NOT NULL COMMENT '商品名称',
   `description` TEXT COMMENT '商品描述',
   `cover` VARCHAR(500) DEFAULT NULL COMMENT '商品图片',

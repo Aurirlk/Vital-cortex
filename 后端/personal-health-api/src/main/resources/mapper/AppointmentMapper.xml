@@ -130,7 +130,7 @@
         LEFT JOIN hospital_doctor d ON d.id = a.doctor_id
         LEFT JOIN department dep ON dep.id = a.department_id
         WHERE a.doctor_id = #{doctorId}
-        <if test="fromDate != null">AND a.appointment_date &gt;= #{fromDate}</if>
+        <if test="fromDate != null">AND a.appointment_date >= #{fromDate}</if>
         <if test="toDate != null">AND a.appointment_date &lt;= #{toDate}</if>
         <if test="status != null">AND a.status = #{status}</if>
         ORDER BY a.appointment_date ASC, a.time_slot ASC, a.serial_number ASC

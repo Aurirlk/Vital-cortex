@@ -14,12 +14,19 @@ import java.util.concurrent.*;
 @Service
 public class ReActAgent extends BaseReActAgent {
 
-    public ReActResponse run(List<Map<String, String>> userMessages) {
+    @Override
+    protected ReActResponse doRun(List<Map<String, String>> userMessages) {
         List<Map<String, Object>> messages = buildInitialMessages(userMessages);
 
         List<String> allToolsUsed = new ArrayList<>();
         List<Map<String, Object>> toolDetails = new ArrayList<>();
         int maxRounds = crmConfig.getMaxReactRounds();
+
+        // 2026-10-07：跨轮幂等台账（AG-12 扩展）。
+        // 此前只做【同轮】去重，模型第 1 轮调 query_health_records、第 3 轮又调一次
+        // 会执行两次 —— 而该工具会写 audit_log，产生重复审计行。
+        // ⚠️ 必须是 doRun 的局部变量：本类是 @Service 单例，用实例字段会跨请求串号。
+        Set<String> executedKeys = new LinkedHashSet<>();
 
         for (int round = 1; round <= maxRounds; round++) {
             log.info("[ReAct] 第 {} 轮推理, messages count={}", round, messages.size());
@@ -29,52 +36,28 @@ public class ReActAgent extends BaseReActAgent {
                 response = callLLMWithTools(messages);
             } catch (CrmException e) {
                 log.error("[ReAct] LLM调用失败: {}", e.getMessage());
+                // 阶段 3 四层 fail-safe 第 4 层：LLM 完全故障时，高置信度数据意图直接离线兜底
+                ReActResponse offline = tryOfflineFallback(peekIntentHint());
+                if (offline != null) {
+                    return offline;
+                }
                 return ReActResponse.text("AI服务暂时不可用: " + e.getMessage(), allToolsUsed);
             }
 
             if (response.hasToolCalls()) {
-                addAssistantToolCallMessage(messages, response.getToolCalls());
+                // 2026-10-07 P0-6：把模型同轮的过渡文本拼回 assistant 消息，
+                // 否则模型下一轮看不到自己刚说过的话（内容已被生成并计费，丢弃是浪费）。
+                addAssistantToolCallMessage(messages, response.getToolCalls(),
+                        response.getAssistantText());
 
                 // AG-07 整改：同一轮多个 tool_calls 并行执行（模型已按
                 // OpenAI parallel tool calls 返回数组），结果按原顺序回填，
                 // 保证 tool_call_id 与消息顺序一致。
                 List<ToolCall> calls = response.getToolCalls();
-                ToolResult[] results = new ToolResult[calls.size()];
-                CountDownLatch latch = new CountDownLatch(calls.size());
-
-                for (int i = 0; i < calls.size(); i++) {
-                    ToolCall tc = calls.get(i);
-                    // AG-12 整改：循环检测——同一轮里对相同工具+相同参数去重，
-                    // 重复调用直接标记失败，不重复执行，防止模型原地打转浪费 token。
-                    if (hasDuplicateCall(calls, i, tc)) {
-                        log.warn("[ReAct] 检测到同轮重复工具调用，跳过: {} args={}", tc.getName(), tc.getArguments());
-                        results[i] = ToolResult.error("该工具调用与本轮已执行的调用重复，请勿重复调用");
-                        latch.countDown();
-                        continue;
-                    }
-                    final int idx = i;
-                    toolExecutor.execute(() -> {
-                        try {
-                            log.info("[ReAct] 执行工具: {}, args={}", tc.getName(), tc.getArguments());
-                            results[idx] = executeTool(tc);
-                        } catch (Exception e) {
-                            log.error("[ReAct] 工具执行异常: {}", tc.getName(), e);
-                            results[idx] = ToolResult.error("工具执行异常: " + e.getMessage());
-                        } finally {
-                            latch.countDown();
-                        }
-                    });
-                }
-
-                // 等待本轮全部工具执行完成（并行场景下统一收口）
-                try {
-                    long timeout = crmConfig.getToolTimeoutSeconds() + 5L;
-                    if (!latch.await(timeout, TimeUnit.SECONDS)) {
-                        log.warn("[ReAct] 第 {} 轮工具执行超时（部分未完成），继续下一轮", round);
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
+                // 2026-10-07：并行执行抽到基类 executeToolsParallel（唯一实现）。
+                // 该方法已统一处理：同轮去重 / 跨轮幂等台账 / RejectedExecutionException
+                // / 超时后 results[i] 为 null 导致的 NPE（此前会冒泡成 500）。
+                ToolResult[] results = executeToolsParallel(calls, executedKeys, null);
 
                 for (int i = 0; i < calls.size(); i++) {
                     ToolCall call = calls.get(i);
@@ -88,6 +71,16 @@ public class ReActAgent extends BaseReActAgent {
                     addToolResultMessage(messages, call, results[i]);
                 }
             } else {
+                // 阶段 3 四层 fail-safe 第 2 层：首轮未调用数据工具但意图高置信度，
+                // 追加强化指令再给一轮机会（避免模型凭记忆编造健康数据）。
+                if (shouldRetryForRouting(round, maxRounds)) {
+                    Map<String, Object> note = buildRoutingReinforceNote();
+                    if (note != null) {
+                        log.info("[ReAct] 第 1 轮未调用数据工具但意图高置信度，追加强化指令重跑一轮");
+                        messages.add(note);
+                        continue;
+                    }
+                }
                 return ReActResponse.builder().content(response.getContent())
                         .toolsUsed(allToolsUsed).toolDetails(toolDetails).build();
             }
@@ -97,21 +90,6 @@ public class ReActAgent extends BaseReActAgent {
         // 末轮调用一次无工具的 LLM，基于已收集的全部上下文做总结回答。
         log.info("[ReAct] 达到轮次上限({})，进行末轮强制总结", maxRounds);
         return summarizeFinalAnswer(messages, allToolsUsed, maxRounds, toolDetails);
-    }
-
-    /**
-     * AG-12：检测本轮已执行过的相同工具+相同参数调用。
-     */
-    private boolean hasDuplicateCall(List<ToolCall> calls, int currentIndex, ToolCall tc) {
-        String currentKey = tc.getName() + "::" + (tc.getArguments() != null ? tc.getArguments().toString() : "");
-        for (int j = 0; j < currentIndex; j++) {
-            ToolCall prev = calls.get(j);
-            String prevKey = prev.getName() + "::" + (prev.getArguments() != null ? prev.getArguments().toString() : "");
-            if (currentKey.equals(prevKey)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

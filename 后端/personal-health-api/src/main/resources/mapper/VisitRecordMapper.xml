@@ -61,4 +61,9 @@
     <select id="countByAppointmentId" resultType="integer">
         SELECT COUNT(*) FROM visit_record WHERE appointment_id = #{appointmentId}
     </select>
+
+    <!-- 全量就诊记录（阶段 0-B 知识图谱抽取用，仅管理员导入端点调用） -->
+    <select id="listAll" resultType="cn.kmbeast.pojo.entity.VisitRecord">
+        SELECT * FROM visit_record ORDER BY id
+    </select>
 </mapper>

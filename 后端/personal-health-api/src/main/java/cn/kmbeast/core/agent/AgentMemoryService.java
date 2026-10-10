@@ -13,11 +13,18 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Agent 记忆服务（2026-10-04 加固）
+ * Agent 用户偏好记忆服务（2026-10-04 加固，2026-10-07 接线）
  *
- * <p>提供长期记忆、语义记忆、用户偏好记忆，支持跨会话学习和知识积累。
+ * <p><b>当前实际提供：用户偏好记忆一种</b>（跨会话持久化，落 {@code cache/agent_workspace/memory/}）。
+ * 早期注释曾声称还提供「长期记忆」「语义记忆」——<b>这两项在代码中不存在实现</b>
+ * （{@link #loadFromDisk} 只读 {@code preferences} 一个分区），属于注释虚标，已更正。</p>
  *
- * <p><b>本次加固的三点</b>：
+ * <p><b>2026-10-07 起已接入 prompt</b>：此前本服务只被 {@code AgentController} 的 3 个
+ * REST 端点调用，ReAct 与 NL2SQL 两条 Agent 链路都不读，导致偏好「可通过 API 读写
+ * 但对用户完全不可见」。现由 {@code BaseReActAgent.buildMemorySection()} 与
+ * {@code DataAgentPipeline.safeMemory()} 注入到 system prompt。</p>
+ *
+ * <p><b>2026-10-04 加固的三点</b>：
  * <ol>
  *   <li><b>无界缓存 → 有界 LRU</b>：原用 {@code new HashMap<>()} 存全部用户偏好，
  *       既无上限也无淘汰，与此前修复过的「AI 对话缓存必然 OOM」是同类隐患。

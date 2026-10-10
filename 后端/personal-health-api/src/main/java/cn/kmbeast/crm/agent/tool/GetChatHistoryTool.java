@@ -37,12 +37,17 @@ public class GetChatHistoryTool implements Tool {
         limitProp.put("type", "integer");
         limitProp.put("description", "返回最近N条记录，默认10");
         limitProp.put("default", 10);
+        // 2026-10-07：原先上限只写在中文 description 里，模型没有机器可读的手段感知边界。
+        // 补上结构化上下界（钳制仍以工具内部代码为准，这里是给模型看的）。
+        limitProp.put("minimum", 1);
+        limitProp.put("maximum", 100);
         properties.put("limit", limitProp);
 
         schema.put("properties", properties);
 
-        schema.put("required", new ArrayList<>());
-
+        // 2026-10-07：原先写的是 required: new ArrayList<>()，即空数组。
+        // 空 required 语义上等于「无必填」，但部分实现（含某些网关）对空数组敏感 ——
+        // 干脆不输出该键（OpenAI 规范里 required 可省略）。
         return schema;
     }
 

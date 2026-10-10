@@ -5,7 +5,7 @@
 
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.16-brightgreen) ![Java](https://img.shields.io/badge/Java-17-orange) ![Vue](https://img.shields.io/badge/Vue-3-42b883) ![Docker](https://img.shields.io/badge/Docker-compose-2496ed) ![License](https://img.shields.io/badge/License-MIT-blue)
 
-基于 **Spring Boot 3.5 + Java 17 + Vue 3** 构建的 AI 健康平台，集成 AI 智能问诊、药品订阅、健康数据追踪、知识库双路 RAG 检索、联网搜索、社区互动等功能。支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理（药品查询、健康数据读取、知识检索、联网搜索、SQL 查询）。
+基于 **Spring Boot 3.5 + Java 17 + Vue 3** 构建的 AI 健康平台：AI 智能问诊、**受控 NL2SQL 数据智能体**（自然语言查自己的数据 → 出报告）、知识库双路 RAG 检索、健康数据追踪、体检报告解读、预约挂号、健康商城与社区。支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理，并由覆盖 405 个用例的测试套件守住回归。
 
 ## 项目解决什么问题
 
@@ -31,9 +31,22 @@
 
 ## 系统架构
 
-![系统技术架构](docs/assets/architecture.svg)
+![系统总体架构](docs/assets/01-system-architecture.png)
 
-> 前端（Vue 3）→ 接入层（认证/限流）→ AI 智能体核心（Multi-Agent × ReAct × Provider 工厂 × 三层防幻觉）→ 双路 RAG 检索（向量 × 图谱 × 关键词，RRF 融合 + 引用溯源）→ 数据与基础设施。
+> 自上而下五层：三端接入 → 安全与访问控制 → 业务服务 → AI 能力 → 数据与基础设施。
+> 图源 [`docs/assets/01-system-architecture.drawio`](docs/assets/01-system-architecture.drawio)，可用 draw.io 直接打开编辑。
+
+**运行时组件与端口**
+
+| 组件 | 说明 | 默认端口 |
+|---|---|---|
+| 前端 | Vue 3 + Vite（开发）/ Nginx 静态托管（生产） | 21091（dev）/ 80（Nginx） |
+| 后端 | Spring Boot 3.5.16 + Java 17（context-path `/api/personal-health/v1.0`） | 21090 |
+| MySQL | 业务主库（35 表） | 3306 |
+| Redis | 缓存 + 会话版本号（登录/锁定/改密即失效） | 6379 |
+| Neo4j | 知识图谱（可选；未启动时检索自动降级为纯向量） | 7687 |
+| 本地微调模型 | vLLM 部署 `HealthPulse-Qwen2.5-7B`（可选） | 8000 |
+| 监控栈 | Grafana / Prometheus / Alertmanager / Loki | 3000 / 9090 / 9093 / 3100 |
 
 ---
 
@@ -43,25 +56,31 @@
 
 ## 项目文档导航
 
-> 项目开发过程中的全部文档，已扁平化至 `docs/` 根目录。架构级改进以 `DELIVERY.md` 为权威说明。
+> 项目开发过程中的全部文档，已扁平化至 `docs/` 根目录。
+> 入口是 [`docs/文档索引与阅读指南.md`](docs/文档索引与阅读指南.md)：该读哪份、代码在哪、哪些内容已有更新，一张表看完。
 
 | 文档           | 路径                                      | 说明                                           |
 | ------------ | --------------------------------------- | -------------------------------------------- |
-| 需求分析         | `docs/需求分析.md` | 功能需求、用例图、流程图                                 |
-| 数据库设计        | `docs/数据库设计.md`           | ER 图、建表 SQL、字段说明                             |
-| 后端开发         | `docs/后端开发.md`        | 接口设计、核心代码、架构说明                               |
-| 前端开发         | `docs/前端开发.md`      | 页面设计、组件说明、路由设计                               |
-| 测试文档         | `docs/测试报告.md`                | 测试用例（49条，含25单测）、测试报告                         |
-| Linux部署      | `docs/Linux部署.md`        | 环境搭建、部署命令、常见问题                               |
-| AI工具使用       | `docs/AI工具使用记录.md`      | AI工具使用记录（≥500字）                              |
-| **AI 智能体架构** | `docs/智能体架构.md`              | **v5.1 新增** Multi-Agent/ReAct/Provider工厂/熔断器 |
-| **RAG 检索增强** | `docs/RAG子系统.md`                   | **v5.1 新增** ingestion管线/混合检索/RAGAS           |
-| **安全加固设计**   | `docs/安全加固设计.md`        | **v5.1 新增** JWT/CRM Key/SqlGuard/XSS/脱敏      |
-| 项目状态         | `docs/项目状态.md`                     | 功能清单、完成状态                                    |
-| 开发指南         | `docs/开发指南.md`             | 防坑指南、编码规范                                    |
-| **缺陷与改进路线图** | `docs/缺陷与改进路线图.md`                | **v5.2 新增** 缺陷/漏洞/改进点决策与排期（已定方案 3 项）      |
-| **多模态能力设计** | `docs/多模态设计.md`            | **v5.2 新增** 图片进上下文 + 语音 ASR/TTS Provider 化详细设计 |
-| 用户交付手册       | `DELIVERY.md`                        | 部署/配置/安全/已知限制（v1.2，架构改进权威说明）                 |
+| 文档 | 路径 | 说明 |
+| --- | --- | --- |
+| **文档索引与阅读指南** | `docs/文档索引与阅读指南.md` | **入口文档**：该读哪份、代码在哪 |
+| **项目现状基线** | `docs/项目现状基线.md` | 系统当前状态（35 表 / 391 字段 / 405 用例） |
+| **数据表结构基线** | `docs/数据表结构基线-20261003.md` | 逐表逐字段清单（`information_schema` 导出） |
+| **AI 智能体架构** | `docs/智能体架构.md` | Multi-Agent / ReAct / Provider 工厂 / 熔断器 |
+| **数据智能体迁移方案** | `docs/DataAgent集成迁移方案.md` | 受控 NL2SQL 的落地顺序与逐阶段实现 |
+| **数据资产与 AI 能力整改方案** | `docs/数据资产与AI能力整改方案.md` | 能力建设与缺陷整改记录 |
+| **RAG 检索增强** | `docs/RAG子系统.md` | ingestion 管线 / 混合检索 / RAGAS |
+| **安全加固设计** | `docs/安全加固设计.md` | JWT / CRM Key / SqlGuard / XSS / 脱敏 |
+| **多模态能力设计** | `docs/多模态设计.md` | 图片进上下文 + 语音 ASR/TTS Provider 化 |
+| 后端开发 | `docs/后端开发.md` | 接口设计、核心代码、架构说明 |
+| 前端开发 | `docs/前端开发.md` | 页面设计、组件说明、路由设计 |
+| 数据库设计 | `docs/数据库设计.md` | ER 图、建表 SQL、字段说明 |
+| 需求分析 | `docs/需求分析.md` | 功能需求、用例图、流程图 |
+| 架构调研与代码审查 | `docs/调研与代码审查报告-20261003.md` | 一次人工全量审查的结论与处置 |
+| 测试报告 | `docs/测试报告.md` | 测试环境、用例清单、回归范围（405 用例 / 38 类） |
+| Linux 部署 | `docs/Linux部署.md` | 环境搭建、部署命令、常见问题 |
+| 开发指南 | `docs/开发指南.md` | 编码规范与防坑指南 |
+| AI 工具使用记录 | `docs/AI工具使用记录.md` | 开发期 AI 工具使用实录 |
 
 ---
 
@@ -86,7 +105,9 @@
 
 ---
 
-## 功能模块
+## 产品功能全景
+
+![产品功能全景](docs/assets/05-product-function-map.png)
 
 ### 用户端
 
@@ -133,7 +154,7 @@
 | 工具                 | 数据来源                            | 说明              |
 | ------------------ | ------------------------------- | --------------- |
 | `search_drug`      | `ai_data/drugs.json`            | 药品搜索，返回名称/价格/厂商 |
-| `get_health_data`  | `ai_data/health/user_{id}.json` | 用户健康指标查询        |
+| `get_health_data`  | MySQL `user_health` 表（按指标字典白名单查询，LLM 不产 SQL） | 用户健康指标查询 |
 | `search_knowledge` | 向量数据库 + MySQL                   | 知识库语义检索         |
 | `web_search`       | 博查/Tavily/DuckDuckGo            | 联网搜索最新信息        |
 | `get_chat_history` | SQLite                          | 查询聊天历史          |
@@ -171,6 +192,30 @@
 
 ---
 
+## 数据智能体（受控 NL2SQL）
+
+自然语言提问 → 真实 SQL → 真实数据 → 分析报告。整条链路是**十步流水线**，两步安全动作（词法守卫 + 租户重写）是唯一出口，命中风险模式一律 fail-closed：
+
+![数据智能体流水线](docs/assets/02-data-agent-pipeline.png)
+
+| 步骤 | 名称 | 职责 |
+|---|---|---|
+| 1 | 意图识别 | 判断是闲聊还是数据分析请求 |
+| 2 | 查询增强 | 结合上下文把问题改写为独立、可检索的规范查询 |
+| 3 | 数据表召回 | 从全库召回与问题相关的候选表 |
+| 4 | 表关系分析 | 分析候选表的外键关系，为 JOIN / 子查询提供依据 |
+| 5 | SQL 生成 | 依据 schema 与表关系生成只读 SQL |
+| 6 | 语义一致性校验 | 校验 SQL 是否真正回答了用户问题 |
+| 7 | 安全守卫 | 词法校验：拒绝 DML/DDL/多语句/注释/系统库/黑名单表 |
+| 8 | 租户隔离重写 | 删除模型写的租户谓词，无条件追加当前主体条件 |
+| 9 | 执行查询 | 参数化执行，行数与时长为硬上限 |
+| 10 | 生成报告 | 基于真实结果生成 Markdown 分析报告（可含 ECharts 图表） |
+
+> 三端入口：`/user/data-agent`、`/doctor/data-agent`、`/data-agent/admin`；
+> 步骤事件经 SSE 实时推送到前端 `AgentWorkflow.vue`，全流程可见、可中断、可回看历史。
+
+---
+
 ## AI 智能体架构（Multi-Agent + ReAct + 混合 RAG）
 
 系统 AI 能力由三层构成，覆盖从意图路由到工具增强推理再到知识检索的完整链路。
@@ -198,7 +243,7 @@
 | 工具                 | 数据来源                            | 说明              |
 | ------------------ | ------------------------------- | --------------- |
 | `search_drug`      | `ai_data/drugs.json`            | 药品搜索，返回名称/价格/厂商 |
-| `get_health_data`  | `ai_data/health/user_{id}.json` | 用户健康指标查询        |
+| `get_health_data`  | MySQL `user_health` 表（按指标字典白名单查询，LLM 不产 SQL） | 用户健康指标查询 |
 | `search_knowledge` | 向量数据库 + MySQL                   | 知识库语义检索（混合）     |
 | `web_search`       | 博查/Tavily/DuckDuckGo            | 联网搜索最新信息        |
 | `get_chat_history` | SQLite                          | 查询聊天历史          |
@@ -230,21 +275,32 @@
 - `LocalVllmProvider` — 自部署微调模型 `HealthPulse-Qwen2.5-7B`（vLLM，OpenAI 兼容，默认 `:8000`）；训练集/训练参数见 `ai_model/`，完整权重发布 Hugging Face + 魔搭（`Aulink/HealthPulse-Qwen2.5-7B`）（见 `ai_model/README.md`）
 - `CircuitBreaker` — 故障快速失败、半开探测恢复
 
-### 5. 安全加固（本轮完成）
+### 5. 安全加固
+
+![安全纵深防御](docs/assets/06-security-architecture.png)
 
 | 项 | 实现 |
 |----|------|
-| 登录令牌 | JWT 密钥**外部注入**，启动强校验（空密钥/弱密钥直接拒绝启动），默认 7 天有效期 |
+| 密码存储 | BCrypt 加盐哈希 |
+| 登录令牌 | JWT 密钥**外部注入**，启动强校验（空密钥/弱密钥直接拒绝启动），默认 7 天有效期；**会话版本号**——锁定/登出/改密即旧 Token 失效 |
+| 会话越权 | AI 会话 / 文件上传均有归属校验（IDOR 已修复） |
 | 机器接口 | `/crm/**` 由 `CrmApiKeyInterceptor` 做 API Key 认证，fail-closed |
-| SQL 注入 | `SqlGuard` 只读词法校验 + 关键词黑名单 + 禁子查询 + **租户隔离**（只能查本会话手机号数据） |
-| XSS | AI 输出经 DOMPurify 白名单净化 |
+| SQL 注入 | 双守卫：`SqlGuard` 只读词法校验 + 关键词黑名单 + 禁子查询 + **租户隔离**；数据智能体侧 `MySqlAiSqlGuard` + `TenantSqlRewriter` **逐表重写**，子查询 / CTE / 隐式逗号连接 / 白名单外表一律 **fail-closed** |
+| 文件上传 | 登录态 + 扩展名白名单 + 魔数校验 + 随机文件名（不可枚举） |
+| XSS | AI 输出统一经 DOMPurify 白名单净化（报告渲染走 `utils/markdownReport.js`，防存储型 XSS） |
 | 数据出境 | 健康档案发送第三方 AI 前自动**脱敏**（剔除姓名/手机号等 PII） |
+| LLM 稳定性 | Provider 工厂 + 熔断器（429/5xx 自动重试，故障快速失败）+ Sentinel 限流（登录/AI/上传） |
 | 成本可观测 | 每次调用 token 用量落库（`ai_usage` 表） |
-| 单元测试 | 25 个用例（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl），`mvn test` 可跑 |
+| 日志 | `TraceIdFilter` 注入 MDC `traceId`/`userId`，logback 滚动归档，异常不回传前端 |
+| 单元测试 | **405 个用例 / 38 个测试类全绿**（含 SqlGuard、NL2SQL 双守卫、数据智能体流水线），详见「部署指南 · 测试」 |
+
+**合规提醒**：平台涉及个人健康信息（敏感个人信息），正式商用前建议完成**等保三级测评**与个人信息保护影响评估，并对第三方 AI 厂商的数据出境做合规确认。
 
 ---
 
 ## RAG 知识库检索流程（双路召回）
+
+![双路 RAG 检索与知识图谱](docs/assets/03-rag-knowledge-graph.png)
 
 ```
 用户提问 → 向量语义召回（bge-m3）+ Neo4j 图谱召回（实体关系）+ MySQL LIKE 召回
@@ -261,11 +317,10 @@
 ## 数据流设计
 
 ```
-对话历史 → MySQL（主存储）
+对话历史 → MySQL（主存储）+ chat_history/{userId}/conversation_{id}.json（本地副本）
 AI调用数据 → MySQL → 导出JSON → AI工具读取
 AI配置 → MySQL（明文存储，管理员后台管理）
-历史会话 → chat_backup/history_speak/{userId}/ （备份）
-健康数据 → chat_backup/user_health/{userId}/ （备份）
+语音对话历史 → chat_cache/history_speak/{年}/{月}/{日}/（Web Speech 降级路径）
 ```
 
 ---
@@ -307,6 +362,29 @@ AI配置 → MySQL（明文存储，管理员后台管理）
 | `/data-export/drugs`           | 导出药品到 `ai_data/drugs.json` |
 | `/data-export/health/{userId}` | 导出指定用户健康数据                 |
 | `/data-export/health/all`      | 导出所有用户健康数据                 |
+
+### CRM 接口（机器对机器，`X-CRM-API-Key` 认证）
+
+| 方法 | 接口 | 说明 | 认证 |
+|----|------|------|------|
+| POST | `/crm/chat` | 非流式对话 | X-CRM-API-Key |
+| POST | `/crm/chat/stream` | 流式对话（SSE） | X-CRM-API-Key |
+| GET | `/crm/history/{phone}` | 指定手机号对话历史 | X-CRM-API-Key |
+| POST | `/crm/sql/query` | 只读 SQL 查询 | X-CRM-API-Key |
+| GET | `/crm/health` | 健康检查 | 免认证 |
+
+> CRM 接口面向运营 / 客服与第三方系统集成；`execute_sql` 等工具已强制**租户隔离**（只能查询当前会话手机号的数据）。
+
+### 数据智能体接口（三端，SSE 步骤事件）
+
+| 端 | 前缀 | 端点 |
+|---|---|---|
+| 用户 | `/user/data-agent` | `POST /ask`（SSE）、`GET /sessions`、`GET /sessions/{id}/messages`、`PUT /sessions/{id}/rename`、`DELETE /sessions/{id}`、`DELETE /sessions`、`GET /presets` |
+| 医生 | `/doctor/data-agent` | 同上（**必传 `patientId`**，校验 `appointment ∪ visit_record` 授权，未授权 fail-closed 并落审计） |
+| 管理员 | `/data-agent/admin` | 开关与运行时配置、预设问题、指标字典 |
+
+> 协议：`event: step | result | error`；`step` 事件携带 `RUNNING / SUCCESS / FAILED / SKIPPED` 与 thinking、payload、elapsedMs。
+> 前端不使用 `EventSource`（不支持 POST），改 `fetch` + `ReadableStream` 手工解帧（`utils/agentStream.js`）。
 
 ---
 
@@ -425,23 +503,42 @@ AI配置 → MySQL（明文存储，管理员后台管理）
 
 - JDK 17（构建/运行目标，pom `source/target=17`）
 - Maven 3.6+
-- Node.js 16+
-- MySQL 8.x（主库，HikariCP 连接池）
+- Node.js 18+（本项目在 Node 22 上验证）
+- MySQL 8.x（主库，HikariCP 连接池；本项目在 MySQL 9.7 验证）
 - Redis 6+（缓存 + 会话版本号，必需）
 - Neo4j（可选，GraphRAG 双路召回；未启动时自动降级为纯向量检索）
-- Docker（可选，一键起监控告警栈：Prometheus/Grafana/Loki/Alertmanager，见 `DELIVERY.md` §4.4）
+- Docker（可选，一键起监控告警栈：Prometheus/Grafana/Loki/Alertmanager，见本文档「部署指南 · 监控、告警与日志」）
 
 ### 1. 数据库初始化
 
 ```sql
+-- 库默认排序规则与生产库实测一致（utf8mb4_bin）。
+-- 注意：35 张表 / 130 个字符列的 utf8mb4_0900_ai_ci 由各建表脚本在 DDL 里**显式指定**，
+-- 所以这里的库默认值不影响终态结构。
 CREATE DATABASE personal_health DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 USE personal_health;
 
--- 基础表结构 + 种子数据
-source Data/sql/deploy/init_database.sql;
+-- ① 建库建表（7 个脚本）→ 42 张表（未合并前的初始结构）
+source Data/01_建库建表/init_database.sql;
+source Data/01_建库建表/forum_schema.sql;
+source Data/01_建库建表/appointment_schema.sql;
+source Data/01_建库建表/extra_modules_schema.sql;
+source Data/01_建库建表/ai_usage_schema.sql;
+source Data/01_建库建表/audit_log.sql;
+source Data/01_建库建表/model_announcement_schema.sql;
+
+-- ② 增量升级（7 个脚本，按序执行且全部幂等）→ 终态 35 张表 / 391 字段
+source Data/02_迁移脚本/01_schema_refactor.sql;
+source Data/02_迁移脚本/02_patient_profile_normalize.sql;
+source Data/02_迁移脚本/03_align_demo_appointments.sql;   -- 演示数据，生产勿执行
+source Data/02_迁移脚本/04_consolidate_tables.sql;
+source Data/02_迁移脚本/05_drop_unused_tables.sql;
+source Data/02_迁移脚本/06_merge_message_into_notification.sql;
+source Data/02_迁移脚本/07_mall_product_medical_fields.sql;
 ```
 
-扩展模块脚本按需执行（`Data/sql/` 下）：`ai_usage_schema.sql`（token 成本）、`appointment_schema.sql`（预约）、`forum_schema.sql`（社区）、`rbac_schema.sql`（权限）、`audit_log.sql`（审计）等。
+`Data/01_建库建表/rbac_schema.sql` 已于 2026-10-07 移入 `Data/90_归档/`（它会建 4 张本项目从未使用的 RBAC 表），**不要执行**。
+容器化部署（`docker compose up`）已把上述 14 个脚本按序挂载到 `/docker-entrypoint-initdb.d/`，无需手工执行。完整说明与备份恢复见 [`Data/README.md`](Data/README.md)。
 
 ### 2. 配置密钥（本地开发）
 
@@ -475,118 +572,313 @@ npm run dev
 
 ### 5. 首次配置
 
-1. 用种子管理员账号 `admin` 登录（密码见 `Data/sql/deploy/init_database.sql` 注释，首次登录后请立即修改）
+1. 用种子管理员账号 `admin` 登录（密码见 `Data/01_建库建表/init_database.sql` 注释，首次登录后请立即修改）
 2. 进入管理员后台 → AI 配置：选择厂商（如 DeepSeek）、输入 API Key、配置嵌入服务（Embedding API URL + Key）
 3. 保存配置后即可开始 AI 对话
 
 ---
 
+## 部署指南
+
+![部署拓扑与可观测](docs/assets/04-deployment-topology.png)
+
+### 1. Docker Compose（推荐）
+
+前置：Docker + Docker Compose；准备 `.env` 文件（见「配置说明」）。
+
+```bash
+# 1. 准备环境变量（务必设置，缺任一密钥服务会拒绝启动）
+cat > .env << 'EOF'
+DB_ROOT_PASSWORD=你的MySQL密码
+JWT_SECRET=至少32字节随机字符串（openssl rand -base64 48）
+CRM_API_KEY=至少24字符随机字符串（openssl rand -hex 32）
+EMBEDDING_API_URL=嵌入服务地址（可选，RAG 向量检索用）
+AI_API_KEY=DeepSeek等厂商密钥
+GRAFANA_ADMIN_PASSWORD=Grafana管理员密码（≥8位强密码，监控看板登录用）
+EOF
+
+# 2. 启动
+docker compose up -d --build
+
+# 3. 验证（存活探测）
+curl http://localhost:21090/api/personal-health/v1.0/user/login
+```
+
+### 2. 裸机部署
+
+```bash
+# 后端
+cd 后端/personal-health-api
+mvn package -DskipTests
+export JWT_SECRET=... CRM_API_KEY=... DB_PASS=...
+java -jar target/*.jar
+
+# 前端
+cd 前端/personal-heath-view
+npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
+```
+
+### 3. 关键运维事项
+
+- **镜像/进程以非 root 运行**（后端镜像已内置 appuser）
+- **数据卷持久化**：`backend_data`（上传文件）、`mysql_data`、`redis_data`、`grafana_data` / `loki_data`（监控数据）
+- **备份清单**：MySQL 全库（`mysqldump`，或用 Navicat 生成 `.nbak`）；恢复与全新部署脚本见 [`Data/README.md`](Data/README.md)
+- **前端端口**：生产由 Nginx 托管（80），开发环境 Vite 跑在 **21091**，反向代理需把 `/api` 转发到后端 21090、WebSocket `/ws` 转发到前端
+
+### 4. 监控、告警与日志采集（随 compose 默认启用）
+
+| 组件 | 端口 | 入口 | 说明 |
+|------|------|------|------|
+| Grafana | 3000 | `http://<主机>:3000` | 指标看板 + 日志查询，登录用 `.env` 的 `GRAFANA_ADMIN_PASSWORD` |
+| Prometheus | 9090 | `http://<主机>:9090` | 指标抓取与告警规则管理 |
+| Alertmanager | 9093 | `http://<主机>:9093` | 告警通知分发 |
+| Loki | 3100 | `http://<主机>:3100` | 日志存储（保留 7 天），一般经 Grafana 访问 |
+
+- **指标看板**：Grafana 已预置数据源（Prometheus/Loki）与「Spring Boot 应用概览（智康云）」看板（JVM 堆 / CPU / HTTP QPS / 5xx / 线程 / 启动时长），打开即用。
+- **告警规则**（`deploy/prometheus-alerts.yml`，5 条）：后端实例离线（critical）、HTTP 5xx 速率过高、进程 CPU >85%、JVM 堆 >85%、监控目标离线。触发后在 Prometheus「Alerts」页可见，并推送 Alertmanager。
+- **告警外发（上线前必改）**：编辑 `deploy/alertmanager.yml`，把 `url` 换成企业微信 / 钉钉 / 飞书机器人 Webhook，然后 `docker compose restart alertmanager`。**未替换前告警只在 Alertmanager 页面停留，不会外发**。
+- **日志查询**：Grafana → 左侧 Explore → 数据源选 Loki，按 `service="backend"` 过滤；日志带 `traceId` / `userId`，可与错误响应中的「追踪ID」关联排查。
+- **关闭监控栈**：删除 `docker-compose.yml` 中 grafana / alertmanager / loki / promtail 四个服务块及其数据卷声明即可（不影响业务）。
+
+### 5. 测试
+
+```bash
+# 后端：javac + 自写 RunAll（本项目不用 mvn 跑测试，见 docs/开发指南.md）
+#   当前规模：405 个用例 / 38 个测试类，全量通过
+
+# 前端：静态自检（模板标签栈式配平 + <script> 交 node --check）
+python 前端/personal-heath-view/selfcheck.py
+```
+
+---
+
+## 配置说明
+
+### 1. 必须配置（缺失即拒绝启动）
+
+| 配置项 | 环境变量 | 说明 |
+|--------|----------|------|
+| JWT 密钥 | `JWT_SECRET` | ≥32 字节随机串，用于签发登录令牌 |
+| CRM API Key | `CRM_API_KEY` | ≥24 字符，保护 `/crm/**` 机器接口 |
+| MySQL 密码 | `DB_ROOT_PASSWORD` | 数据库 root 密码 |
+| 嵌入服务地址 | `EMBEDDING_API_URL` | 向量检索用（DeepSeek 无此接口，需 OpenAI 兼容或本地服务） |
+| Grafana 管理员密码 | `GRAFANA_ADMIN_PASSWORD` | 监控看板登录密码（≥8 位，随 compose 启动 Grafana） |
+
+> 本地开发可设 `CRM_STRICT_STARTUP=false`（或 `crm.strict-startup: false`）跳过启动强校验；**生产必须保持默认严格校验**。
+
+### 2. 可选配置
+
+| 配置项 | 环境变量 / 键 | 默认值 |
+|--------|-------------|--------|
+| AI 厂商 | `AI_PROVIDER` | deepseek（可选 `zhikangyun-local` 切本地 vLLM 微调模型，地址 `http://localhost:8000/v1`） |
+| AI 密钥 | `AI_API_KEY` | 空（也可在管理员后台配置，持久化到 MySQL） |
+| 文件存储根 | `FILE_STORAGE_ROOT` | `/app/data`（容器） |
+| 对外文件 URL | `my-server.public-base-url` | localhost（**生产必须改为域名**） |
+| 嵌入模型 | `EMBEDDING_MODEL` | text-embedding-3-small（本项目用 bge-m3） |
+| 监控端口 | `GRAFANA_PORT` / `ALERTMANAGER_PORT` / `LOKI_PORT` | 3000 / 9093 / 3100 |
+| Grafana 访问地址 | `GRAFANA_ROOT_URL` | http://localhost:3000（生产改为域名） |
+
+### 3. 安全配置基线
+
+- 生产环境**必须 HTTPS**（语音输入 `getUserMedia` 仅 HTTPS 可用）
+- 反向代理需把 `/api` 转发到后端 21090、WebSocket `/ws` 转发到前端
+- 前端 `VUE_APP_API_BASE` 生产建议 `/api/personal-health/v1.0`（相对路径走反代）
+
+---
+
+## 使用指南
+
+### 1. AI 问诊
+
+1. 登录后进入「AI 健康分析」页
+2. 选择角色（全科医生 / 营养师 / 心理咨询师 / 报告分析师 / 全能助手 / 健康助手）
+3. 输入症状，或按住麦克风说话
+4. 可勾选「联网搜索」「知识库」「健康数据接入」增强回答
+5. AI 回答末尾会附相关文章推荐
+
+### 2. 健康数据
+
+- 「健康指标」页录入指标（血压/血糖/血脂/体重等，支持自定义模型）
+- AI 问诊开启「健康数据接入」后，模型可基于真实指标给出个性化建议
+- 支持 JSON 导入导出迁移数据
+
+### 3. 体检报告解读
+
+1. 上传 PDF 体检报告（≤50MB、≤100 页）
+2. 系统自动提取血压、血糖、BMI、心率等指标
+3. 交由「报告分析师」角色解读
+
+> 注意：自动提取结果请人工核对，异常指标以医院报告为准。
+
+### 4. 数据智能体（自然语言查数据 → 报告）
+
+- **用户端**：在「我的数据」中以自然语言提问（如「我最近的血压趋势如何？」），流水线会展示 10 个步骤的实时进度，最终给出可下载的 Markdown / HTML 报告（图表可导出为图片）
+- **医生端**：医生端数据问答页，**必须选定患者**，越权访问会被拒绝并记审计
+- **管理员端**：数据智能体管理页可开关能力、维护预设问题与指标字典
+
+### 5. 语音
+
+- **输入**：输入框右侧麦克风按钮，按住说话松开识别（Chrome / Edge；Safari / Firefox 提示降级）
+- **朗读**：AI 回答支持语音朗读（浏览器内置 Web Speech API，不占用服务器资源）
+
+---
+
+## 故障排查
+
+| 症状 | 排查 |
+|------|------|
+| 服务拒绝启动 | 检查 `JWT_SECRET` / `CRM_API_KEY` / `EMBEDDING_API_URL` 是否设置且强度达标 |
+| 登录后请求 401 | token 过期（默认 7 天）或会话版本被递增（重登/改密/被锁定）导致旧 token 失效 |
+| 点任何页面跳登录 | 同上，通常是会话版本被顶或 Redis 停机后版本校验失效 |
+| AI 无响应 | 检查 `ai_config` 表 API Key 与上游厂商余额；后端日志 `logs/error.log` |
+| 图片/文件上传失败 | 检查登录态、文件类型（扩展名 + 内容须一致）、存储目录可写 |
+| 上传文件 404 | 容器重启后存储卷未挂载（检查 `FILE_STORAGE_ROOT` 指向持久卷） |
+| 语音按钮无反应 | 浏览器须为 Chrome / Edge，且页面须为 HTTPS 或 localhost |
+| 药品搜索无结果 | 检查 `ai_data/drugs.json` 是否存在且有数据，或调用 `POST /data-export/drugs` 重新导出 |
+| 页面空白 | 后端是否启动（21090）；前端 API 地址是否正确（`utils/request.js`）；浏览器控制台报错 |
+| `Port 21090 in use` | 残留 java 进程，`netstat -ano \| grep :21090` 后 taskkill |
+| `UnsupportedClassVersionError` | 用了 JDK 8，需切 JDK 17 |
+
+---
+
 ## 数据库表结构
+
+> **完整 35 表 / 391 字段的权威清单见 [`docs/数据表结构基线-20261003.md`](docs/数据表结构基线-20261003.md)**（`information_schema` 实时导出，改表前必须先更新）。
+> 本节仅列核心表的关键字段，便于快速理解数据模型。
 
 ### 用户表 `user`
 
 | 字段           | 类型           | 说明             |
 | ------------ | ------------ | -------------- |
-| id           | INT, 主键      | 用户ID           |
-| user_account | VARCHAR(50)  | 用户账号（手机号）      |
-| user_name    | VARCHAR(50)  | 用户名            |
-| user_pwd     | VARCHAR(128) | 密码（BCrypt加密）   |
-| user_role    | TINYINT      | 角色：1=管理员, 2=用户 |
-| user_avatar  | VARCHAR(500) | 头像URL          |
+| id           | INT UNSIGNED, 主键 | 用户ID        |
+| user_account | VARCHAR(50)  | 用户账号（登录名；`user.phone` 多为 NULL，登录一律用本字段） |
+| user_name    | VARCHAR(50)  | 用户昵称           |
+| user_pwd     | VARCHAR(100) | 密码（BCrypt 加密）  |
+| user_role    | INT          | 角色：1=管理员, 2=用户, 3=医生 |
+| user_avatar  | VARCHAR(255) | 头像URL          |
 | user_email   | VARCHAR(100) | 邮箱             |
-| is_login     | TINYINT      | 登录状态           |
-| is_word      | TINYINT      | 状态             |
+| phone        | VARCHAR(20)  | 手机号（可空）        |
+| phone_verified | TINYINT    | 手机号是否已验证：0 未验证 / 1 已验证 |
+| is_login     | TINYINT(1)   | **是否允许登录**：0=可登录, 1=锁定禁止 |
+| is_word      | TINYINT(1)   | 禁言：0=正常, 1=禁言  |
+| is_vip       | TINYINT(1)   | VIP：0=否, 1=是    |
+| vip_expire_time | DATETIME  | VIP 到期时间（NULL=永久） |
 | create_time  | DATETIME     | 创建时间           |
 
 ### 健康资讯表 `news`
 
 | 字段          | 类型           | 说明              |
 | ----------- | ------------ | --------------- |
-| id          | INT, 主键      | 资讯ID            |
+| id          | INT UNSIGNED, 主键 | 内容ID         |
+| content_type | VARCHAR(20) | 内容类型：NEWS 资讯 / POST 帖子 / ARTICLE 文章 |
+| user_id     | INT UNSIGNED | 作者用户ID（资讯可为空）    |
+| title       | VARCHAR(200) | 标题（统一字段，`name` 为迁移期并存列） |
 | name        | VARCHAR(200) | 标题              |
-| content     | TEXT         | 内容              |
-| tag_id      | INT          | 分类ID（关联 tags 表） |
-| cover       | VARCHAR(500) | 封面图URL          |
-| is_top      | TINYINT      | 是否置顶            |
-| is_banner   | TINYINT      | 是否轮播图           |
+| content     | LONGTEXT     | 内容              |
+| summary     | VARCHAR(500) | 摘要 / 导读         |
+| tag_id      | INT          | 分类ID（关联 `tags` 表） |
+| cover       | VARCHAR(255) | 封面图URL          |
+| view_count / like_count / favorite_count / comment_count | INT | 互动计数 |
+| hot_score   | DECIMAL(10,4) | 热度分（定时任务维护）     |
+| is_top      | TINYINT(1)   | 是否置顶            |
+| is_banner   | TINYINT(1)   | 是否轮播图           |
+| status      | TINYINT      | 状态：0 草稿 / 1 已发布 / 2 已下架 |
 | create_time | DATETIME     | 创建时间            |
+
+> 原 `post` 表已合并进本表（`content_type='POST'`），原 `news_save` 收藏已并入 `content_interaction`。
 
 ### 资讯分类表 `tags`
 
 | 字段   | 类型          | 说明   |
 | ---- | ----------- | ---- |
-| id   | INT, 主键     | 分类ID |
+| id   | INT UNSIGNED, 主键 | 分类ID |
 | name | VARCHAR(50) | 分类名称 |
+| type | VARCHAR(20) | GENERAL 通用 / POST 论坛 / NEWS 资讯 |
+| sort_order | INT   | 排序权重（小在前） |
+| status | TINYINT   | 状态：0 禁用 / 1 启用 |
 
-### 药品表 `drug`
+### 药品 / 商品表 `mall_product`
+
+> 原 `drug` 表已并入 `mall_product`（`product_type='drug'`），药品与商城统一建模。
 
 | 字段            | 类型            | 说明                  |
 | ------------- | ------------- | ------------------- |
-| id            | INT, 主键       | 药品ID                |
-| name          | VARCHAR(200)  | 药品名称                |
-| generic_name  | VARCHAR(200)  | 通用名                 |
-| category      | VARCHAR(100)  | 分类（感冒药/抗生素/维生素等）    |
-| description   | TEXT          | 药品说明                |
-| price         | DECIMAL(10,2) | 价格                  |
-| unit          | VARCHAR(50)   | 单位（盒/瓶/支）           |
-| specification | VARCHAR(200)  | 规格                  |
+| id            | INT UNSIGNED, 主键 | 商品ID            |
+| category_id   | INT           | 分类ID                |
+| product_type  | VARCHAR(20)   | 商品类型：drug 药品 / device 医疗器械 / health 保健品 |
+| name          | VARCHAR(200)  | 商品名称                |
+| generic_name  | VARCHAR(200)  | 通用名（药品专用，源 `ai_data/drugs.json`） |
+| specification | VARCHAR(200)  | 规格（如 0.4g×30片）      |
 | manufacturer  | VARCHAR(200)  | 生产厂家                |
-| is_otc        | TINYINT       | 是否OTC（0=处方药, 1=OTC） |
-| stock         | INT           | 库存                  |
-| status        | TINYINT       | 状态（0=下架, 1=上架）      |
+| is_otc        | TINYINT(1)    | 是否 OTC 非处方药（0=否, 1=是） |
+| medical_category | VARCHAR(50) | 医学分类（中成药/感冒药/抗生素/维生素等），仅药品有值 |
+| description   | TEXT          | 商品描述                |
+| price / original_price | DECIMAL(10,2) | 售价 / 原价      |
+| stock / sales_count | INT UNSIGNED | 库存 / 销量       |
+| unit          | VARCHAR(50)   | 单位（盒/瓶/支）           |
+| status        | TINYINT(1)    | 状态（0=下架, 1=上架）      |
+| is_hot / is_new | TINYINT(1)  | 是否热销 / 是否新品        |
 
-### 药品订阅表 `drug_subscription`
+### 商城订单表 `mall_order`
+
+> 原 `drug_subscription`（药品订阅）已由商城订单模型取代。
 
 | 字段          | 类型       | 说明             |
 | ----------- | -------- | -------------- |
-| id          | INT, 主键  | 订阅ID           |
+| id          | INT UNSIGNED, 主键 | 订单ID     |
+| order_no    | VARCHAR(50) | 订单号          |
 | user_id     | INT      | 用户ID           |
-| drug_id     | INT      | 药品ID           |
-| quantity    | INT      | 订阅数量           |
-| status      | TINYINT  | 状态（0=取消, 1=有效） |
-| create_time | DATETIME | 订阅时间           |
+| total_amount / actual_amount | DECIMAL(10,2) | 订单总额 / 实付金额 |
+| status      | TINYINT(1) | 0 待付款 / 1 已付款 / 2 已发货 / 3 已收货 / 4 已完成 / 5 已取消 |
+| payment_method | VARCHAR(50) | 支付方式（模拟）    |
+| payment_time | DATETIME | 支付时间           |
+| shipping_address_id | INT | 收货地址ID      |
+| create_time | DATETIME | 创建时间           |
 
 ### 健康模型配置表 `health_model_config`
 
 | 字段          | 类型          | 说明                |
 | ----------- | ----------- | ----------------- |
-| id          | INT, 主键     | 模型ID              |
-| name        | VARCHAR(50) | 指标名称（如"收缩压"）      |
-| unit        | VARCHAR(20) | 单位（如"mmHg"）       |
-| symbol      | VARCHAR(10) | 符号                |
-| value_range | VARCHAR(50) | 正常范围（格式："90,140"） |
-| is_global   | TINYINT     | 是否全局模型            |
+| id          | INT UNSIGNED, 主键 | 模型ID          |
+| user_id     | INT         | 用户ID（NULL = 全局模型）  |
+| name        | VARCHAR(100) | 指标名称（如"收缩压"）      |
+| detail      | VARCHAR(500) | 指标描述              |
+| unit        | VARCHAR(50) | 单位（如"mmHg"）       |
+| symbol      | VARCHAR(100) | 符号                |
+| value_range | VARCHAR(100) | 正常范围（格式："90,140"） |
+| is_global   | TINYINT(1)  | 是否全局（0=否, 1=是）     |
+| category    | VARCHAR(20) | PUBLIC 公共 / PERSONALIZED 个性化 |
 
 ### 用户健康记录表 `user_health`
 
 | 字段                     | 类型          | 说明     |
 | ---------------------- | ----------- | ------ |
-| id                     | INT, 主键     | 记录ID   |
+| id                     | INT UNSIGNED, 主键 | 记录ID |
 | user_id                | INT         | 用户ID   |
 | health_model_config_id | INT         | 健康模型ID |
-| value                  | VARCHAR(50) | 记录值    |
+| value                  | VARCHAR(100) | 记录值   |
 | create_time            | DATETIME    | 记录时间   |
 
 ### AI 会话表 `ai_conversation`
 
 | 字段                | 类型           | 说明                                    |
 | ----------------- | ------------ | ------------------------------------- |
-| id                | INT, 主键      | 会话ID                                  |
+| id                | INT UNSIGNED, 主键 | 会话ID                            |
 | user_id           | INT          | 用户ID                                  |
 | title             | VARCHAR(255) | 会话标题                                  |
-| agent_type        | VARCHAR(50)  | AI角色（doctor/nutritionist/consultant等） |
+| agent_type        | VARCHAR(50)  | AI 角色 / 智能体类型（`doctor`、`DATA_AGENT_USER`、`DATA_AGENT_DOCTOR` 等） |
 | message_count     | INT          | 消息数量                                  |
 | last_message_time | DATETIME     | 最后消息时间                                |
-| create_time       | DATETIME     | 创建时间                                  |
+| create_time / update_time | DATETIME | 创建 / 更新时间                        |
 
 ### AI 聊天记录表 `ai_chat_record`
 
 | 字段              | 类型          | 说明                 |
 | --------------- | ----------- | ------------------ |
-| id              | INT, 主键     | 记录ID               |
+| id              | INT UNSIGNED, 主键 | 记录ID         |
 | conversation_id | INT         | 关联会话ID             |
 | user_id         | INT         | 用户ID               |
-| role            | VARCHAR(20) | 角色（user/assistant） |
+| role            | VARCHAR(20) | 角色（user / assistant） |
 | content         | TEXT        | 消息内容               |
 | agent_type      | VARCHAR(50) | AI角色类型             |
 | create_time     | DATETIME    | 创建时间               |
@@ -597,16 +889,19 @@ npm run dev
 | ------------ | ------------ | --------------------- |
 | id           | INT, 主键      | 配置ID                  |
 | config_key   | VARCHAR(100) | 配置键（如 api_key, model） |
-| config_value | TEXT         | 配置值（API Key 明文存储）     |
+| config_value | TEXT         | 配置值（API Key 明文存储，生产建议信封加密） |
 | description  | VARCHAR(255) | 配置描述                  |
-| create_time  | DATETIME     | 创建时间                  |
+| create_time / update_time | DATETIME | 创建 / 更新时间      |
 
-### 评论表 `evaluations` / 消息表 `message`
+### 评论表 `comment` / 通知表 `notification` / 内容交互表 `content_interaction`
 
-| 表名          | 说明        |
-| ----------- | --------- |
-| evaluations | 用户评论/评价记录 |
-| message     | 系统消息通知    |
+> 原 `evaluations`（评论）已并入 `comment`；原 `message`（消息）已并入 `notification`。
+
+| 表名 | 说明 | 关键字段 |
+| ----------- | --------- | --------- |
+| `comment` | 统一评论表（多态） | `target_type`（NEWS / QUIZ）、`target_id`、`user_id`、`parent_id`（树形）、`content`、`like_count`、`status` |
+| `notification` | 统一通知表（合并原 `message`） | `user_id`、`title`、`content`、`message_type`（1 系统通知 / 2 互动消息 / 3 私信）、`is_read`、`source`、`biz_type`、`biz_id` |
+| `content_interaction` | 内容交互统一表 | `target_type`（NEWS / POST / PRODUCT）、`target_id`、`user_id`、`action_type`（LIKE / FAVORITE / REPORT / FOLLOW）、`reason`、`status` |
 
 ---
 
@@ -636,13 +931,13 @@ VitalCortex/
 ├── docs/                            # 项目文档（中文名）
 │   ├── 需求分析.md / 数据库设计.md / 后端开发.md / 前端开发.md
 │   ├── 测试报告.md / 智能体架构.md / RAG子系统.md / 安全加固设计.md
-│   ├── 多模态设计.md / 技术问答.md / 缺陷与改进路线图.md / ...
+│   ├── 智能体架构.md / RAG子系统.md / 技术问答.md / 多模态设计.md / ...
 │
-├── Data/sql/                        # SQL 脚本（建表 / 种子 / 扩展模块）
-├── deploy/                          # 部署配置（Prometheus 等）
+├── Data/                            # 数据库脚本（01_建库建表 / 02_迁移脚本 / 03_数据脚本 / 04_结构基线 / 90_归档）
+├── deploy/                          # 部署配置（Prometheus 规则 / Alertmanager / Grafana / Loki / promtail）
 ├── docker-compose.yml               # MySQL / Redis / 监控告警栈
-├── DELIVERY.md                      # 交付与运维手册
-└── README.md                        # 本项目文件
+├── Dockerfile.backend               # 后端镜像（非 root 运行 + healthcheck）
+└── README.md                        # 本项目文件（含部署指南 / 配置说明 / 使用指南 / 故障排查）
 ```
 
 > 注：`dir/`（完整模型权重 29GB 等大文件）已被 `.gitignore` 排除，仅存本地；完整权重发布至 Hugging Face，训练集/参数/文档在 `ai_model/`。
@@ -656,7 +951,7 @@ VitalCortex/
 3. **AI 配置** — 通过管理员后台配置 API Key，持久化到 MySQL，重启不丢失（生产建议信封加密）。
 4. **数据导出** — 药品和健康数据需先调用导出接口，AI 工具才能读取。
 5. **敏感文件** — `.gitignore` 已排除 `application.yml`、`ai_data/`、`chat_backup/`、`dir/`（完整模型权重）等；微调训练集与训练参数已入库至 `ai_model/`，完整权重双平台分发（魔搭 `Aulink/HealthPulse-Qwen2.5-7B` + HF `Weikaijie/HealthPulse-Qwen2.5-7B`）。
-6. **合规提醒** — 平台涉及敏感健康信息，商用前建议完成等保三级测评与个人信息保护影响评估。详见 `DELIVERY.md`。
+6. **合规提醒** — 平台涉及敏感健康信息，商用前建议完成等保三级测评与个人信息保护影响评估。详见本文「AI 智能体架构 · 安全加固」。
 
 ---
 
@@ -692,7 +987,7 @@ VitalCortex/
 
 ### v5.2 (2026-08-01) — 多模态设计与账号锁定
 
-**方案定稿（docs/缺陷与改进路线图.md）**
+**设计方案**
 - 1.1 语音 ASR/TTS Provider 化设计（与 AiConfig 同构，未配置回退 Web Speech）
 - 1.2 图片进上下文 + VIP 分级窗口设计（128K/512K）
 - 1.3 账号锁定即失效 + 会话版本号设计
@@ -725,7 +1020,7 @@ VitalCortex/
 - Docker 镜像去默认密码、非 root 运行、healthcheck；CI 去 `continue-on-error`
 - 后端 `pom.xml` 编码属性修正、测试依赖补全；规范化损坏换行符
 
-> 完整交付与后续规划见根目录 `DELIVERY.md`。
+> 完整部署与后续规划见本文「部署指南」「配置说明」「已知缺陷与限制清单」三章。
 
 ### v4.1 (2026-06-03)
 
@@ -744,7 +1039,7 @@ VitalCortex/
 - AI 医生角色图标统一为 Element Plus 矢量图标
 - RAG 文章数量从 3 篇提升到 6 篇，标题匹配优先排序
 - AI 配置持久化到 MySQL（删除 AES 加密，改为明文存储）
-- 历史会话用户隔离存储（chat_backup/history_speak/{userId}/）
+- 历史会话用户隔离存储（`chat_history/{userId}/conversation_{id}.json`）
 
 **修复：**
 
@@ -867,15 +1162,16 @@ VitalCortex/
 
 ## 编译状态
 
-- 后端编译：**BUILD SUCCESS**（Spring Boot 3.5.16 + Java 17，352 源文件）
-- 前端构建：BUILD SUCCESS
+- 后端编译：**BUILD SUCCESS**（Spring Boot 3.5.16 + Java 17，**390 个 Java 源文件**；`javac -encoding UTF-8` 零 error）
+- 后端测试：**405 个用例 / 38 个测试类全部通过**
+- 前端：**74 个 `.vue` + 19 个 `.js` 静态自检零失败**（热更新免构建）
 - 无编码损坏
 
 ---
 
 ## 已知缺陷与限制清单
 
-> 本表为历史缺陷台账，状态随版本推进更新。架构级改进详情见 `DELIVERY.md` §8。
+> 记录开发过程中发现并处置的缺陷；仍在处理中的事项见下一小节。
 
 ### 已解决（v5.1 / v5.2 完成）
 
@@ -883,7 +1179,7 @@ VitalCortex/
 | ----- | ------------ | ------------------------------------------------------------------------------------- |
 | D-005 | 缺少单元测试       | 已补 25 个用例（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl），`mvn test` 通过 |
 | D-009 | 部分接口缺少输入验证   | CRM 接口加 `CrmApiKeyInterceptor`；`SqlGuard` 只读守卫 + 租户隔离；AI 输出 DOMPurify 净化            |
-| D-001 | 部分 SQL 脚本未执行 | 已补充 `Data/sql/ai_usage_schema.sql`（token 成本表），其余业务表脚本仍建议部署时执行                      |
+| D-001 | 部分 SQL 脚本未执行 | 已补充 `Data/01_建库建表/ai_usage_schema.sql`（token 成本表），其余业务表脚本仍建议部署时执行                      |
 | D-002 | admin 账号可能被锁定 | 修复 `init_database.sql`/`mock_business_data.sql` 种子账号 `is_login 1→0`；`UserServiceImpl.backUpdate` 增加防锁死守卫（保护当前用户 & 最后一名可登录管理员） |
 | D-003 | 旧页面 UI 风格不统一 | 主品牌色统一为 `#0050cb`（品牌蓝），激活 `design-tokens.css` 令牌体系；登录页/个人页硬编码色收敛为品牌蓝（其余页面分阶收敛，见路线图） |
 | D-004 | WebSocket 未实际部署测试 | 全链路打通：`ws.js` 保留 context-path 推导 + 指数退避；`Login.vue`/`main.js` 登录态自动建连；后端 `WebSocketServer` 补 `@OnMessage` 心跳回包；`NotificationServiceImpl.save` 入库后 `sendToUser` 实时推送（`type=notification` 对齐 `NotificationBell`） |
@@ -901,15 +1197,19 @@ VitalCortex/
 | --- | --- | --- | --- |
 | D-003/008（续） | 全站样式令牌收敛 | 约 40 个页面仍存在硬编码色值，需分阶段视觉回归后统一为品牌蓝 | `views/` |
 
-### 架构级遗留项（见 `DELIVERY.md` §8.2）
+### 已知限制与后续方向
 
-- **Spring Boot 3 迁移**：v5.3 已完成（3.5.16 + Java 17，javax→jakarta 全量）
-- **等保三级测评 / 渗透测试**：未开展，商用前置
-- **API Key 存储**：环境变量注入；管理端配置项建议信封加密
-- **God Class 拆分**：`AiServiceImpl` 职责过载，已抽离 Provider 层，后续按会话/检索/评测/用量拆 4 服务
-- **服务端 ASR/TTS**：未实现（语音走浏览器原生 Web Speech API；Provider 化设计已定稿，见 `docs/多模态设计.md`）
-- **向量库规模**：本地文件实现全量扫描，已规划迁移 pgvector + HNSW（10 万级甜蜜区）
-- **知识图谱**：GraphRAG 已接入主检索链路（Neo4j 实体抽取 → 关系查询 → 双路召回，见 v5.3）
+| 项 | 现状 | 处置建议 |
+| --- | --- | --- |
+| **Spring Boot 3 迁移** | ✅ 已完成（v5.3：3.5.16 + Java 17，OpenRewrite javax→jakarta 全量）；遗留迁移瑕疵已修复（`spring.data.redis` 前缀、`logging.file.path`、SQLite + HikariCP 兼容） | — |
+| **等保三级测评** | 未开展 | 需授权测评机构；系统涉及敏感健康信息，**商用前必须完成** |
+| **渗透测试** | 未开展 | 建议上线前由第三方执行（OWASP Top10 + 越权专项） |
+| **API Key 存储** | 环境变量注入；管理端配置项数据库内明文 | 改造为 KMS / 信封加密 |
+| **God Class 拆分** | `AiServiceImpl` 职责过载 | 已抽离 Provider 层；后续按「会话/检索/评测/用量」拆 4 服务 |
+| **意图识别** | 词表已外部化，仍为关键词匹配 | 升级路径：embedding 分类或 LLM router（词表可先用） |
+| **服务端 ASR / TTS** | 未实现（语音走浏览器原生 Web Speech API）；Provider 化设计已定稿 | 医疗级识别 / 电话通道需接入服务端，见 `docs/多模态设计.md` |
+| **向量库容量** | 本地文件实现，全量扫描 | 数据量 >10 万块时迁移 pgvector / Milvus + HNSW |
+| **知识图谱** | 已构建图谱数据（248 节点 / 485 边）并接入双路召回；Neo4j 长停时自动降级为本地三元组库 | 继续扩充疾病-症状-药物三元组覆盖 |
 
 ---
 
@@ -982,10 +1282,15 @@ POST /data-export/drugs
 A: 执行对应的 SQL 脚本：
 
 ```sql
-source Data/sql/forum_schema.sql;
-source Data/sql/appointment_schema.sql;
-source Data/sql/extra_modules_schema.sql;
-source Data/sql/rbac_schema.sql;
+source Data/01_建库建表/init_database.sql;
+source Data/01_建库建表/forum_schema.sql;
+source Data/01_建库建表/appointment_schema.sql;
+source Data/01_建库建表/extra_modules_schema.sql;
+source Data/01_建库建表/ai_usage_schema.sql;
+source Data/01_建库建表/audit_log.sql;
+source Data/01_建库建表/model_announcement_schema.sql;
+-- 然后按序执行 Data/02_迁移脚本/ 下 01~07
+-- 注：rbac_schema.sql 已于 2026-10-07 归档（Data/90_归档/），本项目不使用 RBAC 表
 ```
 
 ### Q5: 前端页面空白怎么办？
@@ -1055,9 +1360,12 @@ UPDATE user SET is_login = 0 WHERE user_account = 'admin';
 
 | 文件                   | 说明           |
 | -------------------- | ------------ |
-| `ai_data/drugs.json` | AI 药品数据（55条） |
-| `chat_backup/`       | 会话备份目录       |
-| `Data/sql/`          | SQL 脚本目录     |
+| `ai_data/drugs.json` | AI 药品数据（导出产物，供 `search_drug` 工具读取） |
+| `drugs-data.json`    | 药品源数据（根目录） |
+| `chat_history/`       | AI 问诊会话本地副本 `{userId}/conversation_{id}.json`（已 gitignore） |
+| `chat_cache/`         | 语音对话历史 `history_speak/`（已 gitignore） |
+| `chat_backup/`        | 旧版会话备份，**当前为空目录**（已 gitignore） |
+| `Data/`              | 数据库脚本目录（建表 / 迁移 / 数据 / 结构基线 / 归档） |
 
 ---
 

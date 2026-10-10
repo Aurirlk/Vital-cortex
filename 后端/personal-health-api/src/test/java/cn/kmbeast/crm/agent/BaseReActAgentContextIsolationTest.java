@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -48,13 +49,28 @@ class BaseReActAgentContextIsolationTest {
         return new ReActAgent();
     }
 
+    /**
+     * 角色段落标记。
+     *
+     * <p><b>为什么必须用整句标记而不是「全科医生」这种角色名</b>：默认 prompt 里
+     * 本来就向模型罗列了可选角色（**心理咨询师** 等），用角色名做断言恒为真，
+     * 测了个寂寞。「## 本轮角色：XXX」只可能来自 {@code ROLE_INSTRUCTIONS}，
+     * 是唯一能证明角色指令真的注入了的标记。
+     */
+    private static final String DOCTOR = "## 本轮角色：全科医生";
+    private static final String NUTRITIONIST = "## 本轮角色：营养师";
+    private static final String PSYCHOLOGIST = "## 本轮角色：心理咨询师";
+    private static final String ANALYST = "## 本轮角色：报告分析师";
+    private static final String CONSULTANT = "## 本轮角色：健康助手";
+    private static final String GENERAL = "## 本轮角色：全能助手";
+
     @Test
     @DisplayName("设了角色后 prompt 带上该角色指令")
     void roleInstructionAppears() throws Exception {
         BaseReActAgent agent = newAgent();
         agent.setRoleHint("doctor");
         String p = promptOf(agent);
-        assertTrue(p.contains("全科医生"), "角色指令未注入 prompt");
+        assertTrue(p.contains(DOCTOR), "角色指令未注入 prompt");
     }
 
     @Test
@@ -63,12 +79,12 @@ class BaseReActAgentContextIsolationTest {
         BaseReActAgent agent = newAgent();
         agent.setRoleHint("nutritionist");
         String first = promptOf(agent);
-        assertTrue(first.contains("营养师"), "首次读取应带上角色指令");
+        assertTrue(first.contains(NUTRITIONIST), "首次读取应带上角色指令");
 
         // 关键断言：不清理 ThreadLocal，直接再读一次
         String second = promptOf(agent);
         assertNotEquals(first, second, "第二次读取竟与第一次相同，说明角色指令没有真正失效");
-        assertFalse(second.contains("## 本轮角色：营养师"),
+        assertFalse(second.contains(NUTRITIONIST),
                 "角色指令被重复消费了——这会导致同一线程的下一轮对话仍带着上一位的角色，"
                         + "属于上下文泄露。读取即清除的语义未生效");
     }
@@ -99,10 +115,10 @@ class BaseReActAgentContextIsolationTest {
         BaseReActAgent agent = newAgent();
         agent.setRoleHint("不存在的角色");
         String p = promptOf(agent);
-        // setRoleHint 内部已把 blank/null 归一为 general_assistant，
-        // 非空但未知的值不应导致崩溃，也不该匹配到别的角色
-        assertFalse(p.contains("全科医生"), "未知角色码错误地匹配到了医生角色");
-        assertFalse(p.contains("营养师"), "未知角色码错误地匹配到了营养师角色");
+        // 非空但未知的值不该导致崩溃，也不该匹配到任何一条角色指令
+        assertFalse(p.contains("## 本轮角色"), "未知角色码竟然注入了角色段落");
+        assertFalse(p.contains(DOCTOR), "未知角色码错误地匹配到了医生角色");
+        assertFalse(p.contains(NUTRITIONIST), "未知角色码错误地匹配到了营养师角色");
     }
 
     @Test
@@ -113,7 +129,7 @@ class BaseReActAgentContextIsolationTest {
         agent.setGuidancePrompt("\n\n【引导】最近情绪如何？");
         agent.clearConversationContext();
         String p = promptOf(agent);
-        assertFalse(p.contains("心理咨询师"), "clear 后仍残留角色");
+        assertFalse(p.contains(PSYCHOLOGIST), "clear 后仍残留角色");
         assertFalse(p.contains("【引导】"), "clear 后仍残留引导");
     }
 
@@ -123,7 +139,7 @@ class BaseReActAgentContextIsolationTest {
         BaseReActAgent shared = newAgent();   // 故意共用同一个单例，模拟 Spring 单例
         String[] roles = {"doctor", "nutritionist", "psychologist", "analyst",
                 "consultant", "general_assistant"};
-        String[] keywords = {"全科医生", "营养师", "心理咨询师", "报告分析师", "健康助手", "全能助手"};
+        String[] keywords = {DOCTOR, NUTRITIONIST, PSYCHOLOGIST, ANALYST, CONSULTANT, GENERAL};
 
         int n = roles.length;
         CountDownLatch start = new CountDownLatch(1);
@@ -168,6 +184,57 @@ class BaseReActAgentContextIsolationTest {
                 "并发下出现了角色串号（单例 + ThreadLocal 的经典失效场景）");
     }
 
+    /**
+     * 只记录调用次数、绝不发起网络请求的测试替身。
+     *
+     * <p>用来验证 {@code runWithContext} 的 finally 契约——若真用 {@code ReActAgent}，
+     * 跑一次就会去打 LLM，测试既慢又依赖外网。
+     */
+    private static class StubAgent extends BaseReActAgent {
+        int runs;
+        boolean fail;
+
+        @Override
+        protected ReActResponse doRun(List<Map<String, String>> userMessages) {
+            runs++;
+            if (fail) {
+                throw new IllegalStateException("模拟 LLM 故障");
+            }
+            return ReActResponse.text("ok", List.of());
+        }
+    }
+
+    @Test
+    @DisplayName("runWithContext 跑完一轮后 ThreadLocal 必须已清空")
+    void runWithContextClearsContext() throws Exception {
+        StubAgent agent = new StubAgent();
+        agent.setRoleHint("doctor");
+        agent.setGuidancePrompt("\n\n【引导】请补充你的身高体重。");
+
+        agent.runWithContext(List.of(), "doctor", "【引导】请补充你的身高体重。");
+
+        assertEquals(1, agent.runs, "doRun 应被调用一次");
+        String p = promptOf(agent);
+        assertFalse(p.contains(DOCTOR), "统一入口跑完一轮后仍残留角色，下一轮会串号");
+        assertFalse(p.contains("【引导】"), "统一入口跑完一轮后仍残留追问指令");
+    }
+
+    @Test
+    @DisplayName("runWithContext 抛异常时也必须清空（finally 不是摆设）")
+    void runWithContextClearsOnException() throws Exception {
+        StubAgent agent = new StubAgent();
+        agent.fail = true;
+
+        assertThrows(IllegalStateException.class,
+                () -> agent.runWithContext(List.of(), "nutritionist", null),
+                "doRun 抛出的异常应继续向外传播，不能吞掉");
+        assertEquals(1, agent.runs);
+
+        String p = promptOf(agent);
+        assertFalse(p.contains(NUTRITIONIST),
+                "异常路径没清理 ThreadLocal——这正是「调用方忘了 clear」酿成串号的老坑");
+    }
+
     @Test
     @DisplayName("同一线程连续两次完整对话，第二次不携带第一次的角色")
     void sequentialTurnsDoNotAccumulate() throws Exception {
@@ -177,7 +244,7 @@ class BaseReActAgentContextIsolationTest {
         promptOf(agent);
         // 模拟：请求2 走 CRM 老链路（从不设 roleHint）
         String second = promptOf(agent);
-        assertFalse(second.contains("全科医生"),
+        assertFalse(second.contains(DOCTOR),
                 "上一轮的角色泄漏到了下一轮——CrmChatController 这类不设角色的调用方会中招");
     }
 }

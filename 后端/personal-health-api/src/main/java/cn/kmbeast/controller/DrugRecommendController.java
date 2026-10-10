@@ -1,5 +1,6 @@
 package cn.kmbeast.controller;
 
+import cn.kmbeast.context.LocalThreadHolder;
 import cn.kmbeast.aop.Protector;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
@@ -11,7 +12,10 @@ import jakarta.annotation.Resource;
 import java.util.List;
 
 @RestController
-@RequestMapping("/drug-recommend")
+
+    // 2026-10-07 审计修复：原先用 @RequestAttribute("userId") 取身份，
+    // 但全项目没有任何 setAttribute("userId", ...) —— JwtInterceptor 只写 LocalThreadHolder，
+    // 故该参数必然抛 MissingRequestAttributeException。改用项目统一的 LocalThreadHolder。@RequestMapping("/drug-recommend")
 public class DrugRecommendController {
 
     @Resource
@@ -19,7 +23,8 @@ public class DrugRecommendController {
 
     @Protector
     @GetMapping("/by-health")
-    public Result<List<MallProductVO>> recommendByHealth(@RequestAttribute("userId") Integer userId) {
+    public Result<List<MallProductVO>> recommendByHealth() {
+        Integer userId = LocalThreadHolder.getUserId();
         return ApiResult.success(drugRecommendService.recommendByHealthData(userId));
     }
 }

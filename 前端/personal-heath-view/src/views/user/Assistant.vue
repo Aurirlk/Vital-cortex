@@ -42,6 +42,9 @@
       <div class="chat-header">
         <span class="header-title">AI 健康助手</span>
         <span class="header-desc"> · 您的专属健康顾问</span>
+        <div class="header-mode">
+          <button class="mode-btn" @click="goDataAgent">数据智能体 →</button>
+        </div>
       </div>
 
       <div class="chat-messages" ref="chatMessages">
@@ -123,6 +126,7 @@
           </template>
         </el-input>
       </div>
+
     </div>
   </div>
 </template>
@@ -130,7 +134,7 @@
 <script>
 import { getToken } from "@/utils/storage.js";
 import { sanitizeHtml } from "@/utils/sanitize.js";
-import { URL_API } from "@/utils/request.js";
+import request, { URL_API } from "@/utils/request.js";
 import { marked } from "marked";
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -303,6 +307,10 @@ export default {
     this.loadConversations();
   },
   methods: {
+    /** 数据智能体已独立成页（/user/data-agent），此处只做跳转，避免两份实现漂移。 */
+    goDataAgent() {
+      this.$router.push("/user/data-agent");
+    },
     // =====  =====
     safeHtml(html) {
       return sanitizeHtml(html);
@@ -786,6 +794,42 @@ export default {
   30% {
     opacity: 1;
     transform: translateY(-4px);
+  }
+}
+
+/* ---------- 模式切换 ---------- */
+.header-mode {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  background: #f2f5fa;
+  border-radius: 9px;
+  padding: 3px;
+}
+.mode-btn {
+  border: none;
+  background: transparent;
+  color: #5a6675;
+  font-size: 13px;
+  padding: 5px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.mode-btn:hover {
+  color: #1b6ef3;
+}
+.mode-btn.active {
+  background: #fff;
+  color: #1b6ef3;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(27, 110, 243, 0.16);
+}
+
+}
+@media (max-width: 1100px) {
+  .data-main {
+    grid-template-columns: 1fr;
   }
 }
 </style>

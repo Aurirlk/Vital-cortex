@@ -14,16 +14,32 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?请通过环境变量 DB_ROOT_PASSWORD 设置 MySQL root 密码}
       MYSQL_DATABASE: ${DB_NAME:-personal_health}
       MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      # 与生产库实测一致：库默认 utf8mb4_bin，而 35 张表/130 个字符列在 DDL 里显式
+      # 指定 utf8mb4_0900_ai_ci，因此此处的库默认值不影响终态结构。
       MYSQL_COLLATION_SERVER: utf8mb4_bin
     ports:
       - "${DB_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./Data/sql/deploy/init_database.sql:/docker-entrypoint-initdb.d/01-init.sql
-      - ./Data/sql/forum_schema.sql:/docker-entrypoint-initdb.d/02-forum.sql
-      - ./Data/sql/appointment_schema.sql:/docker-entrypoint-initdb.d/03-appointment.sql
-      - ./Data/sql/extra_modules_schema.sql:/docker-entrypoint-initdb.d/04-extra.sql
-      - ./Data/sql/rbac_schema.sql:/docker-entrypoint-initdb.d/05-rbac.sql
+      # 初始化脚本按文件名**字典序**依次执行，故用 01~14 前缀固定顺序。
+      # 顺序依据 Data/README.md「场景 A：全新部署」：
+      #   01_建库建表（7 个）→ 02_迁移脚本（7 个）→ 终态 35 表 / 391 字段
+      - ./Data/01_建库建表/init_database.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./Data/01_建库建表/forum_schema.sql:/docker-entrypoint-initdb.d/02-forum.sql
+      - ./Data/01_建库建表/appointment_schema.sql:/docker-entrypoint-initdb.d/03-appointment.sql
+      - ./Data/01_建库建表/extra_modules_schema.sql:/docker-entrypoint-initdb.d/04-extra.sql
+      - ./Data/01_建库建表/ai_usage_schema.sql:/docker-entrypoint-initdb.d/05-ai-usage.sql
+      - ./Data/01_建库建表/audit_log.sql:/docker-entrypoint-initdb.d/06-audit.sql
+      - ./Data/01_建库建表/model_announcement_schema.sql:/docker-entrypoint-initdb.d/07-model-announcement.sql
+      - ./Data/02_迁移脚本/01_schema_refactor.sql:/docker-entrypoint-initdb.d/08-migrate-01.sql
+      - ./Data/02_迁移脚本/02_patient_profile_normalize.sql:/docker-entrypoint-initdb.d/09-migrate-02.sql
+      # 03 为演示数据对齐（生产环境请删除本行挂载）
+      - ./Data/02_迁移脚本/03_align_demo_appointments.sql:/docker-entrypoint-initdb.d/10-migrate-03-demo.sql
+      - ./Data/02_迁移脚本/04_consolidate_tables.sql:/docker-entrypoint-initdb.d/11-migrate-04.sql
+      - ./Data/02_迁移脚本/05_drop_unused_tables.sql:/docker-entrypoint-initdb.d/12-migrate-05.sql
+      - ./Data/02_迁移脚本/06_merge_message_into_notification.sql:/docker-entrypoint-initdb.d/13-migrate-06.sql
+      - ./Data/02_迁移脚本/07_mall_product_medical_fields.sql:/docker-entrypoint-initdb.d/14-migrate-07.sql
+      # 注：Data/01_建库建表/rbac_schema.sql 已于 2026-10-07 移入 Data/90_归档/（建 4 张本项目未使用的表），故不挂载。
     networks:
       - backend-net
     healthcheck:

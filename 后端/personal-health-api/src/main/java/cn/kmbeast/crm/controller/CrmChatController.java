@@ -9,6 +9,7 @@ import cn.kmbeast.crm.dto.CrmChatResponse;
 import cn.kmbeast.crm.dto.SqlQueryRequest;
 import cn.kmbeast.crm.sqlite.SqliteChatHistoryService;
 import cn.kmbeast.crm.workflow.SeaChatWorkflow;
+import cn.kmbeast.core.agent.ChatRouting;
 import cn.kmbeast.mapper.UserMapper;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
@@ -99,6 +100,12 @@ public class CrmChatController {
             log.warn("[CRM] 根据手机号查询用户失败: {}", e.getMessage());
         }
         ToolContext.setPhoneAndUserId(phoneNumber, userId);
+        // 阶段 2：标注调用方为用户（roleId=2）
+        ToolContext.setIdentity(2, null);
+
+        // 2026-10-05：本链路此前完全没有意图路由，6 个角色永不生效。
+        // 与 /user/chat、/user/chat/stream 共用同一个 route()，行为保持一致。
+        ChatRouting routing = seaChatWorkflow.route(userId, query);
 
         List<Map<String, String>> messages = seaChatWorkflow.buildInitialMessages(request);
 
@@ -121,7 +128,17 @@ public class CrmChatController {
                 writer.flush();
             };
 
-            streamingReActAgent.runStreaming(messages, callback);
+            // 统一用 LinkedHashMap 而不是 Map.of()：Map.of 不接受 null value，
+            // 一旦将来往里加可空字段就会抛 NPE 把 SSE 流打断。
+            Map<String, Object> agentInfo = new LinkedHashMap<>();
+            agentInfo.put("agentType", routing.getAgentType());
+            agentInfo.put("extractedSlots", routing.getExtractedSlots());
+            callback.onEvent("agent_info", JSONObject.toJSONString(agentInfo));
+
+            // runWithContextStreaming 保证 finally 清理 ThreadLocal，
+            // 不再是「直接跑循环、从不清理」的裸调用。
+            streamingReActAgent.runWithContextStreaming(messages, callback,
+                    routing.getAgentType(), routing.getGuidance(), routing.getIntentHint());
 
             Map<String, Object> sessionInfo = new LinkedHashMap<>();
             sessionInfo.put("sessionId", sessionId);

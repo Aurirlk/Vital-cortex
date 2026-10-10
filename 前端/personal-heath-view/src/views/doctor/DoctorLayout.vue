@@ -91,6 +91,7 @@ export default {
       menus: [
         { name: "工作台", path: "/doctor/home", icon: "HomeFilled" },
         { name: "我的接诊", path: "/doctor/appointments", icon: "Tickets" },
+        { name: "数据问答", path: "/doctor/data-qa", icon: "DataAnalysis" },
         { name: "我的排班", path: "/doctor/schedules", icon: "Calendar" },
       ],
     };

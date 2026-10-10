@@ -22,6 +22,9 @@
 -- ---------------------------------------------------------------------------
 -- 1) 性别归一化：male/female/MALE/Female/1/2 → 男/女
 -- ---------------------------------------------------------------------------
+-- 显式声明连接编码，避免依赖客户端默认值（否则中文 INSERT/列注释会报 ERROR 1406 或乱码）
+SET NAMES utf8mb4;
+
 UPDATE patient_profile SET gender = '男' WHERE LOWER(TRIM(gender)) IN ('male', 'm', '1', 'man');
 UPDATE patient_profile SET gender = '女' WHERE LOWER(TRIM(gender)) IN ('female', 'f', '2', 'woman');
 -- 清理其它无法识别的取值，避免前端直接透传英文

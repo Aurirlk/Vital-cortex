@@ -186,6 +186,21 @@ public class HarnessEngine {
         return buildGuidancePrompt(missing);
     }
 
+    /**
+     * 指定用户生成引导 prompt（不依赖当前登录上下文）。
+     *
+     * <p><b>为什么需要这个重载</b>：{@code /crm/**} 通道按手机号鉴权，
+     * {@code LocalThreadHolder} 里根本没有 userId（工作流解析出的是局部 userId），
+     * 此时 {@link #buildGuidancePromptForCurrentUser()} 会读到空档案，
+     * 对 CRM 调用方要么完全不追问、要么错误追问。工作流必须显式指定用户。
+     *
+     * @param userId 目标用户；为 null 时按「全部缺失」生成通用追问
+     */
+    public String buildGuidancePromptForUser(Integer userId) {
+        Map<String, String> missing = checkDataCompleteness(loadUserSlots(userId));
+        return buildGuidancePrompt(missing);
+    }
+
     // ================================================================ 3. 槽位抽取
 
     /**

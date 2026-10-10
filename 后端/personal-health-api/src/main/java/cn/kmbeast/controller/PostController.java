@@ -1,5 +1,6 @@
 package cn.kmbeast.controller;
 
+import cn.kmbeast.context.LocalThreadHolder;
 import cn.kmbeast.aop.Pager;
 import cn.kmbeast.aop.Protector;
 import cn.kmbeast.pojo.api.Result;
@@ -16,7 +17,10 @@ import jakarta.annotation.Resource;
 import java.util.List;
 
 @RestController
-@RequestMapping("/post")
+
+    // 2026-10-07 审计修复：原先用 @RequestAttribute("userId") 取身份，
+    // 但全项目没有任何 setAttribute("userId", ...) —— JwtInterceptor 只写 LocalThreadHolder，
+    // 故该参数必然抛 MissingRequestAttributeException。改用项目统一的 LocalThreadHolder。@RequestMapping("/post")
 public class PostController {
 
     @Resource
@@ -61,28 +65,32 @@ public class PostController {
     /** 点赞 */
     @Protector
     @PostMapping("/like/{postId}")
-    public Result<Void> like(@PathVariable Integer postId, @RequestAttribute("userId") Integer userId) {
+    public Result<Void> like(@PathVariable Integer postId) {
+        Integer userId = LocalThreadHolder.getUserId();
         return postService.like(userId, postId);
     }
 
     /** 取消点赞 */
     @Protector
     @PostMapping("/unlike/{postId}")
-    public Result<Void> unlike(@PathVariable Integer postId, @RequestAttribute("userId") Integer userId) {
+    public Result<Void> unlike(@PathVariable Integer postId) {
+        Integer userId = LocalThreadHolder.getUserId();
         return postService.unlike(userId, postId);
     }
 
     /** 收藏 */
     @Protector
     @PostMapping("/favorite/{postId}")
-    public Result<Void> favorite(@PathVariable Integer postId, @RequestAttribute("userId") Integer userId) {
+    public Result<Void> favorite(@PathVariable Integer postId) {
+        Integer userId = LocalThreadHolder.getUserId();
         return postService.favorite(userId, postId);
     }
 
     /** 取消收藏 */
     @Protector
     @PostMapping("/unfavorite/{postId}")
-    public Result<Void> unfavorite(@PathVariable Integer postId, @RequestAttribute("userId") Integer userId) {
+    public Result<Void> unfavorite(@PathVariable Integer postId) {
+        Integer userId = LocalThreadHolder.getUserId();
         return postService.unfavorite(userId, postId);
     }
 
@@ -103,21 +111,24 @@ public class PostController {
     /** 关注用户 */
     @Protector
     @PostMapping("/follow/{followeeId}")
-    public Result<Void> follow(@PathVariable Integer followeeId, @RequestAttribute("userId") Integer userId) {
+    public Result<Void> follow(@PathVariable Integer followeeId) {
+        Integer userId = LocalThreadHolder.getUserId();
         return postService.follow(userId, followeeId);
     }
 
     /** 取消关注 */
     @Protector
     @PostMapping("/unfollow/{followeeId}")
-    public Result<Void> unfollow(@PathVariable Integer followeeId, @RequestAttribute("userId") Integer userId) {
+    public Result<Void> unfollow(@PathVariable Integer followeeId) {
+        Integer userId = LocalThreadHolder.getUserId();
         return postService.unfollow(userId, followeeId);
     }
 
     /** 是否已关?*/
     @Protector
     @GetMapping("/isFollowing/{followeeId}")
-    public Result<Boolean> isFollowing(@PathVariable Integer followeeId, @RequestAttribute("userId") Integer userId) {
+    public Result<Boolean> isFollowing(@PathVariable Integer followeeId) {
+        Integer userId = LocalThreadHolder.getUserId();
         return postService.isFollowing(userId, followeeId);
     }
 

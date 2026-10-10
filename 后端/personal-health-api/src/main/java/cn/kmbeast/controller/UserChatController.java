@@ -7,6 +7,7 @@ import cn.kmbeast.crm.agent.tool.ToolContext;
 import cn.kmbeast.crm.dto.CrmChatRequest;
 import cn.kmbeast.crm.dto.CrmChatResponse;
 import cn.kmbeast.crm.workflow.SeaChatWorkflow;
+import cn.kmbeast.core.agent.ChatRouting;
 import cn.kmbeast.mapper.UserMapper;
 import cn.kmbeast.pojo.entity.User;
 import cn.kmbeast.pojo.api.ApiResult;
@@ -41,13 +42,9 @@ public class UserChatController {
     @Resource
     private UserMapper userMapper;
 
-    /** 2026-10-04：意图路由（原为死代码，角色定义形同虚设） */
+    /** 2026-10-05：仅用于把角色编码换成中文名回给前端（路由本身在 SeaChatWorkflow 里） */
     @Resource
     private cn.kmbeast.core.agent.AgentCoordinator agentCoordinator;
-
-    /** 2026-10-04：数据引导引擎（抽取健康槽位并生成追问话术） */
-    @Resource
-    private cn.kmbeast.core.harness.HarnessEngine harnessEngine;
 
     /**
      * 同步聊天
@@ -61,50 +58,34 @@ public class UserChatController {
             return ApiResult.error("用户不存在");
         }
 
-        // 2026-10-04：同步路径与流式路径做完全相同的四件事
-        //（识别角色 → 槽位抽取 → 落库 → 生成追问指令），保证两条链路行为一致。
-        //
-        // 上一版注释写的「该链路走 SeaChatWorkflow 内部，不经过 ReActAgent」是错的：
-        // SeaChatWorkflow 内部注入的就是 ReActAgent，最终调 reActAgent.run(userMessages)，
-        // 而 enhanceSystemPrompt() 正是在 run() 构建初始消息时生效的。
-        // 所以在 Controller 设好 roleHint / guidancePrompt 即可，不必改 workflow 内部编排。
-        String agentType = agentCoordinator.identifyAgent(request.getMessage());
-        streamingReActAgent.setRoleHint(agentType);
-
-        Map<String, String> extracted = harnessEngine.extractSlots(request.getMessage());
-        if (!extracted.isEmpty()) {
-            harnessEngine.persistSlots(userId, extracted);
-        }
-        String guidance = harnessEngine.buildGuidancePrompt(harnessEngine.currentUserMissingSlots());
-        streamingReActAgent.setGuidancePrompt(guidance);
-
         // 构建CRM请求
         CrmChatRequest crmRequest = new CrmChatRequest();
         crmRequest.setPhoneNumber(user.getUserAccount());
         crmRequest.setQuery(request.getMessage());
         crmRequest.setSessionId(request.getSessionId());
 
-        // 调用CRM工作流
-        CrmChatResponse response;
-        try {
-            response = seaChatWorkflow.processChat(crmRequest);
-        } finally {
-            // BaseReActAgent 是单例，roleHint/guidancePrompt 存在 ThreadLocal 中。
-            // Tomcat 线程池会复用线程，不清理必然让下一个请求串用上一位的角色——
-            // 属于上下文泄露，必须清。
-            streamingReActAgent.clearConversationContext();
-        }
+        // 2026-10-05：意图路由与数据引导统一在 SeaChatWorkflow 内部执行，
+        // 由真正执行对话的 ReActAgent 自己 set 角色 → run → finally 清理。
+        //
+        // 上一版这里把 roleHint 设在了 streamingReActAgent 上，但 processChat 内部跑的
+        // 是另一个 ReActAgent bean，角色指令从未进过 prompt —— 同步链路的 6 角色路由
+        // 是彻底空转的。根因是「上下文靠调用方手动传递」，漏一处就失效，
+        // 所以改由执行方自己开入口，Controller 只负责取结果回显。
+        //
+        // ⚠️ 必须把 JWT 里的 userId 传进去：手机号存的是 user_account（登录名），
+        // 而 user.phone 字段在库里大量为 NULL，工作流按 phone 反查必然查不到，
+        // 会导致槽位不落库、get_health_data 工具罢工。
+        CrmChatResponse response = seaChatWorkflow.processChat(crmRequest, userId);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("reply", response.getReply());
         result.put("sessionId", response.getSessionId());
         result.put("toolsUsed", response.getToolsUsed());
         result.put("isNewUser", response.getIsNewUser());
-        // 回传本轮识别到的角色、新采集到的槽位与追问话术，便于前端做引导展示
-        result.put("agentType", agentType);
-        result.put("agentName", agentCoordinator.getAgentRole(agentType).getName());
-        result.put("extractedSlots", extracted.keySet());
-        result.put("guidance", guidance);
+        // 回传本轮识别到的角色与追问话术，便于前端做引导展示
+        result.put("agentType", response.getAgentType());
+        result.put("agentName", agentCoordinator.getAgentRole(response.getAgentType()).getName());
+        result.put("guidance", response.getGuidance());
 
         return ApiResult.success(result);
     }
@@ -148,6 +129,11 @@ public class UserChatController {
 
         // 设置工具上下文
         ToolContext.setPhoneAndUserId(phoneNumber, userId);
+        // 阶段 2：标注调用方为用户（roleId=2），供双轨健康记录查询工具判定身份
+        ToolContext.setIdentity(2, null);
+        // 2026-10-07 P1-3：补齐工具层审计的 HTTP 上下文（客户端 IP / UA / 方法 / URL），
+        // 供跨线程透传后在工具内写入 audit_log。
+        ToolContext.applyHttpMetaFromRequest();
 
         // 构建消息
         CrmChatRequest crmRequest = new CrmChatRequest();
@@ -179,27 +165,23 @@ public class UserChatController {
                 }
             };
 
-            // 2026-10-04：把 Agent 路由与数据引导真正接进对话主流程。
-            // 此前 AgentCoordinator 的 6 个角色与 HarnessEngine 从未被调用，
-            // 所有问题都走同一套 prompt，角色定义形同虚设。
-            // 顺序：① 意图识别定角色 → ② 槽位抽取（用户可能已口头提供）→
-            //       ③ 落库 → ④ 生成缺失项追问指令 → ⑤ 注入 ReAct。
-            String agentType = agentCoordinator.identifyAgent(query);
-            streamingReActAgent.setRoleHint(agentType);
+            // 2026-10-05：与同步链路共用同一个 route()，避免「同步走医生、流式走默认」。
+            // route() 内部做：意图识别 → 槽位抽取 → 落库 → 生成缺失项追问话术。
+            ChatRouting routing = seaChatWorkflow.route(userId, query);
 
-            Map<String, String> extracted = harnessEngine.extractSlots(query);
-            if (!extracted.isEmpty()) {
-                harnessEngine.persistSlots(userId, extracted);
-            }
-            streamingReActAgent.setGuidancePrompt(
-                    harnessEngine.buildGuidancePrompt(harnessEngine.currentUserMissingSlots()));
+            // ⚠️ 不能用 Map.of()：guidance 在档案完整时为 null，而 Map.of 不接受 null value，
+            // 会直接抛 NPE 把整个 SSE 流打断（general_assistant 关键词表为空，
+            // 绝大多数普通问句都会命中它 → 必然踩中）。这里显式允许 null。
+            Map<String, Object> agentInfo = new LinkedHashMap<>();
+            agentInfo.put("agentType", routing.getAgentType());
+            agentInfo.put("agentName", agentCoordinator.getAgentRole(routing.getAgentType()).getName());
+            agentInfo.put("extractedSlots", routing.getExtractedSlots());
+            callback.onEvent("agent_info", JSONObject.toJSONString(agentInfo));
 
-            callback.onEvent("agent_info", JSONObject.toJSONString(
-                    java.util.Map.of("agentType", agentType,
-                            "agentName", agentCoordinator.getAgentRole(agentType).getName(),
-                            "extractedSlots", extracted.keySet())));
-
-            streamingReActAgent.runStreaming(messages, callback);
+            // runWithContextStreaming：set 角色与引导 → 跑流式 ReAct → finally 必清 ThreadLocal，
+            // 不用再靠调用方自己记得 clear（Tomcat 线程复用会串号）。
+            streamingReActAgent.runWithContextStreaming(messages, callback,
+                    routing.getAgentType(), routing.getGuidance(), routing.getIntentHint());
             // 发送会话信息
             Map<String, Object> sessionInfo = new LinkedHashMap<>();
             sessionInfo.put("sessionId", sessionId);
@@ -213,10 +195,8 @@ public class UserChatController {
             log.error("[UserChat] 流式响应异常", e);
         } finally {
             ToolContext.clear();
-            // 2026-10-04：必须清理角色/引导的 ThreadLocal，
-            // 否则 Tomcat 线程复用时，下一个请求（可能是另一个用户）
-            // 会读到本次遗留的角色指令与追问话术 —— 上下文串号。
-            streamingReActAgent.clearConversationContext();
+            // 角色/引导的 ThreadLocal 已由 runWithContextStreaming 的 finally 清理，
+            // 这里不再重复调用——重复清理不会出错，但会让人误以为外层才是唯一的保障。
         }
     }
 

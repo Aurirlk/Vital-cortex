@@ -1,0 +1,2028 @@
+{
+  "version": "2026-10-07",
+  "note": "阶段 0-B / B4 疾病词表。人工对齐项目真实语料：patient_profile.chronic_diseases（高血压/2型糖尿病/高尿酸/骨质疏松/高血脂/甲状腺功能减退/轻度脂肪肝）、visit_record.diagnosis（原发性高血压1级/空腹血糖受损/轻度脂肪肝）、hospital_doctor.expertise（高血压/糖尿病/冠心病/普外科/骨科/小儿感冒/肺炎/腹泻）、mall_product 适应症高频词（感冒/疼痛/高血压/腹泻/糖尿病/甲状腺）。必须覆盖 GraphRAG.FALLBACK_TERMS 全部 10 个词：高血压/糖尿病/心脏病/感冒/发烧/咳嗽/头痛/哮喘/胃炎/失眠。药品名一律取 mall_product 中真实存在的商品名，保证后续能与 SOLD_AS 边连通。",
+  "nodes": [
+    {
+      "name": "2型糖尿病",
+      "label": "Disease",
+      "alias": [
+        "二型糖尿病",
+        "T2DM"
+      ],
+      "description": "以胰岛素抵抗伴胰岛素分泌相对不足为特征的慢性代谢病，占糖尿病九成以上。典型表现多饮多尿多食伴体重下降，诊断依据空腹血糖≥7.0mmol/L 或 HbA1c≥6.5%。"
+    },
+    {
+      "name": "便秘",
+      "label": "Disease",
+      "alias": [
+        "排便困难"
+      ],
+      "description": "排便次数减少（<3 次/周）、粪便干硬、排便费力。与膳食纤维摄入不足、饮水少、久坐、肠道动力减弱相关。"
+    },
+    {
+      "name": "冠心病",
+      "label": "Disease",
+      "alias": [
+        "冠状动脉粥样硬化性心脏病",
+        "缺血性心脏病"
+      ],
+      "description": "冠状动脉粥样硬化导致心肌缺血缺氧。典型表现为劳累后胸骨后压榨性疼痛，可放射至左肩左臂，休息或含服硝酸甘油后缓解。"
+    },
+    {
+      "name": "哮喘",
+      "label": "Disease",
+      "alias": [
+        "支气管哮喘"
+      ],
+      "description": "以慢性气道炎症与可逆性气流受限为特征。表现为发作性喘息、胸闷、咳嗽，夜间与清晨加重，常由过敏原或冷空气诱发。"
+    },
+    {
+      "name": "失眠",
+      "label": "Disease",
+      "alias": [
+        "睡眠障碍",
+        "入睡困难"
+      ],
+      "description": "以入睡困难、睡眠维持障碍或早醒并影响日间功能为特征。与心理压力、作息紊乱、环境及躯体疾病相关，首选认知行为治疗与睡眠卫生调整。"
+    },
+    {
+      "name": "心脏病",
+      "label": "Disease",
+      "alias": [
+        "心血管疾病",
+        "心脏疾病"
+      ],
+      "description": "心脏结构或功能异常的疾病统称，含冠心病、心律失常、心力衰竭、瓣膜病等。典型信号为胸闷、胸痛、心悸、活动后气短。"
+    },
+    {
+      "name": "感冒",
+      "label": "Disease",
+      "alias": [
+        "普通感冒",
+        "上呼吸道感染",
+        "上感"
+      ],
+      "description": "由病毒引起的急性上呼吸道感染。表现为鼻塞流涕、咽痛、低热、咳嗽，病程自限约 5~7 天，以对症治疗与休息为主。"
+    },
+    {
+      "name": "消化不良",
+      "label": "Disease",
+      "alias": [
+        "功能性消化不良",
+        "积食"
+      ],
+      "description": "餐后饱胀、早饱、上腹胀痛、嗳气的一组症候群。常见于脾胃虚弱、饮食不节，可用促消化与胃黏膜保护类药物缓解。"
+    },
+    {
+      "name": "甲状腺功能减退",
+      "label": "Disease",
+      "alias": [
+        "甲减",
+        "甲状腺功能低下"
+      ],
+      "description": "甲状腺激素合成与分泌不足导致的全身代谢减低综合征。表现为畏寒、乏力、嗜睡、体重增加、便秘、皮肤干燥、记忆力减退。"
+    },
+    {
+      "name": "痛风",
+      "label": "Disease",
+      "alias": [
+        "痛风性关节炎"
+      ],
+      "description": "单钠尿酸盐结晶沉积所致的关节炎，常在夜间急性发作，表现为第一跖趾关节等部位剧烈红肿热痛。与高尿酸血症直接相关。"
+    },
+    {
+      "name": "空腹血糖受损",
+      "label": "Disease",
+      "alias": [
+        "IFG",
+        "糖尿病前期"
+      ],
+      "description": "空腹血糖 6.1~6.9mmol/L 且糖负荷后 2 小时血糖<7.8mmol/L 的中间状态，属糖尿病前期。以饮食控制与运动干预为主，需定期复查。"
+    },
+    {
+      "name": "糖尿病",
+      "label": "Disease",
+      "alias": [
+        "血糖异常",
+        "血糖高"
+      ],
+      "description": "一组以慢性高血糖为特征的代谢性疾病统称，含 1 型、2 型、妊娠糖尿病等。长期高血糖导致眼、肾、神经、血管慢性损害。"
+    },
+    {
+      "name": "缺钙",
+      "label": "Disease",
+      "alias": [
+        "钙缺乏",
+        "低钙"
+      ],
+      "description": "钙摄入不足或吸收障碍。可表现为小腿抽筋、牙齿松动、骨密度下降，长期可发展为骨质疏松。需配合维生素 D 促进吸收。"
+    },
+    {
+      "name": "肺炎",
+      "label": "Disease",
+      "alias": [
+        "肺部感染",
+        "支气管肺炎"
+      ],
+      "description": "终末气道、肺泡和肺间质的炎症。表现为发热、咳嗽咳痰、胸痛、气促，听诊可闻及湿啰音，胸片可见浸润影。"
+    },
+    {
+      "name": "胃炎",
+      "label": "Disease",
+      "alias": [
+        "胃部炎症",
+        "慢性胃炎"
+      ],
+      "description": "胃黏膜的炎症性病变。表现为上腹隐痛或灼痛、腹胀、反酸、恶心、食欲不振，与幽门螺杆菌感染、饮食不规律、药物刺激相关。"
+    },
+    {
+      "name": "脂肪肝",
+      "label": "Disease",
+      "alias": [
+        "轻度脂肪肝",
+        "非酒精性脂肪肝",
+        "NAFLD"
+      ],
+      "description": "肝细胞内脂肪过度沉积（影像学诊断，>5%肝细胞脂肪变）。轻度多无症状，以控制体重、减少精制碳水与含糖饮料、规律有氧运动为主要干预。"
+    },
+    {
+      "name": "腹泻",
+      "label": "Disease",
+      "alias": [
+        "拉肚子",
+        "急性肠炎"
+      ],
+      "description": "排便次数增多（>3 次/日）且粪质稀薄。常见于感染、饮食不洁、肠道菌群失调，需注意补液防脱水。"
+    },
+    {
+      "name": "过敏",
+      "label": "Disease",
+      "alias": [
+        "过敏反应",
+        "变态反应"
+      ],
+      "description": "机体对 normally 无害物质产生的过度免疫反应。可表现为皮疹瘙痒、打喷嚏流涕、哮喘发作，严重者可出现过敏性休克。"
+    },
+    {
+      "name": "骨质疏松",
+      "label": "Disease",
+      "alias": [
+        "骨质疏松症"
+      ],
+      "description": "骨量降低、骨微结构破坏导致骨脆性增加、易发生骨折。绝经后女性与老年人高发，常见腰背疼痛、身高变矮、驼背。"
+    },
+    {
+      "name": "高尿酸",
+      "label": "Disease",
+      "alias": [
+        "高尿酸血症"
+      ],
+      "description": "血尿酸水平升高（男>420μmol/L，女>360μmol/L）。无症状期常无不适，但持续升高可诱发急性关节炎与肾损害。"
+    },
+    {
+      "name": "高血压",
+      "label": "Disease",
+      "alias": [
+        "原发性高血压",
+        "血压高"
+      ],
+      "description": "以体循环动脉压升高为主要表现的慢性病。诊断标准：非同日三次测量收缩压≥140mmHg 和/或 舒张压≥90mmHg。长期控制不佳可损伤心、脑、肾、眼底等靶器官。"
+    },
+    {
+      "name": "高血脂",
+      "label": "Disease",
+      "alias": [
+        "血脂异常",
+        "高脂血症"
+      ],
+      "description": "血清总胆固醇、甘油三酯、低密度脂蛋白升高和/或高密度脂蛋白降低。是动脉粥样硬化与冠心病的重要危险因素，多数患者无症状。"
+    },
+    {
+      "name": "乏力",
+      "label": "Symptom",
+      "alias": [
+        "疲倦",
+        "没力气"
+      ],
+      "description": "自觉体力不足、容易疲劳。可见于贫血、甲减、糖尿病、慢性疾病与睡眠不足。"
+    },
+    {
+      "name": "体重下降",
+      "label": "Symptom",
+      "alias": [
+        "消瘦"
+      ],
+      "description": "非刻意的体重减轻。短期内明显下降需排查糖尿病、甲亢、肿瘤等。"
+    },
+    {
+      "name": "关节疼痛",
+      "label": "Symptom",
+      "alias": [
+        "关节痛"
+      ],
+      "description": "关节部位疼痛。急性单关节红肿热痛需警惕痛风，多关节对称性疼痛需排查类风湿关节炎。"
+    },
+    {
+      "name": "反酸",
+      "label": "Symptom",
+      "alias": [
+        "烧心",
+        "胃食管反流"
+      ],
+      "description": "胃内容物反流至食管或口腔引起的灼热感。常见于胃食管反流病与胃炎。"
+    },
+    {
+      "name": "发烧",
+      "label": "Symptom",
+      "alias": [
+        "体温升高",
+        "发热"
+      ],
+      "description": "体温超过正常范围（腋温≥37.3℃）。是感染性疾病最常见的表现。成人超过 38.5℃ 或伴明显不适时可考虑退热药物，持续高热须就医查明病因。"
+    },
+    {
+      "name": "发热",
+      "label": "Symptom",
+      "alias": [
+        "发烧",
+        "体温升高"
+      ],
+      "description": "体温超过正常范围（腋温≥37.3℃）。是感染性疾病最常见的表现，也可见于结缔组织病与肿瘤。"
+    },
+    {
+      "name": "呕吐",
+      "label": "Symptom",
+      "description": "胃内容物经口强力排出。频繁呕吐需警惕脱水与电解质紊乱。"
+    },
+    {
+      "name": "咳嗽",
+      "label": "Symptom",
+      "alias": [
+        "咳"
+      ],
+      "description": "一种保护性反射动作，用于清除气道分泌物或异物。急性多见于感冒与支气管炎，超过 8 周为慢性咳嗽。"
+    },
+    {
+      "name": "咽痛",
+      "label": "Symptom",
+      "alias": [
+        "嗓子疼",
+        "咽喉疼痛"
+      ],
+      "description": "咽部疼痛或灼热感。常见于急性咽炎、扁桃体炎、感冒。"
+    },
+    {
+      "name": "嗜睡",
+      "label": "Symptom",
+      "alias": [
+        "总想睡觉"
+      ],
+      "description": "白天过度困倦。可见于睡眠不足、甲减、睡眠呼吸暂停与抑郁症。"
+    },
+    {
+      "name": "多尿",
+      "label": "Symptom",
+      "description": "尿量与排尿次数明显增多。是糖尿病的典型表现之一。"
+    },
+    {
+      "name": "多饮",
+      "label": "Symptom",
+      "alias": [
+        "口渴多饮"
+      ],
+      "description": "饮水明显增多。是糖尿病的典型表现之一，也可见于尿崩症与高钙血症。"
+    },
+    {
+      "name": "头晕",
+      "label": "Symptom",
+      "alias": [
+        "眩晕",
+        "头昏"
+      ],
+      "description": "自身或周围环境旋转、晃动或不稳感。可由高血压、颈椎病、耳源性疾病、贫血、低血糖引起。"
+    },
+    {
+      "name": "头痛",
+      "label": "Symptom",
+      "alias": [
+        "头疼",
+        "头部疼痛"
+      ],
+      "description": "头颅上半部的疼痛。可由感冒发热、高血压、偏头痛、紧张性头痛、颅内病变引起。"
+    },
+    {
+      "name": "小腿抽筋",
+      "label": "Symptom",
+      "alias": [
+        "腿抽筋"
+      ],
+      "description": "小腿肌肉不自主强直收缩。常见于缺钙、受凉、剧烈运动后与下肢血液循环不良。"
+    },
+    {
+      "name": "心悸",
+      "label": "Symptom",
+      "alias": [
+        "心慌"
+      ],
+      "description": "自觉心跳加快、加重或不齐。常见于心律失常、贫血、甲亢、焦虑，也可见于高血压心脏病。"
+    },
+    {
+      "name": "恶心",
+      "label": "Symptom",
+      "description": "上腹部不适伴欲吐感。可由胃炎、消化不良、药物不良反应、妊娠、颅内高压引起。"
+    },
+    {
+      "name": "气短",
+      "label": "Symptom",
+      "alias": [
+        "呼吸困难",
+        "喘不上气"
+      ],
+      "description": "呼吸费力或气不够用。可见于心功能不全、哮喘、慢性阻塞性肺疾病、贫血。"
+    },
+    {
+      "name": "水肿",
+      "label": "Symptom",
+      "alias": [
+        "浮肿"
+      ],
+      "description": "组织间隙液体积聚。双下肢对称性水肿需排查心、肾、肝功能不全与低蛋白血症。"
+    },
+    {
+      "name": "流涕",
+      "label": "Symptom",
+      "alias": [
+        "流鼻涕"
+      ],
+      "description": "鼻腔分泌物增多外流。清水样多见于过敏与病毒性感冒，脓性提示细菌感染可能。"
+    },
+    {
+      "name": "畏寒",
+      "label": "Symptom",
+      "alias": [
+        "怕冷"
+      ],
+      "description": "异常怕冷。是甲状腺功能减退的典型表现，也可见于发热寒战期与贫血。"
+    },
+    {
+      "name": "瘙痒",
+      "label": "Symptom",
+      "alias": [
+        "皮肤瘙痒"
+      ],
+      "description": "皮肤引起搔抓欲望的不适感。常见于过敏、湿疹、皮肤干燥、胆汁淤积与肾衰。"
+    },
+    {
+      "name": "皮疹",
+      "label": "Symptom",
+      "description": "皮肤形态改变伴颜色变化。可由过敏、感染、药物不良反应引起。"
+    },
+    {
+      "name": "耳鸣",
+      "label": "Symptom",
+      "description": "无外界声源时主观感受到的声音。与内耳供血不足、噪声损伤、高血压、药物不良反应相关。"
+    },
+    {
+      "name": "胸痛",
+      "label": "Symptom",
+      "description": "胸部疼痛。若伴压榨感并向左肩左臂放射、持续不缓解，需警惕急性冠脉综合征。"
+    },
+    {
+      "name": "胸闷",
+      "label": "Symptom",
+      "alias": [
+        "胸部不适"
+      ],
+      "description": "胸部压迫感或呼吸不畅。是冠心病心绞痛与哮喘的典型表现，出现持续胸痛应立即就医。"
+    },
+    {
+      "name": "腰背疼痛",
+      "label": "Symptom",
+      "alias": [
+        "腰疼",
+        "背痛"
+      ],
+      "description": "腰背部疼痛。老年人伴身高变矮需警惕骨质疏松性椎体压缩骨折。"
+    },
+    {
+      "name": "腹痛",
+      "label": "Symptom",
+      "alias": [
+        "肚子疼"
+      ],
+      "description": "腹部疼痛。部位与性质对定位病因关键：右上腹多见于肝胆，中上腹多见于胃，右下腹需警惕阑尾炎。"
+    },
+    {
+      "name": "腹胀",
+      "label": "Symptom",
+      "alias": [
+        "肚子胀"
+      ],
+      "description": "腹部胀满感。常见于消化不良、肠道菌群失调、肠梗阻、腹水。"
+    },
+    {
+      "name": "食欲不振",
+      "label": "Symptom",
+      "alias": [
+        "没胃口",
+        "不思饮食"
+      ],
+      "description": "进食欲望下降。可见于胃炎、消化不良、感染性疾病、情绪障碍与甲状腺功能减退。"
+    },
+    {
+      "name": "鼻塞",
+      "label": "Symptom",
+      "alias": [
+        "鼻子不通气"
+      ],
+      "description": "鼻腔通气受阻。常见于感冒、过敏性鼻炎、鼻窦炎。"
+    },
+    {
+      "name": "乳酸菌素片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "二甲双胍片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "二甲双胍缓释片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "云南白药气雾剂",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "健胃消食片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "克拉霉素片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "六味地黄丸",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "双黄连口服液",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "复方丹参滴丸",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "复方氨酚烷胺胶囊",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "复方甘草片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "多维元素片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "头孢克洛胶囊",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "奥美拉唑肠溶胶囊",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "安宫牛黄丸",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "左氧氟沙星片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "左甲状腺素钠片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "布洛芬缓释胶囊",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "开塞露",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "感冒清热颗粒",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "感冒灵颗粒",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "板蓝根颗粒",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "枸橼酸铋钾片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "氨氯地平片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "氯吡格雷片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "氯雷他定片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "法莫替丁片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "活血止痛膏",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "牛黄解毒片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "甲硝唑片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "皮炎平软膏",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "硝苯地平缓释片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "碘伏消毒液",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "碳酸钙D3片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "红霉素软膏",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "维生素B族片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "维生素C片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "维生素D3软胶囊",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "维生素D滴剂",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "维生素E软胶囊",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "缬沙坦胶囊",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "罗红霉素分散片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "美托洛尔缓释片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "苯磺酸氨氯地平片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "蒙脱石散",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "蒙脱石散（儿童装）",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "藿香正气水",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "补中益气丸",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "达克宁乳膏",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "逍遥丸",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "通宣理肺丸",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "金匮肾气丸",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "阿司匹林肠溶片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "阿奇霉素片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "阿托伐他汀钙片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "阿莫西林胶囊",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "非布司他片",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "风油精",
+      "label": "Drug",
+      "alias": [],
+      "description": ""
+    },
+    {
+      "name": "中成药",
+      "label": "Category",
+      "description": "中医药理论指导下组方的成药分类。"
+    },
+    {
+      "name": "外用药",
+      "label": "Category",
+      "description": "体表使用的药品分类：外用抗感染、皮肤止痒、跌打损伤、消毒。"
+    },
+    {
+      "name": "心脑血管",
+      "label": "Category",
+      "description": "作用于心脏与血管系统的药品分类：降压药、抗血小板药、调脂药、抗心绞痛药。"
+    },
+    {
+      "name": "感冒药",
+      "label": "Category",
+      "description": "缓解普通感冒症状的药品分类：解热镇痛、抗组胺、镇咳祛痰、清热解毒。"
+    },
+    {
+      "name": "抗生素",
+      "label": "Category",
+      "description": "抗细菌感染药物分类。必须凭处方并按疗程足量使用，不可自行停药或滥用。"
+    },
+    {
+      "name": "消化系统",
+      "label": "Category",
+      "description": "作用于胃肠道的药品分类：抗酸抑酸、胃黏膜保护、促消化、止泻、微生态调节。"
+    },
+    {
+      "name": "维生素",
+      "label": "Category",
+      "description": "维生素与矿物质补充剂分类，用于营养补充与骨健康支持。"
+    },
+    {
+      "name": "解热镇痛",
+      "label": "Category",
+      "description": "退热与缓解疼痛的药品分类，含非甾体抗炎药与中成药。"
+    }
+  ],
+  "edges": [
+    {
+      "subject": "高血压",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "头晕",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "高血压",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "头痛",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "高血压",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "心悸",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "高血压",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "耳鸣",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "高血压",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "苯磺酸氨氯地平片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "高血压",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "氨氯地平片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "高血压",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "硝苯地平缓释片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "高血压",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "缬沙坦胶囊",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "高血压",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "美托洛尔缓释片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "2型糖尿病",
+      "subjectLabel": "Disease",
+      "relation": "IS_A",
+      "object": "糖尿病",
+      "objectLabel": "Disease"
+    },
+    {
+      "subject": "2型糖尿病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "多饮",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "2型糖尿病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "多尿",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "2型糖尿病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "体重下降",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "2型糖尿病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "乏力",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "2型糖尿病",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "二甲双胍缓释片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "2型糖尿病",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "二甲双胍片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "糖尿病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "多饮",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "糖尿病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "多尿",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "糖尿病",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "二甲双胍缓释片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "糖尿病",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "二甲双胍片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "空腹血糖受损",
+      "subjectLabel": "Disease",
+      "relation": "IS_A",
+      "object": "糖尿病",
+      "objectLabel": "Disease"
+    },
+    {
+      "subject": "空腹血糖受损",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "二甲双胍缓释片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "冠心病",
+      "subjectLabel": "Disease",
+      "relation": "IS_A",
+      "object": "心脏病",
+      "objectLabel": "Disease"
+    },
+    {
+      "subject": "冠心病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "胸闷",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "冠心病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "胸痛",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "冠心病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "心悸",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "冠心病",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "阿司匹林肠溶片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "冠心病",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "氯吡格雷片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "冠心病",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "复方丹参滴丸",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "冠心病",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "美托洛尔缓释片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "心脏病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "胸闷",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "心脏病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "心悸",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "心脏病",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "气短",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "心脏病",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "阿司匹林肠溶片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "心脏病",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "复方丹参滴丸",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "高血脂",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "阿托伐他汀钙片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "高尿酸",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "非布司他片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "痛风",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "关节疼痛",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "痛风",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "非布司他片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "高尿酸",
+      "subjectLabel": "Disease",
+      "relation": "IS_A",
+      "object": "痛风",
+      "objectLabel": "Disease"
+    },
+    {
+      "subject": "骨质疏松",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "腰背疼痛",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "骨质疏松",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "碳酸钙D3片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "骨质疏松",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "维生素D3软胶囊",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "骨质疏松",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "维生素D滴剂",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "缺钙",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "小腿抽筋",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "缺钙",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "碳酸钙D3片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "缺钙",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "维生素D滴剂",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "甲状腺功能减退",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "乏力",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "甲状腺功能减退",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "畏寒",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "甲状腺功能减退",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "嗜睡",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "甲状腺功能减退",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "左甲状腺素钠片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "脂肪肝",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "乏力",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "脂肪肝",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "食欲不振",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "鼻塞",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "流涕",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "咽痛",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "咳嗽",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "发热",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "头痛",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "感冒清热颗粒",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "感冒灵颗粒",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "复方氨酚烷胺胶囊",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "板蓝根颗粒",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "双黄连口服液",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "发热",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "布洛芬缓释胶囊",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "头痛",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "布洛芬缓释胶囊",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "关节疼痛",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "布洛芬缓释胶囊",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "腰背疼痛",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "活血止痛膏",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "咳嗽",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "复方甘草片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "咳嗽",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "通宣理肺丸",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "咽痛",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "板蓝根颗粒",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "咽痛",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "双黄连口服液",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "肺炎",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "发热",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "肺炎",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "咳嗽",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "肺炎",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "气短",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "肺炎",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "阿莫西林胶囊",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "肺炎",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "头孢克洛胶囊",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "肺炎",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "阿奇霉素片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "肺炎",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "左氧氟沙星片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "肺炎",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "罗红霉素分散片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "胃炎",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "腹痛",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "胃炎",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "反酸",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "胃炎",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "恶心",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "胃炎",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "腹胀",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "胃炎",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "奥美拉唑肠溶胶囊",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "胃炎",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "法莫替丁片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "胃炎",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "枸橼酸铋钾片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "反酸",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "奥美拉唑肠溶胶囊",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "反酸",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "法莫替丁片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "消化不良",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "腹胀",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "消化不良",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "食欲不振",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "消化不良",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "健胃消食片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "消化不良",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "乳酸菌素片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "腹胀",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "健胃消食片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "腹胀",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "乳酸菌素片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "腹泻",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "腹痛",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "腹泻",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "蒙脱石散",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "腹泻",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "蒙脱石散（儿童装）",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "腹泻",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "藿香正气水",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "腹泻",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "乳酸菌素片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "便秘",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "开塞露",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "哮喘",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "气短",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "哮喘",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "咳嗽",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "哮喘",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "胸闷",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "过敏",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "皮疹",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "过敏",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "瘙痒",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "过敏",
+      "subjectLabel": "Disease",
+      "relation": "TREATED_BY",
+      "object": "氯雷他定片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "瘙痒",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "氯雷他定片",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "瘙痒",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "皮炎平软膏",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "皮疹",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "皮炎平软膏",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "失眠",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "乏力",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "苯磺酸氨氯地平片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "心脑血管",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "氨氯地平片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "心脑血管",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "硝苯地平缓释片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "心脑血管",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "缬沙坦胶囊",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "心脑血管",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "美托洛尔缓释片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "心脑血管",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "阿司匹林肠溶片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "心脑血管",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "氯吡格雷片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "心脑血管",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "复方丹参滴丸",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "心脑血管",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "阿托伐他汀钙片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "心脑血管",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "非布司他片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "心脑血管",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "感冒清热颗粒",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "感冒药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "感冒灵颗粒",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "感冒药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "复方氨酚烷胺胶囊",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "感冒药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "板蓝根颗粒",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "感冒药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "双黄连口服液",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "感冒药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "通宣理肺丸",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "感冒药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "阿莫西林胶囊",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "抗生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "头孢克洛胶囊",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "抗生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "阿奇霉素片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "抗生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "左氧氟沙星片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "抗生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "克拉霉素片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "抗生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "罗红霉素分散片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "抗生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "甲硝唑片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "抗生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "奥美拉唑肠溶胶囊",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "消化系统",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "法莫替丁片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "消化系统",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "枸橼酸铋钾片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "消化系统",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "健胃消食片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "消化系统",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "乳酸菌素片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "消化系统",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "蒙脱石散",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "消化系统",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "蒙脱石散（儿童装）",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "消化系统",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "开塞露",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "消化系统",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "布洛芬缓释胶囊",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "解热镇痛",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "复方甘草片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "解热镇痛",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "氯雷他定片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "解热镇痛",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "碳酸钙D3片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "维生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "维生素D3软胶囊",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "维生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "维生素D滴剂",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "维生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "维生素C片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "维生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "维生素B族片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "维生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "维生素E软胶囊",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "维生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "多维元素片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "维生素",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "左甲状腺素钠片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "心脑血管",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "六味地黄丸",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "中成药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "逍遥丸",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "中成药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "补中益气丸",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "中成药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "牛黄解毒片",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "中成药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "藿香正气水",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "中成药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "安宫牛黄丸",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "中成药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "金匮肾气丸",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "中成药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "云南白药气雾剂",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "外用药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "活血止痛膏",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "外用药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "皮炎平软膏",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "外用药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "红霉素软膏",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "外用药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "达克宁乳膏",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "外用药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "碘伏消毒液",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "外用药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "风油精",
+      "subjectLabel": "Drug",
+      "relation": "BELONGS_TO",
+      "object": "外用药",
+      "objectLabel": "Category"
+    },
+    {
+      "subject": "发烧",
+      "subjectLabel": "Symptom",
+      "relation": "IS_A",
+      "object": "发热",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "发烧",
+      "subjectLabel": "Symptom",
+      "relation": "TREATED_BY",
+      "object": "布洛芬缓释胶囊",
+      "objectLabel": "Drug"
+    },
+    {
+      "subject": "感冒",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "发烧",
+      "objectLabel": "Symptom"
+    },
+    {
+      "subject": "肺炎",
+      "subjectLabel": "Disease",
+      "relation": "HAS_SYMPTOM",
+      "object": "发烧",
+      "objectLabel": "Symptom"
+    }
+  ]
+}

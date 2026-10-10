@@ -93,6 +93,31 @@ CREATE TABLE IF NOT EXISTS `message` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 6.1 站内通知表（2026-10-07 补：message 的合并目标表）
+--   说明：02_迁移脚本/01_schema_refactor.sql 与 06_merge_message_into_notification.sql
+--        都会 ALTER / INSERT 本表，故必须在此处先建，否则全新部署会报
+--        ERROR 1146 (42S02): Table 'notification' doesn't exist 并中断迁移。
+--   DDL 取自 personal_health 实库 SHOW CREATE TABLE（已去除数据相关的 AUTO_INCREMENT 偏移）。
+CREATE TABLE IF NOT EXISTS `notification` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` INT NOT NULL COMMENT '接收用户',
+  `title` VARCHAR(200) DEFAULT NULL,
+  `content` TEXT,
+  `type` TINYINT DEFAULT 0,
+  `message_type` TINYINT NOT NULL DEFAULT 1 COMMENT '用户视角消息分类：1系统通知 2互动消息 3私信（合并自 message.other）',
+  `is_read` TINYINT(1) DEFAULT 0,
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `source` VARCHAR(30) NOT NULL DEFAULT 'SYSTEM' COMMENT '来源：SYSTEM系统/USER用户/AI助手/ORDER订单',
+  `sender_id` INT UNSIGNED DEFAULT NULL COMMENT '发送者ID（系统消息为空）',
+  `link_url` VARCHAR(255) DEFAULT NULL COMMENT '点击跳转地址',
+  `biz_type` VARCHAR(30) DEFAULT NULL COMMENT '业务类型：APPOINTMENT/FOLLOWUP/MALL/SYSTEM',
+  `biz_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '业务ID',
+  PRIMARY KEY (`id`),
+  KEY `idx_notif_user` (`user_id`, `is_read`, `create_time`),
+  KEY `idx_notif_biz` (`biz_type`, `biz_id`),
+  KEY `idx_notification_msgtype` (`message_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内通知表';
+
 -- ============================================================
 -- 第二部分：健康指标表
 -- ============================================================
@@ -157,43 +182,25 @@ CREATE TABLE IF NOT EXISTS `patient_profile` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================
--- 第三部分：药品表
+-- 第三部分：药品（⚠️ 已于 2026-08-28 合并进商城，不再独立建表）
 -- ============================================================
-
--- 10. 药品信息表
-CREATE TABLE IF NOT EXISTS `drug` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(200) NOT NULL COMMENT '药品名称',
-  `generic_name` VARCHAR(200) DEFAULT NULL COMMENT '通用名',
-  `category` VARCHAR(100) DEFAULT NULL COMMENT '分类',
-  `description` TEXT COMMENT '说明',
-  `price` DECIMAL(10,2) DEFAULT NULL,
-  `unit` VARCHAR(50) DEFAULT NULL,
-  `specification` VARCHAR(200) DEFAULT NULL COMMENT '规格',
-  `manufacturer` VARCHAR(200) DEFAULT NULL COMMENT '厂家',
-  `cover` VARCHAR(500) DEFAULT NULL,
-  `is_otc` TINYINT(1) DEFAULT 1 COMMENT '0:处方药;1:OTC',
-  `stock` INT DEFAULT 0,
-  `status` TINYINT(1) DEFAULT 1 COMMENT '0:下架;1:上架',
-  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `idx_name` (`name`),
-  INDEX `idx_category` (`category`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- 11. 药品订阅表
-CREATE TABLE IF NOT EXISTS `drug_subscription` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `user_id` INT NOT NULL,
-  `drug_id` INT NOT NULL,
-  `quantity` INT DEFAULT 1,
-  `status` TINYINT(1) DEFAULT 1 COMMENT '0:取消;1:有效',
-  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user_drug` (`user_id`, `drug_id`),
-  INDEX `idx_drug_id` (`drug_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+--
+-- 【历史】此处原有 drug / drug_subscription 两张表，2026-08-28 用户决定
+--        「药品合并商城」，它们的语义与 mall_product 重叠（都是商品，
+--        都含名称/价格/库存），故删表并把数据迁入 mall_product
+--        （product_type='drug'，新 id 段 7001+）。
+--
+-- 【现状】药品商品 → mall_product
+--        药品订阅 → shopping_cart（user_id/product_id/quantity 一一对应）
+--        药品医学字段（通用名/规格/厂家/OTC/医学分类）→ 由迁移脚本
+--        Data/02_迁移脚本/07_mall_product_medical_fields.sql 给 mall_product 加列补齐
+--
+-- 【为什么从本文件删除】保留这两段会让「空库部署」创建出两张永远为空、
+--        且与运行时行为矛盾的表（历史上 DrugMapper.xml 就是因此引用了不存在的表，
+--        导致 10 条 SQL 一调必崩）。
+--
+-- 【反例警示】有一致性测试 MapperTableConsistencyTest 会扫描 Mapper XML 与
+--        结构基线比对，防止此类"删表不改代码"重演。
 
 -- ============================================================
 -- 第四部分：AI相关表

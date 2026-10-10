@@ -22,6 +22,9 @@
 -- 1) 预约重指向：1006~1010 → 3~7（张小明/李莉/王强/陈静/赵磊，均有完整档案）
 --    保持原 doctor_id、日期、时段、序号不变，只换患者
 -- ---------------------------------------------------------------------------
+-- 显式声明连接编码，避免依赖客户端默认值（否则中文 INSERT/列注释会报 ERROR 1406 或乱码）
+SET NAMES utf8mb4;
+
 UPDATE appointment SET patient_id = 3 WHERE id = 5001;   -- 测试用户1 → 张小明
 UPDATE appointment SET patient_id = 4 WHERE id = 5002;   -- 测试用户2 → 李莉
 UPDATE appointment SET patient_id = 5 WHERE id = 5003;   -- 测试用户3 → 王强

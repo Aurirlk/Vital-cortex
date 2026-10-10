@@ -1,7 +1,8 @@
 -- ============================================================================
 -- 06_merge_message_into_notification.sql  消息表双轨合并（2026-10-04）
 --
--- 依据：《数据模型重构与项目扩展方案.md》缺陷 4「消息系统双轨」
+-- 依据：《数据模型重构与项目扩展方案》缺陷 4「消息系统双轨」
+--       （该文档已于 2026-10-07 整合归档，结论保留在 docs/数据资产与AI能力整改方案.md 附录 §C）
 --
 -- 【为什么合并】
 --   message 与 notification 是同一业务概念的两套实现：
@@ -34,6 +35,9 @@
 -- 说明：与既有 type 列（0公告 1预约 2随访 3订单 4私信）语义不同，
 --      message_type 是「用户视角的消息分类」，故单列而非复用 type。
 -- ---------------------------------------------------------------------------
+-- 显式声明连接编码，避免依赖客户端默认值（否则中文 INSERT/列注释会报 ERROR 1406 或乱码）
+SET NAMES utf8mb4;
+
 SET @d = IF(
   EXISTS(SELECT 1 FROM information_schema.COLUMNS
          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notification'
@@ -56,14 +60,18 @@ PREPARE s FROM @d; EXECUTE s; DEALLOCATE PREPARE s;
 -- ---------------------------------------------------------------------------
 -- 步骤 2：迁移存量数据（幂等：靠「同用户同内容同时间」判重）
 -- ---------------------------------------------------------------------------
-INSERT INTO notification (user_id, sender_id, content, is_read, type,
+-- [幂等守卫] message 已在本套脚本中合并并 DROP；复跑时跳过，
+-- 否则 mysql CLI 遇 ERROR 1146 会中断本文件后续语句。
+SET @_has = (SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'message');
+SET @_sql = IF(@_has > 0, 'INSERT INTO notification (user_id, sender_id, content, is_read, type,
                           message_type, create_time)
 SELECT m.user_id,
        m.send_id,
        m.content,
        COALESCE(m.is_read, 0),
-       1,                          -- type：归为「预约类」占位，与 message 无对应语义
-       COALESCE(NULLIF(m.other, ''), 1),   -- message_type：other 为 NULL 时默认系统通知
+       1,
+       COALESCE(NULLIF(m.other, ''''), 1),
        COALESCE(m.create_time, NOW())
   FROM message m
  WHERE NOT EXISTS (
@@ -71,20 +79,26 @@ SELECT m.user_id,
         WHERE n.user_id = m.user_id
           AND n.content = m.content
           AND n.create_time = m.create_time
-       );
+       )', 'DO 0');
+PREPARE _s FROM @_sql; EXECUTE _s; DEALLOCATE PREPARE _s;
 
 -- ---------------------------------------------------------------------------
 -- 步骤 3：校验后再删（先看校验结果，确认 0 才是「可删」）
 -- 下面这条应返回 0；若不为 0，说明有数据未迁入，不要执行步骤 4
 -- ---------------------------------------------------------------------------
-SELECT COUNT(*) AS 未迁入的message条数
+-- [幂等守卫] message 已在本套脚本中合并并 DROP；复跑时跳过，
+-- 否则 mysql CLI 遇 ERROR 1146 会中断本文件后续语句。
+SET @_has = (SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'message');
+SET @_sql = IF(@_has > 0, 'SELECT COUNT(*) AS 未迁入的message条数
   FROM message m
  WHERE NOT EXISTS (
        SELECT 1 FROM notification n
         WHERE n.user_id = m.user_id
           AND n.content = m.content
           AND n.create_time = m.create_time
-       );
+       )', 'DO 0');
+PREPARE _s FROM @_sql; EXECUTE _s; DEALLOCATE PREPARE _s;
 
 -- ---------------------------------------------------------------------------
 -- 步骤 4：删除 message 表

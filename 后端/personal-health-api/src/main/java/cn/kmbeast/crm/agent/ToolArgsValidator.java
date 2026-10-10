@@ -2,6 +2,7 @@ package cn.kmbeast.crm.agent;
 
 import cn.kmbeast.crm.agent.tool.Tool;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -42,11 +43,9 @@ public final class ToolArgsValidator {
 
         // 必填项检查
         Object requiredObj = schema.get("required");
-        if (requiredObj instanceof List<?> list) {
-            for (Object r : list) {
-                if (r != null && !arguments.containsKey(r.toString())) {
-                    return "缺少必填参数: " + r;
-                }
+        for (String r : normalizeRequired(requiredObj)) {
+            if (!arguments.containsKey(r)) {
+                return "缺少必填参数: " + r;
             }
         }
 
@@ -98,5 +97,48 @@ public final class ToolArgsValidator {
             default:
                 return null; // 未知类型不拦截
         }
+    }
+
+    /**
+     * 归一化 schema 里的 {@code required} 字段，兼容三种写法。
+     *
+     * <p><b>2026-10-07 修复</b>：原实现只认 {@code instanceof List<?>}，
+     * 而 {@code SearchDrugTool} 传的是 {@code new String[]{"keyword"}} ——
+     * 数组不是 List，判断恒为 false，**必填校验被静默跳过、不报任何错**。
+     * （wire 格式没问题，fastjson2 会把数组序列化成 JSON 数组；坏的是本地校验。）</p>
+     *
+     * <p>支持：{@code List<?>} / {@code Object[]}（含 {@code String[]}）/ 裸 {@code String}。
+     * 空 {@code required}（空 List / 空数组）一律返回空列表 —— 语义上等于「无必填」。</p>
+     *
+     * @param requiredObj schema 里的 required 值，可为任意形态
+     * @return 归一化后的参数名列表，永不为 null
+     */
+    private static List<String> normalizeRequired(Object requiredObj) {
+        List<String> out = new ArrayList<>(4);
+        if (requiredObj == null) {
+            return out;
+        }
+        if (requiredObj instanceof List<?> list) {
+            for (Object r : list) {
+                if (r != null && !r.toString().trim().isEmpty()) {
+                    out.add(r.toString().trim());
+                }
+            }
+            return out;
+        }
+        if (requiredObj instanceof Object[] arr) {
+            for (Object r : arr) {
+                if (r != null && !r.toString().trim().isEmpty()) {
+                    out.add(r.toString().trim());
+                }
+            }
+            return out;
+        }
+        // 裸字符串（JSON Schema 允许 required: "a"，虽然少见）
+        String s = requiredObj.toString().trim();
+        if (!s.isEmpty()) {
+            out.add(s);
+        }
+        return out;
     }
 }

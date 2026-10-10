@@ -241,4 +241,230 @@ public class HistoryStorageServiceImpl implements HistoryStorageService {
             return null;
         }
     }
+
+    // ==================== 批量删除与磁盘清理（2026-10-07 新增） ====================
+
+    @Override
+    public void batchDeleteConversations(Integer userId, List<Integer> conversationIds) {
+        if (conversationIds == null || conversationIds.isEmpty()) {
+            return;
+        }
+        for (Integer cid : conversationIds) {
+            try {
+                Path detailPath = Path.of(getUserDir(userId), "conversation_" + cid + ".json");
+                Files.deleteIfExists(detailPath);
+            } catch (Exception e) {
+                log.warn("[History] 批量删除磁盘文件失败: userId={}, conversationId={}", userId, cid, e);
+            }
+        }
+        try {
+            JSONArray index = loadIndex(userId);
+            JSONArray newIndex = new JSONArray();
+            for (int i = 0; i < index.size(); i++) {
+                JSONObject item = index.getJSONObject(i);
+                if (!conversationIds.contains(item.getInteger("id"))) {
+                    newIndex.add(item);
+                }
+            }
+            Path indexPath = Path.of(getUserDir(userId), "index.json");
+            Files.write(indexPath, JSON.toJSONString(newIndex, com.alibaba.fastjson2.JSONWriter.Feature.PrettyFormat)
+                    .getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            log.warn("[History] 批量删除更新索引失败: userId={}", userId, e);
+        }
+        log.info("[History] 批量删除本地副本: userId={}, count={}", userId, conversationIds.size());
+    }
+
+    @Override
+    public int cleanup(Integer retentionDays, int maxTotalFiles,
+                       java.util.function.IntFunction<java.util.Set<Integer>> liveConversationIdsFn) {
+        File root = new File(STORAGE_ROOT);
+        if (!root.isDirectory()) {
+            return 0;
+        }
+        File[] userDirs = root.listFiles(File::isDirectory);
+        if (userDirs == null) {
+            return 0;
+        }
+
+        // 1. 收集全部会话详情文件，按最后修改时间升序（老的在前，便于超限时先淘汰）
+        List<long[]> entries = new ArrayList<>();   // {lastModified, size}
+        Map<Integer, List<Path>> filesByUser = new LinkedHashMap<>();
+        for (File userDir : userDirs) {
+            Integer userId = parseUserDir(userDir.getName());
+            if (userId == null) {
+                continue;
+            }
+            List<Path> list = new ArrayList<>();
+            File[] files = userDir.listFiles((d, n) -> n.startsWith("conversation_") && n.endsWith(".json"));
+            if (files != null) {
+                for (File f : files) {
+                    list.add(f.toPath());
+                    entries.add(new long[]{f.lastModified(), f.length()});
+                }
+            }
+            filesByUser.put(userId, list);
+        }
+        if (entries.isEmpty()) {
+            return 0;
+        }
+        entries.sort(Comparator.comparingLong(a -> a[0]));
+
+        Set<Integer> expiredIds = new HashSet<>();
+        int deleted = 0;
+
+        // 2. 按保留天数淘汰过旧文件（只保留最近一次修改超过阈值的）
+        long cutoff = retentionDays != null && retentionDays > 0
+                ? System.currentTimeMillis() - retentionDays * 24L * 3600_000L
+                : Long.MAX_VALUE;
+        for (File userDir : userDirs) {
+            Integer userId = parseUserDir(userDir.getName());
+            if (userId == null) {
+                continue;
+            }
+            for (Path p : filesByUser.getOrDefault(userId, Collections.emptyList())) {
+                try {
+                    if (Files.getLastModifiedTime(p).toMillis() < cutoff) {
+                        Integer cid = parseConversationId(p.getFileName().toString());
+                        if (Files.deleteIfExists(p)) {
+                            deleted++;
+                            if (cid != null) {
+                                expiredIds.add(cid);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.debug("[History] 清理过期文件跳过: {}", p, e);
+                }
+            }
+        }
+
+        // 3. 按总文件数上限淘汰（连同孤儿文件一并清理）
+        long total = entries.size() - deleted;
+        if (maxTotalFiles > 0 && total > maxTotalFiles) {
+            for (long[] entry : entries) {
+                if (total <= maxTotalFiles) {
+                    break;
+                }
+                for (File userDir : userDirs) {
+                    Integer userId = parseUserDir(userDir.getName());
+                    if (userId == null) {
+                        continue;
+                    }
+                    for (Path p : filesByUser.getOrDefault(userId, Collections.emptyList())) {
+                        try {
+                            if (Files.exists(p) && Files.getLastModifiedTime(p).toMillis() == entry[0]) {
+                                Integer cid = parseConversationId(p.getFileName().toString());
+                                if (Files.deleteIfExists(p)) {
+                                    deleted++;
+                                    total--;
+                                    if (cid != null) {
+                                        expiredIds.add(cid);
+                                    }
+                                }
+                            }
+                        } catch (Exception ignored) {
+                            // 单个文件失败不中断整体清理
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. 清掉索引里已无磁盘文件的条目，并删掉空的会话文件目录
+        for (Map.Entry<Integer, List<Path>> e : filesByUser.entrySet()) {
+            pruneIndex(e.getKey());
+            File dir = new File(getUserDir(e.getKey()));
+            File[] remain = dir.listFiles((d, n) -> n.startsWith("conversation_") && n.endsWith(".json"));
+            if (remain != null && remain.length == 0) {
+                try {
+                    Files.deleteIfExists(dir.toPath());
+                } catch (Exception ignored) {
+                    // 非空目录（含 index.json）保留
+                }
+            }
+        }
+
+        // 5. 孤儿文件（MySQL 已无记录但磁盘还在）—— 单独一轮
+        if (liveConversationIdsFn != null) {
+            for (Map.Entry<Integer, List<Path>> e : filesByUser.entrySet()) {
+                Set<Integer> live;
+                try {
+                    live = liveConversationIdsFn.apply(e.getKey());
+                } catch (Exception ex) {
+                    log.warn("[History] 取有效会话失败，跳过孤儿清理: userId={}", e.getKey(), ex);
+                    continue;
+                }
+                if (live == null) {
+                    continue;
+                }
+                for (Path p : e.getValue()) {
+                    Integer cid = parseConversationId(p.getFileName().toString());
+                    if (cid == null || live.contains(cid)) {
+                        continue;
+                    }
+                    try {
+                        if (Files.deleteIfExists(p)) {
+                            deleted++;
+                            expiredIds.add(cid);
+                        }
+                    } catch (Exception ignored) {
+                        // 忽略
+                    }
+                }
+                if (!expiredIds.isEmpty()) {
+                    pruneIndex(e.getKey());
+                }
+            }
+        }
+
+        if (deleted > 0) {
+            log.info("[History] 磁盘清理完成: 删除 {} 个文件（保留天数={}, 上限={}）", deleted, retentionDays, maxTotalFiles);
+        }
+        return deleted;
+    }
+
+    /** 重写用户索引：只保留磁盘上确实存在详情文件的会话。 */
+    private void pruneIndex(Integer userId) {
+        try {
+            JSONArray index = loadIndex(userId);
+            if (index.isEmpty()) {
+                return;
+            }
+            JSONArray newIndex = new JSONArray();
+            for (int i = 0; i < index.size(); i++) {
+                JSONObject item = index.getJSONObject(i);
+                Integer cid = item.getInteger("id");
+                Path detailPath = Path.of(getUserDir(userId), "conversation_" + cid + ".json");
+                if (Files.exists(detailPath)) {
+                    newIndex.add(item);
+                }
+            }
+            if (newIndex.size() == index.size()) {
+                return;
+            }
+            Path indexPath = Path.of(getUserDir(userId), "index.json");
+            Files.write(indexPath, JSON.toJSONString(newIndex, com.alibaba.fastjson2.JSONWriter.Feature.PrettyFormat)
+                    .getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            log.warn("[History] 修剪索引失败: userId={}", userId, e);
+        }
+    }
+
+    private Integer parseUserDir(String name) {
+        try {
+            return Integer.valueOf(name);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private Integer parseConversationId(String fileName) {
+        try {
+            String mid = fileName.substring("conversation_".length(), fileName.length() - ".json".length());
+            return Integer.valueOf(mid);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

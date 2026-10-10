@@ -101,4 +101,40 @@
         ORDER BY uh.create_time DESC
     </select>
 
+    <!--
+        阶段 2（双轨参数化查询）：按指标规范名查健康记录。
+        resultType=LinkedHashMap 便于工具侧直接读 value/unit/valueRange。
+        指标名来自 HealthMetric 枚举白名单 + is_global=1，杜绝任意字符串拼 SQL。
+    -->
+    <select id="queryByMetric" resultType="java.util.LinkedHashMap">
+        SELECT uh.value        AS value,
+               uh.create_time  AS createTime,
+               hmc.unit        AS unit,
+               hmc.value_range AS valueRange
+        FROM user_health uh
+        JOIN health_model_config hmc ON hmc.id = uh.health_model_config_id
+        WHERE hmc.name = #{metricName}
+          AND hmc.is_global = 1
+          AND uh.user_id = #{userId}
+          AND uh.create_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+        ORDER BY uh.create_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 阶段 2（医生双轨）：医生-患者授权校验，appointment ∪ visit_record -->
+    <select id="countDoctorPatientAccess" resultType="integer">
+        SELECT COUNT(*)
+        FROM (
+                 SELECT 1
+                 FROM appointment
+                 WHERE doctor_id = #{doctorId}
+                   AND patient_id = #{patientId}
+                 UNION
+                 SELECT 1
+                 FROM visit_record
+                 WHERE doctor_id = #{doctorId}
+                   AND patient_id = #{patientId}
+             ) t
+    </select>
+
 </mapper>

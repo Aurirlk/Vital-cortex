@@ -1,6 +1,9 @@
 -- 模型公告/横幅通知表
 -- 用于管理后台切换模型时，C端展示通知横幅
 
+-- 显式声明连接编码，避免依赖客户端默认值（否则中文 INSERT/列注释会报 ERROR 1406 或乱码）
+SET NAMES utf8mb4;
+
 CREATE TABLE IF NOT EXISTS model_announcement (
   id INT PRIMARY KEY AUTO_INCREMENT,
   model_key VARCHAR(50) NOT NULL COMMENT '模型标识（如 zhikangyun-local, deepseek 等）',

@@ -5,14 +5,16 @@
 --   1. news + post 合并，合并后的表就叫 news
 --   2. 医生与 user 解耦；医生作为特殊身份登录，由管理员统一管理；普通状态只能进用户端
 --   3. 科室支持多级层级
---   4. 字符集统一为 utf8mb4 / utf8mb4_general_ci
+--   4. 字符集统一为 utf8mb4 / utf8mb4_0900_ai_ci（见下方步骤 6 的说明：不是 general_ci）
 --   5. 旧表先改名归档，用户校验通过后再物理删除
 --
 -- 环境：MySQL 9.7.0
 --   ⚠️ 不支持 ADD COLUMN IF NOT EXISTS（MariaDB 语法），故用 SET + PREPARE 实现幂等。
 --   ⚠️ 不可用存储过程传中文参数（会乱码），DDL 一律写成 SQL 字面量再 PREPARE。
 --
--- 执行前置：✅ 已备份 Data/backup/portable_20261003_222123.sql（恢复演练已通过）
+-- 执行前置：✅ 执行前请先整库备份（`mysqldump --databases personal_health`）。
+--   当前可用还原点见 Data/90_归档/LATEST_PORTABLE.txt（2026-10-07 起归档目录只保留最近两代完整备份；
+--   历史上的 portable_20261003_222123.sql 已在清理时删除，git 历史中仍可找回）。
 -- 本脚本【不执行任何 DROP】，旧表数据完整保留，可随时回滚。
 -- ============================================================================
 
@@ -87,19 +89,24 @@ UPDATE news SET content_type = 'NEWS'     WHERE content_type IS NULL OR content_
 UPDATE news SET status = 1                WHERE status IS NULL;
 
 -- 1.2 post 迁入 news（幂等：按 title+create_time 判重）
-INSERT INTO news (content_type, user_id, title, content, cover, tag_id,
+-- [幂等守卫] post 已在本套脚本中合并并 DROP；复跑时跳过，
+-- 否则 mysql CLI 遇 ERROR 1146 会中断本文件后续语句。
+SET @_has = (SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post');
+SET @_sql = IF(@_has > 0, 'INSERT INTO news (content_type, user_id, title, content, cover, tag_id,
                   view_count, like_count, favorite_count, comment_count, share_count,
                   hot_score, status, is_top, published_at, create_time, tag_name_snapshot)
 SELECT
-  'POST', p.user_id, p.title, p.content, p.cover, p.tag_id,
+  ''POST'', p.user_id, p.title, p.content, p.cover, p.tag_id,
   COALESCE(p.view_count,0), COALESCE(p.like_count,0), COALESCE(p.favorite_count,0),
   COALESCE(p.comment_count,0), COALESCE(p.share_count,0), COALESCE(p.hot_score,0),
   COALESCE(p.status,1), COALESCE(p.is_top,0), p.create_time, p.create_time,
   (SELECT t.name FROM tags t WHERE t.id = p.tag_id)
 FROM post p
 WHERE NOT EXISTS (
-  SELECT 1 FROM news n WHERE n.content_type='POST' AND n.title=p.title AND n.create_time=p.create_time
-);
+  SELECT 1 FROM news n WHERE n.content_type=''POST'' AND n.title=p.title AND n.create_time=p.create_time
+)', 'DO 0');
+PREPARE _s FROM @_sql; EXECUTE _s; DEALLOCATE PREPARE _s;
 
 -- ============================================================================
 -- 步骤 2：标签表合并（tags + post_tag → tags）
@@ -118,10 +125,15 @@ SET @d = IF(EXISTS(SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEM
 PREPARE s FROM @d; EXECUTE s; DEALLOCATE PREPARE s;
 
 -- 2.1 post_tag 独有标签并入
-INSERT INTO tags (name, sort_order, type, status, create_time)
-SELECT pt.name, COALESCE(pt.sort_order,0), 'POST', 1, pt.create_time
+-- [幂等守卫] post_tag 已在本套脚本中合并并 DROP；复跑时跳过，
+-- 否则 mysql CLI 遇 ERROR 1146 会中断本文件后续语句。
+SET @_has = (SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post_tag');
+SET @_sql = IF(@_has > 0, 'INSERT INTO tags (name, sort_order, type, status, create_time)
+SELECT pt.name, COALESCE(pt.sort_order,0), ''POST'', 1, pt.create_time
 FROM post_tag pt
-WHERE NOT EXISTS (SELECT 1 FROM tags t WHERE t.name = pt.name);
+WHERE NOT EXISTS (SELECT 1 FROM tags t WHERE t.name = pt.name)', 'DO 0');
+PREPARE _s FROM @_sql; EXECUTE _s; DEALLOCATE PREPARE _s;
 
 -- 2.2 同类型同名去重
 DELETE t1 FROM tags t1 JOIN tags t2
@@ -153,19 +165,29 @@ CREATE TABLE IF NOT EXISTS comment (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='统一评论表（多态）';
 
 -- 3.1 evaluations 迁入
-INSERT INTO comment (target_type, target_id, user_id, reply_to_id, parent_id, content, upvote_list, status, create_time)
+-- [幂等守卫] evaluations 已在本套脚本中合并并 DROP；复跑时跳过，
+-- 否则 mysql CLI 遇 ERROR 1146 会中断本文件后续语句。
+SET @_has = (SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'evaluations');
+SET @_sql = IF(@_has > 0, 'INSERT INTO comment (target_type, target_id, user_id, reply_to_id, parent_id, content, upvote_list, status, create_time)
 SELECT
-  CASE WHEN LOWER(e.content_type) = 'quiz' THEN 'QUIZ' ELSE 'NEWS' END,
+  CASE WHEN LOWER(e.content_type) = ''quiz'' THEN ''QUIZ'' ELSE ''NEWS'' END,
   e.content_id, e.commenter_id, e.replier_id, e.parent_id,
   e.content, e.upvote_list, 1, e.create_time
 FROM evaluations e
-WHERE e.content IS NOT NULL AND e.content <> '' AND e.content_id IS NOT NULL;
+WHERE e.content IS NOT NULL AND e.content <> '''' AND e.content_id IS NOT NULL', 'DO 0');
+PREPARE _s FROM @_sql; EXECUTE _s; DEALLOCATE PREPARE _s;
 
 -- 3.2 post_reply 迁入
-INSERT INTO comment (target_type, target_id, user_id, parent_id, content, like_count, status, create_time)
-SELECT 'NEWS', pr.post_id, pr.user_id, pr.parent_id, pr.content, COALESCE(pr.like_count,0), 1, pr.create_time
+-- [幂等守卫] post_reply 已在本套脚本中合并并 DROP；复跑时跳过，
+-- 否则 mysql CLI 遇 ERROR 1146 会中断本文件后续语句。
+SET @_has = (SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post_reply');
+SET @_sql = IF(@_has > 0, 'INSERT INTO comment (target_type, target_id, user_id, parent_id, content, like_count, status, create_time)
+SELECT ''NEWS'', pr.post_id, pr.user_id, pr.parent_id, pr.content, COALESCE(pr.like_count,0), 1, pr.create_time
 FROM post_reply pr
-WHERE pr.content IS NOT NULL AND pr.content <> '';
+WHERE pr.content IS NOT NULL AND pr.content <> ''''', 'DO 0');
+PREPARE _s FROM @_sql; EXECUTE _s; DEALLOCATE PREPARE _s;
 
 -- ============================================================================
 -- 步骤 4：消息表合并（message + notification → notification）
@@ -191,13 +213,18 @@ PREPARE s FROM @d; EXECUTE s; DEALLOCATE PREPARE s;
 -- 4.1 message 迁入
 --     注意：notification.type 是 tinyint（枚举），不是字符串。
 --     枚举约定：0系统公告 1预约通知 2随访通知 3订单通知 4私信消息
-INSERT INTO notification (user_id, title, content, type, source, sender_id, is_read, create_time)
+-- [幂等守卫] message 已在本套脚本中合并并 DROP；复跑时跳过，
+-- 否则 mysql CLI 遇 ERROR 1146 会中断本文件后续语句。
+SET @_has = (SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'message');
+SET @_sql = IF(@_has > 0, 'INSERT INTO notification (user_id, title, content, type, source, sender_id, is_read, create_time)
 SELECT
   COALESCE(m.user_id, 0),
-  CASE WHEN m.replier_id IS NOT NULL THEN '回复通知' ELSE '消息' END,
-  m.content, 4, 'USER', m.send_id, COALESCE(m.is_read,0), m.create_time
+  CASE WHEN m.replier_id IS NOT NULL THEN ''回复通知'' ELSE ''消息'' END,
+  m.content, 4, ''USER'', m.send_id, COALESCE(m.is_read,0), m.create_time
 FROM message m
-WHERE m.content IS NOT NULL AND m.content <> '';
+WHERE m.content IS NOT NULL AND m.content <> ''''', 'DO 0');
+PREPARE _s FROM @_sql; EXECUTE _s; DEALLOCATE PREPARE _s;
 
 -- ============================================================================
 -- 步骤 5：健康指标去重（patient_profile 硬编码字段 → user_health）
@@ -282,8 +309,11 @@ UPDATE department SET status = 1    WHERE status IS NULL;
 --       且同一手机号理论上允许「一个患者 + 若干家属」共用。
 -- ============================================================================
 SET @d = IF(EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='user' AND COLUMN_NAME='phone'),'DO 0','ALTER TABLE `user` ADD COLUMN phone VARCHAR(20) NULL COMMENT ''手机号（登录/联系用，可空）'' AFTER user_email');
+PREPARE s FROM @d; EXECUTE s; DEALLOCATE PREPARE s;
 SET @d = IF(EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='user' AND COLUMN_NAME='phone_verified'),'DO 0','ALTER TABLE `user` ADD COLUMN phone_verified TINYINT NOT NULL DEFAULT 0 COMMENT ''手机号是否已验证：0未验证 1已验证'' AFTER phone');
+PREPARE s FROM @d; EXECUTE s; DEALLOCATE PREPARE s;
 SET @d = IF(EXISTS(SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='user' AND INDEX_NAME='idx_user_phone'),'DO 0','ALTER TABLE `user` ADD INDEX idx_user_phone (phone)');
+PREPARE s FROM @d; EXECUTE s; DEALLOCATE PREPARE s;
 -- 修正：verify 归零表示「未验证」，历史导入数据不应默认已通过
 -- 注意 `user` 是 MySQL 保留字，下面的反引号不能省
 UPDATE `user` SET phone_verified = 0 WHERE phone_verified IS NULL OR phone_verified NOT IN (0,1);
@@ -423,5 +453,6 @@ WHERE TABLE_SCHEMA = DATABASE() AND COLLATION_NAME IS NOT NULL
 --            post_reply_archived_20261003, message_archived_20261003,
 --            post_tag_archived_20261003;
 --
--- 回滚：mysql -uroot -p personal_health < Data/backup/portable_20261003_222123.sql
+-- 回滚：mysql -uroot -p personal_health < Data/90_归档/<LATEST_PORTABLE.txt 指向的文件>
+--      （备份目录已由 Data/backup/ 统一收敛到 Data/90_归档/）
 -- ============================================================================

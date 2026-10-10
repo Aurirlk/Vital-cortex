@@ -80,6 +80,60 @@ public class CrmConfig {
     private int toolTimeoutSeconds;
 
     /**
+     * 2026-10-07：单次 LLM 响应的 max_tokens（OpenAI 标准请求体参数，此前缺失）。
+     *
+     * <p><b>为什么必须显式传</b>：不传时由服务端决定。部分网关/自托管推理服务的默认值
+     * 偏小（如 1024），长篇医学解释会被<b>静默截断</b>，用户收到半截结论却不知道。
+     * 现在显式下发并配合 {@code finish_reason=="length"} 检测，超限即抛明确异常。</p>
+     *
+     * <p>取值做钳制：下限 256（低于此连一句话都写不完），上限 32000
+     * （超过多数国产模型的实际上限，配了也会被服务端拒）。</p>
+     */
+    @Value("${crm.react.max-tokens:2048}")
+    private int reactMaxTokens;
+
+    /**
+     * 2026-10-07：流式链路是否启用 tool_calls（灰度开关，默认 <b>false</b>）。
+     *
+     * <p><b>为什么默认关</b>：流式 function calling 是本次改造中风险最高的一项 ——
+     * 本环境无法端到端 curl 验证（bash 后台进程会被杀、无 setsid），
+     * 一旦解析器有偏差会直接打挂已在用的 {@code /ai/chat/stream}。
+     * 关闭时只走「更健壮的纯文本解析器」，行为与改造前等价；
+     * 解析器本身已具备 tool_calls 分片累积能力，开关打开即生效，无需再改代码。</p>
+     */
+    @Value("${crm.react.stream-tools-enabled:false}")
+    private boolean reactStreamToolsEnabled;
+
+    /**
+     * 2026-10-07：是否下发 {@code function.strict = true}（OpenAI 结构化输出强约束）。
+     *
+     * <p><b>默认 false 是刻意的技术性偏离</b>：{@code strict} 会启用 OpenAI 的
+     * 结构化输出约束，但 DeepSeek / vLLM / 国产网关<b>支持不一致，部分实现遇到直接 400</b>。
+     * 关闭时仍会补 {@code additionalProperties:false}（纯 JSON Schema 标准字段，任何实现都认）。</p>
+     */
+    @Value("${crm.react.tool-strict:false}")
+    private boolean reactToolStrict;
+
+    /** 生效后的 max_tokens（已钳制），供请求体与异常提示共用。 */
+    public int getReactMaxTokens() {
+        int v = reactMaxTokens;
+        if (v < 256) {
+            return 256;
+        }
+        return Math.min(v, 32000);
+    }
+
+    /** 流式工具调用总开关（测试可覆写）。 */
+    public boolean isReactStreamToolsEnabled() {
+        return reactStreamToolsEnabled;
+    }
+
+    /** 是否下发 strict 约束。 */
+    public boolean isReactToolStrict() {
+        return reactToolStrict;
+    }
+
+    /**
      * 启动期强校验开关（默认 true 保持安全门）。
      *
      * <p>本地开发（IDEA 直接 Run）未注入 CRM_API_KEY / EMBEDDING_API_URL 时，

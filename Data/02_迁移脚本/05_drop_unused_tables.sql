@@ -39,6 +39,9 @@
 -- ---------------------------------------------------------------------------
 -- 校验
 -- ---------------------------------------------------------------------------
+-- 显式声明连接编码，避免依赖客户端默认值（否则中文 INSERT/列注释会报 ERROR 1406 或乱码）
+SET NAMES utf8mb4;
+
 SELECT '=== 剩余表清单 ===' AS check_item;
 SELECT table_name FROM information_schema.tables
  WHERE table_schema = DATABASE() ORDER BY table_name;

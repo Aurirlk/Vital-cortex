@@ -170,6 +170,24 @@ o.append("")
 o.append("### 7. 字符集")
 o.append("- 全库统一 `utf8mb4_0900_ai_ci`（含列级），已校验无遗漏")
 
-io.open("docs/数据表结构基线-20261003.md", "w", encoding="utf-8", newline="").write("\n".join(o))
-print("已生成 docs/数据表结构基线-20261003.md")
+DOC = "docs/数据表结构基线-20261003.md"
+io.open(DOC, "w", encoding="utf-8", newline="").write("\n".join(o))
+print("已生成 %s" % DOC)
 print("表数: %d  字段数: %d" % (len(tables), len(rows)))
+
+# ---------------------------------------------------------------------------
+# 同步到 Data/04_结构基线/
+#
+# ⚠️ 2026-10-06 补：原脚本只写 docs/ 一处。而 MapperTableConsistencyTest
+#    （防「Mapper 引用不存在的表」的一致性测试）读的是 Data/04_结构基线/，
+#    两处不同步会导致改表后基线失真、测试误报。故在此强制同步。
+# ---------------------------------------------------------------------------
+import os
+import shutil as _shutil
+_MIRROR = os.path.join("Data", "04_结构基线", "数据表结构基线-20261003.md")
+try:
+    os.makedirs(os.path.dirname(_MIRROR), exist_ok=True)
+    _shutil.copyfile(DOC, _MIRROR)
+    print("已同步 -> %s" % _MIRROR)
+except Exception as e:  # 同步失败不应让整次生成失败
+    print("[警告] 同步到 %s 失败: %s" % (_MIRROR, e))

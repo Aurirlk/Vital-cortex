@@ -3,6 +3,9 @@
 -- 用于统计各用户/AI 场景的 token 消耗与成本核算
 -- ============================================================
 
+-- 显式声明连接编码，避免依赖客户端默认值（否则中文 INSERT/列注释会报 ERROR 1406 或乱码）
+SET NAMES utf8mb4;
+
 CREATE TABLE IF NOT EXISTS ai_usage (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     user_id INT DEFAULT NULL COMMENT '用户ID（可为空，非登录态调用）',

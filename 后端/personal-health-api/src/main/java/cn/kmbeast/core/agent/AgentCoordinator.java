@@ -1,6 +1,7 @@
 package cn.kmbeast.core.agent;
 
 import cn.kmbeast.config.AiConfig;
+import cn.kmbeast.crm.agent.IntentRouter;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.Data;
@@ -95,14 +96,18 @@ public class AgentCoordinator {
     }
 
     /**
-     * 意图识别：根据用户输入判断最合适的 Agent
+     * 意图识别：根据用户输入判断最合适的 Agent（仅关键词打分，CHAT 兜底路径）。
+     *
+     * <p>保留为公开方法，供「无 Resolution」或「Resolution 为 CHAT」时调用，
+     * 行为与原先一致。</p>
      */
     public String identifyAgent(String userMessage) {
         if (userMessage == null || userMessage.trim().isEmpty()) {
             return "general_assistant";
         }
         String lowerMessage = userMessage.toLowerCase();
-        Map<String, Integer> scores = new HashMap<>();
+        // LinkedHashMap：平票时按角色插入序（声明序）确定胜者，消除 HashMap 迭代序不确定
+        Map<String, Integer> scores = new LinkedHashMap<>();
         for (Map.Entry<String, AgentRole> entry : AGENT_ROLES.entrySet()) {
             AgentRole role = entry.getValue();
             int score = 0;
@@ -119,6 +124,44 @@ public class AgentCoordinator {
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
                 .orElse("general_assistant");
+    }
+
+    /**
+     * 意图识别（P2-3 统一入口重载）：优先消费 {@link Resolution}，
+     * 只有意图为 CHAT（或 Resolution 为 null）才退回关键词打分。
+     *
+     * <p><b>规则先行</b>：意图识别给出明确意图（指标/关系/药品/数据/科普）时，
+     * 直接映射到对应专业 Agent，不再让关键词打分漂移；纯闲聊才走关键词兜底。</p>
+     *
+     * @param resolution 由 {@link IntentResolver} 产出的结论；可为 null（老调用方）
+     * @param userMessage 用户原始输入（CHAT 兜底路径用）
+     */
+    public String identifyAgent(Resolution resolution, String userMessage) {
+        if (resolution != null && resolution.intent() != IntentRouter.Intent.CHAT) {
+            return mapIntentToAgent(resolution.intent());
+        }
+        // CHAT / 无法识别 → 关键词打分（与原行为一致）
+        return identifyAgent(userMessage);
+    }
+
+    /**
+     * 把意图枚举映射到项目已有的 Agent 角色（doctor / nutritionist / psychologist /
+     * analyst / consultant / general_assistant）。
+     */
+    private String mapIntentToAgent(IntentRouter.Intent intent) {
+        switch (intent) {
+            case HEALTH_RECORDS:
+            case DATA_QUERY:
+                return "analyst";          // 报告分析师：指标查询 / 数据分析
+            case GRAPH:
+            case KNOWLEDGE:
+                return "consultant";        // 健康助手：医学关系 / 健康科普
+            case DRUG:
+                return "doctor";            // 全科医生：药品咨询
+            case CHAT:
+            default:
+                return "general_assistant";
+        }
     }
 
     /**

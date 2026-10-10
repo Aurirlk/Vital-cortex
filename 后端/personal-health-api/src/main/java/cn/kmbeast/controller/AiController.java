@@ -2,23 +2,19 @@ package cn.kmbeast.controller;
 
 import cn.kmbeast.aop.Pager;
 import cn.kmbeast.aop.Protector;
-import cn.kmbeast.config.AiPromptConfig;
 import cn.kmbeast.config.SentinelBlockHandlers;
 import cn.kmbeast.context.LocalThreadHolder;
-import cn.kmbeast.mapper.UserMapper;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.extend.AiChatRecordQueryDto;
 import cn.kmbeast.pojo.dto.update.AiChatRequest;
 import cn.kmbeast.pojo.entity.AiChatRecord;
 import cn.kmbeast.pojo.entity.AiConversation;
-import cn.kmbeast.pojo.entity.User;
 import cn.kmbeast.service.AiChatCacheService;
 import cn.kmbeast.service.AiHealthDataService;
 import cn.kmbeast.service.AiService;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;
@@ -36,6 +32,15 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
+/**
+ * AI 运行时接口：对话、会话、健康档案上下文、记录与统计。
+ *
+ * <p><b>配置类端点不在这里</b>：{@code /ai/config/**}（含 AI 医生角色配置、能力开关）
+ * 已于 2026-10-07 全部迁入 {@link AiConfigController}，以统一同一 URL 空间的鉴权口径
+ * （此前本类与 {@code AiConfigController} 瓜分 {@code /ai/config} 前缀，管理员端点与
+ * 普通用户端点混在一起，加端点时极易漏配 {@code @Protector}）。
+ * 对外路径完全不变，前端无需改动。</p>
+ */
 @RequestMapping(value = "/ai")
 public class AiController {
 
@@ -48,17 +53,9 @@ public class AiController {
     @Resource
     private AiChatCacheService chatCacheService;
 
-    @Resource
-    private UserMapper userMapper;
 
-    @Resource
-    private PasswordEncoder passwordEncoder;
 
-    @Resource
-    private cn.kmbeast.config.AiConfig aiConfig;
 
-    @Resource
-    private cn.kmbeast.core.auth.AuthSessionManager authSessionManager;
 
     // ==================== 聊天接口 ====================
 
@@ -151,25 +148,6 @@ public class AiController {
 
     // ==================== 会话管理接口 ====================
 
-    /**
-     * 获取 AI 能力开关（Phase A/B：图片多模态 + VIP 分级；语音在 roadmap §1.1 接入后扩展）。
-     * 前端据此决定图片入口是否可用、上下文/图片档位（VIP 512K/10张 vs 普通 128K/3张）。
-     */
-    @Protector
-    @GetMapping(value = "/config/capabilities")
-    public Result<Map<String, Object>> getCapabilities() {
-        Integer userId = LocalThreadHolder.getUserId();
-        boolean vip = authSessionManager.isVip(userId);
-        Map<String, Object> data = new HashMap<>();
-        data.put("visionEnabled", aiConfig.isVisionEnabled());
-        data.put("visionModel", aiConfig.getVisionModel());
-        data.put("isVip", vip);
-        data.put("maxContext", vip ? aiConfig.getContextVip() : aiConfig.getContextNormal());
-        data.put("maxImages", vip ? aiConfig.getMaxImagesVip() : aiConfig.getMaxImagesNormal());
-        data.put("asrEnabled", false);
-        data.put("ttsEnabled", false);
-        return ApiResult.success(data);
-    }
 
     /**
      * 获取用户的会话列表
@@ -331,177 +309,6 @@ public class AiController {
     public Result<Void> evictAllCache() {
         chatCacheService.evictAllCache();
         return ApiResult.success("缓存已清除", (Void) null);
-    }
-
-    // ==================== AI医生配置管理接口 ====================
-
-    /**
-     * 获取所有AI医生角色配置
-     */
-    @Protector(role = "管理员")
-    @GetMapping(value = "/config/list")
-    public Result<List<Map<String, Object>>> getAiDoctorConfigs() {
-        return ApiResult.success(AiPromptConfig.getAllConfigs());
-    }
-
-    /**
-     * 获取指定角色配置
-     */
-    @Protector(role = "管理员")
-    @GetMapping(value = "/config/{role}")
-    public Result<Map<String, Object>> getAiDoctorConfig(@PathVariable String role) {
-        AiPromptConfig.PresetConfig config = AiPromptConfig.getConfig(role);
-        if (config == null) {
-            return ApiResult.error("角色不存在");
-        }
-        Map<String, Object> result = new HashMap<>();
-        result.put("key", role);
-        result.put("systemPrompt", config.getSystemPrompt());
-        result.put("temperature", config.getTemperature());
-        result.put("topP", config.getTopP());
-        result.put("maxTokens", config.getMaxTokens());
-        result.put("presencePenalty", config.getPresencePenalty());
-        result.put("frequencyPenalty", config.getFrequencyPenalty());
-        result.put("repetitionPenalty", config.getRepetitionPenalty());
-        result.put("contextRounds", config.getContextRounds());
-        result.put("maxReplyLength", config.getMaxReplyLength());
-        return ApiResult.success(result);
-    }
-
-    /**
-     * 更新指定角色配置
-     */
-    @Protector(role = "管理员")
-    @PutMapping(value = "/config/{role}")
-    public Result<Void> updateAiDoctorConfig(@PathVariable String role,
-                                              @RequestBody Map<String, Object> configData) {
-        AiPromptConfig.PresetConfig existing = AiPromptConfig.getConfig(role);
-        if (existing == null) {
-            return ApiResult.error("角色不存在");
-        }
-
-        // 修改配置需要管理员密码验证
-        String password = (String) configData.get("password");
-        if (password == null || password.isEmpty()) {
-            return ApiResult.error("请输入管理员密码");
-        }
-        Integer userId = LocalThreadHolder.getUserId();
-        User admin = userMapper.getByActive(User.builder().id(userId).build());
-        if (admin == null || !passwordEncoder.matches(password, admin.getUserPwd())) {
-            return ApiResult.error("密码验证失败");
-        }
-
-        String systemPrompt = (String) configData.getOrDefault("systemPrompt", existing.getSystemPrompt());
-        Double temperature = configData.containsKey("temperature")
-                ? ((Number) configData.get("temperature")).doubleValue() : existing.getTemperature();
-        Double topP = configData.containsKey("topP")
-                ? ((Number) configData.get("topP")).doubleValue() : existing.getTopP();
-        Integer maxTokens = configData.containsKey("maxTokens")
-                ? (configData.get("maxTokens") == null ? null : ((Number) configData.get("maxTokens")).intValue())
-                : existing.getMaxTokens();
-        Double presencePenalty = configData.containsKey("presencePenalty")
-                ? (configData.get("presencePenalty") == null ? null : ((Number) configData.get("presencePenalty")).doubleValue())
-                : existing.getPresencePenalty();
-        Double frequencyPenalty = configData.containsKey("frequencyPenalty")
-                ? (configData.get("frequencyPenalty") == null ? null : ((Number) configData.get("frequencyPenalty")).doubleValue())
-                : existing.getFrequencyPenalty();
-        Double repetitionPenalty = configData.containsKey("repetitionPenalty")
-                ? (configData.get("repetitionPenalty") == null ? null : ((Number) configData.get("repetitionPenalty")).doubleValue())
-                : existing.getRepetitionPenalty();
-        Integer contextRounds = configData.containsKey("contextRounds")
-                ? (configData.get("contextRounds") == null ? null : ((Number) configData.get("contextRounds")).intValue())
-                : existing.getContextRounds();
-        Integer maxReplyLength = configData.containsKey("maxReplyLength")
-                ? (configData.get("maxReplyLength") == null ? null : ((Number) configData.get("maxReplyLength")).intValue())
-                : existing.getMaxReplyLength();
-
-        // 参数校验
-        if (temperature == null || temperature < 0 || temperature > 2) {
-            return ApiResult.error("Temperature 必须在 0-2 之间");
-        }
-        if (topP == null || topP < 0 || topP > 1) {
-            return ApiResult.error("Top-P 必须在 0-1 之间");
-        }
-        if (maxTokens != null && (maxTokens < 1 || maxTokens > 8192)) {
-            return ApiResult.error("Max Tokens 必须在 1-8192 之间");
-        }
-        if (presencePenalty != null && (presencePenalty < -2 || presencePenalty > 2)) {
-            return ApiResult.error("Presence Penalty 必须在 -2~2 之间");
-        }
-        if (frequencyPenalty != null && (frequencyPenalty < -2 || frequencyPenalty > 2)) {
-            return ApiResult.error("Frequency Penalty 必须在 -2~2 之间");
-        }
-        if (repetitionPenalty != null && (repetitionPenalty < 0 || repetitionPenalty > 2)) {
-            return ApiResult.error("重复惩罚必须在 0~2 之间（>1 减少重复，<1 鼓励重复）");
-        }
-        if (contextRounds != null && (contextRounds < 0 || contextRounds > 50)) {
-            return ApiResult.error("上下文轮数必须在 0~50 之间");
-        }
-        if (maxReplyLength != null && (maxReplyLength < 0 || maxReplyLength > 32768)) {
-            return ApiResult.error("最大回复长度必须在 0~32768 之间（0 = 不限制）");
-        }
-
-        AiPromptConfig.updateConfig(role, new AiPromptConfig.PresetConfig(
-                systemPrompt, temperature, topP, maxTokens, presencePenalty, frequencyPenalty,
-                repetitionPenalty, contextRounds, maxReplyLength));
-        log.info("[AI配置] 管理员 {} 更新角色 {} 配置: temp={}, topP={}, maxTokens={}, presencePenalty={}, frequencyPenalty={}, repetitionPenalty={}, contextRounds={}, maxReplyLength={}",
-                userId, role, temperature, topP, maxTokens, presencePenalty, frequencyPenalty,
-                repetitionPenalty, contextRounds, maxReplyLength);
-        return ApiResult.success("配置已更新");
-    }
-
-    /**
-     * 重置指定角色为默认配置（需要密码验证）
-     */
-    @Protector(role = "管理员")
-    @PostMapping(value = "/config/{role}/reset")
-    public Result<Void> resetAiDoctorConfig(@PathVariable String role,
-                                             @RequestBody Map<String, String> body) {
-        String password = body.get("password");
-        if (password == null || password.isEmpty()) {
-            return ApiResult.error("请输入管理员密码");
-        }
-
-        // 验证当前管理员密码
-        Integer userId = LocalThreadHolder.getUserId();
-        User admin = userMapper.getByActive(User.builder().id(userId).build());
-        if (admin == null || !passwordEncoder.matches(password, admin.getUserPwd())) {
-            return ApiResult.error("密码验证失败");
-        }
-
-        AiPromptConfig.PresetConfig existing = AiPromptConfig.getConfig(role);
-        if (existing == null) {
-            return ApiResult.error("角色不存在");
-        }
-
-        boolean success = AiPromptConfig.resetToDefault(role);
-        if (success) {
-            log.info("[AI配置] 管理员 {} 重置角色 {} 为默认配置", userId, role);
-            return ApiResult.success("已恢复默认提示词");
-        }
-        return ApiResult.error("重置失败，角色不存在");
-    }
-
-    /**
-     * 重置所有角色为默认配置（需要密码验证）
-     */
-    @Protector(role = "管理员")
-    @PostMapping(value = "/config/reset-all")
-    public Result<Void> resetAllAiDoctorConfigs(@RequestBody Map<String, String> body) {
-        String password = body.get("password");
-        if (password == null || password.isEmpty()) {
-            return ApiResult.error("请输入管理员密码");
-        }
-
-        Integer userId = LocalThreadHolder.getUserId();
-        User admin = userMapper.getByActive(User.builder().id(userId).build());
-        if (admin == null || !passwordEncoder.matches(password, admin.getUserPwd())) {
-            return ApiResult.error("密码验证失败");
-        }
-
-        AiPromptConfig.resetAllToDefault();
-        log.info("[AI配置] 管理员 {} 重置所有角色为默认配置", userId);
-        return ApiResult.success("已恢复所有角色默认提示词");
     }
 
     /**

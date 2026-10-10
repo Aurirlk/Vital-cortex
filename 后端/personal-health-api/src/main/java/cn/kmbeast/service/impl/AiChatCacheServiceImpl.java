@@ -239,17 +239,98 @@ public class AiChatCacheServiceImpl implements AiChatCacheService {
         log.info("[Cache] 删除会话: conversationId={}", conversationId);
     }
 
+    // ==================== 磁盘副本清理（2026-10-07 新增） ====================
+
+    /**
+     * 会话本地副本保留天数。超过则连同 MySQL 记录一并视为过期，磁盘文件删除。
+     * <p>可用环境变量 {@code AI_CHAT_DISK_RETENTION_DAYS} 覆盖，0 或负数表示不按天淘汰
+     * （此时只清理「MySQL 已被删除但磁盘还在」的孤儿文件）。</p>
+     */
+    private static final int DISK_RETENTION_DAYS =
+            Integer.parseInt(System.getProperty("ai.chat.disk.retention-days",
+                    System.getenv().getOrDefault("AI_CHAT_DISK_RETENTION_DAYS", "90")));
+
+    /** 会话本地副本的总文件数上限，超过则淘汰最旧的（可用环境变量覆盖，≤0 表示不限）。 */
+    private static final int DISK_MAX_FILES =
+            Integer.parseInt(System.getProperty("ai.chat.disk.max-files",
+                    System.getenv().getOrDefault("AI_CHAT_DISK_MAX_FILES", "5000")));
+
+    /**
+     * 每日清理磁盘会话副本。
+     *
+     * <p><b>为什么要加</b>：此前 {@code chat_history/} 完全无清理策略 —— 既没有保留天数，
+     * 也没有容量上限，用户不删会话则 JSON 永久累积；而且批量删除只删 MySQL 不删 JSON，
+     * 会留下永不回收的孤儿文件。</p>
+     *
+     * <p>清理两轮：① 按保留天数 + 容量上限淘汰旧文件；② 删除「MySQL 已有记录但磁盘已删」
+     * 之外的反向孤儿 —— 即 MySQL 已被 {@code batchDelete} 删掉、磁盘还在的文件。</p>
+     *
+     * <p>首次执行延迟 5 分钟，避开应用启动高峰。</p>
+     */
+    @Scheduled(fixedDelay = 24 * 3600_000L, initialDelay = 300_000L)
+    public void cleanupDiskHistory() {
+        try {
+            int deleted = historyStorage.cleanup(DISK_RETENTION_DAYS, DISK_MAX_FILES,
+                    this::liveConversationIds);
+            if (deleted > 0) {
+                log.info("[Cache] 磁盘副本清理: 删除 {} 个文件（保留 {} 天 / 上限 {} 个）",
+                        deleted, DISK_RETENTION_DAYS, DISK_MAX_FILES);
+            }
+        } catch (Exception e) {
+            // 清理失败绝不能影响主流程
+            log.warn("[Cache] 磁盘副本清理失败（已忽略）", e);
+        }
+    }
+
+    /** 取该用户当前在 MySQL 中仍存在的会话 id，供孤儿清理比对。 */
+    private java.util.Set<Integer> liveConversationIds(Integer userId) {
+        try {
+            List<Integer> ids = conversationMapper.selectIdsByUserId(userId);
+            return ids == null ? java.util.Collections.emptySet() : new java.util.HashSet<>(ids);
+        } catch (Exception e) {
+            throw new IllegalStateException("查询有效会话失败: " + e.getMessage(), e);
+        }
+    }
+
+    // ==================== 内存缓存治理 ====================
+
     @Override
     @Transactional
     public void batchDeleteConversations(List<Integer> conversationIds) {
         if (conversationIds == null || conversationIds.isEmpty()) return;
         chatRecordMapper.batchDeleteByConversationIds(conversationIds);
         conversationMapper.batchDelete(conversationIds);
+        // 2026-10-07 修复：此前只删 MySQL 与内存缓存，不删磁盘 JSON，
+        // 导致批量删除后在 chat_history/ 留下永不回收的孤儿文件。
+        // 属主从会话对象取（批量删除前 Controller 已逐个校验过归属，故这里取任一即可）。
+        Integer ownerId = null;
+        for (Integer id : conversationIds) {
+            AiConversation conv = conversationCache.get(id);
+            if (conv != null && conv.getUserId() != null) {
+                ownerId = conv.getUserId();
+                break;
+            }
+        }
+        if (ownerId == null) {
+            // 缓存未命中时回查一次（避免因缓存冷启动跳过磁盘清理）
+            for (Integer id : conversationIds) {
+                AiConversation conv = conversationMapper.getById(id);
+                if (conv != null && conv.getUserId() != null) {
+                    ownerId = conv.getUserId();
+                    break;
+                }
+            }
+        }
+        if (ownerId != null) {
+            historyStorage.batchDeleteConversations(ownerId, conversationIds);
+        } else {
+            log.warn("[Cache] 批量删除未能定位会话属主，跳过磁盘副本清理: count={}", conversationIds.size());
+        }
         conversationIds.forEach(id -> {
             messageCache.remove(id);
             conversationCache.remove(id);
         });
-        log.info("[Cache] 批量删除: count={}", conversationIds.size());
+        log.info("[Cache] 批量删除: count={}, owner={}", conversationIds.size(), ownerId);
     }
 
     @Override

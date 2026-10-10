@@ -83,9 +83,9 @@
                 COALESCE(NULLIF(d.dept_ids, ''), '[]'),
                 '$[*]' COLUMNS (dept_id VARCHAR(20) PATH '$')
             ) jt
-            WHERE d.status = 1 AND d.dept_ids IS NOT NULL AND d.dept_ids <> ''
+            WHERE d.status = 1 AND d.dept_ids IS NOT NULL AND d.dept_ids &lt;&gt; ''
         ) t
-        WHERE t.dept_id IS NOT NULL AND t.dept_id <> 0
+        WHERE t.dept_id IS NOT NULL AND t.dept_id &lt;&gt; 0
         GROUP BY t.dept_id
     </select>
 </mapper>

@@ -93,3 +93,7 @@ dump.rdb
 # Python 缓存
 __pycache__/
 *.pyc
+
+# ---- 2026-10-07 补充 ----
+# 前端静态自检的临时提取目录（前端/personal-heath-view/selfcheck.py 运行时生成）
+前端/personal-heath-view/.selfcheck/

@@ -1555,10 +1555,47 @@ export default {
       }
     },
 
+    /**
+     * 是否为掩码占位值（后端 /ai/config/get 只返回掩码，前端加载后原样持有）。
+     * 掩码值不是真实密钥，提交时必须剔除，否则会把 **** 写回库。
+     */
+    isMaskedKey(v) {
+      if (!v) return true;
+      return (
+        v.indexOf("****") !== -1 ||
+        v === "sk-xxx" ||
+        /^[xX*]+$/.test(v)
+      );
+    },
+
+    /**
+     * 剔除所有掩码 apiKey 字段（仅影响本次提交的副本，不动页面状态）。
+     * 用户若真的想改密钥，会输入一个不含 **** 的新值，不会被误剔除。
+     */
+    stripMaskedKeys(cfg) {
+      const clone = JSON.parse(JSON.stringify(cfg));
+      const strip = (obj) => {
+        if (!obj) return;
+        if (obj.apiKey !== undefined && this.isMaskedKey(obj.apiKey)) {
+          delete obj.apiKey;
+        }
+      };
+      strip(clone.chat);
+      strip(clone.reasoner);
+      strip(clone.embedding);
+      if (clone.webSearch) {
+        ["bocha", "tavily", "serper", "serpapi"].forEach((k) => strip(clone.webSearch[k]));
+      }
+      return clone;
+    },
+
     async saveAiConfig() {
       this.aiSaving = true;
       try {
-        const res = await this.$axios.post("/ai/config/update", this.aiConfig);
+        const res = await this.$axios.post(
+          "/ai/config/update",
+          this.stripMaskedKeys(this.aiConfig)
+        );
         if (res.data.code === 200) {
           this.$message.success("AI 配置保存成功");
           this.lastSaveTime = new Date().toLocaleString();

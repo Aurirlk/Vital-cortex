@@ -127,15 +127,24 @@ public class AESUtils {
         return encrypt(text);
     }
 
-    /**
+/**
      * 安全解密：如果已加密则解密，否则返回原值
-     */
-    public static String decryptIfNeeded(String text) {
-        if (!isEncrypted(text)) {
-            return text;
-        }
-        return decrypt(text);
+     *
+ * <p>2026-10-07 加固：{@link #isEncrypted} 仅凭「Base64 字符集 + 长度 > 50」判断，
+ * 短密钥若恰好全为 Base64 字符会被误判为密文。这里捕获解密异常并安全回退为原值，
+ * 保证「误判」退化为「读到明文」而非「读到空/报错」，即宁可不解密也不丢配置。</p>
+ */
+public static String decryptIfNeeded(String text) {
+    if (!isEncrypted(text)) {
+        return text;
     }
+    try {
+        return decrypt(text);
+    } catch (Exception e) {
+        // 误判为密文但实际不是（如短 key 恰为 Base64 字符）→ 按明文原样返回
+        return text;
+    }
+}
 
     /**
      * 生成随机AES密钥（用于初始化）

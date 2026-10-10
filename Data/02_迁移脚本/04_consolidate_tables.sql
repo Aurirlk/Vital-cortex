@@ -38,6 +38,9 @@
 -- ---------------------------------------------------------------------------
 -- 步骤 1：创建统一交互表
 -- ---------------------------------------------------------------------------
+-- 显式声明连接编码，避免依赖客户端默认值（否则中文 INSERT/列注释会报 ERROR 1406 或乱码）
+SET NAMES utf8mb4;
+
 CREATE TABLE IF NOT EXISTS content_interaction (
     id           INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
     target_type  VARCHAR(20)  NOT NULL DEFAULT 'NEWS'   COMMENT '内容类型：NEWS资讯 POST帖子 PRODUCT商品',
@@ -60,17 +63,32 @@ CREATE TABLE IF NOT EXISTS content_interaction (
 -- 步骤 2：迁移存量数据（三表当前均为 0 行，但仍写迁移以保证脚本可重放）
 -- ---------------------------------------------------------------------------
 -- post_like → LIKE
-INSERT IGNORE INTO content_interaction (target_type, target_id, user_id, action_type, create_time)
-SELECT 'POST', post_id, user_id, 'LIKE', create_time FROM post_like;
+-- [幂等守卫] post_like 已在本套脚本中合并并 DROP；复跑时跳过，
+-- 否则 mysql CLI 遇 ERROR 1146 会中断本文件后续语句。
+SET @_has = (SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post_like');
+SET @_sql = IF(@_has > 0, 'INSERT IGNORE INTO content_interaction (target_type, target_id, user_id, action_type, create_time)
+SELECT ''POST'', post_id, user_id, ''LIKE'', create_time FROM post_like', 'DO 0');
+PREPARE _s FROM @_sql; EXECUTE _s; DEALLOCATE PREPARE _s;
 
 -- post_favorite → FAVORITE
-INSERT IGNORE INTO content_interaction (target_type, target_id, user_id, action_type, create_time)
-SELECT 'POST', post_id, user_id, 'FAVORITE', create_time FROM post_favorite;
+-- [幂等守卫] post_favorite 已在本套脚本中合并并 DROP；复跑时跳过，
+-- 否则 mysql CLI 遇 ERROR 1146 会中断本文件后续语句。
+SET @_has = (SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post_favorite');
+SET @_sql = IF(@_has > 0, 'INSERT IGNORE INTO content_interaction (target_type, target_id, user_id, action_type, create_time)
+SELECT ''POST'', post_id, user_id, ''FAVORITE'', create_time FROM post_favorite', 'DO 0');
+PREPARE _s FROM @_sql; EXECUTE _s; DEALLOCATE PREPARE _s;
 
 -- post_report → REPORT（带 reason/status）
-INSERT IGNORE INTO content_interaction (target_type, target_id, user_id, action_type, reason, status, create_time)
-SELECT 'POST', post_id, user_id, 'REPORT', reason, COALESCE(status, 0), create_time
-  FROM post_report;
+-- [幂等守卫] post_report 已在本套脚本中合并并 DROP；复跑时跳过，
+-- 否则 mysql CLI 遇 ERROR 1146 会中断本文件后续语句。
+SET @_has = (SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post_report');
+SET @_sql = IF(@_has > 0, 'INSERT IGNORE INTO content_interaction (target_type, target_id, user_id, action_type, reason, status, create_time)
+SELECT ''POST'', post_id, user_id, ''REPORT'', reason, COALESCE(status, 0), create_time
+  FROM post_report', 'DO 0');
+PREPARE _s FROM @_sql; EXECUTE _s; DEALLOCATE PREPARE _s;
 
 -- ---------------------------------------------------------------------------
 -- 步骤 3：删除被取代的旧表
@@ -107,8 +125,13 @@ DROP TABLE IF EXISTS evaluations;
 DROP TABLE IF EXISTS post_reply;
 
 -- news_save（收藏）→ 也并入 content_interaction，action_type=FAVORITE + target_type=NEWS
-INSERT IGNORE INTO content_interaction (target_type, target_id, user_id, action_type, create_time)
-SELECT 'NEWS', news_id, user_id, 'FAVORITE', create_time FROM news_save;
+-- [幂等守卫] news_save 已在本套脚本中合并并 DROP；复跑时跳过，
+-- 否则 mysql CLI 遇 ERROR 1146 会中断本文件后续语句。
+SET @_has = (SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'news_save');
+SET @_sql = IF(@_has > 0, 'INSERT IGNORE INTO content_interaction (target_type, target_id, user_id, action_type, create_time)
+SELECT ''NEWS'', news_id, user_id, ''FAVORITE'', create_time FROM news_save', 'DO 0');
+PREPARE _s FROM @_sql; EXECUTE _s; DEALLOCATE PREPARE _s;
 DROP TABLE IF EXISTS news_save;
 
 -- ---------------------------------------------------------------------------

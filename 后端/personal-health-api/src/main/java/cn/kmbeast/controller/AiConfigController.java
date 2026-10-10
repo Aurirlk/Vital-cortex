@@ -8,6 +8,12 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import cn.kmbeast.config.AiPromptConfig;
+import cn.kmbeast.context.LocalThreadHolder;
+import cn.kmbeast.core.auth.AuthSessionManager;
+import cn.kmbeast.mapper.UserMapper;
+import cn.kmbeast.pojo.entity.User;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import jakarta.annotation.Resource;
 import java.util.*;
 
@@ -21,6 +27,16 @@ public class AiConfigController {
 
     @Resource
     private AiConfig aiConfig;
+
+    @Resource
+    private UserMapper userMapper;
+
+    @Resource
+    private PasswordEncoder passwordEncoder;
+
+    @Resource
+    private AuthSessionManager authSessionManager;
+
 
     /**
      * 获取所有支持的厂商列表
@@ -136,13 +152,34 @@ public class AiConfigController {
         return ApiResult.success("厂商切换成功");
     }
 
-    /**
-     * 更新AI配置
+/**
+     * 判断前端回传的 apiKey 是否只是掩码占位（而非真实密钥）。
+     *
+     * <p>2026-10-07 新增。{@code /get} 为安全只返回掩码（{@code sk-xxx****abcd}），
+     * 前端加载后原样回传；若后端照单全收，就会<b>把掩码当真实 key 落库</b>，
+     * 导致重启后模型读到 {@code ****} 而完全不可用 —— 这正是"每次重启都要重填"的根因。
+     * 掩码值一律视为「未修改」，保留库中真实密钥。</p>
+     *
+     * @return true 表示这是掩码占位，不应写入
      */
-    @Protector(role = "管理员")
-    @PostMapping("/update")
-    public Result<Void> updateConfig(@RequestBody AiConfigUpdateRequest request) {
-        try {
+private boolean isMaskedApiKey(String apiKey) {
+    if (apiKey == null || apiKey.isEmpty()) {
+        return true;
+    }
+    // 统一掩码 / 含星号 / 前端占位符
+    return apiKey.contains("****")
+            || apiKey.contains("******")
+            || "sk-xxx".equals(apiKey)
+            || apiKey.matches("^[xX*]+$");
+}
+
+/**
+ * 更新AI配置
+ */
+@Protector(role = "管理员")
+@PostMapping("/update")
+public Result<Void> updateConfig(@RequestBody AiConfigUpdateRequest request) {
+    try {
             // 更新厂商
             if (request.getProvider() != null && !request.getProvider().isEmpty()) {
                 aiConfig.setProvider(request.getProvider());
@@ -151,7 +188,7 @@ public class AiConfigController {
             // 更新普通对话配置
             if (request.getChat() != null) {
                 ConfigItem chat = request.getChat();
-                if (chat.getApiKey() != null && !chat.getApiKey().isEmpty()) {
+                if (!isMaskedApiKey(chat.getApiKey())) {
                     aiConfig.setApiKey(chat.getApiKey());
                 }
                 if (chat.getApiUrl() != null && !chat.getApiUrl().isEmpty()) {
@@ -165,7 +202,7 @@ public class AiConfigController {
             // 更新深度思考配置
             if (request.getReasoner() != null) {
                 ConfigItem reasoner = request.getReasoner();
-                if (reasoner.getApiKey() != null && !reasoner.getApiKey().isEmpty()) {
+                if (!isMaskedApiKey(reasoner.getApiKey())) {
                     aiConfig.setReasonerApiKey(reasoner.getApiKey());
                 }
                 if (reasoner.getApiUrl() != null && !reasoner.getApiUrl().isEmpty()) {
@@ -186,7 +223,7 @@ public class AiConfigController {
                     aiConfig.setWebSearchEnabled(webSearch.getEnabled());
                 }
                 if (webSearch.getBocha() != null) {
-                    if (webSearch.getBocha().getApiKey() != null) {
+                    if (!isMaskedApiKey(webSearch.getBocha().getApiKey())) {
                         aiConfig.setBochaApiKey(webSearch.getBocha().getApiKey());
                     }
                     if (webSearch.getBocha().getApiUrl() != null) {
@@ -194,7 +231,7 @@ public class AiConfigController {
                     }
                 }
                 if (webSearch.getTavily() != null) {
-                    if (webSearch.getTavily().getApiKey() != null) {
+                    if (!isMaskedApiKey(webSearch.getTavily().getApiKey())) {
                         aiConfig.setTavilyApiKey(webSearch.getTavily().getApiKey());
                     }
                     if (webSearch.getTavily().getApiUrl() != null) {
@@ -207,7 +244,7 @@ public class AiConfigController {
                     }
                 }
                 if (webSearch.getSerper() != null) {
-                    if (webSearch.getSerper().getApiKey() != null) {
+                    if (!isMaskedApiKey(webSearch.getSerper().getApiKey())) {
                         aiConfig.setSerperApiKey(webSearch.getSerper().getApiKey());
                     }
                     if (webSearch.getSerper().getApiUrl() != null) {
@@ -215,7 +252,7 @@ public class AiConfigController {
                     }
                 }
                 if (webSearch.getSerpapi() != null) {
-                    if (webSearch.getSerpapi().getApiKey() != null) {
+                    if (!isMaskedApiKey(webSearch.getSerpapi().getApiKey())) {
                         aiConfig.setSerpapiApiKey(webSearch.getSerpapi().getApiKey());
                     }
                     if (webSearch.getSerpapi().getApiUrl() != null) {
@@ -227,7 +264,7 @@ public class AiConfigController {
             // 更新Embedding配置
             if (request.getEmbedding() != null) {
                 ConfigItem embedding = request.getEmbedding();
-                if (embedding.getApiKey() != null && !embedding.getApiKey().isEmpty()) {
+                if (!isMaskedApiKey(embedding.getApiKey())) {
                     aiConfig.setEmbeddingApiKey(embedding.getApiKey());
                 }
                 if (embedding.getApiUrl() != null && !embedding.getApiUrl().isEmpty()) {
@@ -391,4 +428,204 @@ public class AiConfigController {
         private Integer maxTokens;
         private Integer maxHistoryRounds;
     }
+
+    // ========================================================================
+    // 以下端点原位于 AiController（类级前缀 /ai），2026-10-07 迁入本类，
+    // 以统一 /ai/config URL 空间的鉴权口径（此前两个控制器瓜分同一前缀，
+    // 管理员端点与普通用户端点混在一起，加端点时极易漏配 @Protector）。
+    // 对外路径【完全不变】，前端零改动。
+    // ========================================================================
+
+    /**
+     * 获取 AI 能力开关（Phase A/B：图片多模态 + VIP 分级；语音在 roadmap §1.1 接入后扩展）。
+     * 前端据此决定图片入口是否可用、上下文/图片档位（VIP 512K/10张 vs 普通 128K/3张）。
+     */
+    @Protector
+    @GetMapping("/capabilities")
+    public Result<Map<String, Object>> getCapabilities() {
+        Integer userId = LocalThreadHolder.getUserId();
+        boolean vip = authSessionManager.isVip(userId);
+        Map<String, Object> data = new HashMap<>();
+        data.put("visionEnabled", aiConfig.isVisionEnabled());
+        data.put("visionModel", aiConfig.getVisionModel());
+        data.put("isVip", vip);
+        data.put("maxContext", vip ? aiConfig.getContextVip() : aiConfig.getContextNormal());
+        data.put("maxImages", vip ? aiConfig.getMaxImagesVip() : aiConfig.getMaxImagesNormal());
+        data.put("asrEnabled", false);
+        data.put("ttsEnabled", false);
+        return ApiResult.success(data);
+    }
+
+
+    // ==================== AI医生配置管理接口 ====================
+
+    /**
+     * 获取所有AI医生角色配置
+     */
+    @Protector(role = "管理员")
+    @GetMapping("/list")
+    public Result<List<Map<String, Object>>> getAiDoctorConfigs() {
+        return ApiResult.success(AiPromptConfig.getAllConfigs());
+    }
+
+    /**
+     * 获取指定角色配置
+     */
+    @Protector(role = "管理员")
+    @GetMapping("/{role}")
+    public Result<Map<String, Object>> getAiDoctorConfig(@PathVariable String role) {
+        AiPromptConfig.PresetConfig config = AiPromptConfig.getConfig(role);
+        if (config == null) {
+            return ApiResult.error("角色不存在");
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("key", role);
+        result.put("systemPrompt", config.getSystemPrompt());
+        result.put("temperature", config.getTemperature());
+        result.put("topP", config.getTopP());
+        result.put("maxTokens", config.getMaxTokens());
+        result.put("presencePenalty", config.getPresencePenalty());
+        result.put("frequencyPenalty", config.getFrequencyPenalty());
+        result.put("repetitionPenalty", config.getRepetitionPenalty());
+        result.put("contextRounds", config.getContextRounds());
+        result.put("maxReplyLength", config.getMaxReplyLength());
+        return ApiResult.success(result);
+    }
+
+    /**
+     * 更新指定角色配置
+     */
+    @Protector(role = "管理员")
+    @PutMapping("/{role}")
+    public Result<Void> updateAiDoctorConfig(@PathVariable String role,
+                                              @RequestBody Map<String, Object> configData) {
+        AiPromptConfig.PresetConfig existing = AiPromptConfig.getConfig(role);
+        if (existing == null) {
+            return ApiResult.error("角色不存在");
+        }
+
+        // 修改配置需要管理员密码验证
+        String password = (String) configData.get("password");
+        if (password == null || password.isEmpty()) {
+            return ApiResult.error("请输入管理员密码");
+        }
+        Integer userId = LocalThreadHolder.getUserId();
+        User admin = userMapper.getByActive(User.builder().id(userId).build());
+        if (admin == null || !passwordEncoder.matches(password, admin.getUserPwd())) {
+            return ApiResult.error("密码验证失败");
+        }
+
+        String systemPrompt = (String) configData.getOrDefault("systemPrompt", existing.getSystemPrompt());
+        Double temperature = configData.containsKey("temperature")
+                ? ((Number) configData.get("temperature")).doubleValue() : existing.getTemperature();
+        Double topP = configData.containsKey("topP")
+                ? ((Number) configData.get("topP")).doubleValue() : existing.getTopP();
+        Integer maxTokens = configData.containsKey("maxTokens")
+                ? (configData.get("maxTokens") == null ? null : ((Number) configData.get("maxTokens")).intValue())
+                : existing.getMaxTokens();
+        Double presencePenalty = configData.containsKey("presencePenalty")
+                ? (configData.get("presencePenalty") == null ? null : ((Number) configData.get("presencePenalty")).doubleValue())
+                : existing.getPresencePenalty();
+        Double frequencyPenalty = configData.containsKey("frequencyPenalty")
+                ? (configData.get("frequencyPenalty") == null ? null : ((Number) configData.get("frequencyPenalty")).doubleValue())
+                : existing.getFrequencyPenalty();
+        Double repetitionPenalty = configData.containsKey("repetitionPenalty")
+                ? (configData.get("repetitionPenalty") == null ? null : ((Number) configData.get("repetitionPenalty")).doubleValue())
+                : existing.getRepetitionPenalty();
+        Integer contextRounds = configData.containsKey("contextRounds")
+                ? (configData.get("contextRounds") == null ? null : ((Number) configData.get("contextRounds")).intValue())
+                : existing.getContextRounds();
+        Integer maxReplyLength = configData.containsKey("maxReplyLength")
+                ? (configData.get("maxReplyLength") == null ? null : ((Number) configData.get("maxReplyLength")).intValue())
+                : existing.getMaxReplyLength();
+
+        // 参数校验
+        if (temperature == null || temperature < 0 || temperature > 2) {
+            return ApiResult.error("Temperature 必须在 0-2 之间");
+        }
+        if (topP == null || topP < 0 || topP > 1) {
+            return ApiResult.error("Top-P 必须在 0-1 之间");
+        }
+        if (maxTokens != null && (maxTokens < 1 || maxTokens > 8192)) {
+            return ApiResult.error("Max Tokens 必须在 1-8192 之间");
+        }
+        if (presencePenalty != null && (presencePenalty < -2 || presencePenalty > 2)) {
+            return ApiResult.error("Presence Penalty 必须在 -2~2 之间");
+        }
+        if (frequencyPenalty != null && (frequencyPenalty < -2 || frequencyPenalty > 2)) {
+            return ApiResult.error("Frequency Penalty 必须在 -2~2 之间");
+        }
+        if (repetitionPenalty != null && (repetitionPenalty < 0 || repetitionPenalty > 2)) {
+            return ApiResult.error("重复惩罚必须在 0~2 之间（>1 减少重复，<1 鼓励重复）");
+        }
+        if (contextRounds != null && (contextRounds < 0 || contextRounds > 50)) {
+            return ApiResult.error("上下文轮数必须在 0~50 之间");
+        }
+        if (maxReplyLength != null && (maxReplyLength < 0 || maxReplyLength > 32768)) {
+            return ApiResult.error("最大回复长度必须在 0~32768 之间（0 = 不限制）");
+        }
+
+        AiPromptConfig.updateConfig(role, new AiPromptConfig.PresetConfig(
+                systemPrompt, temperature, topP, maxTokens, presencePenalty, frequencyPenalty,
+                repetitionPenalty, contextRounds, maxReplyLength));
+        log.info("[AI配置] 管理员 {} 更新角色 {} 配置: temp={}, topP={}, maxTokens={}, presencePenalty={}, frequencyPenalty={}, repetitionPenalty={}, contextRounds={}, maxReplyLength={}",
+                userId, role, temperature, topP, maxTokens, presencePenalty, frequencyPenalty,
+                repetitionPenalty, contextRounds, maxReplyLength);
+        return ApiResult.success("配置已更新");
+    }
+
+    /**
+     * 重置指定角色为默认配置（需要密码验证）
+     */
+    @Protector(role = "管理员")
+    @PostMapping("/{role}/reset")
+    public Result<Void> resetAiDoctorConfig(@PathVariable String role,
+                                             @RequestBody Map<String, String> body) {
+        String password = body.get("password");
+        if (password == null || password.isEmpty()) {
+            return ApiResult.error("请输入管理员密码");
+        }
+
+        // 验证当前管理员密码
+        Integer userId = LocalThreadHolder.getUserId();
+        User admin = userMapper.getByActive(User.builder().id(userId).build());
+        if (admin == null || !passwordEncoder.matches(password, admin.getUserPwd())) {
+            return ApiResult.error("密码验证失败");
+        }
+
+        AiPromptConfig.PresetConfig existing = AiPromptConfig.getConfig(role);
+        if (existing == null) {
+            return ApiResult.error("角色不存在");
+        }
+
+        boolean success = AiPromptConfig.resetToDefault(role);
+        if (success) {
+            log.info("[AI配置] 管理员 {} 重置角色 {} 为默认配置", userId, role);
+            return ApiResult.success("已恢复默认提示词");
+        }
+        return ApiResult.error("重置失败，角色不存在");
+    }
+
+    /**
+     * 重置所有角色为默认配置（需要密码验证）
+     */
+    @Protector(role = "管理员")
+    @PostMapping("/reset-all")
+    public Result<Void> resetAllAiDoctorConfigs(@RequestBody Map<String, String> body) {
+        String password = body.get("password");
+        if (password == null || password.isEmpty()) {
+            return ApiResult.error("请输入管理员密码");
+        }
+
+        Integer userId = LocalThreadHolder.getUserId();
+        User admin = userMapper.getByActive(User.builder().id(userId).build());
+        if (admin == null || !passwordEncoder.matches(password, admin.getUserPwd())) {
+            return ApiResult.error("密码验证失败");
+        }
+
+        AiPromptConfig.resetAllToDefault();
+        log.info("[AI配置] 管理员 {} 重置所有角色为默认配置", userId);
+        return ApiResult.success("已恢复所有角色默认提示词");
+    }
+
 }

@@ -2,13 +2,48 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="cn.kmbeast.mapper.DrugMapper">
 
+    <!--
+      =====================================================================
+      2026-10-06 整改（阶段 0-A / A3）
+
+      【原状】本文件 10 条 SQL 全部 FROM drug / drug_subscription，
+              而这两张表在 2026-08-28「药品合并商城」时已被删除
+              → 任意一条被调用都抛 Table 'personal_health.drug' doesn't exist。
+              之前的单元测试从未发现，因为全部是 Mockito 单测、从不连库。
+
+      【改法】改查既有表，不新建任何表（项目强耦合原则）：
+              drug            → mall_product  WHERE product_type='drug'
+              drug_subscription → shopping_cart（user_id/product_id/quantity 字段一一对应）
+              subscriptionCount → shopping_cart 的计数
+
+      【配套迁移】Data/02_迁移脚本/07_mall_product_medical_fields.sql
+              已给 mall_product 补齐 5 个药品医学字段列：
+              generic_name / specification / manufacturer / is_otc / medical_category
+              并从 ai_data/drugs.json 回填 90/107 行（覆盖率 84%）。
+
+      【语义对照】
+              drug.category      → medical_category（医学细分：感冒药/抗生素…）
+              drug.generic_name  → generic_name
+              mall_product.category_id → 商城类目（1=药品），与 medical_category 不同维度
+
+      【未覆盖】仍有 4 种药只存在于 drugs.json 而商城没有
+              （多潘立酮片/对乙酰氨基酚片/小柴胡颗粒/连花清瘟胶囊），
+              即 AI 可能推荐商城买不到的药 —— 见 /graph/stats 的 warnings 随访。
+      =====================================================================
+    -->
+
     <insert id="save">
-        INSERT INTO drug (name, generic_name, category, description, price, unit, specification, manufacturer, cover, is_otc, stock, status, create_time)
-        VALUES (#{name}, #{genericName}, #{category}, #{description}, #{price}, #{unit}, #{specification}, #{manufacturer}, #{cover}, #{isOtc}, #{stock}, #{status}, #{createTime})
+        INSERT INTO mall_product
+            (product_type, category_id, name, generic_name, medical_category, description,
+             cover, price, unit, specification, manufacturer, is_otc, stock, status, create_time)
+        VALUES
+            ('drug', 1, #{name}, #{genericName}, #{category}, #{description},
+             #{cover}, #{price}, #{unit}, #{specification}, #{manufacturer},
+             #{isOtc}, #{stock}, #{status}, #{createTime})
     </insert>
 
     <update id="update">
-        UPDATE drug
+        UPDATE mall_product
         <set>
             <if test="name != null and name != ''">
                 name = #{name},
@@ -17,7 +52,7 @@
                 generic_name = #{genericName},
             </if>
             <if test="category != null and category != ''">
-                category = #{category},
+                medical_category = #{category},
             </if>
             <if test="description != null and description != ''">
                 description = #{description},
@@ -48,37 +83,48 @@
             </if>
         </set>
         WHERE id = #{id}
+        AND product_type = 'drug'
     </update>
 
     <delete id="batchDelete" parameterType="list">
-        DELETE FROM drug WHERE id IN
+        DELETE FROM mall_product WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
+        AND product_type = 'drug'
     </delete>
 
+    <sql id="drugColumns">
+        p.id, p.name, p.generic_name, p.medical_category AS category, p.description,
+        p.price, p.unit, p.specification, p.manufacturer, p.cover, p.is_otc,
+        p.stock, p.status, p.create_time, p.sales_count
+    </sql>
+
     <select id="query" resultMap="DrugVOMap">
-        SELECT d.*,
-               (SELECT COUNT(*) FROM drug_subscription ds WHERE ds.drug_id = d.id) AS subscription_count
-        FROM drug d
+        SELECT
+        <include refid="drugColumns"/>,
+        (SELECT COUNT(*) FROM shopping_cart sc WHERE sc.product_id = p.id) AS subscription_count
+        FROM mall_product p
         <where>
+            p.product_type = 'drug'
             <if test="id != null">
-                AND d.id = #{id}
+                AND p.id = #{id}
             </if>
             <if test="name != null and name != ''">
-                AND d.name LIKE concat('%',#{name},'%')
+                AND (p.name LIKE concat('%',#{name},'%')
+                     OR p.generic_name LIKE concat('%',#{name},'%'))
             </if>
             <if test="category != null and category != ''">
-                AND d.category = #{category}
+                AND p.medical_category = #{category}
             </if>
             <if test="isOtc != null">
-                AND d.is_otc = #{isOtc}
+                AND p.is_otc = #{isOtc}
             </if>
             <if test="status != null">
-                AND d.status = #{status}
+                AND p.status = #{status}
             </if>
         </where>
-        ORDER BY d.id DESC
+        ORDER BY p.id DESC
         <if test="current != null and size != null">
             LIMIT #{current},#{size}
         </if>
@@ -86,57 +132,74 @@
 
     <select id="queryCount" resultType="integer">
         SELECT COUNT(*)
-        FROM drug d
+        FROM mall_product p
         <where>
+            p.product_type = 'drug'
             <if test="id != null">
-                AND d.id = #{id}
+                AND p.id = #{id}
             </if>
             <if test="name != null and name != ''">
-                AND d.name LIKE concat('%',#{name},'%')
+                AND (p.name LIKE concat('%',#{name},'%')
+                     OR p.generic_name LIKE concat('%',#{name},'%'))
             </if>
             <if test="category != null and category != ''">
-                AND d.category = #{category}
+                AND p.medical_category = #{category}
             </if>
             <if test="isOtc != null">
-                AND d.is_otc = #{isOtc}
+                AND p.is_otc = #{isOtc}
             </if>
             <if test="status != null">
-                AND d.status = #{status}
+                AND p.status = #{status}
             </if>
         </where>
     </select>
 
     <select id="getById" resultMap="DrugVOMap">
-        SELECT d.*,
-               (SELECT COUNT(*) FROM drug_subscription ds WHERE ds.drug_id = d.id) AS subscription_count
-        FROM drug d
-        WHERE d.id = #{id}
+        SELECT
+        <include refid="drugColumns"/>,
+        (SELECT COUNT(*) FROM shopping_cart sc WHERE sc.product_id = p.id) AS subscription_count
+        FROM mall_product p
+        WHERE p.id = #{id}
+        AND p.product_type = 'drug'
     </select>
 
+    <!--
+      订阅 → 复用 shopping_cart（user_id / product_id / quantity 与原 drug_subscription 一一对应）。
+      uk_user_product 唯一键天然保证幂等，重复订阅不会插重。
+    -->
     <insert id="subscribe">
-        INSERT INTO drug_subscription (user_id, drug_id, quantity)
+        INSERT INTO shopping_cart (user_id, product_id, quantity)
         VALUES (#{userId}, #{drugId}, #{quantity})
+        ON DUPLICATE KEY UPDATE quantity = #{quantity}
     </insert>
 
     <delete id="unsubscribe">
-        DELETE FROM drug_subscription WHERE user_id = #{userId} AND drug_id = #{drugId}
+        DELETE FROM shopping_cart
+        WHERE user_id = #{userId} AND product_id = #{drugId}
     </delete>
 
     <select id="getSubscribedDrugs" resultMap="DrugVOMap">
-        SELECT d.*,
-               ds.quantity AS subscription_count
-        FROM drug d
-        INNER JOIN drug_subscription ds ON d.id = ds.drug_id
-        WHERE ds.user_id = #{userId}
-        ORDER BY ds.create_time DESC
+        SELECT
+        <include refid="drugColumns"/>,
+        sc.quantity AS subscription_count
+        FROM mall_product p
+        INNER JOIN shopping_cart sc ON sc.product_id = p.id
+        WHERE sc.user_id = #{userId}
+        AND p.product_type = 'drug'
+        ORDER BY sc.create_time DESC
     </select>
 
     <select id="searchByName" resultMap="DrugVOMap">
-        SELECT d.*,
-               (SELECT COUNT(*) FROM drug_subscription ds WHERE ds.drug_id = d.id) AS subscription_count
-        FROM drug d
-        WHERE d.status = 1 AND (d.name LIKE concat('%',#{keyword},'%') OR d.generic_name LIKE concat('%',#{keyword},'%') OR d.category LIKE concat('%',#{keyword},'%'))
-        ORDER BY d.name ASC
+        SELECT
+        <include refid="drugColumns"/>,
+        (SELECT COUNT(*) FROM shopping_cart sc WHERE sc.product_id = p.id) AS subscription_count
+        FROM mall_product p
+        WHERE p.product_type = 'drug'
+        AND p.status = 1
+        AND (p.name LIKE concat('%',#{keyword},'%')
+             OR p.generic_name LIKE concat('%',#{keyword},'%')
+             OR p.medical_category LIKE concat('%',#{keyword},'%'))
+        ORDER BY p.name ASC
         <if test="limit > 0">
             LIMIT #{limit}
         </if>

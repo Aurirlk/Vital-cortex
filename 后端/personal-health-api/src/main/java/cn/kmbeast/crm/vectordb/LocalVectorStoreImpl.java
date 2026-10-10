@@ -77,31 +77,61 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
         }
     }
 
+    /**
+     * 计算三者对齐后的有效条数。
+     *
+     * <p>⚠️ <b>2026-10-06 整改（阶段 0-A / A2）</b>：向量索引依赖三份数据<b>下标严格对齐</b>，
+     * 但它们可能不一致——本次实测 {@code health_knowledge} 集合：元数据声明 312 条，
+     * {@code vectors.bin} 只够 208 条，而 {@code documents.json} 有 312 条。
+     *
+     * <p>原实现只靠 {@link VectorBinaryStore#readAll} 内部的 {@code Math.min} 静默截断，
+     * 文档列表仍按 312 构造 → {@link #cosineSearchTopK} 的循环上限是向量数(208)，
+     * 于是 <b>下标 208~311 的 104 篇文档永久不可召回，且不报任何错</b>。
+     *
+     * <p>修复原则：<b>以三者最小值为准</b>，绝不静默。缺失部分通过 {@code log.error} 暴露，
+     * 由运维执行 rebuild 补齐（本修只能保证"不错位"，补不回丢失的 embedding）。
+     *
+     * @param declaredCount    元数据 metadata.json 声明的 docCount
+     * @param availableVectors vectors.bin 实际可读的向量条数
+     * @param availableDocs    documents.json 实际存在的文档条数
+     * @return 可安全参与检索的有效条数
+     */
+    static int effectiveCount(int declaredCount, int availableVectors, int availableDocs) {
+        // fail-safe：任一路数据缺失或为负 → 无法保证下标对齐，宁可不召回也不能错配
+        if (declaredCount <= 0 || availableVectors < 0 || availableDocs < 0) {
+            return 0;
+        }
+        return Math.min(declaredCount, Math.min(availableVectors, availableDocs));
+    }
+
     private void loadCollection(String collectionName) {
         try {
             Path colDir = Path.of(storeRoot, collectionName);
             if (!Files.exists(colDir)) return;
 
             Path metadataFile = colDir.resolve("metadata.json");
-            if (Files.exists(metadataFile)) {
-                String metaJson = new String(Files.readAllBytes(metadataFile), StandardCharsets.UTF_8);
-                CollectionMetadata meta = JSON.parseObject(metaJson, CollectionMetadata.class);
-                metadataMap.put(collectionName, meta);
-
-                VectorBinaryStore store = new VectorBinaryStore(colDir.resolve("vectors.bin"), meta.getDimension());
-                binaryStores.put(collectionName, store);
-
-                float[][] vectors = store.readAll(meta.getDocCount());
-                List<float[]> vecList = new ArrayList<>();
-                List<Double> normList = new ArrayList<>();
-                for (float[] v : vectors) {
-                    vecList.add(v);
-                    normList.add(v != null ? norm(v) : 0.0);
-                }
-                vectorsMap.put(collectionName, vecList);
-                normsMap.put(collectionName, normList);
+            if (!Files.exists(metadataFile)) {
+                log.warn("[VectorStore] 集合 '{}' 缺少 metadata.json，已跳过", collectionName);
+                return;
             }
 
+            String metaJson = new String(Files.readAllBytes(metadataFile), StandardCharsets.UTF_8);
+            CollectionMetadata meta = JSON.parseObject(metaJson, CollectionMetadata.class);
+            if (meta == null) {
+                log.warn("[VectorStore] 集合 '{}' metadata.json 解析失败，已跳过", collectionName);
+                return;
+            }
+
+            VectorBinaryStore store = new VectorBinaryStore(colDir.resolve("vectors.bin"), meta.getDimension());
+            binaryStores.put(collectionName, store);
+
+            // getDocCount() 是基本类型 int，不涉及 null；负数视为 0
+            int declaredCount = Math.max(0, meta.getDocCount());
+            int availableVectors = store.availableCount();
+
+            // ---- 载入文档 ----
+            List<VectorEntity> docs = new ArrayList<>();
+            int availableDocs = 0;
             Path docsFile = colDir.resolve("documents.json");
             if (Files.exists(docsFile)) {
                 String docsJson = new String(Files.readAllBytes(docsFile), StandardCharsets.UTF_8);
@@ -109,10 +139,10 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
                 Map<String, VectorEntity> docMap = JSON.parseObject(
                         root.getJSONObject("documents").toJSONString(),
                         new TypeReference<Map<String, VectorEntity>>() {});
-                List<VectorEntity> docs = new ArrayList<>();
-                for (int i = 0; i < metadataMap.get(collectionName).getDocCount(); i++) {
-                    String key = String.valueOf(i + 1);
-                    VectorEntity doc = docMap.get(key);
+                availableDocs = docMap.size();
+                int n = effectiveCount(declaredCount, availableVectors, availableDocs);
+                for (int i = 0; i < n; i++) {
+                    VectorEntity doc = docMap.get(String.valueOf(i + 1));
                     if (doc == null) {
                         docs.add(VectorEntity.builder().id(i + 1).content("").build());
                     } else {
@@ -120,11 +150,35 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
                         docs.add(doc);
                     }
                 }
-                documentsMap.put(collectionName, docs);
             }
 
-            log.info("[VectorStore] 加载集合 '{}': {} 条文档", collectionName,
-                    metadataMap.containsKey(collectionName) ? metadataMap.get(collectionName).getDocCount() : 0);
+            int effective = effectiveCount(declaredCount, availableVectors, availableDocs);
+
+            // ---- 🔴 不一致必须显式告警：这是「静默不可召回」的唯一可见化手段 ----
+            if (declaredCount > effective) {
+                log.error("[VectorStore] 集合 '{}' 数据不完整！元数据声明 {} 条，"
+                                + "实际可用(向量{} / 文档{}) → 仅前 {} 条可参与检索，"
+                                + "另有 {} 条不可召回。请执行知识库重建补齐 embedding。",
+                        collectionName, declaredCount, availableVectors, availableDocs,
+                        effective, declaredCount - effective);
+            }
+
+            // ---- 载入向量（同样按 effective 截断，保证与 docs 下标严格对齐）----
+            float[][] vectors = store.readAll(declaredCount);
+            List<float[]> vecList = new ArrayList<>(effective);
+            List<Double> normList = new ArrayList<>(effective);
+            for (int i = 0; i < effective && i < vectors.length; i++) {
+                vecList.add(vectors[i]);
+                normList.add(vectors[i] != null ? norm(vectors[i]) : 0.0);
+            }
+
+            metadataMap.put(collectionName, meta);
+            vectorsMap.put(collectionName, vecList);
+            normsMap.put(collectionName, normList);
+            documentsMap.put(collectionName, docs);
+
+            log.info("[VectorStore] 加载集合 '{}': 声明 {} 条 / 向量 {} 条 / 文档 {} 条 → 有效 {} 条",
+                    collectionName, declaredCount, availableVectors, availableDocs, effective);
         } catch (Exception e) {
             log.error("[VectorStore] 加载集合失败: {}", collectionName, e);
         }
@@ -638,6 +692,18 @@ public class LocalVectorStoreImpl implements LocalVectorStore {
                     StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
                 channel.write(buffer);
             }
+        }
+
+        /**
+         * 返回 vectors.bin 实际可读的向量条数（不依赖元数据声明）。
+         *
+         * <p>用于发现「元数据声明 N 条、文件只够 M 条」的数据不一致。
+         * 维度为 0 时视为 0 条，避免除零。
+         */
+        int availableCount() throws IOException {
+            if (dimension <= 0 || !Files.exists(filePath)) return 0;
+            long bytes = Files.size(filePath);
+            return (int) (bytes / (dimension * 4L));
         }
 
         float[][] readAll(int docCount) throws IOException {

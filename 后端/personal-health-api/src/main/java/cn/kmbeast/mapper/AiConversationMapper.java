@@ -47,4 +47,15 @@ public interface AiConversationMapper {
      * 获取用户会话总数
      */
     Integer countByUserId(@Param("userId") Integer userId);
+
+    /**
+     * 查询该用户当前所有会话 id（用于磁盘副本的孤儿文件清理）。
+     *
+     * <p>2026-10-07 新增：{@code chat_history/} 的定时清理需要知道「MySQL 里还有哪些会话」
+     * 才能判定磁盘上的文件是不是孤儿。</p>
+     *
+     * @param userId 用户 id
+     * @return 会话 id 列表；无则返回空列表（非 null）
+     */
+    List<Integer> selectIdsByUserId(@Param("userId") Integer userId);
 }

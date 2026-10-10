@@ -1,5 +1,6 @@
 package cn.kmbeast.controller;
 
+import cn.kmbeast.context.LocalThreadHolder;
 import cn.kmbeast.aop.Pager;
 import cn.kmbeast.aop.Protector;
 import cn.kmbeast.pojo.api.Result;
@@ -13,7 +14,10 @@ import jakarta.annotation.Resource;
 import java.util.List;
 
 @RestController
-@RequestMapping("/quiz")
+
+    // 2026-10-07 审计修复：原先用 @RequestAttribute("userId") 取身份，
+    // 但全项目没有任何 setAttribute("userId", ...) —— JwtInterceptor 只写 LocalThreadHolder，
+    // 故该参数必然抛 MissingRequestAttributeException。改用项目统一的 LocalThreadHolder。@RequestMapping("/quiz")
 public class QuizController {
 
     @Resource
@@ -96,7 +100,8 @@ public class QuizController {
 
     @Protector
     @PostMapping("/start/{examId}")
-    public Result<QuizRecord> startExam(@PathVariable Integer examId, @RequestAttribute("userId") Integer userId) {
+    public Result<QuizRecord> startExam(@PathVariable Integer examId) {
+        Integer userId = LocalThreadHolder.getUserId();
         return quizService.startExam(examId, userId);
     }
 
@@ -110,7 +115,8 @@ public class QuizController {
 
     @Protector
     @GetMapping("/records")
-    public Result<List<QuizRecord>> getUserRecords(@RequestAttribute("userId") Integer userId) {
+    public Result<List<QuizRecord>> getUserRecords() {
+        Integer userId = LocalThreadHolder.getUserId();
         return quizService.getUserRecords(userId);
     }
 

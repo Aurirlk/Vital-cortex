@@ -44,7 +44,7 @@
     <select id="queryByDoctorAndRange" resultType="cn.kmbeast.pojo.entity.DoctorSchedule">
         SELECT * FROM doctor_schedule
         WHERE doctor_id = #{doctorId}
-        <if test="fromDate != null">AND schedule_date &gt;= #{fromDate}</if>
+        <if test="fromDate != null">AND schedule_date >= #{fromDate}</if>
         <if test="toDate != null">AND schedule_date &lt;= #{toDate}</if>
         ORDER BY schedule_date ASC, time_slot ASC
     </select>

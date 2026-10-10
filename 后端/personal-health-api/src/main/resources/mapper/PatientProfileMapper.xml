@@ -156,6 +156,11 @@
         DELETE FROM patient_profile WHERE user_id = #{userId}
     </delete>
 
+    <!-- 全量档案（阶段 0-B 知识图谱抽取用，仅管理员导入端点调用） -->
+    <select id="listAll" resultMap="PatientProfileResultMap">
+        SELECT * FROM patient_profile ORDER BY user_id
+    </select>
+
     <!-- 结果映射 -->
     <resultMap id="PatientProfileResultMap" type="cn.kmbeast.pojo.entity.PatientProfile">
         <id column="id" property="id"/>

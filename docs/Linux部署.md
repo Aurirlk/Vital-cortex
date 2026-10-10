@@ -1,5 +1,7 @@
 # 智康云健康管理系统 - Linux 部署文档
 
+![部署拓扑与可观测](assets/04-deployment-topology.png)
+
 ## 1. 服务器环境要求
 
 | 软件 | 版本要求 | 说明 |

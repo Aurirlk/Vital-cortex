@@ -42,6 +42,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -50,6 +52,17 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private AiConfig aiConfig;
+
+    /**
+     * 2026-10-07 新增：数据智能体配置持有者（{@code system_config} 的 {@code data_agent} 分组）。
+     *
+     * <p>AI 问诊链路的<b>上下文压缩</b>参数也从这里读（{@code context-rounds} /
+     * {@code context-max-chars} / {@code context-summary-threshold}），
+     * 与数据智能体的开关配置<b>共用同一配置体系</b>，避免建两套表。
+     * 10s TTL，管理员改完最多 10 秒生效。</p>
+     */
+    @Resource
+    private cn.kmbeast.core.nl2sql.DataAgentConfigHolder agentConfig;
 
     /** 2026-10-04：共享 HTTP 客户端（统一超时/连接池/线程池上限，避免各处自建导致线程与连接被放大 N 倍） */
     @jakarta.annotation.Resource
@@ -893,19 +906,16 @@ public class AiServiceImpl implements AiService {
                                           List<String> files, boolean vip) {
         JSONArray messages = new JSONArray();
 
+        // 2026-10-07 新增：上下文压缩。此前这里是
+        //     for (int i = 0; i < history.size(); i++) { messages.add(...); }
+        // —— 全量历史无上限塞进 prompt，超预算时 TokenBudgetManager 直接抛异常让用户重开对话。
+        // 现在改为「条数上限 + 字符预算 + 更早历史滚动摘要」三重压缩。
+        appendCompressedHistory(messages, history);
+
         JSONObject systemMsg = new JSONObject();
         systemMsg.put("role", "system");
         systemMsg.put("content", systemPrompt + healthContext);
         messages.add(systemMsg);
-
-        // 添加历史消息（不含当前用户消息）
-        for (int i = 0; i < history.size(); i++) {
-            AiChatRecord record = history.get(i);
-            JSONObject historyMsg = new JSONObject();
-            historyMsg.put("role", record.getRole());
-            historyMsg.put("content", record.getContent());
-            messages.add(historyMsg);
-        }
 
         // 添加当前用户消息（支持多模态图片）
         JSONObject userMsg = new JSONObject();
@@ -944,8 +954,153 @@ public class AiServiceImpl implements AiService {
         return messages;
     }
 
+    // ==================== 上下文压缩（2026-10-07 新增） ====================
+
     /**
-     * ENG-10：AI token 用量落库（ai_usage 表，见 Data/sql/ai_usage_schema.sql）。
+     * 把历史消息按「条数上限 + 字符预算 + 更早历史滚动摘要」压缩后追加到 messages。
+     *
+     * <p><b>为什么此前不做</b>：原实现是 {@code for (int i = 0; i < history.size(); i++)}，
+     * 全量历史进 prompt。唯一的兜底是 {@code TokenBudgetManager} 在<b>请求前</b>校验，
+     * 超了就<b>抛 IllegalArgumentException 让用户重开会话</b> —— 那不是压缩，是拒绝服务。
+     * 管理员在「系统配置」里能配的 {@code contextRounds}（0~50）与 {@code maxHistoryRounds}
+     * 都是<b>装饰性配置项，业务层零读取</b>。</p>
+     *
+     * <p><b>本方法的三层压缩（全部可由管理员在线配置，10s TTL 生效）</b>：</p>
+     * <ol>
+     *   <li><b>条数截断</b>：只保留最近 {@code context-rounds} × 2 条消息
+     *       （一轮 = user + assistant 两条）。</li>
+     *   <li><b>字符预算</b>：累计正文超过 {@code context-max-chars} 时，从<b>最旧</b>的消息开始
+     *       整条丢弃（而不是从中间截断 —— 那会破坏「最近若干轮」的语义连续性）。</li>
+     *   <li><b>滚动摘要</b>：被丢弃的较早历史压缩为一条 {@code system} 摘要消息
+     *       （关键词 + 主题 + 轮次数），保留"我们之前聊过什么"的线索。
+     *       {@code context-summary-threshold = 0} 时关闭摘要。</li>
+     * </ol>
+     *
+     * <p><b>不调 LLM 做摘要</b>：那会让每次请求多一次模型调用（成本 + 延迟）。
+     * 这里用确定性的关键词提取，零额外开销、零失败风险。</p>
+     *
+     * @param messages 目标消息数组（追加压缩后的历史）
+     * @param history  完整历史（按时间升序）
+     */
+    private void appendCompressedHistory(JSONArray messages, List<AiChatRecord> history) {
+        if (history == null || history.isEmpty()) {
+            return;
+        }
+
+        // 读配置（未注入时回落安全默认值，保证单测与降级路径可用）
+        int rounds = 10;
+        int maxChars = 4000;
+        int summaryThreshold = 0;
+        try {
+            if (agentConfig != null) {
+                rounds = agentConfig.getContextRounds();
+                maxChars = agentConfig.getContextMaxChars();
+                summaryThreshold = agentConfig.getContextSummaryThreshold();
+            }
+        } catch (Exception e) {
+            log.debug("[AiService] 读取上下文压缩配置失败，使用默认值: {}", e.getMessage());
+        }
+
+        if (rounds <= 0) {
+            // 管理员显式配置「不携带历史」
+            log.debug("[AiService] contextRounds=0，本次不携带历史");
+            return;
+        }
+
+        int maxMessages = rounds * 2;
+        int startIdx = Math.max(0, history.size() - maxMessages);
+        int dropped = startIdx;   // 被丢弃的更早历史条数
+
+        // ---- 字符预算：从最旧的一条开始整体丢弃 ----
+        long used = 0L;
+        int keepFrom = startIdx;
+        for (int i = startIdx; i < history.size(); i++) {
+            AiChatRecord r = history.get(i);
+            if (r == null) {
+                continue;
+            }
+            int cost = r.getContent() == null ? 8 : r.getContent().length();
+            if (used + cost > maxChars && i > startIdx) {
+                keepFrom = i;
+                break;
+            }
+            used += cost;
+        }
+
+        // ---- 滚动摘要：保留被丢弃部分的线索 ----
+        if (dropped > 0 && summaryThreshold > 0 && dropped >= summaryThreshold) {
+            String summary = summarizeDroppedHistory(history, dropped);
+            if (summary != null && !summary.isBlank()) {
+                JSONObject s = new JSONObject();
+                s.put("role", "system");
+                s.put("content", "[早期对话摘要（已压缩 " + dropped + " 条）] " + summary);
+                messages.add(s);
+            }
+        }
+
+        // ---- 追加保留窗口内的历史 ----
+        for (int i = keepFrom; i < history.size(); i++) {
+            AiChatRecord record = history.get(i);
+            if (record == null) {
+                continue;
+            }
+            JSONObject m = new JSONObject();
+            m.put("role", record.getRole());
+            m.put("content", record.getContent() == null ? "" : record.getContent());
+            messages.add(m);
+        }
+
+        if (dropped > 0 || keepFrom > startIdx) {
+            log.debug("[AiService] 上下文压缩: 历史 {} 条 → 保留 [{}, {}) + 摘要, 预算 {} 字符",
+                    history.size(), keepFrom, history.size(), maxChars);
+        }
+    }
+
+    /**
+     * 用关键词提取把较早历史压成一句摘要（零 LLM 调用）。
+     *
+     * <p>刻意不用模型做摘要：那会让每次请求多一次调用（成本 + 延迟 + 失败风险），
+     * 而这里只需要保留"之前聊过哪些主题"的线索，关键词足够。</p>
+     *
+     * @param history 完整历史
+     * @param count   前 count 条为被丢弃的部分
+     * @return 摘要文本；无可提取内容时返回 null
+     */
+    private String summarizeDroppedHistory(List<AiChatRecord> history, int count) {
+        int limit = Math.min(count, history.size());
+        // 统计关键词频次（去噪：长度 ≥2 的中文/字母词）
+        Map<String, Integer> freq = new LinkedHashMap<>();
+        for (int i = 0; i < limit; i++) {
+            AiChatRecord r = history.get(i);
+            if (r == null || r.getContent() == null) {
+                continue;
+            }
+            Matcher m = KEYWORD_PATTERN.matcher(r.getContent());
+            while (m.find()) {
+                freq.merge(m.group(), 1, Integer::sum);
+            }
+        }
+        if (freq.isEmpty()) {
+            return null;
+        }
+        // 取频次前 8 个，同频次按首次出现顺序（LinkedHashMap 保序）
+        List<String> top = freq.entrySet().stream()
+                .sorted((a, b) -> b.getValue() - a.getValue())
+                .limit(8)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+        // 统计被丢弃部分的用户提问数，让模型知道"我问过几件事"
+        long userTurns = history.subList(0, limit).stream()
+                .filter(r -> r != null && "user".equals(r.getRole()))
+                .count();
+        return "讨论过的主题：" + String.join("、", top) + "（用户共提出 " + userTurns + " 个问题）";
+    }
+
+    /** 关键词提取正则：连续 2 个以上的汉字或字母。 */
+    private static final Pattern KEYWORD_PATTERN = Pattern.compile("[\\u4e00-\\u9fa5]{2,}|[A-Za-z]{2,}");
+
+    /**
+     * ENG-10：AI token 用量落库（ai_usage 表，见 Data/01_建库建表/ai_usage_schema.sql）。
      * 异步写入不阻塞主流程；表不存在时静默降级为日志。
      */
     private void recordUsage(int promptTokens, int completionTokens, int totalTokens, String scene) {

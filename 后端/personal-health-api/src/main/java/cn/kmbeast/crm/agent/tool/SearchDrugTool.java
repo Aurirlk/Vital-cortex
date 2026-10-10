@@ -37,15 +37,19 @@ public class SearchDrugTool implements Tool {
 
     @Override
     public Map<String, Object> getParametersSchema() {
-        Map<String, Object> schema = new HashMap<>();
+        // 2026-10-07 OpenAI schema 规范化：
+        //   ① HashMap → LinkedHashMap：保证键序稳定，便于 prompt cache 命中与人工审阅
+        //   ② required: new String[]{"keyword"} → List.of("keyword")：
+        //      校验器原先只认 instanceof List，数组会被静默跳过 → 必填校验完全失效
+        Map<String, Object> schema = new LinkedHashMap<>();
         schema.put("type", "object");
-        Map<String, Object> properties = new HashMap<>();
-        Map<String, Object> keywordProp = new HashMap<>();
+        Map<String, Object> properties = new LinkedHashMap<>();
+        Map<String, Object> keywordProp = new LinkedHashMap<>();
         keywordProp.put("type", "string");
         keywordProp.put("description", "药品名称或分类关键词，如：感冒药、布洛芬、维生素");
         properties.put("keyword", keywordProp);
         schema.put("properties", properties);
-        schema.put("required", new String[]{"keyword"});
+        schema.put("required", List.of("keyword"));
         return schema;
     }
 
