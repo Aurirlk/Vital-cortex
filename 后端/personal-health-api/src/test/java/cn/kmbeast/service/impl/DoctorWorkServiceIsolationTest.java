@@ -59,6 +59,10 @@ class DoctorWorkServiceIsolationTest {
     @Mock
     private HospitalDoctorMapper doctorMapper;
 
+    /** 2026-10-10：完成接诊会发「就诊完成」通知，需要这个协作者 */
+    @Mock
+    private cn.kmbeast.core.notify.UserNotifier userNotifier;
+
     @InjectMocks
     private DoctorWorkServiceImpl service;
 

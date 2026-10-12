@@ -187,12 +187,56 @@
         <result column="is_vip" property="isVip"/>
         <result column="vip_expire_time" property="vipExpireTime"/>
         <result column="create_time" property="createTime"/>
+        <!-- 用户设置（2026-10-10 新增，见 08_user_settings_columns.sql） -->
+        <result column="language" property="language"/>
+        <result column="timezone" property="timezone"/>
+        <result column="notify_system" property="notifySystem"/>
+        <result column="notify_health_remind" property="notifyHealthRemind"/>
+        <result column="notify_ai_chat" property="notifyAiChat"/>
+        <result column="notify_appointment" property="notifyAppointment"/>
+        <result column="notify_order" property="notifyOrder"/>
+        <result column="privacy_health_data_share" property="privacyHealthDataShare"/>
+        <result column="privacy_profile_visibility" property="privacyProfileVisibility"/>
+        <result column="ai_default_agent" property="aiDefaultAgent"/>
+        <result column="ai_chat_style" property="aiChatStyle"/>
+        <result column="ai_enable_web_search" property="aiEnableWebSearch"/>
+        <result column="ai_enable_knowledge_base" property="aiEnableKnowledgeBase"/>
+        <result column="ai_context_rounds" property="aiContextRounds"/>
     </resultMap>
 
     <!-- 根据用户ID获取用户信息 -->
     <select id="getUserById" resultMap="BaseResultMap">
         SELECT u.* FROM user u WHERE u.id = #{userId}
     </select>
+
+    <!--
+      保存用户设置（2026-10-10 新增）
+
+      只为设置项开放「只写非空字段」的局部更新，与上面的通用 update 分开：
+      通用 update 服务于「编辑资料」，两者共用一条语句的话，任何一次资料保存
+      都要把全部设置列带上，反而容易误清空。这里前端每次只提交一组设置
+      （例如只提交 notification），因此必须允许只更新部分列。
+    -->
+    <update id="updateSettings" parameterType="cn.kmbeast.pojo.entity.User">
+        UPDATE user
+        <set>
+            <if test="language != null">language = #{language},</if>
+            <if test="timezone != null">timezone = #{timezone},</if>
+            <if test="notifySystem != null">notify_system = #{notifySystem},</if>
+            <if test="notifyHealthRemind != null">notify_health_remind = #{notifyHealthRemind},</if>
+            <if test="notifyAiChat != null">notify_ai_chat = #{notifyAiChat},</if>
+            <if test="notifyAppointment != null">notify_appointment = #{notifyAppointment},</if>
+            <if test="notifyOrder != null">notify_order = #{notifyOrder},</if>
+            <if test="privacyHealthDataShare != null">privacy_health_data_share = #{privacyHealthDataShare},</if>
+            <if test="privacyProfileVisibility != null">privacy_profile_visibility = #{privacyProfileVisibility},</if>
+            <if test="aiDefaultAgent != null">ai_default_agent = #{aiDefaultAgent},</if>
+            <if test="aiChatStyle != null">ai_chat_style = #{aiChatStyle},</if>
+            <if test="aiEnableWebSearch != null">ai_enable_web_search = #{aiEnableWebSearch},</if>
+            <if test="aiEnableKnowledgeBase != null">ai_enable_knowledge_base = #{aiEnableKnowledgeBase},</if>
+            <if test="aiContextRounds != null">ai_context_rounds = #{aiContextRounds},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
 
     <!-- 根据手机号查找用户
          2026-10-03 修正：原实现是 WHERE user_account = #{userAccount}，
@@ -236,6 +280,19 @@
         SELECT COUNT(*) FROM user
         WHERE phone = #{phone}
         <if test="excludeId != null">AND id != #{excludeId}</if>
+    </select>
+
+    <!-- 用户通知开关（2026-10-10 新增，见 08_user_settings_columns.sql）
+         只取发通知前要判断的五列：高频路径，不把整行（含 user_pwd）读出来。
+         列名到属性名的映射走 map-underscore-to-camel-case，故这里显式起别名。 -->
+    <select id="getNotifyPreference" resultType="cn.kmbeast.pojo.vo.NotifyPreferenceVO">
+        SELECT notify_system        AS systemNotify,
+               notify_health_remind AS healthRemindNotify,
+               notify_ai_chat       AS aiChatNotify,
+               notify_appointment   AS appointmentNotify,
+               notify_order         AS orderNotify
+        FROM `user`
+        WHERE id = #{userId}
     </select>
 
 </mapper>

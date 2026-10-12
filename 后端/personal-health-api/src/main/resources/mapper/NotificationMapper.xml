@@ -34,8 +34,9 @@
         </foreach>
     </insert>
 
+    <!-- 2026-10-10 修复（IDOR）：带 user_id 条件，只能把本人的通知标记为已读 -->
     <update id="markAsRead">
-        UPDATE notification SET is_read = 1 WHERE id = #{id}
+        UPDATE notification SET is_read = 1 WHERE id = #{id} AND user_id = #{userId}
     </update>
 
     <update id="markAllAsRead">
@@ -96,5 +97,20 @@
         WHERE n.user_id = #{userId}
         GROUP BY n.message_type
         ORDER BY n.message_type
+    </select>
+
+    <!-- 幂等判定：某条业务通知是否已经发给过该用户（2026-10-10）
+         命中 idx_notif_biz(biz_type, biz_id) 索引，虽然 SQL 里它的列序不是最左，
+         但 (biz_type, biz_id) 已能把范围缩到极小，再回表过滤 user_id 成本可忽略。
+         title 一并比对的原因见 NotificationMapper#countBizNotification 的注释：
+         同一业务实体会合法地产生多条通知，光靠 biz_id 会把它们全判成重复。 -->
+    <select id="countBizNotification" resultType="integer">
+        SELECT COUNT(*)
+        FROM notification
+        WHERE user_id = #{userId}
+          AND biz_type = #{bizType}
+          AND biz_id = #{bizId}
+          AND message_type = #{messageType}
+          AND title = #{title}
     </select>
 </mapper>

@@ -41,6 +41,70 @@ logging:
     path: /app/logs
 
 # ============================================================
+# Actuator / 指标暴露（2026-10-10 修复）
+# pom.xml 已引入 micrometer-registry-prometheus，deploy/prometheus.yml 也按
+# /api/personal-health/v1.0/actuator/prometheus 抓取，但此前全仓库没有任何
+# management.* 配置 —— Spring Boot 默认只暴露 health，抓取端恒 404，
+# 于是 5 条告警规则与全部 Grafana 面板都是死的。
+# 说明：/actuator/** 已在 InterceptorConfig 中排除 JWT 校验（抓取端 Prometheus
+# 没有 token，这是必需的）；仅暴露只读的 health / prometheus，
+# 切勿改成 "*"（会带出 env、beans、heapdump）。
+# 免鉴权 + 21090 对外发布 = 指标挂在公网上，因此另由 ActuatorAccessInterceptor
+# 限定为仅回环/私有网段可访问（见下方 security.actuator）。
+# ============================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+# ============================================================
+# Actuator 访问来源限制（2026-10-10 新增，实现见 Interceptor/ActuatorAccessInterceptor）
+# 默认只允许回环与私有网段（Prometheus、nginx 都在 backend-net 内，源地址是 172.x；
+# 容器健康检查打 localhost），公网直连 21090 读指标一律 404。
+# 判定只看 TCP 对端地址，不看 X-Forwarded-For —— 后者可伪造，做访问控制等于没做。
+# 若监控端确实在容器网络之外，置 false 关闭本限制，但必须另用鉴权或防火墙保护该端口。
+# ============================================================
+security:
+  actuator:
+    allow-private-only: true
+
+# ============================================================
+# 登录防撞库（2026-10-10 新增，实现见 core/auth/LoginAttemptGuard）
+# 与 sentinel.qps.login 的分工：
+#   - Sentinel 那条是**全局** QPS 阀，防「把登录接口打满」，
+#     但它不区分账号，且一人即可吃满配额（真实用户被挡在门外）；
+#   - 下面这组按「账号」与「来源 IP」两个维度记失败次数并临时封禁，
+#     防「把某个账号撞开」。两者互补，都要保留。
+# 键名可用环境变量覆盖，如 SECURITY_LOGIN_MAX_FAILURES_PER_ACCOUNT=3。
+# ============================================================
+security:
+  login:
+    # 同一账号允许的连续失败次数（跨 IP 累计），超出后临时封禁
+    max-failures-per-account: 5
+    # 同一 IP 的失败次数（跨账号累计）。医院/校园 NAT 出口下多人共用公网 IP，
+    # 故给得比账号维度宽松；真正撞库会在短时间内命中几十上百个不同账号。
+    max-failures-per-ip: 30
+    # 失败计数窗口 / 封禁时长（分钟）。封禁到点自动解除，无需管理员介入，
+    # 也就不会被用来把别人的账号永久锁死。
+    failure-window-minutes: 15
+    lock-minutes: 15
+    # 是否启用「按 IP 封禁」并从 X-Forwarded-For（取最右一项）取客户端地址。
+    # 默认 false = 只按账号维度封禁。这是刻意的安全默认值：
+    #   后端在 nginx 之后时，所有请求的 remoteAddr 都是 nginx 容器 IP，
+    #   按它封禁 → 任何人失败 30 次就让<b>全站用户</b> 15 分钟内登不上
+    #   （把「一个人作恶」惩罚成「所有人受罚」）。
+    # 要启用 IP 维度，需同时满足：① 把 21090 限制为仅 nginx / 内网可达
+    # （见 docker-compose.yml 的端口说明），② 把本项置为 true。
+    # 只做②不做① 反而更糟：攻击者绕开 nginx 直连即可伪造 XFF 绕过封禁。
+    trusted-proxy: false
+
+# ============================================================
 # 安全密钥（生产必须通过环境变量注入，缺失即拒绝启动）
 # ============================================================
 jwt:

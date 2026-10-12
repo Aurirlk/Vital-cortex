@@ -111,6 +111,15 @@ public class JwtInterceptor implements HandlerInterceptor {
 
         // 将用户信息放入ThreadLocal
         LocalThreadHolder.setUserId(userId, roleId);
+        // 2026-10-10 修复：同时以 request attribute 暴露身份。
+        // 全项目有 13 处控制器用 @RequestAttribute("userId") 取当前用户
+        // （NotificationController / PostController / QuizController /
+        //  DrugRecommendController），但此前没有任何地方 setAttribute，
+        // 且不存在自定义 HandlerMethodArgumentResolver —— 这些接口在运行时
+        // 一律抛 ServletRequestBindingException，直接 500。
+        // 在这里统一补齐，保持控制器签名不变。
+        request.setAttribute("userId", userId);
+        request.setAttribute("roleId", roleId);
         // 注入 MDC，使日志能关联到具体用户（配合 TraceIdFilter 的 traceId）
         MDC.put("userId", String.valueOf(userId));
         return true;

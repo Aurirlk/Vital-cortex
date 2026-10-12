@@ -70,9 +70,26 @@
             <el-col :span="23">
               <div>
                 <div>
+                  <!-- 2026-10-10：业务通知（预约提醒/订单通知/AI 对话）带标题，
+                       没有标题的历史消息照旧只显示正文 -->
+                  <div
+                    v-if="message.title"
+                    class="message-title"
+                    style="font-size: 14px; font-weight: 600; margin-bottom: 4px"
+                  >
+                    {{ message.title }}
+                  </div>
                   <span class="message-content" style="font-size: 14px">{{
                     message.content
                   }}</span>
+                  <!-- 有跳转路径才可点：点了标为已读并跳到对应业务页面 -->
+                  <span
+                    v-if="message.linkUrl"
+                    class="message-link"
+                    @click="openMessage(message)"
+                  >
+                    查看详情 &gt;
+                  </span>
                 </div>
               </div>
               <div>
@@ -142,6 +159,28 @@ export default {
       this.messageQueryDto.messageType = messageType;
       this.loadAllUsersMessage();
     },
+    /**
+     * 打开业务通知（2026-10-10 新增）
+     *
+     * 先标已读再跳转：跳走之后这个页面就被替换掉了，回来时列表是重新拉的，
+     * 不该还显示成未读。标已读失败（例如被并发删掉）不拦着跳转 ——
+     * 用户点「查看详情」的意图是去看那条预约/订单，不是来标记状态的。
+     */
+    openMessage(message) {
+      if (!message.linkUrl) {
+        return;
+      }
+      if (!message.isRead && message.id) {
+        this.$axios
+          .post(`/notification/read/${message.id}`)
+          .then(() => {
+            message.isRead = true;
+          })
+          .catch(() => {});
+      }
+      // linkUrl 形如 /user/appointment（见后端 NotifyTemplates.LINK_*）
+      this.$router.push(message.linkUrl);
+    },
     getUserInfo() {
       const userInfo = sessionStorage.getItem("userInfo");
       this.userInfo = JSON.parse(userInfo);
@@ -195,6 +234,18 @@ export default {
 .message-time {
   font-size: 12px;
   color: rgb(131, 104, 102);
+}
+
+/* 业务通知的「查看详情」入口（2026-10-10 新增） */
+.message-link {
+  margin-left: 8px;
+  font-size: 13px;
+  color: rgb(82, 152, 237);
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .clear-message {

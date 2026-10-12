@@ -264,9 +264,11 @@ export default {
       try {
         const { data } = await request.get(`quiz/exam/${exam.id}`);
         if (data.code === 200) {
-          const qData = await request.get("quiz/question/query", {
-            params: { examId: exam.id },
-          });
+          // 2026-10-10 修复：这里原本 POST quiz/question/query {examId}，
+          // 但后端 QuizQuestionQueryDto 没有 examId 字段，参数被静默丢弃，
+          // 结果是「题库全量题目」而非本卷题目。改用专为本场景新增的
+          // GET quiz/exam/{id}/questions（服务端已剔除答案与解析）。
+          const qData = await request.get(`quiz/exam/${exam.id}/questions`);
           if (qData.data.code === 200) this.questions = qData.data.data;
         }
         const startData = await request.post(`quiz/start/${exam.id}`);

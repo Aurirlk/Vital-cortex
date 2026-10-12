@@ -19,6 +19,9 @@
     <select id="getByUserAndProduct" resultType="cn.kmbeast.pojo.entity.ShoppingCart">
         SELECT * FROM shopping_cart WHERE user_id = #{userId} AND product_id = #{productId}
     </select>
+    <select id="getById" resultType="cn.kmbeast.pojo.entity.ShoppingCart">
+        SELECT * FROM shopping_cart WHERE id = #{id}
+    </select>
     <resultMap id="CartResultMap" type="cn.kmbeast.pojo.vo.ShoppingCartVO">
         <id column="id" property="id"/>
         <result column="user_id" property="userId"/>

@@ -64,6 +64,9 @@ class PatientDetailServiceImplTest {
     @Mock private FollowupTaskMapper followupTaskMapper;
     @Mock private UserMapper userMapper;
 
+    /** 2026-10-10：开始接诊会把预约置为已完成并发通知，需要这个协作者 */
+    @Mock private cn.kmbeast.core.notify.UserNotifier userNotifier;
+
     @InjectMocks
     private PatientDetailServiceImpl service;
 
@@ -486,6 +489,15 @@ class PatientDetailServiceImplTest {
         assertEquals("原发性高血压 1 级", saved.getDiagnosis());
 
         verify(appointmentMapper).completeByDoctor(5001, MY_ID);
+
+        // 2026-10-10：接诊完成要通知患者本人（受「预约提醒」开关控制，去重走 sendOnce）
+        ArgumentCaptor<Integer> receiver = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<cn.kmbeast.pojo.em.NotificationSource> source =
+                ArgumentCaptor.forClass(cn.kmbeast.pojo.em.NotificationSource.class);
+        verify(userNotifier).sendOnce(receiver.capture(), source.capture(), any(), any(),
+                eq(5001L), eq("/user/appointment"));
+        assertEquals(PATIENT, receiver.getValue(), "通知要发给患者，不是操作者");
+        assertEquals(cn.kmbeast.pojo.em.NotificationSource.APPOINTMENT, source.getValue());
     }
 
     @Test

@@ -70,6 +70,15 @@
         1. 医生主科室 department_id = 该科室
         2. 医生 dept_ids（JSON 数组）包含该科室 —— 支持一个医生兼多科
       用 UNION 后在外层按科室聚合，避免 OR 条件导致索引失效。
+
+      2026-10-10：下面两个条件原本写的是 SQL 的 `<>`。`<` 在 XML 里是标签起始符，
+      裸写在元素内容中不是合法 XML —— MyBatis 解析这个文件时直接
+      SAXParseException「元素内容必须由格式正确的字符数据或标记组成」，
+      SqlSessionFactory 建不起来，**整个服务启动失败**。
+      改成 `!=`（MySQL 中与 `<>` 完全等价，且不需要 &lt;&gt; 转义，SQL 更易读）。
+      之所以长期没被发现：全部单元测试都是 Mockito 纯对象测试，没有一个会启动
+      Spring 容器，Mapper XML 从来没被真正解析过 —— mvn test 全绿，服务却起不来。
+      本次新增 MapperXmlParseTest 专门盯这个盲区。
     -->
     <select id="countDoctorByDepartment" resultType="map">
         SELECT dept_id AS deptId, COUNT(*) AS cnt FROM (
@@ -83,9 +92,9 @@
                 COALESCE(NULLIF(d.dept_ids, ''), '[]'),
                 '$[*]' COLUMNS (dept_id VARCHAR(20) PATH '$')
             ) jt
-            WHERE d.status = 1 AND d.dept_ids IS NOT NULL AND d.dept_ids &lt;&gt; ''
+            WHERE d.status = 1 AND d.dept_ids IS NOT NULL AND d.dept_ids != ''
         ) t
-        WHERE t.dept_id IS NOT NULL AND t.dept_id &lt;&gt; 0
+        WHERE t.dept_id IS NOT NULL AND t.dept_id != 0
         GROUP BY t.dept_id
     </select>
 </mapper>

@@ -25,4 +25,7 @@
     <select id="getDefault" resultType="cn.kmbeast.pojo.entity.ShippingAddress">
         SELECT * FROM shipping_address WHERE user_id = #{userId} AND is_default = 1 LIMIT 1
     </select>
+    <select id="getById" resultType="cn.kmbeast.pojo.entity.ShippingAddress">
+        SELECT * FROM shipping_address WHERE id = #{id}
+    </select>
 </mapper>

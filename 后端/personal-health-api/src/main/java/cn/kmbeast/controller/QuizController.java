@@ -96,6 +96,20 @@ public class QuizController {
         return quizService.addQuestionsToExam(examId, questions);
     }
 
+    /**
+     * 取本卷题目（答题用；响应里 answer / analysis 已置空）。
+     *
+     * <p>2026-10-10 新增。此前用户端「开始答题」实际请求的是
+     * {@code POST /quiz/question/query {examId}}，而 {@code QuizQuestionQueryDto}
+     * 没有 examId 字段，条件被静默丢弃 —— 每张试卷都会加载出题库里的全部题目
+     * （试卷题量、总分与实际作答内容全都对不上）。
+     */
+    @Protector
+    @GetMapping("/exam/{examId}/questions")
+    public Result<List<QuizQuestionVO>> getExamQuestions(@PathVariable Integer examId) {
+        return quizService.getExamQuestions(examId);
+    }
+
     // ========== 答题 ==========
 
     @Protector

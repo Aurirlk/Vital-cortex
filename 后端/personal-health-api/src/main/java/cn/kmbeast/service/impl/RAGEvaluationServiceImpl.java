@@ -9,6 +9,7 @@ import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * RAG 检索质量评测（RAG-02 真实化）。
@@ -33,17 +34,42 @@ public class RAGEvaluationServiceImpl implements RAGEvaluationService {
     @Resource
     private HybridRetriever hybridRetriever;
 
-    // 评测历史（内存存储，生产环境应持久化）
-    private final List<Map<String, Object>> evaluationHistory = new ArrayList<>();
+    /**
+     * 评测历史（内存存储，生产环境应持久化）。
+     *
+     * <p>2026-10-10 修复三处并发/内存缺陷：
+     * <ol>
+     *   <li>原为裸 {@code ArrayList}，而本类是 Spring 单例 —— 两个请求同时
+     *       {@code add(0, …)} 会互相踩踏（数组搬移不是原子的），
+     *       而 {@code getEvaluationHistory} 里的 {@code subList} 是<b>视图</b>，
+     *       序列化它的时候另一线程正在插入，就会抛
+     *       {@code ConcurrentModificationException} / {@code IndexOutOfBoundsException}；
+     *       改用 {@link CopyOnWriteArrayList}，读多写少场景下最省心。</li>
+     *   <li>原为无界增长 —— 每次评测都塞进去，跑久了就是内存泄漏。
+     *       改为只保留最近 {@link #MAX_HISTORY} 条。</li>
+     *   <li>{@code subList} 返回的是原列表的视图，调用方拿到后原列表一改就失效，
+     *       改为返回 {@code List.copyOf(...)} 快照。</li>
+     * </ol>
+     */
+    private final List<Map<String, Object>> evaluationHistory = new CopyOnWriteArrayList<>();
 
-    // 告警阈值
-    private Map<String, Integer> thresholds = new HashMap<>();
+    /** 评测历史保留条数上限（超出后丢弃最旧的） */
+    private static final int MAX_HISTORY = 200;
 
-    {
-        thresholds.put("contextPrecision", 70);
-        thresholds.put("faithfulness", 80);
-        thresholds.put("answerRelevance", 70);
-    }
+    /**
+     * 告警阈值。
+     *
+     * <p>2026-10-10 修复：原为可变 {@code HashMap} 且 {@code saveThresholds}
+     * 会整体替换。两个后果：① 评测线程与保存线程并发读写非线程安全集合；
+     * ② 调用方只传了部分阈值时，剩下的 key 变成 null，
+     * 后续 {@code thresholds.get("x") * 100} 拆箱直接 NPE。
+     * 改为 volatile + 不可变 Map，且保存时与默认值合并。
+     */
+    private volatile Map<String, Integer> thresholds = Map.of(
+            "contextPrecision", 70,
+            "faithfulness", 80,
+            "answerRelevance", 70
+    );
 
     // 测试数据集（golden set，可扩展）
     private static final List<Map<String, String>> TEST_DATASET = Arrays.asList(
@@ -131,6 +157,10 @@ public class RAGEvaluationServiceImpl implements RAGEvaluationService {
         result.put("status", pass ? "pass" : "fail");
 
         evaluationHistory.add(0, result);
+        // 2026-10-10：超上限时裁掉最旧的，避免无界增长
+        while (evaluationHistory.size() > MAX_HISTORY) {
+            evaluationHistory.remove(evaluationHistory.size() - 1);
+        }
         log.info("[RAG评测] 完成: 精确度={}%, 忠实度={}%, 相关性={}%",
                 round(avgPrecision * 100), round(avgFaithfulness * 100), round(avgRelevance * 100));
         return result;
@@ -139,7 +169,12 @@ public class RAGEvaluationServiceImpl implements RAGEvaluationService {
     @Override
     public List<Map<String, Object>> getEvaluationHistory(Integer limit) {
         if (limit == null || limit <= 0) limit = 20;
-        return evaluationHistory.subList(0, Math.min(limit, evaluationHistory.size()));
+        // 2026-10-10 修复：原为 evaluationHistory.subList(...) —— 返回的是**视图**，
+        // 序列化期间若有新评测写入，会抛 ConcurrentModificationException。
+        // 这里返回快照（CopyOnWriteArrayList 的 subList 本身就是快照视图，
+        // 但显式 copy 一层，语义上不再依赖底层实现）。
+        int end = Math.min(limit, evaluationHistory.size());
+        return new ArrayList<>(evaluationHistory.subList(0, end));
     }
 
     @Override
@@ -164,8 +199,20 @@ public class RAGEvaluationServiceImpl implements RAGEvaluationService {
 
     @Override
     public void saveThresholds(Map<String, Integer> thresholds) {
-        this.thresholds = thresholds;
-        log.info("[RAG评测] 告警阈值已更新: {}", thresholds);
+        // 2026-10-10 修复：原实现直接 this.thresholds = thresholds，整体替换。
+        // 调用方只传部分 key 时，其余 key 会变成 null，
+        // 评测里 thresholds.get(...) * 100 拆箱立刻 NPE。
+        // 现在以现有值为底、用入参覆盖，并过滤掉 null 值，保持所有 key 都有值。
+        Map<String, Integer> merged = new HashMap<>(this.thresholds);
+        if (thresholds != null) {
+            thresholds.forEach((k, v) -> {
+                if (k != null && v != null) {
+                    merged.put(k, v);
+                }
+            });
+        }
+        this.thresholds = Map.copyOf(merged);
+        log.info("[RAG评测] 告警阈值已更新: {}", this.thresholds);
     }
 
     @Override

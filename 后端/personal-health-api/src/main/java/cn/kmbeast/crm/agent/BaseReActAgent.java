@@ -83,6 +83,26 @@ public abstract class BaseReActAgent {
             new ThreadPoolExecutor.AbortPolicy());
     protected static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
 
+    /**
+     * 2026-10-10：容器关闭时优雅停掉工具线程池。
+     *
+     * <p>池内线程是 daemon，不会阻止 JVM 退出，所以此前「没关池」不至于挂住进程；
+     * 但 Spring 销毁 Bean 时正在执行的工具调用会被硬中断，
+     * 且线程池对象不释放。补一个 @PreDestroy，让在途任务有机会收尾。
+     */
+    @jakarta.annotation.PreDestroy
+    public void shutdownToolExecutor() {
+        toolExecutor.shutdown();
+        try {
+            if (!toolExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                toolExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            toolExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
     /** AG-08：LLM 调用重试（429 / 5xx 指数退避） */
     private static final int LLM_MAX_RETRIES = 3;
     private static final long LLM_BASE_BACKOFF_MS = 400;

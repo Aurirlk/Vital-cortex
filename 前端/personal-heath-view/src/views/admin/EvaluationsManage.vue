@@ -48,14 +48,13 @@
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column prop="upvoteList" width="60" label="点赞数">
+        <!-- 2026-10-10 修复：原先按 upvoteList（逗号串）长度算赞数，而该字段
+             从无写入，列表恒显示 0。改读后端聚合出来的 upvoteCount。 -->
+        <el-table-column prop="upvoteCount" width="60" label="点赞数">
           <template #default="{ row }">
-            <span
-              v-if="row.upvoteList !== null"
-              style="font-size: 16px; font-weight: bolder"
-              >{{ row.upvoteList.split(",").length }}</span
-            >
-            <span v-else style="font-size: 16px; font-weight: bolder">0</span>
+            <span style="font-size: 16px; font-weight: bolder">{{
+              row.upvoteCount || 0
+            }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="contentType" width="100" label="类型">
@@ -109,68 +108,16 @@
         :total="totalItems"
       ></el-pagination>
     </el-row>
-    <!--  -->
-    <el-dialog
-      title="数据统计"
-      :show-close="false"
-      v-model="reportDialog"
-      width="35%"
-    >
-      <template #title>
-        <div style="padding: 25px 0 0 20px">
-          <span style="font-size: 18px; font-weight: 800">数据统计报告</span>
-        </div>
-      </template>
-      <el-row style="padding: 10px 20px 20px 20px">
-        <el-col :span="12">
-          <PieChart :types="types" :values="values" />
-        </el-col>
-        <el-col :span="12">
-          <el-row class="main">
-            <div v-if="!reportsDate.length">
-              <span class="count">暂无数据</span>
-            </div>
-            <el-col
-              :span="6"
-              class="item"
-              v-for="(entity, index) in reportsDate"
-              :key="index"
-            >
-              <div class="count" style="margin-top: 20px">
-                <span>
-                  {{ entity.count }}
-                </span>
-              </div>
-              <div>{{ entity.name }}</div>
-            </el-col>
-          </el-row>
-        </el-col>
-      </el-row>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button
-            class="customer"
-            size="small"
-            style="background-color: rgb(241, 241, 241); border: none"
-            @click="reportDialog = false"
-            >关闭</el-button
-          >
-        </span>
-      </template>
-    </el-dialog>
+    <!-- 2026-10-10 后端已无 evaluations-reports/reportCount 举报统计接口，举报统计入口/弹窗一并移除 -->
   </el-row>
 </template>
 
 <script>
-import PieChart from "@/components/PieChart";
 export default {
-  components: {
-    PieChart,
-  },
   data() {
     return {
       data: { cover: "" },
-      reportsDate: [],
+      // 2026-10-10 举报统计接口不存在，reportsDate/types/values/reportDialog 已随功能移除
       filterText: "",
       tableData: [],
       currentPage: 1,
@@ -192,9 +139,6 @@ export default {
       evaluationsDelete: false,
       idToDelete: null,
       contentDialog: false,
-      reportDialog: false,
-      types: [],
-      values: [],
       evalustionsQueryDto: {},
     };
   },
@@ -213,19 +157,7 @@ export default {
     keySearch() {
       this.fetchFreshData();
     },
-    reportsList(row) {
-      this.reportDialog = true;
-      this.reportList(row.id);
-    },
-    async reportList(id) {
-      const response = await this.$axios(
-        `/evaluations-reports/reportCount/${id}`
-      );
-      const { data } = response;
-      this.reportsDate = data.data;
-      this.types = this.reportsDate.map((entity) => entity.name);
-      this.values = this.reportsDate.map((entity) => entity.count);
-    },
+    // 2026-10-10 后端已无 evaluations-reports/reportCount 接口，举报统计方法（reportsList/reportList）整体移除
     showContent(news) {
       this.data = news;
       this.contentDialog = true;
@@ -347,18 +279,31 @@ export default {
       }
     },
     //
+    escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    },
+    escapeRegExp(text) {
+      return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    },
     highlightKeyword(text) {
       if (text == null) {
-        return;
+        return "";
       }
+      // 先转义用户数据，杜绝 v-html 存储型 XSS；再对转义后的文本做高亮包裹
+      const safeText = this.escapeHtml(text);
       if (this.filterText != "") {
-        const regex = new RegExp(this.filterText, "gi");
-        return text.replace(
+        const regex = new RegExp(this.escapeRegExp(this.filterText), "gi");
+        return safeText.replace(
           regex,
           '<span class="highlight" style="background-color: #bec936;color:#373834;">$&</span>'
         );
       }
-      return text;
+      return safeText;
     },
     resetQueryCondition() {
       this.filterText = "";
@@ -387,7 +332,7 @@ export default {
     async addOperation() {
       this.data.tag = this.dynamicTags.join(",");
       try {
-        const response = await this.$axios.post("/evaluations/save", this.data);
+        const response = await this.$axios.post("/evaluations/insert", this.data);
         this.$message[response.data.code === 200 ? "success" : "error"](
           response.data.msg
         );

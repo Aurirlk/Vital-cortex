@@ -20,7 +20,12 @@ export default {
     initDarkMode() {
       const settings = localStorage.getItem("userSettings");
       if (settings) {
-        const parsed = JSON.parse(settings);
+        let parsed = {};
+        try {
+          parsed = JSON.parse(settings);
+        } catch (e) {
+          console.warn("[App] userSettings 解析失败，已忽略:", e);
+        }
         if (parsed.isDarkMode) {
           //
           const currentPath = this.$route?.path || "";
@@ -33,7 +38,12 @@ export default {
     applyDarkModeForRoute(path) {
       const settings = localStorage.getItem("userSettings");
       if (settings) {
-        const parsed = JSON.parse(settings);
+        let parsed = {};
+        try {
+          parsed = JSON.parse(settings);
+        } catch (e) {
+          console.warn("[App] userSettings 解析失败，已忽略:", e);
+        }
         if (parsed.isDarkMode && path.startsWith("/user")) {
           document.documentElement.classList.add("dark");
         } else {

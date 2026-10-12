@@ -465,7 +465,9 @@ public class AiConfig {
             this.model = pc.getModels().get(0);
         }
         if (pc.getAnthropicBaseUrl() != null) {
-            this.reasonerApiUrl = pc.getOpenaiBaseUrl();
+            // 2026-10-10 修复：原为 pc.getOpenaiBaseUrl()（复制粘贴笔误），
+            // 导致切换厂商后「深度思考/Anthropic 风格」请求打到 OpenAI 兼容端点。
+            this.reasonerApiUrl = pc.getAnthropicBaseUrl();
         }
     }
     

@@ -1,6 +1,8 @@
 package cn.kmbeast.service.impl;
 
 import cn.kmbeast.context.LocalThreadHolder;
+import cn.kmbeast.core.notify.NotifyTemplates;
+import cn.kmbeast.core.notify.UserNotifier;
 import cn.kmbeast.mapper.AppointmentMapper;
 import cn.kmbeast.mapper.PatientProfileMapper;
 import cn.kmbeast.mapper.UserHealthMapper;
@@ -9,6 +11,7 @@ import cn.kmbeast.mapper.VisitRecordMapper;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.extend.UserHealthQueryDto;
+import cn.kmbeast.pojo.em.NotificationSource;
 import cn.kmbeast.pojo.entity.PatientProfile;
 import cn.kmbeast.pojo.entity.User;
 import cn.kmbeast.pojo.entity.UserHealth;
@@ -56,6 +59,9 @@ public class PatientDetailServiceImpl implements PatientDetailService {
 
     @Resource
     private AppointmentMapper appointmentMapper;
+
+    @Resource
+    private UserNotifier userNotifier;
 
     @Resource
     private PatientProfileMapper profileMapper;
@@ -599,6 +605,25 @@ public class PatientDetailServiceImpl implements PatientDetailService {
         } catch (Exception e) {
             // 预约状态没同步成功不影响就诊记录本身，仅记 warn
             log.warn("[PatientDetail] 就诊记录已建但预约状态未同步: appointmentId={}", appointmentId, e);
+        }
+
+        // 2026-10-10 新增：就诊完成通知患者，受设置页「预约提醒」开关控制。
+        // 这里是「填写接诊记录」这条路（另一条是 DoctorWorkServiceImpl.completeAppointment），
+        // 两条路都会把预约置为已完成，所以都要发 —— 否则从不同入口点「完成」，
+        // 患者收到收不到提醒会变成随机行为。
+        // sendOnce 去重 + SQL 的 status IN (0,1) 条件，保证同一次预约只通知一次。
+        if (appt.getPatientId() != null) {
+            try {
+                userNotifier.sendOnce(appt.getPatientId(), NotificationSource.APPOINTMENT,
+                        NotifyTemplates.T_APPOINTMENT_COMPLETED,
+                        NotifyTemplates.appointmentCompleted(appt.getAppointmentDate(),
+                                appt.getDoctorName()),
+                        appointmentId.longValue(),
+                        NotifyTemplates.LINK_APPOINTMENT);
+            } catch (Exception e) {
+                log.warn("[PatientDetail] 就诊完成通知发送失败，不影响接诊: appointmentId={}",
+                        appointmentId, e);
+            }
         }
 
         log.info("[PatientDetail] 医生 {} 完成接诊: appointmentId={}, patientId={}",

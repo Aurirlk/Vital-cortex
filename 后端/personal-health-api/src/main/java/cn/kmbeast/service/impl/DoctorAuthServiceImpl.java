@@ -1,6 +1,7 @@
 package cn.kmbeast.service.impl;
 
 import cn.kmbeast.core.auth.AuthSessionManager;
+import cn.kmbeast.core.auth.LoginAttemptGuard;
 import cn.kmbeast.mapper.HospitalDoctorMapper;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
@@ -46,6 +47,9 @@ public class DoctorAuthServiceImpl implements DoctorAuthService {
     /** 账号未初始化密码时的统一提示 */
     private static final String MSG_NEED_INIT = "首次登录请先设置初始密码";
 
+    /** 登录失败统一提示（不区分「账号不存在」与「密码错误」） */
+    private static final String MSG_LOGIN_FAIL = "账号或密码错误";
+
     @Resource
     private HospitalDoctorMapper doctorMapper;
 
@@ -58,16 +62,31 @@ public class DoctorAuthServiceImpl implements DoctorAuthService {
     @Resource
     private AuthSessionManager authSessionManager;
 
+    /** 登录失败计数与临时封禁（防撞库），见 LoginAttemptGuard 的类注释 */
+    @Resource
+    private LoginAttemptGuard loginAttemptGuard;
+
     @Override
     public Result<Object> login(DoctorLoginDTO dto) {
         if (dto == null || dto.getUsername() == null || dto.getUsername().isBlank()) {
             return ApiResult.error("请输入医生账号");
         }
 
-        HospitalDoctor doctor = doctorMapper.getByUsername(dto.getUsername().trim());
+        // 2026-10-10 修复（无防撞库）：/doctor/login 此前<b>连 @SentinelResource 都没有</b>
+        // （SentinelConfig 只给 user:login / ai:chat / file:upload 发了规则），
+        // 也就是说医生端登录可以无限次尝试。现与用户端登录共用一套失败计数与临时封禁。
+        String username = dto.getUsername().trim();
+        String blocked = loginAttemptGuard.checkBlocked(username);
+        if (blocked != null) {
+            return ApiResult.error(blocked);
+        }
+
+        HospitalDoctor doctor = doctorMapper.getByUsername(username);
         if (doctor == null) {
-            // 不提示「账号不存在」，避免账号枚举
-            return ApiResult.error("账号或密码错误");
+            // 不提示「账号不存在」，避免账号枚举；同时照样计数，
+            // 否则「计不计数」本身又成了枚举信号
+            loginAttemptGuard.recordFailure(username);
+            return ApiResult.error(MSG_LOGIN_FAIL);
         }
 
         if (doctor.getStatus() == null || doctor.getStatus() != 1) {
@@ -81,8 +100,13 @@ public class DoctorAuthServiceImpl implements DoctorAuthService {
             if (newPassword == null || newPassword.isBlank()) {
                 Map<String, Object> data = new HashMap<>();
                 data.put("needInitPassword", true);
-                data.put("doctorId", doctor.getId());
-                data.put("name", doctor.getName());
+                // 2026-10-10 修复（未认证即泄漏身份）：原先这里还返回 doctorId 与
+                // doctor.getName()，而这一步<b>尚未通过任何密码校验</b> ——
+                // 也就是说任何人 POST 一个医生账号名，就能拿到该医生的内部 ID 与真实姓名，
+                // 等于对外提供了一个「医生花名册查询」接口。
+                // 核查前端：DoctorLogin.vue 的 needInitPassword 分支只读这个布尔值，
+                // doctorId/name 仅在 onLoginSuccess（已拿到 token）后才使用，
+                // 因此这里删掉两个字段对流程无影响。
                 data.put("message", MSG_NEED_INIT);
                 return ApiResult.success(data);
             }
@@ -97,10 +121,13 @@ public class DoctorAuthServiceImpl implements DoctorAuthService {
         } else {
             // 常规登录：校验密码
             if (dto.getPassword() == null || !passwordEncoder.matches(dto.getPassword(), doctor.getPassword())) {
-                return ApiResult.error("账号或密码错误");
+                loginAttemptGuard.recordFailure(username);
+                return ApiResult.error(MSG_LOGIN_FAIL);
             }
         }
 
+        // 登录成功清零失败计数
+        loginAttemptGuard.clearOnSuccess(username);
         // 签发 token：role=DOCTOR；会话版本号沿用 AuthSessionManager（Redis 不可用时降级为 0）
         int ver = authSessionManager.nextVersion(doctor.getId());
         String token = jwtUtil.toToken(doctor.getId(), ROLE_DOCTOR, ver);

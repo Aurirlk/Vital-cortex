@@ -2,6 +2,7 @@ package cn.kmbeast.mapper;
 
 import cn.kmbeast.pojo.dto.query.extend.UserQueryDto;
 import cn.kmbeast.pojo.entity.User;
+import cn.kmbeast.pojo.vo.NotifyPreferenceVO;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -43,6 +44,18 @@ public interface UserMapper {
      * @return int 受影响行数
      */
     int update(User user);
+
+    /**
+     * 保存用户设置（2026-10-10 新增）
+     *
+     * <p>与通用 {@link #update} 分开：这里只更新设置列，且非空字段才覆盖，
+     * 供设置页「每次只提交一组设置」的局部保存用；通用 update 服务于编辑资料，
+     * 两者共用一条语句会让每次资料保存都被迫带上全部设置列。
+     *
+     * @param user 必须含 id，其余字段只填需要更新的设置项
+     * @return int 受影响行数
+     */
+    int updateSettings(User user);
 
     /**
      * 批量删除用户信息
@@ -108,5 +121,17 @@ public interface UserMapper {
      */
     int countByPhone(@Param("phone") String phone,
                      @Param("excludeId") Integer excludeId);
+
+    /**
+     * 只取用户的通知开关（2026-10-10 新增）
+     *
+     * <p>发通知前要判断收件人是否关掉了这一类，属于高频路径，
+     * 因此单独一条只取五列的查询，不用 {@link #getUserById} 把整行
+     * （含 user_pwd）读出来。
+     *
+     * @param userId 用户ID
+     * @return 五列开关；用户不存在时返回 null
+     */
+    NotifyPreferenceVO getNotifyPreference(@Param("userId") Integer userId);
 
 }

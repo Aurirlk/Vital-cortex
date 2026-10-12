@@ -7,6 +7,8 @@
 .env
 .env.*
 *.env
+# 例外：环境变量模板必须入库，否则使用者无从得知 compose 需要哪些变量
+!/.env.example
 
 # 数据库配置（排除本地配置，保留示例）
 **/application.yml
@@ -83,6 +85,14 @@ hs_err_pid*.log
 replay_pid*.log
 # 编译产物备份目录
 target_bak*
+
+# ---- 2026-10-10 补充：数据库导出快照不应进仓库 ----
+# 说明：Data/90_归档/ 下是 37 个 mysqldump 全库/单表导出（约 3MB）与一次性整改脚本。
+# 这类文件没有版本管理价值（二进制式大文本，diff 全红），且每次 git add .
+# 都可能被误提交。需要时从磁盘取用即可，不必进仓库。
+# 注意：已在库中的文件必须 git rm --cached 才会停止跟踪（.gitignore 对已跟踪文件无效）。
+Data/90_归档/
+后端/personal-health-api/patch_secrets.py
 
 # ---- 2026-10-05 补充：运行时产物与旧构建，不应进仓库 ----
 # Redis 持久化文件（运行时生成，体积大且含运行时状态）

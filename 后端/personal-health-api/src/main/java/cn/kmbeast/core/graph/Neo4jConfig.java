@@ -15,7 +15,8 @@ public class Neo4jConfig {
     @Value("${neo4j.username:neo4j}")
     private String username;
 
-    @Value("${neo4j.password:***REMOVED***}")
+    // 2026-10-10：原为字面量 ***REMOVED***（脱敏脚本残留），改为空默认，与 Neo4jClient 一致。
+    @Value("${neo4j.password:}")
     private String password;
 
     // Neo4j 客户端在 Neo4jClient.java 中通过 @PostConstruct 初始化

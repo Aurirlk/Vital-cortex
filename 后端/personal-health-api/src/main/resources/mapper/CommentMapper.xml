@@ -110,9 +110,13 @@
         UPDATE comment SET like_count = GREATEST(like_count - 1, 0) WHERE id = #{id}
     </update>
 
-    <update id="updateUpvoteList">
-        UPDATE comment SET upvote_list = #{upvoteList} WHERE id = #{id}
-    </update>
+    <!--
+      2026-10-10 移除 updateUpvoteList（UPDATE comment SET upvote_list = ...）。
+      评论点赞关系改以 content_interaction 为唯一依据：那张表有
+      uk_interaction(target_type, target_id, user_id, action_type) 唯一键，
+      重复点赞由数据库挡住；而 upvote_list 这种「读整数串→拼串→整体写回」的写法
+      在并发下必然丢赞，且无法约束。comment.upvote_list 列保留但不再参与逻辑。
+    -->
 
     <select id="queryByUser" resultMap="CommentResultMap">
         SELECT <include refid="BaseColumns"/>,

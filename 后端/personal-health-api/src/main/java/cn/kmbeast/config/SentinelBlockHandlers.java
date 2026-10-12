@@ -2,6 +2,7 @@ package cn.kmbeast.config;
 
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
+import cn.kmbeast.pojo.dto.request.DoctorLoginDTO;
 import cn.kmbeast.pojo.dto.update.AiChatRequest;
 import cn.kmbeast.pojo.dto.update.UserLoginDTO;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
@@ -28,7 +29,22 @@ public class SentinelBlockHandlers {
 
     /** 登录限流兜底：返回可读错误，避免撞库刷接口 */
     public static Result<Object> loginBlocked(UserLoginDTO dto, BlockException ex) {
-        log.warn("[Sentinel] 登录触发限流: ip 请求过于频繁");
+        // 2026-10-10 修正日志措辞：这条规则是 sentinel.qps.login 定义的**全局** QPS 阀，
+        // 并不按 IP 维度统计（FlowRule 未设置 limitApp/param）。
+        // 原先写「ip 请求过于频繁」会把排查引到错误方向。
+        // 防撞库另由 LoginAttemptGuard（按账号 + 按 IP 记失败次数）负责。
+        log.warn("[Sentinel] 用户登录触发全局 QPS 限流: account={}",
+                dto == null ? "(null)" : dto.getUserAccount());
+        return ApiResult.error("请求过于频繁，请稍后再试");
+    }
+
+    /**
+     * 医生登录限流兜底（2026-10-10 新增：/doctor/login 此前完全没有流控）。
+     * <p>blockHandler 签名规则同 {@link #loginBlocked}：原始参数 + BlockException。
+     */
+    public static Result<Object> doctorLoginBlocked(DoctorLoginDTO dto, BlockException ex) {
+        log.warn("[Sentinel] 医生登录触发全局 QPS 限流: username={}",
+                dto == null ? "(null)" : dto.getUsername());
         return ApiResult.error("请求过于频繁，请稍后再试");
     }
 

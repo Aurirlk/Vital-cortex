@@ -1,5 +1,6 @@
 package cn.kmbeast.config;
 
+import cn.kmbeast.Interceptor.ActuatorAccessInterceptor;
 import cn.kmbeast.Interceptor.CrmApiKeyInterceptor;
 import cn.kmbeast.Interceptor.JwtInterceptor;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +26,11 @@ import jakarta.annotation.Resource;
  * 极易误判「这两个端点需要登录」。现把 {@code /doctor/login} 补进本类，
  * 两处保持一致；{@code /file/getFile} 因前端以 {@code <img src>} 直接引用、
  * 无法携带 token 头，<b>只能</b>由代码侧放行，其安全性由 122 位随机文件名（capability URL）承担。</p>
+ *
+ * <p>2026-10-10 补充：{@code /actuator/**} 免鉴权是抓取端（Prometheus，无 token）所必需的，
+ * 但 21090 直接对外发布，等于把 JVM/HTTP 指标挂在公网上。现由
+ * {@link ActuatorAccessInterceptor} 限定为仅回环/私有网段可访问，
+ * 且<b>先于 JWT 拦截器注册</b>以便最早短路。
  */
 @Configuration
 public class InterceptorConfig implements WebMvcConfigurer {
@@ -38,8 +44,15 @@ public class InterceptorConfig implements WebMvcConfigurer {
     @Resource
     private CrmApiKeyInterceptor crmApiKeyInterceptor;
 
+    @Resource
+    private ActuatorAccessInterceptor actuatorAccessInterceptor;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // 先注册：不满足来源要求的请求在第一个拦截器就 404，不必再走 JWT 判定
+        registry.addInterceptor(actuatorAccessInterceptor)
+                .addPathPatterns(API + "/actuator/**", "/actuator/**");
+
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(

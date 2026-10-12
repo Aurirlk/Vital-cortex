@@ -23,7 +23,12 @@ services:
       - mysql_data:/var/lib/mysql
       # 初始化脚本按文件名**字典序**依次执行，故用 01~14 前缀固定顺序。
       # 顺序依据 Data/README.md「场景 A：全新部署」：
-      #   01_建库建表（7 个）→ 02_迁移脚本（7 个）→ 终态 35 表 / 391 字段
+      #   01_建库建表（7 个）→ 02_迁移脚本（01/02/04~06/07_mall/08）→ 终态 35 表 / 405 字段
+      # 2026-10-10 修复：原路径 ./Data/sql/... 在 Data 目录按用途分层重构后已不存在，
+      # Docker 会把不存在的主机路径当作<b>目录</b>创建，initdb 里挂进去的是一堆空目录 ——
+      # 初始化 SQL 一条都不会执行，表现为「MySQL 起来了但一张表都没有」。
+      # 注意：这里只对**空数据卷**生效（docker-entrypoint-initdb.d 的机制如此），
+      # 已有数据的库升级要手动执行 Data/02_迁移脚本/ 下的脚本。
       - ./Data/01_建库建表/init_database.sql:/docker-entrypoint-initdb.d/01-init.sql
       - ./Data/01_建库建表/forum_schema.sql:/docker-entrypoint-initdb.d/02-forum.sql
       - ./Data/01_建库建表/appointment_schema.sql:/docker-entrypoint-initdb.d/03-appointment.sql
@@ -33,13 +38,19 @@ services:
       - ./Data/01_建库建表/model_announcement_schema.sql:/docker-entrypoint-initdb.d/07-model-announcement.sql
       - ./Data/02_迁移脚本/01_schema_refactor.sql:/docker-entrypoint-initdb.d/08-migrate-01.sql
       - ./Data/02_迁移脚本/02_patient_profile_normalize.sql:/docker-entrypoint-initdb.d/09-migrate-02.sql
-      # 03 为演示数据对齐（生产环境请删除本行挂载）
-      - ./Data/02_迁移脚本/03_align_demo_appointments.sql:/docker-entrypoint-initdb.d/10-migrate-03-demo.sql
-      - ./Data/02_迁移脚本/04_consolidate_tables.sql:/docker-entrypoint-initdb.d/11-migrate-04.sql
-      - ./Data/02_迁移脚本/05_drop_unused_tables.sql:/docker-entrypoint-initdb.d/12-migrate-05.sql
-      - ./Data/02_迁移脚本/06_merge_message_into_notification.sql:/docker-entrypoint-initdb.d/13-migrate-06.sql
-      - ./Data/02_迁移脚本/07_mall_product_medical_fields.sql:/docker-entrypoint-initdb.d/14-migrate-07.sql
-      # 注：Data/01_建库建表/rbac_schema.sql 已于 2026-10-07 移入 Data/90_归档/（建 4 张本项目未使用的表），故不挂载。
+      # 03_align_demo_appointments.sql 为本地演示数据对齐，按 Data/README.md「生产勿执行」不予挂载
+      - ./Data/02_迁移脚本/04_consolidate_tables.sql:/docker-entrypoint-initdb.d/10-migrate-04.sql
+      - ./Data/02_迁移脚本/05_drop_unused_tables.sql:/docker-entrypoint-initdb.d/11-migrate-05.sql
+      - ./Data/02_迁移脚本/06_merge_message_into_notification.sql:/docker-entrypoint-initdb.d/12-migrate-06.sql
+      - ./Data/02_迁移脚本/07_mall_product_medical_fields.sql:/docker-entrypoint-initdb.d/13-migrate-07-mall.sql
+      # 注：07_sensitive_word.sql 不予挂载 —— 本次合并采纳了 main 侧对该功能的代码清理
+      # （SensitiveWordMapper/ContentAudit* 已删除，敏感词改由 system_config 存储），
+      # 挂载它只会多出一张无人读写的 sensitive_word 表，并使表数偏离 35 的基线。脚本保留备用。
+      # 14 必挂：user 表的 notify_appointment / notify_order / notify_ai_chat 三列由该脚本补齐，
+      # 缺列时通知开关是静默失效（读不到开关一律按「开启」处理），不会报错。
+      - ./Data/02_迁移脚本/08_user_settings_columns.sql:/docker-entrypoint-initdb.d/14-migrate-08-user-settings.sql
+      # 注 1：Data/01_建库建表/rbac_schema.sql 已于 2026-10-07 移入 Data/90_归档/（建 4 张本项目未使用的表），故不挂载。
+      # 注 2：02_迁移脚本/09_create_ai_ro_user.sql 是需 DBA 权限的运维脚本，不在自动部署链中。
     networks:
       - backend-net
     healthcheck:
@@ -60,24 +71,62 @@ services:
       DB_USER: root
       DB_PASS: ${DB_ROOT_PASSWORD:?请通过环境变量 DB_ROOT_PASSWORD 设置 MySQL root 密码}
       SERVER_PORT: 21090
+      # 2026-10-10 补充：显式激活 prod profile（Dockerfile ENTRYPOINT 里也有默认值）。
+      # 否则容器内既无 application.yml 也无 profile，占位符无法解析、启动即失败。
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       # ENG-02 整改：移除已泄露的 JWT_SECRET 兜底值。
       # 后端启动时会校验密钥强度与黑名单，未配置或使用默认值将拒绝启动。
       JWT_SECRET: ${JWT_SECRET:?请通过环境变量 JWT_SECRET 设置至少32字节的随机密钥}
       CRM_API_KEY: ${CRM_API_KEY:?请通过环境变量 CRM_API_KEY 设置 CRM 接口密钥}
-      AI_API_KEY: ${AI_API_KEY:-}
+      # 2026-10-10 修复：原变量名 AI_API_KEY 映射的是属性 ai.api.key，
+      # 而代码读的是 ai.chat.api-key（AiConfig.java:40）→ 环境变量必须叫 AI_CHAT_API_KEY。
+      # 原来在 .env 里配 AI_API_KEY 完全不生效，AI 对话在首次请求时才以 401 暴露。
+      AI_CHAT_API_KEY: ${AI_CHAT_API_KEY:-${AI_API_KEY:-}}
       AI_PROVIDER: ${AI_PROVIDER:-deepseek}
       # RAG-03：嵌入服务端点必须显式配置（DeepSeek 无 embeddings API）
       EMBEDDING_API_URL: ${EMBEDDING_API_URL:-}
       # MM-06：文件存储根目录指向持久化卷，避免容器重建丢失上传文件
       FILE_STORAGE_ROOT: /app/data
+      # Redis 地址：由 application-prod.yml 的 `spring.data.redis.host: ${REDIS_HOST:redis}`
+      # 占位符读取。注意这与「profile 未激活」是同一根因 —— profile 一旦生效，
+      # REDIS_HOST 即被解析；此前容器内无 profile，Redis 回落到 localhost:6379 导致缓存层整体失效。
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # 2026-10-10 补充：对外可访问的基础地址，否则上传文件返回的 URL 指向 localhost。
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:${BACKEND_PORT:-21090}}
     ports:
+      # ⚠️ 安全提示（2026-10-10）：这条把后端直接发布到宿主机所有网卡。
+      # backend 为 Prometheus 暴露了 /actuator/health 与 /actuator/prometheus，
+      # 而 /actuator/** 在 JwtInterceptor 中是免鉴权的 —— 也就是说
+      # 谁都能访问 http://<宿主机IP>:21090/api/personal-health/v1.0/actuator/prometheus
+      # 读取 JVM / 连接池 / HTTP 指标（含全部 URI 标签）。
+      # 前端 nginx 已经封掉了经 80 端口的这条路（见 nginx.conf）。
+      # 【2026-10-10 补充】除 nginx 那一层外，应用内也已拦一道：
+      # ActuatorAccessInterceptor 默认只放行回环/私有网段来源（Prometheus 与
+      # 容器健康检查都满足），公网直连 21090 读指标返回 404。开关见
+      # application-prod.yml 的 security.actuator.allow-private-only。
+      # 因此下面这条端口映射不再等同于「把指标挂到公网」。不过它仍然把
+      # 免鉴权的 /user/login、/user/register 直接暴露在公网上（绕过了 nginx 的
+      # 限流/防护层），生产环境建议改为只监听回环
+      # （前端 nginx 与 Prometheus 都走容器内网
+      # backend:21090，不受影响）：
+      #   - "127.0.0.1:${BACKEND_PORT:-21090}:21090"
+      # 或在宿主机防火墙/安全组上只放行 nginx 与 Prometheus 的来源地址。
+      # 【配套开关】改成只监听回环（或只放行 nginx）之后，就应当同时把
+      # application-prod.yml 里的 security.login.trusted-proxy 置为 true：
+      # 否则经 nginx 转发的请求 remoteAddr 全都是 nginx 容器 IP，
+      # 登录防撞库的「按 IP 封禁」会退化成全局封禁（一个人失败 30 次，
+      # 全站都被锁在登录页外）。反过来，只要 21090 还对外发布，
+      # 这个开关就必须保持 false —— 否则攻击者直连时伪造 X-Forwarded-For 即可绕过。
       - "${BACKEND_PORT:-21090}:21090"
     volumes:
       - backend_data:/app/data
       - backend_logs:/app/logs
       - backend_cache:/app/cache
+      # 2026-10-10 修复：CRM 对话历史是 SQLite 库（CrmConfig 默认 ./crm_data/chat_history.db
+      # → 容器内 /app/crm_data），但此前没有任何卷挂到这里，容器一重建对话历史全丢
+      # （DELIVERY.md 却把它列为持久化卷）。
+      - backend_crm_data:/app/crm_data
     networks:
       - backend-net
       - frontend-net
@@ -121,7 +170,8 @@ services:
 
   # Prometheus 监控（D-007 整改：落地监控抓取端）
   prometheus:
-    image: prom/prometheus:latest
+    # 2026-10-10：由 :latest 改为固定版本，避免监控栈不可复现（其余镜像均已固定）。
+    image: prom/prometheus:v2.53.1
     container_name: zhikangyun-prometheus
     restart: unless-stopped
     ports:
@@ -159,7 +209,7 @@ services:
 
   # Alertmanager 告警通知（告警规则见 deploy/prometheus-alerts.yml，通知地址见 deploy/alertmanager.yml）
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:v0.27.0
     container_name: zhikangyun-alertmanager
     restart: unless-stopped
     command:
@@ -212,6 +262,8 @@ volumes:
   backend_logs:
     driver: local
   backend_cache:
+    driver: local
+  backend_crm_data:
     driver: local
   redis_data:
     driver: local

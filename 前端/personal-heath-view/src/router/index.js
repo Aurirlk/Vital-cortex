@@ -68,10 +68,12 @@ const routes = [
   {
     path: "/message",
     component: () => import(`@/views/user/Message.vue`),
+    meta: { requireAuth: true },
   },
   {
     path: "/record",
     component: () => import(`@/views/user/Record.vue`),
+    meta: { requireAuth: true },
   },
   {
     path: "/admin",

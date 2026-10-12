@@ -45,6 +45,10 @@ class AppointmentServiceImplTreeTest {
     @Mock
     private DepartmentMapper departmentMapper;
 
+    /** 2026-10-10：挂号链路会发业务通知，需要这个协作者才不至于为 null */
+    @Mock
+    private cn.kmbeast.core.notify.UserNotifier userNotifier;
+
     @InjectMocks
     private AppointmentServiceImpl service;
 

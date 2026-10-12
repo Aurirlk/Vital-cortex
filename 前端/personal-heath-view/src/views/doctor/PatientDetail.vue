@@ -552,7 +552,11 @@ export default {
     }
     this.load();
   },
+  mounted() {
+    window.addEventListener("resize", this.handleResize);
+  },
   beforeUnmount() {
+    window.removeEventListener("resize", this.handleResize);
     this.disposeCharts();
   },
   methods: {
@@ -666,9 +670,6 @@ export default {
         });
         this.charts.push(chart);
       });
-
-      // 侧边栏折叠会导致容器宽度变化，需要重算
-      window.addEventListener("resize", this.handleResize);
     },
 
     handleResize() {

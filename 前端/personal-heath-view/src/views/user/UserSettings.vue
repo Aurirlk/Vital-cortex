@@ -299,10 +299,21 @@ export default {
           userName: this.basicForm.userName,
           userEmail: this.basicForm.userEmail,
         });
-        if (data.code === 200) {
+        if (data.code !== 200) {
+          this.$message.error(data.msg || "保存失败");
+          return;
+        }
+        // 2026-10-10 补：语言 / 时区此前只出现在这个表单里、从不提交，
+        // 用户改完保存、刷新就回退。它们属于用户设置，走 user/settings，
+        // 与昵称邮箱（user/update）分开保存。
+        const res = await request.put("user/settings", {
+          language: this.basicForm.language,
+          timezone: this.basicForm.timezone,
+        });
+        if (res.data.code === 200) {
           this.$message.success("基本设置保存成功");
         } else {
-          this.$message.error(data.msg || "保存失败");
+          this.$message.error(res.data.msg || "语言/时区保存失败");
         }
       } catch (e) {
         this.$message.error("保存失败，请稍后重试");

@@ -37,6 +37,16 @@ ai:
   max-tokens: 4096
   vector-cache-dir: ./vector_cache
 
+# 业务通知（2026-10-10 新增，实现见 core/notify/）
+# 用户在设置页的开关存 user 表的 notify_* 列（迁移脚本 08），发送前统一查一次，
+# 详见 docs/通知系统.md。下面这项不配置即用默认值。
+notify:
+  appointment-reminder:
+    # 「就诊前一天提醒」定时任务的执行时间（Spring cron 六段式，秒 分 时 日 月 周）。
+    # 默认每天 19:00；置为 "-" 可关闭本任务。
+    # 注：排班只有 morning/afternoon/evening（无具体钟点），故只能按「天」提醒。
+    cron: "0 0 19 * * ?"
+
 # CRM 模块（机器对机器接口 + RAG 链路）
 crm:
   # 本地开发可设为 false 跳过启动期强校验（不配置也能启动）。
@@ -50,3 +60,26 @@ crm:
     # 必须独立配置，否则会把主 LLM 的 key 发到 embedding 服务导致 401。为空时回退主 LLM 密钥。
     api-key: YOUR_EMBEDDING_API_KEY  # ← 建议配置：环境变量 EMBEDDING_API_KEY 注入
     model: BAAI/bge-m3  # ← 示例：硅基流动 bge-m3；或 text-embedding-v3（DashScope）
+
+# 登录防撞库（2026-10-10 新增，实现见 core/auth/LoginAttemptGuard）
+# 下列均为默认值，本地开发无需配置；生产可在 application-prod.yml 或环境变量里调整。
+security:
+  login:
+    max-failures-per-account: 5    # 同一账号连续失败几次后临时封禁（跨 IP 累计）
+    max-failures-per-ip: 30        # 同一 IP 累计失败几次后临时封禁（跨账号累计）
+    failure-window-minutes: 15     # 失败计数的统计窗口
+    lock-minutes: 15               # 封禁时长，到点自动解除
+    # 是否启用「按 IP 封禁」（并从 X-Forwarded-For 取客户端地址）。
+    # 默认 false = 只按账号封禁：后端在 nginx 之后时 remoteAddr 都是 nginx 容器 IP，
+    # 按它封禁会让一个人失败 30 次就把全站用户锁在登录页外。
+    # 置 true 的前提是把 21090 限制为仅 nginx / 内网可达（见 docker-compose.yml）。
+    trusted-proxy: false
+
+# Actuator 访问来源限制（2026-10-10 新增，实现见 Interceptor/ActuatorAccessInterceptor）
+# /actuator/** 免鉴权是 Prometheus 抓取所必需的，但 21090 对外发布时
+# 任何人都能读到 JVM / 连接池 / 全量 URI 指标。默认只放行回环与私有网段：
+# Prometheus、nginx 都在容器内网（172.x），容器健康检查打 localhost，均不受影响；
+# 公网直连读指标返回 404。判定只看 TCP 对端地址，不看可伪造的 X-Forwarded-For。
+security:
+  actuator:
+    allow-private-only: true

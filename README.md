@@ -61,26 +61,30 @@
 
 | 文档           | 路径                                      | 说明                                           |
 | ------------ | --------------------------------------- | -------------------------------------------- |
-| 文档 | 路径 | 说明 |
-| --- | --- | --- |
-| **文档索引与阅读指南** | `docs/文档索引与阅读指南.md` | **入口文档**：该读哪份、代码在哪 |
-| **项目现状基线** | `docs/项目现状基线.md` | 系统当前状态（35 表 / 391 字段 / 405 用例） |
+| **文档索引与阅读指南** | `docs/文档索引与阅读指南.md` | **入口文档**：该读哪份、代码在哪、哪些内容已有更新 |
+| **项目现状基线** | `docs/项目现状基线.md` | 系统当前状态快照（2026-10-07 实测 35 表 / 391 字段；叠加 `07_mall_product_medical_fields`、`08_user_settings_columns` 后为 35 表 / 405 字段） |
 | **数据表结构基线** | `docs/数据表结构基线-20261003.md` | 逐表逐字段清单（`information_schema` 导出） |
-| **AI 智能体架构** | `docs/智能体架构.md` | Multi-Agent / ReAct / Provider 工厂 / 熔断器 |
+| **AI 智能体架构** | `docs/智能体架构.md` | **v5.1 新增** Multi-Agent / ReAct / Provider 工厂 / 熔断器 |
 | **数据智能体迁移方案** | `docs/DataAgent集成迁移方案.md` | 受控 NL2SQL 的落地顺序与逐阶段实现 |
-| **数据资产与 AI 能力整改方案** | `docs/数据资产与AI能力整改方案.md` | 能力建设与缺陷整改记录 |
-| **RAG 检索增强** | `docs/RAG子系统.md` | ingestion 管线 / 混合检索 / RAGAS |
-| **安全加固设计** | `docs/安全加固设计.md` | JWT / CRM Key / SqlGuard / XSS / 脱敏 |
-| **多模态能力设计** | `docs/多模态设计.md` | 图片进上下文 + 语音 ASR/TTS Provider 化 |
+| **数据资产与 AI 能力整改方案** | `docs/数据资产与AI能力整改方案.md` | 能力建设与缺陷整改记录；**附录 §B** 承接原《缺陷与改进路线图》的待排期清单（S/F/E/A 编号） |
+| **RAG 检索增强** | `docs/RAG子系统.md` | **v5.1 新增** ingestion 管线 / 混合检索 / RAGAS |
+| **安全加固设计** | `docs/安全加固设计.md` | **v5.1 新增** JWT / CRM Key / SqlGuard / XSS / 脱敏 |
+| **多模态能力设计** | `docs/多模态设计.md` | **v5.2 新增** 图片进上下文 + 语音 ASR/TTS Provider 化详细设计 |
+| **通知系统** | `docs/通知系统.md` | **2026-10-10 新增** 用户通知开关接线、9 个触发点、去重键、就诊前一天定时任务 |
 | 后端开发 | `docs/后端开发.md` | 接口设计、核心代码、架构说明 |
 | 前端开发 | `docs/前端开发.md` | 页面设计、组件说明、路由设计 |
 | 数据库设计 | `docs/数据库设计.md` | ER 图、建表 SQL、字段说明 |
 | 需求分析 | `docs/需求分析.md` | 功能需求、用例图、流程图 |
 | 架构调研与代码审查 | `docs/调研与代码审查报告-20261003.md` | 一次人工全量审查的结论与处置 |
-| 测试报告 | `docs/测试报告.md` | 测试环境、用例清单、回归范围（405 用例 / 38 类） |
+| 测试报告 | `docs/测试报告.md` | 测试环境、用例清单、回归范围（用例数按时点分别记录，**合并后总数以本文档为准**） |
 | Linux 部署 | `docs/Linux部署.md` | 环境搭建、部署命令、常见问题 |
 | 开发指南 | `docs/开发指南.md` | 编码规范与防坑指南 |
-| AI 工具使用记录 | `docs/AI工具使用记录.md` | 开发期 AI 工具使用实录 |
+| AI 工具使用记录 | `docs/AI工具使用记录.md` | 开发期 AI 工具使用实录（≥500 字） |
+| ~~用户交付手册~~ | `DELIVERY.md`（已删除） | 2026-10-11 起「部署指南 / 配置说明 / 使用指南 / 故障排查」4 章并入本 README，其余章节与 README 重复故丢弃 |
+
+> 本表**不再列出** `docs/项目状态.md` 与 `docs/缺陷与改进路线图.md`：两份旧文档已于 2026-10-07 的文档重构中删除，
+> `origin/claude` 线 2026-10-10~12 写回它们的新内容已移植到权威文档 —— 变更表见 [`docs/项目现状基线.md`](docs/项目现状基线.md) §十一，
+> 待排期清单（含 E1「无集成/E2E 测试」最新口径）见 [`docs/数据资产与AI能力整改方案.md`](docs/数据资产与AI能力整改方案.md) 附录 §B。
 
 ---
 
@@ -292,7 +296,9 @@
 | LLM 稳定性 | Provider 工厂 + 熔断器（429/5xx 自动重试，故障快速失败）+ Sentinel 限流（登录/AI/上传） |
 | 成本可观测 | 每次调用 token 用量落库（`ai_usage` 表） |
 | 日志 | `TraceIdFilter` 注入 MDC `traceId`/`userId`，logback 滚动归档，异常不回传前端 |
-| 单元测试 | **405 个用例 / 38 个测试类全绿**（含 SqlGuard、NL2SQL 双守卫、数据智能体流水线），详见「部署指南 · 测试」 |
+| 单元测试 | 用例规模按时点分别为：我方 2026-10-07 基线 **405 个用例 / 38 个测试类全绿**（含 SqlGuard、NL2SQL 双守卫、数据智能体流水线），2026-10-11 P0-P2 合入后达 **541/541**；通知线 2026-10-10~12 自报 **364 例 `mvn -o test` 全绿**并另增一批后端测试。**2026-10-12 两条线合并后实测 `mvn -o -B test`：684 例 / 69 个测试类全绿**（口径仍全为 Mockito，零 `@SpringBootTest`），详见 [`docs/测试报告.md`](docs/测试报告.md) §7，另见「部署指南 · 测试」 |
+
+> 测试位于 `后端/personal-health-api`；以 Mockito 纯对象测试为主，`@SpringBootTest` 仅 2 处（`GraphExtractorDbTest`、`MapperTableConsistencyTest`），Mapper XML 由 `MapperXmlParseTest` 静态兜底（该测试曾揪出服务启动阻断缺陷）。
 
 **合规提醒**：平台涉及个人健康信息（敏感个人信息），正式商用前建议完成**等保三级测评**与个人信息保护影响评估，并对第三方 AI 厂商的数据出境做合规确认。
 
@@ -895,13 +901,17 @@ python 前端/personal-heath-view/selfcheck.py
 
 ### 评论表 `comment` / 通知表 `notification` / 内容交互表 `content_interaction`
 
-> 原 `evaluations`（评论）已并入 `comment`；原 `message`（消息）已并入 `notification`。
+> 原 `evaluations`（评论）已于 2026-10-03 并入 `comment`（迁移脚本 `Data/02_迁移脚本/01_schema_refactor.sql`、`04_consolidate_tables.sql`）；
+> 原 `message`（消息）已于 2026-10-04 并入 `notification`（迁移脚本 `Data/02_迁移脚本/06_merge_message_into_notification.sql`），二者均不再是独立的表。
 
 | 表名 | 说明 | 关键字段 |
 | ----------- | --------- | --------- |
-| `comment` | 统一评论表（多态） | `target_type`（NEWS / QUIZ）、`target_id`、`user_id`、`parent_id`（树形）、`content`、`like_count`、`status` |
-| `notification` | 统一通知表（合并原 `message`） | `user_id`、`title`、`content`、`message_type`（1 系统通知 / 2 互动消息 / 3 私信）、`is_read`、`source`、`biz_type`、`biz_id` |
+| `comment` | 统一评论表（多态，合并原 `evaluations` + `post_reply`） | `target_type`（NEWS / QUIZ）、`target_id`、`user_id`、`parent_id`（树形）、`content`、`like_count`、`status` |
+| `notification` | 统一通知表（合并原 `message`，全站通知与消息） | `user_id`、`title`、`content`、`type`（业务分类）、`message_type`（用户视角分类：1 系统通知 / 2 互动消息 / 3 私信）、`is_read`、`source`、`link_url`（供消息中心展示与跳转）、`biz_type`+`biz_id`（关联业务） |
 | `content_interaction` | 内容交互统一表 | `target_type`（NEWS / POST / PRODUCT）、`target_id`、`user_id`、`action_type`（LIKE / FAVORITE / REPORT / FOLLOW）、`reason`、`status` |
+
+> 通知的发送方统一走 `core/notify/UserNotifier`（发送前先按收件人开关过滤，`sendOnce` 提供去重键），「就诊前一天提醒」由 `AppointmentReminderJob` 定时触发；
+> 用户侧的 5 个通知开关等 14 个设置列由迁移脚本 `Data/02_迁移脚本/08_user_settings_columns.sql`（2026-10-10）补入 `user` 表。详见 [`docs/通知系统.md`](docs/通知系统.md)。
 
 ---
 
@@ -1016,7 +1026,8 @@ VitalCortex/
 - AI 输出 DOMPurify 净化、出境前 PII 脱敏、token 用量落库（`ai_usage`）
 
 **工程**
-- 25 个单元测试（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl）通过
+- 单元测试扩充至 364 例（`mvn -o test` 全绿）：安全护栏（SqlGuard / ChunkUtil / ToolArgsValidator）、
+  登录防撞库、IDOR 归属校验、通知开关与业务通知接线、Mapper XML 静态检查
 - Docker 镜像去默认密码、非 root 运行、healthcheck；CI 去 `continue-on-error`
 - 后端 `pom.xml` 编码属性修正、测试依赖补全；规范化损坏换行符
 
@@ -1177,7 +1188,7 @@ VitalCortex/
 
 | 编号    | 原缺陷          | 现状                                                                                    |
 | ----- | ------------ | ------------------------------------------------------------------------------------- |
-| D-005 | 缺少单元测试       | 已补 25 个用例（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl），`mvn test` 通过 |
+| D-005 | 缺少单元测试       | 已扩充至 364 个用例，`mvn -o test` 通过；**但全为 Mockito 纯对象测试、无 `@SpringBootTest`**，容器与 Mapper XML 靠 `MapperXmlParseTest` 静态兜底（该测试揪出过启动阻断缺陷，见 `docs/测试报告.md` §6.2） |
 | D-009 | 部分接口缺少输入验证   | CRM 接口加 `CrmApiKeyInterceptor`；`SqlGuard` 只读守卫 + 租户隔离；AI 输出 DOMPurify 净化            |
 | D-001 | 部分 SQL 脚本未执行 | 已补充 `Data/01_建库建表/ai_usage_schema.sql`（token 成本表），其余业务表脚本仍建议部署时执行                      |
 | D-002 | admin 账号可能被锁定 | 修复 `init_database.sql`/`mock_business_data.sql` 种子账号 `is_login 1→0`；`UserServiceImpl.backUpdate` 增加防锁死守卫（保护当前用户 & 最后一名可登录管理员） |

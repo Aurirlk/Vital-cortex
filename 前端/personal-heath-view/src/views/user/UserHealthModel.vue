@@ -160,7 +160,7 @@
           <el-table-column prop="name" label="指标名称">
             <template #default="{ row }">
               <span
-                ><el-icon style="margin-right: 3px"><Receiving /></el-icon
+                ><el-icon style="margin-right: 3px"><Collection /></el-icon
                 >{{ row.name }}</span
               >
             </template>

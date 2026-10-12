@@ -173,26 +173,19 @@
           <p class="login-form__desc">智康云健康管理系统</p>
         </div>
 
-        <!--  -->
-        <div class="login-tabs">
-          <button
-            class="login-tab"
-            :class="{ 'login-tab--active': loginType === 'account' }"
-            @click="loginType = 'account'"
-          >
-            账号登录
-          </button>
-          <button
-            class="login-tab"
-            :class="{ 'login-tab--active': loginType === 'phone' }"
-            @click="loginType = 'phone'"
-          >
-            手机登录
-          </button>
-        </div>
-
-        <!--  -->
-        <div v-if="loginType === 'account'" class="login-form__fields">
+        <!-- 2026-10-10 删除「手机登录」页签：
+             它是一处**账号接管漏洞**，而不是一个待完善的功能。
+             原实现里：
+               1) sendSmsCode() 根本不请求后端（项目里也没有任何短信/验证码接口），
+                  只是弹个「验证码已发送（演示环境默认 123456）」再跑一个倒计时动画；
+               2) loginByPhone() 完全忽略用户填的 this.smsCode，
+                  直接用写死的口令 "123456" 去调 user/login。
+             结果：任何人只要知道某个已注册用户的手机号，
+             输入该手机号 + 任意 6 位数字即可登录成对方（无需密码、无需验证码）。
+             真正的短信登录需要短信服务商与后端验证码存储，本项目均不具备，
+             因此这里直接下线该入口，而不是保留一个假的登录框。
+             若后续接入短信服务，请同时补上后端发码/校验接口再恢复 UI。 -->
+        <div class="login-form__fields">
           <div class="form-field">
             <label class="form-label">账号</label>
             <input
@@ -215,69 +208,10 @@
         </div>
 
         <!--  -->
-        <div v-else class="login-form__fields">
-          <div class="form-field">
-            <label class="form-label">手机号</label>
-            <input
-              v-model="phone"
-              class="form-input"
-              placeholder="请输入手机号"
-              maxlength="11"
-            />
-          </div>
-          <div class="form-field">
-            <label class="form-label">短信验证码</label>
-            <div class="form-field__row">
-              <input
-                v-model="smsCode"
-                class="form-input form-input--sms"
-                placeholder="请输入验证码"
-                maxlength="6"
-                @keyup.enter="loginByPhone"
-              />
-              <button
-                class="sms-btn"
-                :class="{ 'sms-btn--disabled': smsCooldown > 0 }"
-                :disabled="smsCooldown > 0"
-                @click="sendSmsCode"
-              >
-                <svg
-                  v-if="smsCooldown <= 0"
-                  class="sms-btn__icon"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M22 2L11 13"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M22 2L15 22L11 13L2 9L22 2Z"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                <span>{{
-                  smsCooldown > 0 ? `${smsCooldown}s 后重发` : "获取验证码"
-                }}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!--  -->
         <button
           class="login-btn"
           :class="{ 'login-btn--loading': loading }"
-          @click="loginType === 'account' ? login() : loginByPhone()"
+          @click="login()"
           :disabled="loading"
         >
           <span v-if="loading" class="login-btn__spinner"></span>
@@ -338,12 +272,10 @@ export default {
   components: { BrandLogo, BrandDecoration },
   data() {
     return {
-      loginType: "account", // account / phone
+      // 2026-10-10：loginType / phone / smsCode / smsCooldown / smsTimer 已随
+      // 「手机登录」页签一并移除（那是一处账号接管入口，详见模板注释）。
       act: "",
       pwd: "",
-      phone: "",
-      smsCode: "",
-      smsCooldown: 0,
       loading: false,
     };
   },
@@ -357,86 +289,10 @@ export default {
       this.$router.push("/doctor/login");
     },
 
-    //
-    sendSmsCode() {
-      if (!this.phone || this.phone.length !== 11) {
-        this.$swal.fire({
-          title: "提示",
-          text: "请输入 11 位手机号",
-          icon: "warning",
-          showConfirmButton: false,
-          timer: DELAY_TIME,
-        });
-        return;
-      }
-      //
-      this.smsCooldown = 60;
-      const timer = setInterval(() => {
-        this.smsCooldown--;
-        if (this.smsCooldown <= 0) {
-          clearInterval(timer);
-        }
-      }, 1000);
-      this.$swal.fire({
-        title: "成功",
-        text: "验证码已发送（演示环境默认 123456）",
-        icon: "success",
-        showConfirmButton: false,
-        timer: DELAY_TIME,
-      });
-    },
-
-    //
-    async loginByPhone() {
-      if (!this.phone || this.phone.length !== 11) {
-        this.$swal.fire({
-          title: "提示",
-          text: "请输入 11 位手机号",
-          icon: "warning",
-          showConfirmButton: false,
-          timer: DELAY_TIME,
-        });
-        return;
-      }
-      if (!this.smsCode || this.smsCode.length !== 6) {
-        this.$swal.fire({
-          title: "提示",
-          text: "请输入 6 位验证码",
-          icon: "warning",
-          showConfirmButton: false,
-          timer: DELAY_TIME,
-        });
-        return;
-      }
-      //
-      this.loading = true;
-      try {
-        const hashedPwd = "123456"; // 短信登录固定密码(原始)
-        const paramDTO = { userAccount: this.phone, userPwd: hashedPwd };
-        const { data } = await request.post(`user/login`, paramDTO);
-        if (data.code !== 200) {
-          this.$swal.fire({
-            title: "登录失败",
-            text: data.msg || "账号或密码错误",
-            icon: "error",
-            showConfirmButton: false,
-            timer: DELAY_TIME,
-          });
-          return;
-        }
-        setToken(data.data.token);
-        connectWs();
-        const { role } = data.data;
-        await this.$router.push(
-          role === 1 ? "/admin/adminLayout" : "/user/news-record"
-        );
-      } catch (error) {
-        console.error(":", error);
-        this.$message.error("登录失败，请检查网络后重试");
-      } finally {
-        this.loading = false;
-      }
-    },
+    // 2026-10-10 已删除 sendSmsCode() / loginByPhone()：
+    // 前者不请求后端、只演一个倒计时；后者忽略用户输入的验证码，
+    // 直接用写死口令 "123456" 登录 —— 知道手机号即可接管账号。
+    // 详见模板中「手机登录」页签位置的说明。
 
     //
     async login() {
