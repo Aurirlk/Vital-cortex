@@ -19,8 +19,15 @@
         DELETE FROM appointment WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
     </delete>
+    <!--
+      2026-10-10 修正：本文件此前 4 处（query / getById / queryByDoctorAndDateRange /
+      getLatestByDoctorAndPatient）都写的是 u.user_phone AS patient_phone，但 user 表里
+      并没有 user_phone 这一列，真正的列名是 phone（user_phone 只是索引名 idx_user_phone）。
+      2026-10-03 的字段改名只修了 UserMapper.xml，漏了这个文件，导致「我的预约」、
+      医生端接诊列表、预约详情在干净部署上直接报 ERROR 1054 Unknown column 'u.user_phone'。
+    -->
     <select id="query" resultMap="AppointmentResultMap">
-        SELECT a.*, u.user_name AS patient_name, u.user_phone AS patient_phone,
+        SELECT a.*, u.user_name AS patient_name, u.phone AS patient_phone,
                d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name,
                CASE a.time_slot WHEN 'morning' THEN '上午' WHEN 'afternoon' THEN '下午'
                     WHEN 'evening' THEN '晚间' ELSE a.time_slot END AS time_slot_name
@@ -51,7 +58,7 @@
         </where>
     </select>
     <select id="getById" resultMap="AppointmentResultMap">
-        SELECT a.*, u.user_name AS patient_name, u.user_phone AS patient_phone,
+        SELECT a.*, u.user_name AS patient_name, u.phone AS patient_phone,
                d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name,
                CASE a.time_slot WHEN 'morning' THEN '上午' WHEN 'afternoon' THEN '下午'
                     WHEN 'evening' THEN '晚间' ELSE a.time_slot END AS time_slot_name
@@ -121,7 +128,7 @@
 
     <!-- 某位医生在指定日期区间的预约（医生端「我的接诊」列表） -->
     <select id="queryByDoctorAndDateRange" resultMap="AppointmentResultMap">
-        SELECT a.*, u.user_name AS patient_name, u.user_phone AS patient_phone,
+        SELECT a.*, u.user_name AS patient_name, u.phone AS patient_phone,
                d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name,
                CASE a.time_slot WHEN 'morning' THEN '上午' WHEN 'afternoon' THEN '下午'
                     WHEN 'evening' THEN '晚间' ELSE a.time_slot END AS time_slot_name
@@ -173,7 +180,7 @@
 
     <!-- 该患者与我有预约关系的「最近一条预约」——用于详情页默认定位到具体那一条 -->
     <select id="getLatestByDoctorAndPatient" resultMap="AppointmentResultMap">
-        SELECT a.*, u.user_name AS patient_name, u.user_phone AS patient_phone,
+        SELECT a.*, u.user_name AS patient_name, u.phone AS patient_phone,
                d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name,
                CASE a.time_slot WHEN 'morning' THEN '上午' WHEN 'afternoon' THEN '下午'
                     WHEN 'evening' THEN '晚间' ELSE a.time_slot END AS time_slot_name
@@ -184,5 +191,26 @@
         WHERE a.doctor_id = #{doctorId} AND a.patient_id = #{patientId}
         ORDER BY a.appointment_date DESC, a.id DESC
         LIMIT 1
+    </select>
+
+    <!-- ==================== 就诊前一天提醒（2026-10-10） ====================
+         定时任务扫某一天的预约，逐条发「明天有就诊安排」。
+         为什么偏好过滤写在 SQL 里、而不是查出来再逐条判断：
+           1) 批量路径，一次可能几百条 —— 逐条查开关就是 N 次查询；
+           2) 用户关掉开关时，这条记录本来就不该被查出来。
+         口径与 NotificationPreferenceServiceImpl#enabled 对齐：NULL 视为开启。 -->
+    <select id="queryReminderTargets" resultMap="AppointmentResultMap">
+        SELECT a.*, u.user_name AS patient_name, u.phone AS patient_phone,
+               d.name AS doctor_name, d.title AS doctor_title, dep.name AS department_name,
+               CASE a.time_slot WHEN 'morning' THEN '上午' WHEN 'afternoon' THEN '下午'
+                    WHEN 'evening' THEN '晚间' ELSE a.time_slot END AS time_slot_name
+        FROM appointment a
+        LEFT JOIN `user` u ON u.id = a.patient_id
+        LEFT JOIN hospital_doctor d ON d.id = a.doctor_id
+        LEFT JOIN department dep ON dep.id = a.department_id
+        WHERE a.appointment_date = #{appointmentDate}
+          AND a.status IN (0, 1)
+          AND (u.notify_appointment = 1 OR u.notify_appointment IS NULL)
+        ORDER BY a.time_slot ASC, a.serial_number ASC
     </select>
 </mapper>

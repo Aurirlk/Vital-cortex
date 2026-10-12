@@ -17,6 +17,25 @@ public interface DoctorScheduleMapper {
     void incrementBookedCount(@Param("id") Integer id);
     void decrementBookedCount(@Param("id") Integer id);
 
+    /**
+     * 原子的「占号」：仅当排班可用且未满时才 +1。
+     *
+     * <p>2026-10-10 新增，用于修复超卖。原先 {@code bookAppointment} 的写法是
+     * 「先 SELECT 判断 bookedCount &lt; maxPatients，再 UPDATE +1」——
+     * 检查与自增之间存在竞态窗口，N 个并发请求会同时读到「还有 1 个号」，
+     * 然后各自 +1，最终超卖 N-1 个号。
+     *
+     * <p>把条件写进 UPDATE 的 WHERE，由数据库行锁保证串行：
+     * 排在后面的事务会阻塞到前一个提交，重新读到已自增的 booked_count，
+     * 条件不再成立 → 影响 0 行 → 上层据此返回「号源已满」。
+     *
+     * <p>同时兼作「排班有效性」校验（{@code status = 1}），
+     * 已停诊/不存在的排班一律占号失败。
+     *
+     * @return 影响行数：1 = 占号成功，0 = 不存在 / 已停诊 / 已满
+     */
+    Integer reserveSlot(@Param("id") Integer id);
+
     // ==================== 医生端专用（2026-10-04） ====================
 
     /**

@@ -14,11 +14,15 @@ import java.time.LocalDateTime;
  * <p><b>两套字段的语义对照</b>（务必不要混淆）：
  * <table border="1">
  *   <tr><th>字段</th><th>含义</th></tr>
- *   <tr><td>{@code type}</td><td>通知业务分类：0公告 1预约 2随访 3订单 4私信</td></tr>
+ *   <tr><td>{@code type}</td><td>通知业务分类：0公告 1预约 2随访 3订单 4私信 5AI对话</td></tr>
  *   <tr><td>{@code messageType}</td><td>用户视角分类：1评论 2点赞 3指标提醒 4系统通知
- *       （合并自 {@code message.other} / 实体 {@code messageType}）</td></tr>
+ *       5预约提醒 6订单通知 7AI对话（合并自 {@code message.other} / 实体 {@code messageType}，
+ *       后三项为 2026-10-10 新增，见 {@code MessageType}）</td></tr>
  * </table>
  * 两个字段语义不同，<b>不可互相替代</b>。
+ *
+ * <p>发通知请统一走 {@code UserNotifier}，不要在业务代码里直接 new 本类再调
+ * {@code NotificationService#save} —— 那样会绕开用户的通知开关。
  */
 @Data
 public class Notification {
@@ -31,10 +35,10 @@ public class Notification {
 
     private String content;
 
-    /** 业务分类：0公告 1预约 2随访 3订单 4私信 */
+    /** 业务分类：0公告 1预约 2随访 3订单 4私信 5AI对话 */
     private Integer type;
 
-    /** 用户视角分类：1评论 2点赞 3指标提醒 4系统通知（合并自 message.other） */
+    /** 用户视角分类：1评论 2点赞 3指标提醒 4系统通知 5预约提醒 6订单通知 7AI对话（合并自 message.other） */
     private Integer messageType;
 
     private Integer isRead;

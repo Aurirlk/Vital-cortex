@@ -1,0 +1,20 @@
+# 2026-10-10 新增：前端构建上下文此前没有 .dockerignore。
+# 仓库根目录的 .dockerignore 只对「上下文 = 根目录」的构建生效，
+# 而前端服务的构建上下文是 ./前端/personal-heath-view，因此根目录那份对它无效。
+#
+# 少了这个文件，Dockerfile 里的 `COPY . .` 会把宿主机（尤其 Windows）上的
+# node_modules 覆盖进镜像，覆盖掉镜像内 `npm ci` 装好的 Linux 依赖 ——
+# 轻则构建上下文膨胀数百 MB，重则原生模块（如 sass/esbuild）因平台不匹配直接构建失败。
+node_modules
+dist
+
+# 本地/编辑器产物
+*.log
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+
+# 环境文件
+.env
+.env.*

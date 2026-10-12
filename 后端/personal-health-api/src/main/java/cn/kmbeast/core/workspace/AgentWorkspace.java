@@ -42,6 +42,18 @@ public class AgentWorkspace {
     /** 工作空间根目录 */
     private static final String WORKSPACE_ROOT = "./cache/agent_workspace";
 
+    /**
+     * 缓存上限。
+     *
+     * <p>2026-10-10 说明：这两个 map 目前<b>没有任何调用方</b>
+     * （全项目只用到下面的 {@code readJson} / {@code saveJson} 文件接口，
+     * 见 {@code AgentMemoryService}），因此当下不存在实际泄漏。
+     * 但它们是无界缓存 + 存放可变 {@link JSONObject}，
+     * 一旦被启用就会同时踩到「无界增长」与「并发原地修改」两个坑，
+     * 所以先加一道上限兜底，并留此说明。
+     */
+    private static final int MAX_CACHE_ENTRIES = 5000;
+
     /** 用户画像缓存 */
     private final ConcurrentHashMap<Integer, JSONObject> userProfileCache = new ConcurrentHashMap<>();
 
@@ -102,9 +114,26 @@ public class AgentWorkspace {
      * 更新用户画像缓存
      */
     public void updateUserProfile(Integer userId, JSONObject updates) {
-        JSONObject profile = getUserProfile(userId);
-        profile.putAll(updates);
-        userProfileCache.put(userId, profile);
+        if (userId == null || updates == null || updates.isEmpty()) {
+            return;
+        }
+        // 2026-10-10：原实现是「取出缓存里的那个 JSONObject，就地 putAll」
+        // —— JSONObject 底层是 LinkedHashMap，两个请求并发写同一个画像
+        // 会结构性破坏该 map（读取方可能死循环或读到半截数据）。
+        // 改为「复制 → 合并 → 整体替换」：读方要么看到旧快照、要么看到新快照，
+        // 永远不会看到正在被改写的对象。同时补上无界增长的兜底。
+        JSONObject merged = new JSONObject(getUserProfile(userId));
+        merged.putAll(updates);
+        evictIfOversized(userProfileCache, MAX_CACHE_ENTRIES);
+        userProfileCache.put(userId, merged);
+    }
+
+    /** 缓存超过上限时，丢弃最旧的一批（Agent 缓存均属可重建数据，直接清空最省事） */
+    private void evictIfOversized(Map<?, ?> cache, int max) {
+        if (cache.size() >= max) {
+            log.warn("AgentWorkspace 缓存已达上限 {}，执行清空以避免无界增长", max);
+            cache.clear();
+        }
     }
 
     /**

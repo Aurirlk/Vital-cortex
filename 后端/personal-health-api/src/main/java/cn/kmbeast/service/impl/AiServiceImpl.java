@@ -7,6 +7,8 @@ import cn.kmbeast.core.graph.KnowledgeGraphService;
 import cn.kmbeast.core.guard.OutputValidator;
 import cn.kmbeast.core.guard.SignalDetector;
 import cn.kmbeast.core.guard.SynthesisGuard;
+import cn.kmbeast.core.notify.NotifyTemplates;
+import cn.kmbeast.core.notify.UserNotifier;
 import cn.kmbeast.crm.agent.tool.AiSessionContext;
 import cn.kmbeast.crm.rag.HybridRetriever;
 import cn.kmbeast.mapper.AiChatRecordMapper;
@@ -16,6 +18,7 @@ import cn.kmbeast.pojo.api.PageResult;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.query.extend.AiChatRecordQueryDto;
 import cn.kmbeast.pojo.dto.update.AiChatRequest;
+import cn.kmbeast.pojo.em.NotificationSource;
 import cn.kmbeast.pojo.entity.AiChatRecord;
 import cn.kmbeast.pojo.entity.AiConversation;
 import cn.kmbeast.pojo.vo.AiStatsVO;
@@ -100,10 +103,24 @@ public class AiServiceImpl implements AiService {
     @Resource
     private cn.kmbeast.core.auth.AuthSessionManager authSessionManager;
 
+    @Resource
+    private UserNotifier userNotifier;
+
     private OkHttpClient httpClient;
 
     private static final int RAG_ARTICLE_LIMIT = 6;
     private static final int RAG_CONTENT_MAX_LENGTH = 300;
+
+    /**
+     * 客户端断开后仍允许累积的回复长度上限（2026-10-10 新增）。
+     *
+     * <p>见 {@code chatStream} 里「客户端断开后继续生成」的说明：
+     * 保留继续生成是为了把答案存下来并通知用户，但不能无上限地跑下去。
+     * 超过这个长度就停止累积并跳出读取循环，避免用户反复「开一个深度思考
+     * 再立刻关掉页面」把 Tomcat 工作线程长期占住（这是 SEC-10 当初急于断开的理由）。
+     * 4000 字 ≈ 一篇完整的健康科普回答，够用且可控。
+     */
+    private static final int ABANDONED_REPLY_MAX_CHARS = 4000;
 
     @jakarta.annotation.PostConstruct
     public void init() {
@@ -297,6 +314,15 @@ public class AiServiceImpl implements AiService {
         sessionMetadata.put("topP", chatRequest.getTopP());
         AiSessionContext.setMetadata(sessionMetadata);
 
+        // 2026-10-10 新增：把回调包装成「客户端断开也不打断生成」的 sink。
+        // 原来的行为是：客户端一断开，callback.onEvent 抛
+        // RuntimeException("SSE client disconnected")，异常一路冒到下面的
+        // catch (Exception)，直接 return —— 于是**这一轮的 AI 回复完全没有落库**。
+        // 用户只是切了个标签页，就永久丢掉了那条正在生成的回答，且毫无提示。
+        // 现在改为：断开只记标记、不再往前端推，但仍继续读完模型输出并入库，
+        // 结束后发一条「AI 回复已生成」通知（受设置页「AI 对话通知」开关控制）。
+        StreamSink sink = new StreamSink(callback);
+
         try {
             Double temperature = chatRequest.getTemperature() != null
                     ? chatRequest.getTemperature()
@@ -372,7 +398,7 @@ public class AiServiceImpl implements AiService {
                 if (searchResults != null && !searchResults.isEmpty()) {
                     webSearchContext = webSearchService.formatResultsAsText(searchResults);
                     // 推送搜索结果事件
-                    callback.onEvent("search_results", JSON.toJSONString(
+                    sink.emit("search_results", JSON.toJSONString(
                             buildMap("results", searchResults)));
                 }
                 log.info("[AI] 联网搜索: 结果数={}", searchResults != null ? searchResults.size() : 0);
@@ -438,13 +464,13 @@ public class AiServiceImpl implements AiService {
                 if (!response.isSuccessful()) {
                     String errorBody = response.body() != null ? response.body().string() : "";
                     log.error("[AI] API调用失败: code={}, body={}", response.code(), errorBody);
-                    callback.onEvent("error", JSON.toJSONString(
+                    sink.emit("error", JSON.toJSONString(
                             buildMap("message", "AI服务异常: HTTP " + response.code())));
                     return;
                 }
 
                 if (response.body() == null) {
-                    callback.onEvent("error", JSON.toJSONString(
+                    sink.emit("error", JSON.toJSONString(
                             buildMap("message", "AI服务返回为空")));
                     return;
                 }
@@ -471,8 +497,18 @@ public class AiServiceImpl implements AiService {
                                     if (content != null && !content.isEmpty()) {
                                         fullReply.append(content);
                                         chunkCount++;
-                                        callback.onEvent("answer_chunk", JSON.toJSONString(
+                                        sink.emit("answer_chunk", JSON.toJSONString(
                                                 buildMap("content", content, "done", false)));
+                                        // 客户端已断开：仍然继续生成以便入库 + 事后通知，
+                                        // 但不能无限跑 —— 到上限就收手，避免长连接线程堆积
+                                        //（SEC-10 当初立即断开正是为了防这个）。
+                                        if (sink.clientGone()
+                                                && fullReply.length() >= ABANDONED_REPLY_MAX_CHARS) {
+                                            log.info("[AI] 客户端已断开且回复已达上限，提前结束生成: "
+                                                            + "userId={}, replyLength={}",
+                                                    userId, fullReply.length());
+                                            break;
+                                        }
                                     }
                                 }
                                 String finishReason = choices.getJSONObject(0).getString("finish_reason");
@@ -480,8 +516,8 @@ public class AiServiceImpl implements AiService {
                             }
                         }
                     }
-                    log.info("[AI] 流式响应完成: agentType={}, chunkCount={}, replyLength={}",
-                            agentType, chunkCount, fullReply.length());
+                    log.info("[AI] 流式响应完成: agentType={}, chunkCount={}, replyLength={}, clientGone={}",
+                            agentType, chunkCount, fullReply.length(), sink.clientGone());
                 }
             }
 
@@ -505,7 +541,7 @@ public class AiServiceImpl implements AiService {
             }
             String appendText = guardedReply.substring(streamReply.length());
             if (!appendText.isEmpty()) {
-                callback.onEvent("answer_chunk", JSON.toJSONString(
+                sink.emit("answer_chunk", JSON.toJSONString(
                         buildMap("content", appendText, "done", false)));
                 fullReply.append(appendText);
             }
@@ -524,13 +560,20 @@ public class AiServiceImpl implements AiService {
             doneData.put("conversationId", conversationId);
             doneData.put("agentType", agentType);
             doneData.put("totalLength", fullReply.length());
-            callback.onEvent("answer_done", JSON.toJSONString(doneData));
+            sink.emit("answer_done", JSON.toJSONString(doneData));
+
+            // 2026-10-10 新增：客户端中途离开，但回答已经生成并入库 —— 通知他回来看。
+            // 这里**不能**用 sendOnce：同一个会话里用户可能多次「发起后离开」，
+            // 每次都该各收到一条，去重键（userId + 会话ID + 标题）会把第二、三次全吃掉。
+            if (sink.clientGone() && fullReply.length() > 0) {
+                notifyReplyReady(userId, conversationId, userMessage, fullReply.length());
+            }
 
         } catch (IllegalArgumentException e) {
             // 参数/权限/多模态校验类业务错误：直接回传可读信息，不伪装成"AI服务异常"
             log.warn("[AI] 流式聊天请求被拒绝: userId={}, reason={}", userId, e.getMessage());
             try {
-                callback.onEvent("error", JSON.toJSONString(
+                sink.emit("error", JSON.toJSONString(
                         buildMap("message", e.getMessage())));
             } catch (Exception ignored) {
                 // 回调失败（客户端已断开）不再处理
@@ -538,16 +581,95 @@ public class AiServiceImpl implements AiService {
         } catch (Exception e) {
             // SEC-10：客户端断开导致的异常不回调 error（回调本身已不可用），
             // 避免在 catch 块里二次抛异常逃逸到容器。
+            // 2026-10-10 之后这条路已基本走不到：onEvent 的断开异常已被 StreamSink
+            // 就地吞掉并转成 clientGone 标记。保留它是兜底（例如别处也抛了同一句话）。
             if (e.getMessage() != null && e.getMessage().contains("SSE client disconnected")) {
                 log.info("[AI] 客户端断开连接，终止流式输出: userId={}", userId);
                 return;
             }
             log.error("AI流式聊天异常", e);
-            callback.onEvent("error", JSON.toJSONString(
+            sink.emit("error", JSON.toJSONString(
                     buildMap("message", "AI服务异常: " + e.getMessage())));
         } finally {
             // 清除会话上下文
             AiSessionContext.clear();
+        }
+    }
+
+    /**
+     * 客户端已离开、但 AI 回答已生成入库时，给用户发一条通知（2026-10-10 新增）。
+     *
+     * <p>受设置页「AI 对话通知」开关（{@code user.notify_ai_chat}）控制 ——
+     * 走 {@code UserNotifier}，用户关掉就不会收到。
+     *
+     * <p>通知本身失败绝不能影响已经完成的回答：<b>回答是主体，通知是附赠</b>。
+     * {@code UserNotifier.send} 内部已吞异常，这里再包一层是为了连
+     * 「组装通知文案时抛异常」也一起挡住。
+     */
+    private void notifyReplyReady(Integer userId, Integer conversationId,
+                                  String userMessage, int replyLength) {
+        try {
+            userNotifier.send(userId, NotificationSource.AI_CHAT,
+                    NotifyTemplates.T_AI_CHAT_DONE,
+                    NotifyTemplates.aiChatDone(userMessage),
+                    conversationId == null ? null : conversationId.longValue(),
+                    NotifyTemplates.LINK_AI);
+            log.info("[AI] 客户端已离开，回复已入库并发送通知: userId={}, conversationId={}, replyLength={}",
+                    userId, conversationId, replyLength);
+        } catch (Exception e) {
+            log.warn("[AI] AI 回复就绪通知发送失败，回答本身已正常保存: userId={}, conversationId={}",
+                    userId, conversationId, e);
+        }
+    }
+
+    /**
+     * 流式输出的「接收端」包装 —— 2026-10-10 新增。
+     *
+     * <p>解决的问题：{@code AiController} 的 SSE 回调在检测到客户端断开时抛
+     * {@code RuntimeException("SSE client disconnected")}。原来这个异常会一路
+     * 冒出 {@code chatStream} 的读取循环，导致<b>整轮 AI 回复既不推送也不入库</b>
+     * —— 用户切走一次就永久丢掉一条回答（含深度思考模式下几十秒的推理结果）。
+     *
+     * <p>现在断开只被就地记录：不再尝试推送（推也没人收），但生成继续，
+     * 结束时把回复落库并发一条「AI 回复已生成」通知，用户回来还能看到答案。
+     *
+     * <p><b>只吞「客户端断开」这一种异常</b>：其它异常照旧向上抛，
+     * 否则真正的故障会被伪装成「用户离开了」，排查时无从下手。
+     */
+    static final class StreamSink {
+
+        private final AiService.StreamCallback callback;
+
+        /** 是否已经确认客户端断开；一旦为 true 就不再尝试任何推送 */
+        private boolean clientGone;
+
+        StreamSink(AiService.StreamCallback callback) {
+            this.callback = callback;
+        }
+
+        /** 尽力推送一个 SSE 事件；客户端已断开时静默跳过，不打断生成 */
+        void emit(String eventName, String jsonData) {
+            if (clientGone) {
+                return;
+            }
+            try {
+                callback.onEvent(eventName, jsonData);
+            } catch (RuntimeException e) {
+                if (isClientGone(e)) {
+                    clientGone = true;
+                    return;
+                }
+                throw e;
+            }
+        }
+
+        boolean clientGone() {
+            return clientGone;
+        }
+
+        /** 与 AiController 抛出时的判定口径必须一字不差 */
+        private static boolean isClientGone(Throwable e) {
+            return e.getMessage() != null && e.getMessage().contains("SSE client disconnected");
         }
     }
 

@@ -336,7 +336,6 @@ export default {
       dialogUserOperaion: false,
       isOperation: false,
       tableData: [],
-      allUserData: [],
       searchTime: [],
       selectedRows: [],
       status: null,
@@ -346,11 +345,10 @@ export default {
   },
   watch: {
     currentPage() {
-      this.applyLocalPage();
+      this.fetchFreshData();
     },
     pageSize() {
-      this.currentPage = 1;
-      this.applyLocalPage();
+      this.fetchFreshData();
     },
   },
   created() {
@@ -547,8 +545,8 @@ export default {
         }
         //
         const params = {
-          current: 1,
-          size: 1000,
+          current: this.currentPage,
+          size: this.pageSize,
           key: this.filterText,
           startTime: startTime,
           endTime: endTime,
@@ -556,19 +554,12 @@ export default {
         };
         const response = await this.$axios.post("/user/query", params);
         const { data } = response;
-        const list = Array.isArray(data.data) ? data.data : [];
-        this.allUserData = list;
-        this.totalItems = list.length;
-        this.applyLocalPage();
+        this.tableData = Array.isArray(data.data) ? data.data : [];
+        this.totalItems = data.total;
       } catch (error) {
         console.error("加载用户失败:", error);
         this.$message.error("加载用户数据失败");
       }
-    },
-    applyLocalPage() {
-      const start = (this.currentPage - 1) * this.pageSize;
-      const end = start + this.pageSize;
-      this.tableData = this.allUserData.slice(start, end);
     },
     add() {
       this.dialogUserOperaion = true;
@@ -584,11 +575,11 @@ export default {
     handleSizeChange(val) {
       this.pageSize = val;
       this.currentPage = 1;
-      this.applyLocalPage();
+      this.fetchFreshData();
     },
     handleCurrentChange(val) {
       this.currentPage = val;
-      this.applyLocalPage();
+      this.fetchFreshData();
     },
     handleEdit(row) {
       this.dialogUserOperaion = true;

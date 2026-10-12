@@ -73,6 +73,13 @@ public class HotScoreServiceImpl implements HotScoreService {
     public void updateAllHotScores() {
         PostContentQueryDto dto = new PostContentQueryDto();
         dto.setStatus(1);
+        // 2026-10-10 修复：BATCH_LIMIT 原先只限制了「写」的上限，
+        // 查询本身没带 LIMIT —— queryPosts 会把整张 news 表的帖子全部读进内存，
+        // 循环到第 500 条才 break，前面那次全表加载早就把堆吃掉了。
+        // 上限必须同时体现在 SQL 上（queryPosts 支持 current/size 分页），
+        // 否则「防止 OOM」的注释是假的。
+        dto.setCurrent(0);
+        dto.setSize(BATCH_LIMIT);
         List<NewsVO> posts = newsMapper.queryPosts(dto);
         if (posts == null || posts.isEmpty()) {
             log.info("热度分更新完成，无待处理帖子");
@@ -96,7 +103,9 @@ public class HotScoreServiceImpl implements HotScoreService {
 
     @Override
     public List<Map<String, Object>> getHotPosts(Integer limit) {
-        int size = limit != null && limit > 0 ? limit : 20;
+        // 2026-10-10：顺手加了上限。原实现只判 `> 0`，调用方传个很大的 limit
+        // 就会把整张表查出来（且没有任何分页语义）。
+        int size = limit != null && limit > 0 ? Math.min(limit, BATCH_LIMIT) : 20;
 
         // 直接走 topPostsByHotScore（已 ORDER BY hot_score DESC），
         // 比「查全量再排序」高效

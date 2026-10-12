@@ -32,11 +32,16 @@
         WHERE id = #{id}
     </update>
 
-    <delete id="batchDelete" parameterType="list">
+    <delete id="batchDelete">
         DELETE FROM health_model_config WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
+        <!-- 2026-10-10 修复（IDOR + 越权删全局模型）：非管理员只能删除自己创建的
+             非全局模型；userId 为 null 表示管理员，不加归属限制。 -->
+        <if test="userId != null">
+            AND user_id = #{userId} AND (is_global = 0 OR is_global IS NULL)
+        </if>
     </delete>
 
     <select id="query" resultMap="BaseResultMap">

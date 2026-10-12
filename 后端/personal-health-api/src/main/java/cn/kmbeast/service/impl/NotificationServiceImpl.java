@@ -1,5 +1,6 @@
 package cn.kmbeast.service.impl;
 
+import cn.kmbeast.context.LocalThreadHolder;
 import cn.kmbeast.mapper.NotificationMapper;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
@@ -60,7 +61,17 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public Result<Void> markAsRead(Integer id) {
-        notificationMapper.markAsRead(id);
+        // 2026-10-10 修复（IDOR）：原先只按 id 置已读，任何登录用户传一个 id
+        // 就能把他人通知标记为已读。现限定只能操作收件人本人的通知。
+        Integer userId = LocalThreadHolder.getUserId();
+        if (userId == null) {
+            return ApiResult.error("未登录");
+        }
+        int affected = notificationMapper.markAsRead(id, userId);
+        if (affected == 0) {
+            log.warn("标记通知已读失败或无权限: notificationId={}, operatorId={}", id, userId);
+            return ApiResult.error("通知不存在或无权操作");
+        }
         return ApiResult.success();
     }
 

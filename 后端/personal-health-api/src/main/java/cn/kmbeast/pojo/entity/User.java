@@ -102,4 +102,58 @@ public class User {
      */
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
+
+    // ================================================================
+    // 用户设置（2026-10-10 新增）
+    //
+    // 这些字段原先在库里<b>没有任何落脚点</b>：既没有 user_settings 表（当初有意
+    // 简化掉了，表太多），也没并进 user 表 —— 于是设置页只能读到硬编码默认值、
+    // 保存必然失败。现按「并入 user 表」的原意直接加列。
+    //
+    // 布尔项一律 TINYINT(1)，与上面 is_login / is_word / is_vip 同一口径；
+    // 实体里用 Boolean，NULL（历史行）由 Service 兜底成默认值。
+    // 建表/迁移见 Data/02_迁移脚本/08_user_settings_columns.sql。
+    // ================================================================
+
+    /** 界面语言：zh-CN / en-US */
+    private String language;
+
+    /** 时区：Asia/Shanghai / America/New_York / Europe/London */
+    private String timezone;
+
+    /** 系统通知开关 */
+    private Boolean notifySystem;
+
+    /** 健康提醒开关 */
+    private Boolean notifyHealthRemind;
+
+    /** AI 对话通知开关 */
+    private Boolean notifyAiChat;
+
+    /** 预约提醒开关 */
+    private Boolean notifyAppointment;
+
+    /** 订单通知开关 */
+    private Boolean notifyOrder;
+
+    /** 是否允许 AI 读取健康数据 */
+    private Boolean privacyHealthDataShare;
+
+    /** 资料可见性：public 所有人 / private 仅自己 */
+    private String privacyProfileVisibility;
+
+    /** 默认 AI 角色 */
+    private String aiDefaultAgent;
+
+    /** 对话风格：professional / friendly / concise */
+    private String aiChatStyle;
+
+    /** 允许联网搜索 */
+    private Boolean aiEnableWebSearch;
+
+    /** 允许检索知识库 */
+    private Boolean aiEnableKnowledgeBase;
+
+    /** 保留上下文轮数（1~20） */
+    private Integer aiContextRounds;
 }

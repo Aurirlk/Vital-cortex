@@ -37,6 +37,18 @@
         UPDATE doctor_schedule SET booked_count = GREATEST(booked_count - 1, 0), version = version + 1 WHERE id = #{id}
     </update>
 
+    <!-- 原子占号（2026-10-10 新增，修超卖）。
+         条件必须写在 WHERE 里：只有数据库的行锁才能把「检查余额」与「扣减余额」
+         合并成一个不可分割的动作。写在 Java 侧的 if 判断挡不住并发。
+         返回影响行数供 Service 判定是否占号成功。 -->
+    <update id="reserveSlot">
+        UPDATE doctor_schedule
+        SET booked_count = booked_count + 1, version = version + 1
+        WHERE id = #{id}
+          AND status = 1
+          AND booked_count &lt; max_patients
+    </update>
+
     <!-- ==================== 医生端专用（2026-10-04） ====================
          doctorId 同样必须来自 token，不得由前端传入。 -->
 

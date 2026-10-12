@@ -5,9 +5,13 @@
 # 阶段1: 构建
 FROM maven:3.8-openjdk-17 AS builder
 WORKDIR /app
-COPY pom.xml .
+# 2026-10-10 修复：构建上下文是<b>仓库根目录</b>（docker-compose context: . / CI context: .），
+# 而后端源码位于 后端/personal-health-api/。原 `COPY pom.xml .` / `COPY src ./src`
+# 在根目录下根本不存在这两个路径，Docker 构建必然在第一步就失败
+# （`docker compose up --build` 与 CI 的 docker-build 全部失败）。
+COPY 后端/personal-health-api/pom.xml .
 RUN mvn dependency:go-offline -B
-COPY src ./src
+COPY 后端/personal-health-api/src ./src
 RUN mvn package -DskipTests -B
 
 # 阶段2: 运行
@@ -35,10 +39,12 @@ USER appuser
 EXPOSE 21090
 
 # 健康检查
-# ENG-04：后端没有 /health 端点（那是 /crm/health，且需认证）；Spring Boot Actuator
-# 未集成时根路径也没有健康信息。直接检查端口存活，避免健康检查永远失败导致容器被反复重启。
+# ENG-04 原实现探测 /user/login，但该端点是 @PostMapping —— 用 GET 探测恒返回 405，
+# `curl -f` 因此永远非 0，容器被判为 unhealthy 并反复重启（真实部署中的确定性故障）。
+# 2026-10-10 修复：改探 Actuator health（GET，且已在配置中 expose health）。
+# 注意 /actuator/** 已在 InterceptorConfig 中排除 JWT 校验，可匿名访问。
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD curl -sf -o /dev/null http://localhost:21090/api/personal-health/v1.0/user/login || exit 1
+  CMD curl -sf -o /dev/null http://localhost:21090/api/personal-health/v1.0/actuator/health || exit 1
 
 # 启动命令 - 支持环境变量注入
 # ENG-03 整改：原 ENTRYPOINT 是 exec 形式（JSON 数组），
@@ -46,6 +52,7 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 # "${DB_URL:-jdbc:mysql://localhost:3306/personal_health}"，连接必然失败。
 # 改为 shell 形式（bash -c）让变量展开生效。
 ENTRYPOINT ["sh", "-c", "exec java \
+  \"-Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-prod}\" \
   \"-Dspring.datasource.url=${DB_URL:-jdbc:mysql://localhost:3306/personal_health}\" \
   \"-Dspring.datasource.username=${DB_USER:-root}\" \
   \"-Dspring.datasource.password=${DB_PASS}\" \
@@ -55,3 +62,8 @@ ENTRYPOINT ["sh", "-c", "exec java \
   \"-XX:+UseG1GC\" \
   \"-XX:MaxRAMPercentage=75.0\" \
   -jar app.jar"]
+# 2026-10-10 修复：原 ENTRYPOINT 未激活任何 Spring profile，而仓库里只有
+# application-example.yml / application-prod.yml（application.yml 被 .gitignore 忽略）。
+# 结果容器里既没有 application.yml 也没有 active profile，`@Value(\"${my-server.api-context-path}\")`
+# 等无默认值的占位符无法解析，后端在启动阶段直接 abort。
+# 这里默认激活 prod（application-prod.yml 随 jar 打包，凭据走环境变量）。

@@ -55,6 +55,26 @@ public abstract class BaseReActAgent {
             new ThreadPoolExecutor.AbortPolicy());
     protected static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
 
+    /**
+     * 2026-10-10：容器关闭时优雅停掉工具线程池。
+     *
+     * <p>池内线程是 daemon，不会阻止 JVM 退出，所以此前「没关池」不至于挂住进程；
+     * 但 Spring 销毁 Bean 时正在执行的工具调用会被硬中断，
+     * 且线程池对象不释放。补一个 @PreDestroy，让在途任务有机会收尾。
+     */
+    @jakarta.annotation.PreDestroy
+    public void shutdownToolExecutor() {
+        toolExecutor.shutdown();
+        try {
+            if (!toolExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                toolExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            toolExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
     /** AG-08：LLM 调用重试（429 / 5xx 指数退避） */
     private static final int LLM_MAX_RETRIES = 3;
     private static final long LLM_BASE_BACKOFF_MS = 400;
@@ -101,7 +121,10 @@ public abstract class BaseReActAgent {
             - 用中文回答，语气亲切专业""";
 
     protected String getSystemPrompt() {
-        String configured = crmConfig.getReactPrompt();
+        // 2026-10-10 修复：crmConfig 可能尚未注入（非 Spring 容器构造，如单元测试直接
+        // new ReActAgent()），此前直接解引用会抛 NPE，导致 8 个上下文隔离回归测试全部失败。
+        // 未注入时按「未配置」处理，回退内置默认 prompt。
+        String configured = (crmConfig != null) ? crmConfig.getReactPrompt() : null;
         return (configured != null && !configured.isEmpty()) ? configured : DEFAULT_SYSTEM_PROMPT;
     }
 
@@ -211,7 +234,12 @@ public abstract class BaseReActAgent {
         // get + remove：一次性取出，取完即失效
         String role = roleHint.get();
         roleHint.remove();
-        String instruction = ROLE_INSTRUCTIONS.get(role);
+        // 2026-10-10 修复：ROLE_INSTRUCTIONS 是 Map.of(...) 构造的<b>不可变 Map</b>，
+        // 其 get(null) 会抛 NPE（ImmutableCollections.MapN.probe 内部对 key 调 hashCode）。
+        // 未设置角色时 role 必为 null —— 即所有不调 setRoleHint 的调用方
+        // （如 CrmChatController 链路）在构建首条消息时必然 500。
+        // 这里显式判空，语义等价于「该角色无专属指令」。
+        String instruction = (role == null) ? null : ROLE_INSTRUCTIONS.get(role);
         if (instruction != null) {
             sb.append("\n\n").append(instruction);
         }

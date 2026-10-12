@@ -83,4 +83,32 @@ public interface AppointmentMapper {
      */
     AppointmentVO getLatestByDoctorAndPatient(@Param("doctorId") Integer doctorId,
                                              @Param("patientId") Integer patientId);
+
+    // ==================== 就诊提醒（2026-10-10） ====================
+
+    /**
+     * 查询某个就诊日「需要发前一天提醒」的预约目标
+     *
+     * <p>供 {@code AppointmentReminderJob} 定时任务使用：扫某一天的预约，
+     * 交给它逐条发「明天有就诊安排」的通知。
+     *
+     * <p><b>偏好过滤放在 SQL 里做</b>：这是批量路径，可能一次扫出几百条。
+     * 若先全查出来再逐条调 {@code NotificationPreferenceService} 判断，
+     * 就是 N 次查询；而且用户已经关掉开关时，这次查询本来就是多余的。
+     * 因此这里直接 JOIN {@code user} 并带上 {@code notify_appointment} 条件，
+     * 把「已关闭提醒」的人在数据库层就滤掉。
+     *
+     * <p>条件口径：
+     * <ul>
+     *   <li>{@code status IN (0,1)} —— 只提醒「待接诊 / 已预约」的；
+     *       已取消(3)、已完成(2)的不该再打扰用户；</li>
+     *   <li>{@code notify_appointment = 1 OR IS NULL} —— 与
+     *       {@code NotificationPreferenceServiceImpl#enabled} 口径一致（NULL 视为开启）；</li>
+     *   <li>不 JOIN 是因为要「不管有没有排班记录都能提醒」，用 LEFT JOIN 才不会漏。</li>
+     * </ul>
+     *
+     * @param appointmentDate 就诊日（通常是「明天」）
+     * @return 待提醒的预约（含患者、医生、科室、时段中文名）
+     */
+    List<AppointmentVO> queryReminderTargets(@Param("appointmentDate") LocalDate appointmentDate);
 }

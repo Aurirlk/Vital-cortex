@@ -1,6 +1,7 @@
 package cn.kmbeast.controller;
 
 import cn.kmbeast.aop.Protector;
+import cn.kmbeast.config.SentinelBlockHandlers;
 import cn.kmbeast.context.LocalThreadHolder;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
@@ -11,6 +12,7 @@ import cn.kmbeast.service.DoctorAuthService;
 import cn.kmbeast.service.DoctorWorkService;
 import cn.kmbeast.service.PatientDetailService;
 import cn.kmbeast.service.impl.DoctorAuthServiceImpl;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
@@ -56,6 +58,10 @@ public class DoctorController {
      *
      * @param dto 登录请求
      */
+    // 2026-10-10 新增：此前 /doctor/login 没有任何流控（SentinelConfig 只给
+    // user:login / ai:chat / file:upload 发了规则），医生端登录可被无限次尝试。
+    @SentinelResource(value = "doctor:login",
+            blockHandler = "doctorLoginBlocked", blockHandlerClass = SentinelBlockHandlers.class)
     @PostMapping("/login")
     public Result<Object> login(@RequestBody DoctorLoginDTO dto) {
         return doctorAuthService.login(dto);

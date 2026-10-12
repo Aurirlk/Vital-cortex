@@ -1,6 +1,7 @@
 package cn.kmbeast.service.impl;
 
 
+import cn.kmbeast.context.LocalThreadHolder;
 import cn.kmbeast.mapper.*;
 
 import cn.kmbeast.pojo.api.ApiResult;
@@ -249,6 +250,19 @@ public class QuizServiceImpl implements QuizService {
 
         }
 
+        // 2026-10-10 修复（IDOR）：交卷前必须确认这是本人的答题记录，
+        // 否则任何登录用户拿一个 recordId 就能把答案写进他人答卷并改掉其分数。
+
+        if (!LocalThreadHolder.isSelfOrAdmin(record.getUserId())) {
+
+            log.warn("越权提交答题记录被拒绝: recordId={}, ownerId={}, operatorId={}",
+
+                    recordId, record.getUserId(), LocalThreadHolder.getUserId());
+
+            return ApiResult.error("无权操作该答题记录");
+
+        }
+
         int totalScore = 0;
 
         int correctCount = 0;
@@ -320,7 +334,55 @@ public class QuizServiceImpl implements QuizService {
 
     public Result<List<QuizAnswer>> getRecordAnswers(Integer recordId) {
 
+        // 2026-10-10 修复（IDOR）：原先不看归属直接返回，传 recordId 即可读走
+        // 他人答卷（含其作答内容与对错）。
+        QuizRecord record = recordMapper.getById(recordId);
+
+        if (record == null) {
+
+            return ApiResult.error("答题记录不存在");
+
+        }
+
+        if (!LocalThreadHolder.isSelfOrAdmin(record.getUserId())) {
+
+            log.warn("越权查看答题记录被拒绝: recordId={}, ownerId={}, operatorId={}",
+
+                    recordId, record.getUserId(), LocalThreadHolder.getUserId());
+
+            return ApiResult.error("无权查看该答题记录");
+
+        }
+
         return ApiResult.success(answerMapper.queryByRecordId(recordId));
+
+    }
+
+    @Override
+    public Result<List<QuizQuestionVO>> getExamQuestions(Integer examId) {
+
+        QuizExam exam = examMapper.getById(examId);
+
+        if (exam == null) {
+
+            return ApiResult.error("试卷不存在");
+
+        }
+
+        List<QuizQuestionVO> questions = questionMapper.queryByExamId(examId);
+
+        // 只下发题干与选项：评分完全在服务端做（见 submitExam），
+        // 把 answer / analysis 送给客户端等于把答案发给了考生。
+
+        questions.forEach(q -> {
+
+            q.setAnswer(null);
+
+            q.setAnalysis(null);
+
+        });
+
+        return ApiResult.success(questions);
 
     }
 

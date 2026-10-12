@@ -49,6 +49,17 @@
         <if test="limit != null">LIMIT #{limit}</if>
     </select>
 
+    <!-- 某用户在这批目标里已点赞的目标 ID（评论区批量回显用） -->
+    <select id="queryUpvotedTargetIds" resultType="int">
+        SELECT target_id
+        FROM content_interaction
+        WHERE user_id     = #{userId}
+          AND target_type = #{targetType}
+          AND action_type = 'LIKE'
+          AND target_id IN
+        <foreach collection="targetIds" item="tid" open="(" separator="," close=")">#{tid}</foreach>
+    </select>
+
     <!-- 举报列表：字段别名对齐合并前的 post_report 表结构，
          供 AuditManage.vue 继续按 id/user_id/post_id/reason/status 消费 -->
     <select id="queryPendingReports" resultType="map">

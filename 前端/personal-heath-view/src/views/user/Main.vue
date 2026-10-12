@@ -238,6 +238,7 @@
 </template>
 <script>
 import { clearToken } from "@/utils/storage.js";
+import { closeWs } from "@/utils/ws.js";
 import router from "@/router";
 import UserMenu from "@/components/LevelMenu.vue";
 import ModelBanner from "@/components/ModelBanner.vue";
@@ -476,6 +477,13 @@ export default {
         icon: "warning",
       });
       if (confirmed) {
+        // 调用后端登出（递增会话版本，使存量 token 失效）；网络异常不阻断本地登出
+        try {
+          await this.$axios.post("user/logout");
+        } catch (e) {
+          console.error("退出登录接口调用失败:", e);
+        }
+        closeWs();
         // 清除 Token
         clearToken();
         this.$router.push("/login");

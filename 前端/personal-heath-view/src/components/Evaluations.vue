@@ -319,50 +319,7 @@
         </el-row>
       </el-row>
     </el-row>
-    <!-- -->
-    <el-dialog
-      style="user-select: none; border-radius: 5px"
-      title=""
-      v-model="dialogVisibleReport"
-      width="30%"
-    >
-      <el-row
-        v-for="(item, index) in reports"
-        :key="index"
-        style="margin-top: 10px"
-      >
-        <el-row style="padding-bottom: 10px; user-select: none"
-          >*{{ item.name }}</el-row
-        >
-        <el-row>
-          <span
-            v-for="(itemChild, indexChild) in item.list"
-            :key="indexChild"
-            @click="reportItemClick(itemChild)"
-          >
-            <button
-              :style="{
-                border: itemChild.isSelected
-                  ? '1px solid #4b87bc'
-                  : '1px solid #f4f4f4',
-              }"
-              class="reportItem"
-            >
-              {{ itemChild.name }}
-            </button>
-          </span>
-        </el-row>
-      </el-row>
-      <template #footer>
-        <span class="dialog-footer">
-          <button
-            class="cannel-btn"
-            @click="dialogVisibleReport = false"
-          ></button>
-          <button class="yes-btn" @click="operationReport"></button>
-        </span>
-      </template>
-    </el-dialog>
+    <!-- 2026-10-10 后端举报模块已移除（evaluations/reportList、evaluations-reports/report 均无对应接口），举报弹窗一并删除，避免保留必然失败的入口 -->
   </div>
 </template>
 
@@ -400,11 +357,9 @@ export default {
       strLength: "0/300",
       replyText: "",
       userId: "",
-      dialogVisibleReport: false,
-      reports: [],
+      // 2026-10-10 后端举报模块（evaluations/reportList、evaluations-reports/*）已不存在，相关状态一并移除
       selectdStatus: false,
       evaluationsCount: 0,
-      comment: {},
       replyChildContent: "",
     };
   },
@@ -431,118 +386,31 @@ export default {
       this.userData = JSON.parse(userInfo);
       this.userId = this.userData.id;
     },
-    // /
+    // 2026-10-10 修复：原先是把 upvoteList 拼成逗号串发 `PUT evaluations/update`，
+    // 但那条路径只写 content/status，从不写点赞；且它要求「评论作者本人或管理员」，
+    // 于是给别人的评论点赞必然失败，而失败时前端连提示都不弹
+    // （业务错误码走的是 HTTP 200，只在 .catch 里处理真 HTTP 错误）。
+    // 现改为调用专用的点赞接口，以服务端返回的「是否已赞 / 赞数」为准，
+    // 前端不再自己拼串推算，避免与服务端不一致。
     upvote(comment) {
-      let upvoteList = comment.upvoteList ? comment.upvoteList.split(",") : [];
-      if (upvoteList.length) {
-        //
-        if (comment.upvoteFlag) {
-          //
-          let index = upvoteList.indexOf(this.userData.id.toString());
-          if (index !== -1) {
-            upvoteList.splice(index, 1); // ID
-          }
-        } else {
-          //
-          if (!upvoteList.includes(this.userData.userId.toString())) {
-            upvoteList.push(this.userData.userId.toString()); // ID
-          }
-        }
-      }
-      let evalustions = {
-        id: comment.id,
-        upvoteList: upvoteList.length ? upvoteList.join(",") : this.userData.id,
-      };
       this.$axios
-        .put(`evaluations/update`, evalustions)
+        .post(`evaluations/upvote/${comment.id}`)
         .then((res) => {
-          if (res.data.code == 200) {
-            comment.upvoteList = upvoteList.join(","); // upvoteList            comment.upvoteFlag = !comment.upvoteFlag; //             comment.upvoteCount += 1;
-          }
-        })
-        .catch((err) => {
-          console.error(`-> `, err);
-        });
-    },
-    //
-    operationReport() {
-      let reportItem = [];
-      this.reports.forEach((entity) => {
-        let entityReport = entity.list.filter((child) => child.isSelected);
-        if (entityReport.length != 0) {
-          reportItem = entityReport;
-        }
-      });
-      if (!reportItem.length) {
-        this.$message(`举报内容不能为空`);
-        return;
-      }
-      this.$axios
-        .get(
-          `evaluations-reports/report/${this.comment.id}/${reportItem[0].name}`
-        )
-        .then((res) => {
-          this.dialogVisibleReport = false;
-          if (res.data.code == 200) {
-            this.$swal.fire({
-              title: "举报成功",
-              text: "感谢您的反馈，我们已收到该举报",
-              icon: "success",
-              showConfirmButton: false,
-              timer: 1100,
-            });
+          if (res.data.code === 200 && res.data.data) {
+            comment.upvoteFlag = res.data.data.upvoted;
+            comment.upvoteCount = res.data.data.likeCount;
           } else {
-            this.$swal.fire({
-              title: "操作失败",
-              text: res.data.msg,
-              icon: "error",
-              showConfirmButton: false,
-              timer: 1100,
-            });
+            this.$message.error(res.data.msg || "操作失败");
           }
         })
         .catch((err) => {
-          console.error(` -> `, err);
+          this.$message.error(
+            (err.response && err.response.data && err.response.data.msg) ||
+              "点赞失败，请登录后重试"
+          );
         });
     },
-    //
-    reportItemClick(itemChild) {
-      this.reports.forEach((entity) => {
-        entity.list.forEach((child) => {
-          child.isSelected = false;
-        });
-      });
-      itemChild.isSelected = true;
-    },
-    reportList() {
-      this.$axios
-        .get(`evaluations/reportList`)
-        .then((res) => {
-          if (res.data.code == 200) {
-            this.reports = [];
-            res.data.data.forEach((entity) => {
-              let report = { name: entity.name };
-              let resportList = [];
-              entity.list.forEach((listItem) => {
-                let reportChild = {};
-                reportChild.name = listItem;
-                reportChild.isSelected = false;
-                resportList.push(reportChild);
-              });
-              report.list = resportList;
-              this.reports.push(report);
-            });
-          }
-        })
-        .catch((err) => {
-          console.error(`-> `, err);
-        });
-    },
-    reportComment(comment) {
-      this.reportList();
-      this.dialogVisibleReport = true;
-      this.comment = comment;
-    },
+    // 2026-10-10 举报相关方法（operationReport / reportItemClick / reportList / reportComment）依赖已不存在的后端接口，整体移除
     deleteComment(comment) {
       //
       this.$axios

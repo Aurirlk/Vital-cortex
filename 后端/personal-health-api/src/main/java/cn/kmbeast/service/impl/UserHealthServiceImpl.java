@@ -23,6 +23,8 @@ import cn.kmbeast.service.UserHealthService;
 import cn.kmbeast.utils.DateUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.CollectionUtils;
 
 import jakarta.annotation.Resource;
@@ -83,20 +85,30 @@ public class UserHealthServiceImpl implements UserHealthService {
             List<HealthModelConfigVO> healthModelConfigs = healthModelConfigMapper.query(queryDto);
             if (!CollectionUtils.isEmpty(healthModelConfigs)) {
                 HealthModelConfig healthModelConfig = healthModelConfigs.get(0);
-                // 值范围为：101,230
-                String valueRange = healthModelConfig.getValueRange();
-                String[] values = valueRange.split(",");
-                // 最小值
-                int mixValue = Integer.parseInt(values[0]);
-                // 最大值
-                int maxValue = Integer.parseInt(values[1]);
-                // 如果用户输入的指标是超出正常范围的，需要通知用户处理
-                double value = Double.parseDouble(String.valueOf(userHealth.getValue()));
-                // 异常情况
-                if (value < mixValue || value > maxValue) {
-                    // 封装消息体
-                    Message message = sendMessage(healthModelConfig, userHealth);
-                    messageList.add(message);
+                // 2026-10-10 修复：下面的解析原先没有任何保护。判断「指标是否超标」
+                // 只是附加的通知功能，但它抛异常会把整条记录的新增/导入一起打断 ——
+                // 例如管理员把 value_range 配成非 "数字,数字"（或填了分隔符是全角逗号），
+                // 用户从此再也存不进该指标。解析失败就跳过通知，不能连累主流程。
+                try {
+                    // 值范围为：101,230
+                    String valueRange = healthModelConfig.getValueRange();
+                    String[] values = valueRange.split(",");
+                    // 最小值
+                    int mixValue = Integer.parseInt(values[0].trim());
+                    // 最大值
+                    int maxValue = Integer.parseInt(values[1].trim());
+                    // 如果用户输入的指标是超出正常范围的，需要通知用户处理
+                    double value = Double.parseDouble(String.valueOf(userHealth.getValue()).trim());
+                    // 异常情况
+                    if (value < mixValue || value > maxValue) {
+                        // 封装消息体
+                        Message message = sendMessage(healthModelConfig, userHealth);
+                        messageList.add(message);
+                    }
+                } catch (RuntimeException e) {
+                    log.warn("指标[{}]的参考范围或记录值无法解析为数字，跳过超标通知: range={}, value={}",
+                            healthModelConfig.getName(), healthModelConfig.getValueRange(),
+                            userHealth.getValue());
                 }
             }
         });
@@ -134,8 +146,24 @@ public class UserHealthServiceImpl implements UserHealthService {
      * @return Result<Void>
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Result<Void> batchDelete(List<Long> ids) {
-        userHealthMapper.batchDelete(ids);
+        if (CollectionUtils.isEmpty(ids)) {
+            return ApiResult.error("请选择要删除的记录");
+        }
+        // 2026-10-10 修复（IDOR）：原先 DELETE ... WHERE id IN (...) 不看归属，
+        // 任何登录用户拿一串 id 就能删掉他人全部健康记录。
+        // 现在把归属条件写进 SQL；删到的行数少于请求数就说明混进了别人的记录，
+        // 整批回滚并报错，而不是「悄悄地只删自己的那部分」。
+        Integer ownerScope = LocalThreadHolder.isAdmin() ? null : LocalThreadHolder.getUserId();
+        Integer affectedRows = userHealthMapper.batchDeleteOwned(ids, ownerScope);
+        int affected = affectedRows == null ? 0 : affectedRows;
+        if (affected < ids.size()) {
+            log.warn("健康记录批量删除包含非本人记录，已整批回滚: 请求={}, 实际可删={}, operatorId={}",
+                    ids.size(), affected, LocalThreadHolder.getUserId());
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return ApiResult.error("存在无权操作的记录，已取消本次删除");
+        }
         return ApiResult.success();
     }
 
@@ -147,7 +175,16 @@ public class UserHealthServiceImpl implements UserHealthService {
      */
     @Override
     public Result<Void> update(UserHealth userHealth) {
-        userHealthMapper.update(userHealth);
+        if (userHealth == null || userHealth.getId() == null) {
+            return ApiResult.error("缺少记录 ID");
+        }
+        // 2026-10-10 修复（IDOR）：原先 WHERE id = ?，可改他人健康数值。
+        Integer ownerScope = LocalThreadHolder.isAdmin() ? null : LocalThreadHolder.getUserId();
+        Integer affectedRows = userHealthMapper.updateOwned(
+                userHealth.getId(), userHealth.getValue(), ownerScope);
+        if (affectedRows == null || affectedRows == 0) {
+            return ApiResult.error("记录不存在或无权修改");
+        }
         return ApiResult.success();
     }
 

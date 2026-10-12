@@ -119,4 +119,61 @@ class LocalThreadHolderTest {
         assertNull(LocalThreadHolder.getUserId());
         assertNull(LocalThreadHolder.getRoleId());
     }
+
+    // ==================== 归属校验助手（2026-10-10 新增） ====================
+    // isSelfOrAdmin 是全部 IDOR 修复的判定入口，一旦它出错就是全站越权，
+    // 所以把「fail-closed」这条契约钉死在测试里。
+
+    @Test
+    @DisplayName("isAdmin：仅管理员为 true，医生/用户/未登录均为 false")
+    void isAdminShouldOnlyMatchAdmin() {
+        assertFalse(LocalThreadHolder.isAdmin(), "未登录不得视为管理员");
+
+        LocalThreadHolder.setUserId(2, 2);
+        assertFalse(LocalThreadHolder.isAdmin(), "普通用户不是管理员");
+
+        LocalThreadHolder.setUserId(3001, 3);
+        assertFalse(LocalThreadHolder.isAdmin(), "医生不是管理员");
+
+        LocalThreadHolder.setUserId(1, 1);
+        assertTrue(LocalThreadHolder.isAdmin());
+    }
+
+    @Test
+    @DisplayName("isSelfOrAdmin：本人可访问自己的资源")
+    void selfShouldBeAllowed() {
+        LocalThreadHolder.setUserId(7, 2);
+        assertTrue(LocalThreadHolder.isSelfOrAdmin(7));
+    }
+
+    @Test
+    @DisplayName("isSelfOrAdmin：不是本人一律拒绝（含医生）")
+    void otherShouldBeDenied() {
+        LocalThreadHolder.setUserId(7, 2);
+        assertFalse(LocalThreadHolder.isSelfOrAdmin(8), "改个 id 就读别人数据 = IDOR");
+
+        LocalThreadHolder.setUserId(3001, 3);
+        assertFalse(LocalThreadHolder.isSelfOrAdmin(7),
+                "医生不是管理员，跨用户归属必须由各自的业务校验放行，不能在这里开口子");
+    }
+
+    @Test
+    @DisplayName("isSelfOrAdmin：管理员可访问任意资源")
+    void adminShouldBeAllowed() {
+        LocalThreadHolder.setUserId(1, 1);
+        assertTrue(LocalThreadHolder.isSelfOrAdmin(9999));
+    }
+
+    @Test
+    @DisplayName("isSelfOrAdmin：归属未知(null)一律拒绝，不得放行")
+    void nullOwnerShouldFailClosed() {
+        LocalThreadHolder.setUserId(7, 2);
+        assertFalse(LocalThreadHolder.isSelfOrAdmin(null),
+                "脏数据里 ownerId 为 null 时若放行，等于把校验绕过成公开");
+
+        // 未登录（ThreadLocal 为空）也一样拒绝，不能因为「两边都是 null」就相等
+        LocalThreadHolder.clear();
+        assertFalse(LocalThreadHolder.isSelfOrAdmin(null));
+        assertFalse(LocalThreadHolder.isSelfOrAdmin(7));
+    }
 }

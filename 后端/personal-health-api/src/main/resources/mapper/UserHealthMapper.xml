@@ -27,6 +27,33 @@
         </foreach>
     </delete>
 
+    <!-- ==================== 归属约束版（2026-10-10 修 IDOR） ====================
+         user_id 由 Service 从 token 取出后传入；为 null 表示管理员不限归属。
+         WHERE 里带上归属条件，而不是「先查再判再改」——少一次往返，
+         也避免并发下「查的时候是我的、改的时候已经不是」这类 TOCTOU。 -->
+    <update id="updateOwned">
+        UPDATE user_health
+        <set>
+            <if test="value != null and value != ''">
+                value = #{value},
+            </if>
+        </set>
+        WHERE id = #{id}
+        <if test="userId != null">
+            AND user_id = #{userId}
+        </if>
+    </update>
+
+    <delete id="batchDeleteOwned">
+        DELETE FROM user_health WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        <if test="userId != null">
+            AND user_id = #{userId}
+        </if>
+    </delete>
+
     <select id="query" resultMap="BaseResultMap">
 
         SELECT uh.*,u.user_name,hmc.name,hmc.unit,hmc.symbol,hmc.value_range

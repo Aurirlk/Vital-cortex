@@ -279,6 +279,12 @@ public class MessageServiceImpl implements MessageService {
             vo.setIsRead(n.getIsRead() != null && n.getIsRead() == 1);
             vo.setContentId(parseInt(n.getRelatedId()));
             vo.setCreateTime(n.getCreateTime());
+            // 2026-10-10 新增：把标题与跳转路径一并带出去。
+            // 这两列是 message 表并进 notification 表后才有的（见 Notification 实体），
+            // 原来这里没搬，导致预约/订单/AI 这类业务通知在前端只能显示一行正文，
+            // 既看不出「这是什么」也点不动。
+            vo.setTitle(n.getTitle());
+            vo.setLinkUrl(n.getLinkUrl());
             list.add(vo);
         }
         return list;

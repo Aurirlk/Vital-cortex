@@ -51,8 +51,10 @@ public interface CommentMapper {
     /** 点赞数 -1（原子更新，下限 0） */
     int decreaseLikeCount(@Param("id") Integer id);
 
-    /** 更新点赞用户列表（整体覆盖，由 Service 先读后写） */
-    void updateUpvoteList(@Param("id") Integer id, @Param("upvoteList") String upvoteList);
+    // 2026-10-10 移除 updateUpvoteList：它整体覆盖 comment.upvote_list 这个逗号串，
+    // 既无法并发安全（先读后写必丢赞），全仓也无任何调用者 —— 是「评论点赞看起来
+    // 有实现」的主要误导来源。点赞关系现以 content_interaction 唯一键为准
+    // （见 ContentInteractionMapper#queryUpvotedTargetIds、EvaluationsServiceImpl#upvote）。
 
     /** 按用户查询其评论（个人中心用） */
     List<CommentVO> queryByUser(@Param("userId") Integer userId,

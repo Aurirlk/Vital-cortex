@@ -27,3 +27,11 @@ schema_config:
 
 limits_config:
   retention_period: 168h
+
+# 2026-10-10 修复：上面只声明了 retention_period，但没有 compactor ——
+# 在 Loki 里「保留期」是由 compactor 组件执行删除的，缺了它 retention 完全不生效，
+# 数据会无限增长（与 DELIVERY.md「日志保留 7 天」的说法不符）。
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  delete_request_store: filesystem

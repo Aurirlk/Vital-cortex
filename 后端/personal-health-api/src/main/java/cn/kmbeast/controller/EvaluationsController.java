@@ -42,6 +42,21 @@ public class EvaluationsController {
     }
 
     /**
+     * 点赞 / 取消点赞评论
+     *
+     * <p>2026-10-10 新增。此前前端点赞复用了 {@code PUT /evaluations/update}，
+     * 那条路径既要求「评论作者本人或管理员」（导致给别人的评论点赞必被拒），
+     * 后端也从不写点赞字段 —— 点赞实际从未落库。现在独立成接口：
+     * 只要求登录，与作者无关。
+     */
+    @Protector
+    @PostMapping(value = "/upvote/{id}")
+    @ResponseBody
+    public Result<Object> upvote(@PathVariable Integer id) {
+        return evaluationsService.upvote(id);
+    }
+
+    /**
      * 查询内容下的全部评论
      */
     @Protector

@@ -1,11 +1,14 @@
 package cn.kmbeast.service.impl;
 
 import cn.kmbeast.context.LocalThreadHolder;
+import cn.kmbeast.core.notify.NotifyTemplates;
+import cn.kmbeast.core.notify.UserNotifier;
 import cn.kmbeast.mapper.AppointmentMapper;
 import cn.kmbeast.mapper.DoctorScheduleMapper;
 import cn.kmbeast.mapper.HospitalDoctorMapper;
 import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
+import cn.kmbeast.pojo.em.NotificationSource;
 import cn.kmbeast.pojo.entity.DoctorSchedule;
 import cn.kmbeast.pojo.vo.AppointmentVO;
 import cn.kmbeast.pojo.vo.DoctorVO;
@@ -41,6 +44,9 @@ public class DoctorWorkServiceImpl implements DoctorWorkService {
 
     @Resource
     private HospitalDoctorMapper doctorMapper;
+
+    @Resource
+    private UserNotifier userNotifier;
 
     /**
      * 取当前登录医生 ID。
@@ -167,7 +173,37 @@ public class DoctorWorkServiceImpl implements DoctorWorkService {
             return ApiResult.error("预约不存在或状态已变更");
         }
         log.info("[DoctorWork] 医生 {} 完成接诊: appointmentId={}", doctorId, appointmentId);
+
+        // 2026-10-10 新增：就诊完成通知患者，受设置页「预约提醒」开关控制。
+        // 只在 affected>0（即真的发生了流转）时才查一次预约 —— 重复提交、
+        // 状态已变更的情况在上面就返回了，不会走到这里多打一次查询。
+        // 用 sendOnce：PatientDetailServiceImpl 里还有另一条完成接诊的路径，
+        // 两条路径都由 SQL 的 status IN (0,1) 保证只会成功一次，这里再加一道去重兜底。
+        notifyCompleted(appointmentId);
         return ApiResult.success();
+    }
+
+    /**
+     * 就诊完成通知（2026-10-10 新增）。
+     *
+     * <p>通知本身出问题不能影响「完成接诊」这个主操作 —— 医生点一下确认，
+     * 不该因为消息中心写不进去而失败。
+     */
+    private void notifyCompleted(Integer appointmentId) {
+        try {
+            AppointmentVO appointment = appointmentMapper.getById(appointmentId);
+            if (appointment == null || appointment.getPatientId() == null) {
+                return;
+            }
+            userNotifier.sendOnce(appointment.getPatientId(), NotificationSource.APPOINTMENT,
+                    NotifyTemplates.T_APPOINTMENT_COMPLETED,
+                    NotifyTemplates.appointmentCompleted(appointment.getAppointmentDate(),
+                            appointment.getDoctorName()),
+                    appointmentId.longValue(),
+                    NotifyTemplates.LINK_APPOINTMENT);
+        } catch (Exception e) {
+            log.warn("[DoctorWork] 就诊完成通知发送失败，不影响接诊: appointmentId={}", appointmentId, e);
+        }
     }
 
     @Override

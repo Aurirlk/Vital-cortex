@@ -64,6 +64,9 @@ public class SentinelConfig {
 
         List<FlowRule> rules = new ArrayList<>();
         rules.add(flowRule("user:login", qpsLogin));
+        // 2026-10-10 补齐：/doctor/login 此前没有 @SentinelResource，也没有任何流控规则，
+        // 医生端登录可以无限次打。这里与用户端登录用同一档 QPS。
+        rules.add(flowRule("doctor:login", qpsLogin));
         rules.add(flowRule("ai:chat", qpsChat));
         rules.add(flowRule("ai:chatStream", qpsChat));
         rules.add(flowRule("file:upload", qpsUpload));

@@ -89,7 +89,7 @@ export default {
     async loadInitial() {
       this.loading = true;
       try {
-        const { data } = await request.get(`user/info/${this.modelValue}`);
+        const { data } = await request.get(`user/getById/${this.modelValue}`);
         if (data && data.code === 200 && data.data) {
           this.options = [data.data];
         }

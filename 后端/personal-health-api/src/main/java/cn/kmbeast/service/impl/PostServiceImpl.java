@@ -15,11 +15,13 @@ import cn.kmbeast.pojo.entity.PostReply;
 import cn.kmbeast.pojo.entity.PostReport;
 import cn.kmbeast.pojo.entity.UserFollow;
 import cn.kmbeast.pojo.vo.CommentVO;
+import cn.kmbeast.pojo.vo.NewsVO;
 import cn.kmbeast.pojo.vo.PostReplyVO;
 import cn.kmbeast.pojo.vo.PostVO;
 import cn.kmbeast.service.PostService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
@@ -74,11 +76,28 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public Result<Void> save(Post post) {
-        if (post.getUserId() == null) {
-            post.setUserId(LocalThreadHolder.getUserId());
-        }
-        if (post.getUserId() == null) {
+        Integer current = LocalThreadHolder.getUserId();
+        if (current == null) {
             return ApiResult.error("未登录");
+        }
+        // 2026-10-10 修复（冒名发布 / 自行置顶）：
+        // 原实现是 `if (userId == null) userId = 当前登录用户` ——
+        // 也就是「前端传了就以前端为准」。攻击者只要在请求体里塞
+        // userId=<他人ID>，就能以自己的登录态发出**署名他人**的帖子
+        // （删帖/置顶/风控追责时都会算到被冒名者头上）。
+        // 现在一律以 token 身份为准，仅管理员保留代发能力。
+        if (LocalThreadHolder.isAdmin()) {
+            if (post.getUserId() == null) {
+                post.setUserId(current);
+            }
+        } else {
+            post.setUserId(current);
+            // 置顶属运营能力，普通用户/医生不得自行置顶
+            post.setIsTop(false);
+            // 状态同理：不允许通过请求体把自己帖子置为下架/草稿以外的状态
+            if (post.getStatus() == null) {
+                post.setStatus(1);
+            }
         }
         if (post.getCreateTime() == null) {
             post.setCreateTime(LocalDateTime.now());
@@ -104,6 +123,21 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public Result<Void> update(Post post) {
+        if (post == null || post.getId() == null) {
+            return ApiResult.error("缺少帖子 ID");
+        }
+        // 2026-10-10 修复（IDOR）：原先直接按 id 更新（WHERE id = ? AND content_type='POST'），
+        // 任何登录用户都能改他人帖子——改标题/内容/封面/标签，甚至借 status/isTop
+        // 把他人的帖子置顶或下架。现要求作者本人或管理员。
+        NewsVO exist = newsMapper.getPostById(post.getId());
+        if (exist == null) {
+            return ApiResult.error("帖子不存在");
+        }
+        if (!LocalThreadHolder.isSelfOrAdmin(exist.getUserId())) {
+            log.warn("越权修改帖子被拒绝: postId={}, ownerId={}, operatorId={}",
+                    post.getId(), exist.getUserId(), LocalThreadHolder.getUserId());
+            return ApiResult.error("无权修改该帖子");
+        }
         post.setUpdateTime(LocalDateTime.now());
         newsMapper.updatePost(post);
         return ApiResult.success();
@@ -145,6 +179,7 @@ public class PostServiceImpl implements PostService {
     // ================================================================ 点赞
 
     @Override
+    @Transactional
     public Result<Void> like(Integer userId, Integer postId) {
         if (userId == null || postId == null) {
             return ApiResult.error("参数不完整");
@@ -159,6 +194,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Transactional
     public Result<Void> unlike(Integer userId, Integer postId) {
         if (userId == null || postId == null) {
             return ApiResult.error("参数不完整");
@@ -178,6 +214,7 @@ public class PostServiceImpl implements PostService {
     // ================================================================ 收藏
 
     @Override
+    @Transactional
     public Result<Void> favorite(Integer userId, Integer postId) {
         if (userId == null || postId == null) {
             return ApiResult.error("参数不完整");
@@ -192,6 +229,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Transactional
     public Result<Void> unfavorite(Integer userId, Integer postId) {
         if (userId == null || postId == null) {
             return ApiResult.error("参数不完整");
@@ -216,10 +254,21 @@ public class PostServiceImpl implements PostService {
      * 此处做字段映射后交给统一评论表，接口契约不变。
      */
     @Override
+    @Transactional
     public Result<Void> saveReply(PostReply postReply) {
-        if (postReply.getUserId() == null) {
-            postReply.setUserId(LocalThreadHolder.getUserId());
+        // 2026-10-10 修复（两处）：
+        // 1) 冒名回复：原实现同样只在 userId 为空时才用当前登录用户，
+        //    传 userId=<他人ID> 即可冒充他人发表评论。
+        // 2) 伪造点赞数：likeCount 直接取自请求体 —— 发一条回复就能带上
+        //    「已有 1000 个赞」。新回复的点赞数恒为 0。
+        Integer current = LocalThreadHolder.getUserId();
+        if (current == null) {
+            return ApiResult.error("未登录");
         }
+        if (!LocalThreadHolder.isAdmin() || postReply.getUserId() == null) {
+            postReply.setUserId(current);
+        }
+        postReply.setLikeCount(0);
         if (postReply.getCreateTime() == null) {
             postReply.setCreateTime(LocalDateTime.now());
         }
@@ -230,7 +279,7 @@ public class PostServiceImpl implements PostService {
         comment.setUserId(postReply.getUserId());
         comment.setParentId(postReply.getParentId());
         comment.setContent(postReply.getContent());
-        comment.setLikeCount(postReply.getLikeCount() != null ? postReply.getLikeCount() : 0);
+        comment.setLikeCount(0);
         comment.setStatus(1);
         comment.setCreateTime(postReply.getCreateTime());
         commentMapper.save(comment);
@@ -338,8 +387,11 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public Result<Void> report(PostReport postReport) {
-        if (postReport.getUserId() == null) {
-            postReport.setUserId(LocalThreadHolder.getUserId());
+        // 2026-10-10 修复（冒名举报）：与 save/saveReply 同源问题 ——
+        // 原先传了 userId 就以请求体为准，可冒用他人身份举报帖子。
+        Integer current = LocalThreadHolder.getUserId();
+        if (!LocalThreadHolder.isAdmin() || postReport.getUserId() == null) {
+            postReport.setUserId(current);
         }
         if (postReport.getUserId() == null || postReport.getPostId() == null) {
             return ApiResult.error("参数不完整");

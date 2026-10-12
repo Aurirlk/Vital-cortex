@@ -24,4 +24,12 @@ public interface EvaluationsService {
 
     Result<Void> update(Evaluations evaluations);
 
+    /**
+     * 点赞 / 取消点赞评论（2026-10-10 新增）。
+     *
+     * <p>点赞与评论作者无关，任何登录用户都可对任意评论操作；
+     * 同一用户重复调用即取消。返回 {@code {upvoted, likeCount}}。
+     */
+    Result<Object> upvote(Integer id);
+
 }

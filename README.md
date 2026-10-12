@@ -51,7 +51,7 @@
 | 数据库设计        | `docs/数据库设计.md`           | ER 图、建表 SQL、字段说明                             |
 | 后端开发         | `docs/后端开发.md`        | 接口设计、核心代码、架构说明                               |
 | 前端开发         | `docs/前端开发.md`      | 页面设计、组件说明、路由设计                               |
-| 测试文档         | `docs/测试报告.md`                | 测试用例（49条，含25单测）、测试报告                         |
+| 测试文档         | `docs/测试报告.md`                | 测试用例、测试报告（单元测试 364 例，`mvn -o test` 全绿）             |
 | Linux部署      | `docs/Linux部署.md`        | 环境搭建、部署命令、常见问题                               |
 | AI工具使用       | `docs/AI工具使用记录.md`      | AI工具使用记录（≥500字）                              |
 | **AI 智能体架构** | `docs/智能体架构.md`              | **v5.1 新增** Multi-Agent/ReAct/Provider工厂/熔断器 |
@@ -61,6 +61,7 @@
 | 开发指南         | `docs/开发指南.md`             | 防坑指南、编码规范                                    |
 | **缺陷与改进路线图** | `docs/缺陷与改进路线图.md`                | **v5.2 新增** 缺陷/漏洞/改进点决策与排期（已定方案 3 项）      |
 | **多模态能力设计** | `docs/多模态设计.md`            | **v5.2 新增** 图片进上下文 + 语音 ASR/TTS Provider 化详细设计 |
+| **通知系统** | `docs/通知系统.md`            | **2026-10-10 新增** 用户通知开关接线、9 个触发点、去重键、就诊前一天定时任务 |
 | 用户交付手册       | `DELIVERY.md`                        | 部署/配置/安全/已知限制（v1.2，架构改进权威说明）                 |
 
 ---
@@ -240,7 +241,7 @@
 | XSS | AI 输出经 DOMPurify 白名单净化 |
 | 数据出境 | 健康档案发送第三方 AI 前自动**脱敏**（剔除姓名/手机号等 PII） |
 | 成本可观测 | 每次调用 token 用量落库（`ai_usage` 表） |
-| 单元测试 | 25 个用例（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl），`mvn test` 可跑 |
+| 单元测试 | 364 个用例，`mvn -o test` 全绿（`后端/personal-health-api`；无 `@SpringBootTest`，Mapper XML 由 `MapperXmlParseTest` 静态兜底） |
 
 ---
 
@@ -601,12 +602,15 @@ npm run dev
 | description  | VARCHAR(255) | 配置描述                  |
 | create_time  | DATETIME     | 创建时间                  |
 
-### 评论表 `evaluations` / 消息表 `message`
+### 评论表 `evaluations` / 通知表 `notification`
 
 | 表名          | 说明        |
 | ----------- | --------- |
 | evaluations | 用户评论/评价记录 |
-| message     | 系统消息通知    |
+| notification | 全站通知与消息（`type` 业务分类 / `message_type` 用户视角分类 / `biz_type`+`biz_id` 关联业务 / `title`+`link_url` 供消息中心展示与跳转） |
+
+> `message` 表已于 2026-10-04 并入 `notification`（迁移脚本 `Data/02_迁移脚本/06_merge_message_into_notification.sql`），
+> 不再是独立的表。通知的发送方统一走 `core/notify/UserNotifier`，详见 `docs/通知系统.md`。
 
 ---
 
@@ -721,7 +725,8 @@ VitalCortex/
 - AI 输出 DOMPurify 净化、出境前 PII 脱敏、token 用量落库（`ai_usage`）
 
 **工程**
-- 25 个单元测试（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl）通过
+- 单元测试扩充至 364 例（`mvn -o test` 全绿）：安全护栏（SqlGuard / ChunkUtil / ToolArgsValidator）、
+  登录防撞库、IDOR 归属校验、通知开关与业务通知接线、Mapper XML 静态检查
 - Docker 镜像去默认密码、非 root 运行、healthcheck；CI 去 `continue-on-error`
 - 后端 `pom.xml` 编码属性修正、测试依赖补全；规范化损坏换行符
 
@@ -881,7 +886,7 @@ VitalCortex/
 
 | 编号    | 原缺陷          | 现状                                                                                    |
 | ----- | ------------ | ------------------------------------------------------------------------------------- |
-| D-005 | 缺少单元测试       | 已补 25 个用例（SqlGuard / ChunkUtil / ToolArgsValidator / DrugServiceImpl），`mvn test` 通过 |
+| D-005 | 缺少单元测试       | 已扩充至 364 个用例，`mvn -o test` 通过；**但全为 Mockito 纯对象测试、无 `@SpringBootTest`**，容器与 Mapper XML 靠 `MapperXmlParseTest` 静态兜底（该测试揪出过启动阻断缺陷，见 `docs/测试报告.md` §3.2） |
 | D-009 | 部分接口缺少输入验证   | CRM 接口加 `CrmApiKeyInterceptor`；`SqlGuard` 只读守卫 + 租户隔离；AI 输出 DOMPurify 净化            |
 | D-001 | 部分 SQL 脚本未执行 | 已补充 `Data/sql/ai_usage_schema.sql`（token 成本表），其余业务表脚本仍建议部署时执行                      |
 | D-002 | admin 账号可能被锁定 | 修复 `init_database.sql`/`mock_business_data.sql` 种子账号 `is_login 1→0`；`UserServiceImpl.backUpdate` 增加防锁死守卫（保护当前用户 & 最后一名可登录管理员） |

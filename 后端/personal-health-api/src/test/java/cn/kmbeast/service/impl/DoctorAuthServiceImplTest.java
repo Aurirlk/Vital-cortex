@@ -1,6 +1,7 @@
 package cn.kmbeast.service.impl;
 
 import cn.kmbeast.core.auth.AuthSessionManager;
+import cn.kmbeast.core.auth.LoginAttemptGuard;
 import cn.kmbeast.mapper.HospitalDoctorMapper;
 import cn.kmbeast.pojo.api.Result;
 import cn.kmbeast.pojo.dto.request.DoctorLoginDTO;
@@ -56,6 +57,15 @@ class DoctorAuthServiceImplTest {
 
     @Mock
     private AuthSessionManager authSessionManager;
+
+    /**
+     * 2026-10-10 新增依赖：登录失败计数与临时封禁（防撞库）。
+     * <p>Mockito 默认返回「未封禁 / 不计入」，因此下面这些既有用例
+     * 仍然只考察它们各自的登录分支；防撞库本身的行为由
+     * {@code LoginAttemptGuardTest} 与 {@code LoginFlowSecurityTest} 覆盖。
+     */
+    @Mock
+    private LoginAttemptGuard loginAttemptGuard;
 
     @InjectMocks
     private DoctorAuthServiceImpl service;

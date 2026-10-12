@@ -64,6 +64,19 @@ public interface ContentInteractionMapper {
                                         @Param("limit") Integer limit);
 
     /**
+     * 查某用户在这批目标中已点赞（actionType=LIKE）的目标 ID。
+     *
+     * <p>2026-10-10 新增，供评论区一次性回显「我赞过哪些」——
+     * 若不批量查，就得对每条评论各查一次（N+1）。
+     *
+     * @param targetIds 待判定的目标 ID，<b>调用方须保证非空</b>
+     *                  （空集合会生成 {@code IN ()} 这样的非法 SQL）
+     */
+    List<Integer> queryUpvotedTargetIds(@Param("userId") Integer userId,
+                                        @Param("targetType") String targetType,
+                                        @Param("targetIds") List<Integer> targetIds);
+
+    /**
      * 待处理的举报列表（管理端审核用）
      *
      * <p>对应合并前的 {@code post_report} 表，供 {@code AuditManage.vue} 使用。

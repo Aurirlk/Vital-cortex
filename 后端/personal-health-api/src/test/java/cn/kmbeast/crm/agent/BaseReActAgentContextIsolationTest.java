@@ -54,7 +54,10 @@ class BaseReActAgentContextIsolationTest {
         BaseReActAgent agent = newAgent();
         agent.setRoleHint("doctor");
         String p = promptOf(agent);
-        assertTrue(p.contains("全科医生"), "角色指令未注入 prompt");
+        // 断言必须针对角色<b>段落标记</b>，不能只断言关键词：
+        // DEFAULT_SYSTEM_PROMPT 本身就含"全科医生/营养师"等词（用于介绍 AI 医生角色），
+        // 只断言关键词会让本测试恒真，失去意义。
+        assertTrue(p.contains("## 本轮角色：全科医生"), "角色指令段落未注入 prompt");
     }
 
     @Test
@@ -100,9 +103,10 @@ class BaseReActAgentContextIsolationTest {
         agent.setRoleHint("不存在的角色");
         String p = promptOf(agent);
         // setRoleHint 内部已把 blank/null 归一为 general_assistant，
-        // 非空但未知的值不应导致崩溃，也不该匹配到别的角色
-        assertFalse(p.contains("全科医生"), "未知角色码错误地匹配到了医生角色");
-        assertFalse(p.contains("营养师"), "未知角色码错误地匹配到了营养师角色");
+        // 非空但未知的值不应导致崩溃，也不该匹配到别的角色。
+        // 未知角色在 ROLE_INSTRUCTIONS 中查不到，因此<b>不应追加任何角色段落</b>。
+        assertFalse(p.contains("## 本轮角色："), "未知角色码竟追加了角色段落");
+        assertFalse(p.contains("## 本轮角色：全科医生"), "未知角色码错误地匹配到了医生角色");
     }
 
     @Test
@@ -113,7 +117,7 @@ class BaseReActAgentContextIsolationTest {
         agent.setGuidancePrompt("\n\n【引导】最近情绪如何？");
         agent.clearConversationContext();
         String p = promptOf(agent);
-        assertFalse(p.contains("心理咨询师"), "clear 后仍残留角色");
+        assertFalse(p.contains("## 本轮角色：心理咨询师"), "clear 后仍残留角色");
         assertFalse(p.contains("【引导】"), "clear 后仍残留引导");
     }
 
@@ -123,7 +127,10 @@ class BaseReActAgentContextIsolationTest {
         BaseReActAgent shared = newAgent();   // 故意共用同一个单例，模拟 Spring 单例
         String[] roles = {"doctor", "nutritionist", "psychologist", "analyst",
                 "consultant", "general_assistant"};
-        String[] keywords = {"全科医生", "营养师", "心理咨询师", "报告分析师", "健康助手", "全能助手"};
+        // 用角色段落标记而非裸关键词：DEFAULT_SYSTEM_PROMPT 中含全部角色名，
+        // 用裸关键词会让断言恒真（任何 prompt 都"命中"所有角色），测试失去鉴别力。
+        String[] keywords = {"## 本轮角色：全科医生", "## 本轮角色：营养师", "## 本轮角色：心理咨询师",
+                "## 本轮角色：报告分析师", "## 本轮角色：健康助手", "## 本轮角色：全能助手"};
 
         int n = roles.length;
         CountDownLatch start = new CountDownLatch(1);
@@ -177,7 +184,7 @@ class BaseReActAgentContextIsolationTest {
         promptOf(agent);
         // 模拟：请求2 走 CRM 老链路（从不设 roleHint）
         String second = promptOf(agent);
-        assertFalse(second.contains("全科医生"),
+        assertFalse(second.contains("## 本轮角色：全科医生"),
                 "上一轮的角色泄漏到了下一轮——CrmChatController 这类不设角色的调用方会中招");
     }
 }
