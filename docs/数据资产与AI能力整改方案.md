@@ -115,7 +115,7 @@
 | **前端（用户）**          | `Assistant.vue` 新增「我的数据」模式，复用 `components/AgentWorkflow.vue` / `AgentResult.vue`                                                       | ✅  | `/user/assistant`                               |
 | **前端（管理）**          | `views/admin/DataAgentManage.vue`（开关 / 关键词 / 召回范围 / 提示词段落 4 个页签）                                                                       | ✅  | 路由 `/admin/dataAgentManage`                     |
 | **管理端菜单分组**         | 15 项平铺菜单 → 6 个可折叠分组（用户与权限 / 内容运营 / 健康与医疗 / 业务运营 / AI 与数据 / 系统管理）                                                                       | ✅  | `components/VerticalMenu.vue` + 路由 `meta.group` |
-| **会话历史管理**（阶段 7）    | `GET/PUT/DELETE /{user,doctor}/data-agent/sessions*` 6 个端点；前端 `AgentHistory.vue` + `AgentHistoryDialog.vue`（列表/重命名/删除/清空/回看）           | ✅  | 详见 `DataAgent集成迁移方案.md` §14.2                   |
+| **会话历史管理**（阶段 7）    | `GET/PUT/DELETE /{user,doctor}/data-agent/sessions*` 6 个端点；前端 `AgentHistory.vue` + `AgentHistoryDialog.vue`（列表/重命名/删除/清空/回看）           | ✅  | 详见 `功能文档.md` §四                   |
 | **报告图表与导出**（阶段 7）   | 报告内 `echarts` 围栏 → ECharts 渲染；下载 MD / 下载 HTML（**离线自包含**，图表转 PNG 内联）/ 全屏查看                                                              | ✅  | `utils/markdownReport.js`                       |
 | **预设问题可配**（阶段 7）    | 复用 `system_config` 存 JSON；管理员页新增页签，医生端/用户端各一份；未配置回落内置默认                                                                                | ✅  | `DataAgentConfigHolder.presetQuestions`         |
 | **报告 XSS 消毒**（阶段 7） | 报告经 marked 渲染后**必须过 DOMPurify**（报告来自 LLM 且落库，回看时再次渲染 → 存储型 XSS）                                                                        | ✅  | `utils/markdownReport.renderMarkdown`           |
@@ -135,7 +135,7 @@
 `tenantColumn == null` → 只中和不追加 → **租户过滤被整体跳过**；且中和正则不含表前缀，  
 JOIN 场景必现的 `a.user_id = 9` 会被中和成 `a.1=1`（语法错误）。  
 已修复为「**逐表扫描 + 逐表限定**」（`extractTableRefs` / `rewriteAll` / `hasSubqueryOrCte`），  
-详见 `DataAgent集成迁移方案.md` §13.9。
+详见 `功能文档.md` §四。
 
 **⚠️ 二次复核又发现的三处同类缺口（P1，2026-10-07，已修）**
 
@@ -146,7 +146,7 @@ JOIN 场景必现的 `a.user_id = 9` 会被中和成 `a.1=1`（语法错误）�
 | 3 | `FROM db.table` 库名前缀使表名被误判 → 误拦正常查询   | 表引用正则容忍 `schema.` 前缀                                                           |
 
 并把「校验 + 重写」收敛为**唯一安全出口** `safeRewrite(…)`，初次生成与故障修复重试**两条路径都必须过它**。  
-详见 `DataAgent集成迁移方案.md` §14.1。
+详见 `功能文档.md` §四。
 
 ---
 
@@ -809,7 +809,7 @@ java -Dfile.encoding=UTF-8 -cp "$(cat /tmp/cp_test.txt)" RunAll
 | 推断出的关系是否 100% 可靠                           | ⚠️ 由命名约定 + 人工提示推断，**非数据库外键约束**。推断错会让模型写出错误 JOIN 且**结果错但不报错**（语义校验在 JSON 解析失败时默认判通过）。已在 prompt 的关系段标注「由列名约定推断，不确定时优先单表」，并锁了 7 条单测           |
 | 多表 JOIN 的租户隔离                              | ✅ 已有逐表覆盖（`TenantSqlRewriter.rewriteAll`），非本次新增                                                                                             |
 | Evidence 注入范围                              | 仅 SQL 生成（`new-sql-generate`）与错误修复（`sql-error-fixer`）两处。**刻意不注入** `mix-selector`（选表）与 `semantic-consistency`（语义校验）—— 那两处不需要术语，注入会让 token 翻倍 |
-| StateGraph / Python 沙箱 / HITL / MCP / 多数据源 | ⏸ **有意不迁移**，理由见 `DataAgent集成迁移方案.md`，不是未完成                                                                                                 |
+| StateGraph / Python 沙箱 / HITL / MCP / 多数据源 | ⏸ **有意不迁移**，理由见 `功能文档.md` §四，不是未完成                                                                                                 |
 
 ### B.5 验证证据（全部实测，非推断）
 
