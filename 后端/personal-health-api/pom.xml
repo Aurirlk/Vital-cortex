@@ -34,6 +34,13 @@
              原 1.8 目标导致 Map.of()/List.of() 等 Java 9+ API 编译报"找不到符号"。
              Spring Boot 3.5 官方支持 Java 17，升级零风险。 -->
         <java.version>17</java.version>
+        <!--
+            Apache POI 与 xmlbeans 的版本集中在此。
+            poi 与 poi-ooxml **必须同版本**（见下方 poi-ooxml 依赖处的说明），
+            故共用同一个属性，避免日后只改一处造成跨版本错配。
+        -->
+        <poi.version>5.2.5</poi.version>
+        <xmlbeans.version>5.2.0</xmlbeans.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
@@ -132,13 +139,67 @@
             <groupId>com.alibaba</groupId>
             <artifactId>easyexcel</artifactId>
             <version>3.3.4</version>
+            <exclusions>
+                <!--
+                    2026-10-13 实测：这两条**必须**排除。
+                    easyexcel 3.3.4 传递引入 poi-ooxml:4.1.2 与 poi-ooxml-schemas:4.1.2，
+                    而本项目直接声明的 poi 是 5.2.5。两套 schema 包
+                    （poi-ooxml-schemas 4.1.2 与 poi-ooxml-lite 5.2.5）提供的是
+                    **同一批类的同名包** org.openxmlformats.schemas.*，
+                    谁先被类加载器读到就归谁 —— 于是出现 4.x 的 schema 类
+                    配 5.x 的 POI 调用方。
+                    症状：构造任何一个 XSSFWorkbook 立抛
+                        java.lang.NoSuchFieldError: Factory
+                        at XSSFWorkbook.onWorkbookCreate(XSSFWorkbook.java:506)
+                    （经本仓库 test 运行实证）。
+                    排除后由下方的 poi-ooxml:${poi.version} 统一提供，
+                    easyexcel 3.3.x 官方支持 POI 5.2.x，行为不变。
+                -->
+                <exclusion>
+                    <groupId>org.apache.poi</groupId>
+                    <artifactId>poi-ooxml</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.poi</groupId>
+                    <artifactId>poi-ooxml-schemas</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!--excel处理-->
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi</artifactId>
-            <version>5.2.5</version>
+            <version>${poi.version}</version>
+        </dependency>
+
+        <!--
+            OOXML 处理（.docx / .xlsx）—— 知识库文档解析需要（阶段 2）。
+
+            2026-10-13：这里必须**显式声明**，不能靠传递依赖。
+            实测 `mvn dependency:tree`：easyexcel 3.3.4 会传递引入
+            `poi-ooxml:4.1.2`，而本项目直接声明的 poi 是 5.2.5 ——
+            类路径上因此同时存在 **poi 5.2.5 + poi-ooxml 4.1.2** 这一对跨大版本组合。
+            poi-ooxml 是按 poi 同版本编译的，4.x 的 ooxml 调 5.x 的 poi
+            极易 NoSuchMethodError；此前之所以没炸，只是因为**全仓没有一处代码
+            用过 POI**（含 easyexcel 的调用点也不走 ooxml 路径），纯属侥幸。
+            现显式声明并与 poi 共用 ${poi.version}，杜绝两者再次漂移。
+        -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+
+        <!--
+            OOXML 解析需要 xmlbeans（poi-ooxml 的运行时依赖）。
+            同样显式声明版本：xmlbeans 3.x 与 5.x 的 API 不兼容，
+            靠传递解析容易在升级 easyexcel 时被悄悄换掉。
+        -->
+        <dependency>
+            <groupId>org.apache.xmlbeans</groupId>
+            <artifactId>xmlbeans</artifactId>
+            <version>${xmlbeans.version}</version>
         </dependency>
 
         <!-- JWT相关 -->

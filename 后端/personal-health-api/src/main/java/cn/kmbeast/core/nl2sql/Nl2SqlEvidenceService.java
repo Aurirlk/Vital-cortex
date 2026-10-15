@@ -1,6 +1,6 @@
 package cn.kmbeast.core.nl2sql;
 
-import cn.kmbeast.config.Nl2SqlReadOnlyDataSourceConfig;
+import cn.kmbeast.config.Nl2SqlReadOnlyDataSourceProvider;
 import cn.kmbeast.crm.agent.tool.HealthMetric;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
@@ -32,7 +32,7 @@ import java.util.Map;
  * 选表阶段不需要术语，语义校验更不需要，两处都注入会让 token 翻倍。</p>
  *
  * <p>数据源走只读账号（本服务只做 SELECT），见
- * {@link Nl2SqlReadOnlyDataSourceConfig}；未配置 read-only.url 时回落主数据源。</p>
+ * {@link Nl2SqlReadOnlyDataSourceProvider}；未配置 read-only.url 时回落主数据源。</p>
  */
 @Slf4j
 @Service
@@ -46,8 +46,26 @@ public class Nl2SqlEvidenceService {
 
     private static final int MAX_ROWS = 20;
 
-    @Resource(name = Nl2SqlReadOnlyDataSourceConfig.BEAN_NAME)
-    private DataSource dataSource;
+    /**
+     * 主数据源（bean 名固定为 {@code dataSource}）。未配置只读源时本服务走它。
+     */
+    @Resource(name = "dataSource")
+    private DataSource primaryDataSource;
+
+    /**
+     * NL2SQL 专用只读数据源提供者。未配置 {@code crm.ai.nl2sql.read-only.url}
+     * 时 {@link #evidenceDataSource()} 回落主数据源。
+     */
+    @Resource(name = Nl2SqlReadOnlyDataSourceProvider.BEAN_NAME)
+    private Nl2SqlReadOnlyDataSourceProvider readOnlyDataSourceProvider;
+
+    /**
+     * 本服务只用 SELECT 读指标字典，优先走只读账号。
+     */
+    private DataSource evidenceDataSource() {
+        DataSource ro = readOnlyDataSourceProvider == null ? null : readOnlyDataSourceProvider.get();
+        return ro != null ? ro : primaryDataSource;
+    }
 
     private volatile String cache = "";
     private volatile long loadedAt = 0L;
@@ -72,7 +90,7 @@ public class Nl2SqlEvidenceService {
     private String load() {
         StringBuilder sb = new StringBuilder(512);
         try {
-            JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+            JdbcTemplate jdbc = new JdbcTemplate(evidenceDataSource());
             List<Map<String, Object>> rows = jdbc.queryForList(
                     "SELECT name, unit, symbol, value_range FROM health_model_config "
                             + "WHERE is_global = 1 ORDER BY id LIMIT " + MAX_ROWS);

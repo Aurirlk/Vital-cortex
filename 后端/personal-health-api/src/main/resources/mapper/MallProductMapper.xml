@@ -41,6 +41,11 @@
             <if test="keyword != null and keyword != ''">
                 AND (p.name LIKE CONCAT('%', #{keyword}, '%') OR p.description LIKE CONCAT('%', #{keyword}, '%'))
             </if>
+            <!-- 价格区间：上下限各自独立判空，只给一边也能用。
+                 必须与下面 queryCount 里的条件**逐字保持一致** ——
+                 两处不一致时列表和总条数会对不上，翻到最后一页是空的。 -->
+            <if test="minPrice != null">AND p.price &gt;= #{minPrice}</if>
+            <if test="maxPrice != null">AND p.price &lt;= #{maxPrice}</if>
             <if test="startTime != null and endTime != null">AND p.create_time BETWEEN #{startTime} AND #{endTime}</if>
         </where>
         ORDER BY p.create_time DESC
@@ -58,6 +63,9 @@
             <if test="keyword != null and keyword != ''">
                 AND (p.name LIKE CONCAT('%', #{keyword}, '%') OR p.description LIKE CONCAT('%', #{keyword}, '%'))
             </if>
+            <!-- 与上面 query 的价格条件保持一致，否则分页总数会与列表内容不符 -->
+            <if test="minPrice != null">AND p.price &gt;= #{minPrice}</if>
+            <if test="maxPrice != null">AND p.price &lt;= #{maxPrice}</if>
             <if test="startTime != null and endTime != null">AND p.create_time BETWEEN #{startTime} AND #{endTime}</if>
         </where>
     </select>

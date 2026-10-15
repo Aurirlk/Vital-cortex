@@ -42,7 +42,9 @@ public class NotificationServiceImpl implements NotificationService {
             data.put("content", notification.getContent());
             data.put("type", notification.getType());
             data.put("isRead", notification.getIsRead());
-            data.put("relatedId", notification.getRelatedId());
+            // 2026-10-12：改推 bizId。原 relatedId 对应的列不存在，恒为 null，
+            // 前端全站零引用该键，故此处更名不影响任何消费方。
+            data.put("bizId", notification.getBizId());
             data.put("createTime", notification.getCreateTime() != null
                     ? notification.getCreateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
                     : null);

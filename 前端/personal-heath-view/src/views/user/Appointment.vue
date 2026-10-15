@@ -117,9 +117,33 @@
           {{ formatDate(date) }}
         </div>
       </div>
+      <!--
+        阶段 4：用可拖拽的时间块表达「我有空的时段」。
+        排班只到上午/下午/晚间这一档粒度，所以这里是**按钟点区间做重叠筛选**，
+        而不是精确到分的预约 —— 组件本身支持 15 分钟粒度，
+        后端哪天给出具体钟点，只需改 SLOT_RANGES 这一张表。
+      -->
+      <div class="free-ranges">
+        <TimeBlockPlanner
+          v-model="freeRanges"
+          label="我有空的时间段"
+          :max-blocks="3"
+          :day-start="480"
+          :day-end="1260"
+          :step="30"
+          empty-hint="在时间条上按住上下拖动，画出你有空的时段；不画 = 全天可约"
+        />
+      </div>
+
+      <p v-if="freeRanges.length" class="filter-tip">
+        已按你有空的时间段筛选：共 {{ timeSlots.length }} 个号源，符合的
+        {{ visibleSlots.length }} 个
+        <button class="link-btn" @click="freeRanges = []">显示全部</button>
+      </p>
+
       <div class="time-slots">
         <div
-          v-for="slot in timeSlots"
+          v-for="slot in visibleSlots"
           :key="slot.id"
           class="slot-card"
           :class="{ 'slot-card--full': slot.bookedCount >= slot.maxPatients }"
@@ -137,6 +161,9 @@
           <div class="slot-card__count">
             剩余 {{ slot.maxPatients - slot.bookedCount }} 个号源
           </div>
+        </div>
+        <div v-if="timeSlots.length > 0 && visibleSlots.length === 0" class="no-slot">
+          你选的时间段内没有可预约号源，试试放宽一点
         </div>
       </div>
     </div>
@@ -232,9 +259,25 @@
 
 <script>
 import request from "@/utils/request.js";
+import TimeBlockPlanner from "@/components/effects/TimeBlockPlanner.vue";
+
+/**
+ * 排班时段 → 钟点区间（分钟数，距 0 点）。
+ *
+ * <p>后端 {@code doctor_schedule.time_slot} 只有 morning/afternoon/evening 三档，
+ * 本身不带钟点。这张表是前端的约定，用来把「用户有空的时间段」和排班对上，
+ * **不是从接口读来的**。它必须与后端时段的口径一致：
+ * 若后端某天把 evening 改成 18:00-22:00，只改这里即可，其余逻辑不用动。</p>
+ */
+const SLOT_RANGES = {
+  morning: [480, 720], // 08:00 - 12:00
+  afternoon: [780, 1020], // 13:00 - 17:00
+  evening: [1080, 1260], // 18:00 - 21:00
+};
 
 export default {
   name: "Appointment",
+  components: { TimeBlockPlanner },
   data() {
     return {
       currentStep: 1,
@@ -247,12 +290,50 @@ export default {
       selectedSlot: null,
       symptomDesc: "",
       availableDates: [],
+      /** 用户勾出的空闲区间 [{start,end}]，空数组 = 不限 */
+      freeRanges: [],
     };
+  },
+  computed: {
+    /**
+     * 按空闲区间过滤后的号源。
+     *
+     * <p>区间为空（用户没画）时原样返回全部 —— 「没表达偏好」和
+     * 「偏好是空集」是两回事，后者会让号源列表整个消失，
+     * 用户只会以为系统坏了。</p>
+     *
+     * <p>认不出 timeSlot 的排班**保留**而不是丢弃：过滤是收窄视图的手段，
+     * 不该因为前端认不出一个新枚举值就把号源藏起来。</p>
+     */
+    visibleSlots() {
+      if (!this.freeRanges.length) return this.timeSlots;
+      return this.timeSlots.filter((slot) => {
+        const range = SLOT_RANGES[slot.timeSlot];
+        if (!range) return true;
+        // 有重叠即可 —— 用户有空 14:00-17:00，下午档 13:00-17:00 应当留下
+        return this.freeRanges.some(
+          (r) => r.start < range[1] && r.end > range[0]
+        );
+      });
+    },
   },
   created() {
     this.loadDepartments();
     this.loadMyAppointments();
     this.generateDates();
+  },
+  watch: {
+    /**
+     * 已选号源被过滤掉时要清掉选择。
+     * 不清的话，「上一步」回到时间选择、把空闲时段改窄，
+     * 再「下一步」带着一个已经不在列表里的号源进确认页 ——
+     * 确认页还显示得好好的，提交时才失败。
+     */
+    visibleSlots(list) {
+      if (this.selectedSlot && !list.some((s) => s.id === this.selectedSlot.id)) {
+        this.selectedSlot = null;
+      }
+    },
   },
   methods: {
     generateDates() {
@@ -531,6 +612,42 @@ export default {
 .offline {
   background: #f0f0f0;
   color: #999;
+}
+
+/* 空闲时段规划器 */
+.free-ranges {
+  margin-bottom: 20px;
+  /* 与商城的价格滑块同一处理：强调色跟着本页主色（红）走 */
+}
+.free-ranges :deep(.tbp__block) {
+  background: #ff2442;
+  box-shadow: 0 2px 8px rgba(255, 36, 66, 0.28);
+}
+.filter-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #666;
+}
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #ff2442;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.no-slot {
+  width: 100%;
+  padding: 24px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  background: #fafafa;
+  border-radius: 12px;
 }
 
 .date-picker {

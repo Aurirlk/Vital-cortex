@@ -1,5 +1,23 @@
 import { getToken } from "@/utils/storage.js";
-import { jwtDecode } from "jwt-decode";
+/*
+ * 必须是**默认导入**。
+ *
+ * jwt-decode@3.1.2 的 ESM 产物（package.json 的 "module" 字段）只导出了两个东西：
+ *   export default jwtDecode;  export { InvalidTokenError }
+ * 并没有名为 jwtDecode 的具名导出（已实测：模块命名空间只有
+ * ['InvalidTokenError', 'default']，ns.jwtDecode === undefined）。
+ *
+ * 原来写的是 `import { jwtDecode } from "jwt-decode"`，于是这里拿到的是 undefined，
+ * decodeToken 里一调用就抛 TypeError，又被自己的 try/catch 吞掉 ——
+ * 表现为**永远返回 null**，而不是报错。后果一路传导：
+ *   decodeToken → null ⇒ getRole() ⇒ null ⇒ canAccess(path, null) 恒为 false
+ *   ⇒ router/index.js 的守卫对每个 requireAuth 路由 next(homeOf(null))
+ *     而 homeOf(null) 又回到 /user/news-record，形成重定向死循环。
+ *
+ * 构建时 webpack 只会给一句 "export 'jwtDecode' was not found" 的 warning
+ * （编译仍然成功），所以这个缺陷一直藏在警告里。改成默认导入后 warning 一并消失。
+ */
+import jwtDecode from "jwt-decode";
 
 /**
  * 医生端身份工具（2026-10-04）
@@ -54,6 +72,15 @@ export function decodeToken(token) {
   try {
     return jwtDecode(token);
   } catch (e) {
+    /*
+     * 打日志再返回 null。
+     * 这里返回 null 是对的（token 过期/被篡改本来就该返回 null，
+     * 不该把异常抛给调用方），但**静默**返回 null 是错的 ——
+     * 上面那个「具名导入写法导致 jwtDecode 恒为 undefined」的缺陷，
+     * 正是被这个空 catch 藏住的：症状是「所有人都被判成未登录」，
+     * 而控制台一片干净。排查时没有任何线索。
+     */
+    console.warn("[doctorAuth] token 解析失败，按未登录处理:", e && e.message);
     return null;
   }
 }

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.RetrievalLogMapper">
+
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.entity.RetrievalLog">
+        <id column="id" property="id"/>
+        <result column="query_text" property="queryText"/>
+        <result column="audience" property="audience"/>
+        <result column="user_id" property="userId"/>
+        <result column="kb_ids" property="kbIds"/>
+        <result column="top_k" property="topK"/>
+        <result column="sparse_hits" property="sparseHits"/>
+        <result column="dense_hits" property="denseHits"/>
+        <result column="fused_hits" property="fusedHits"/>
+        <result column="both_hits" property="bothHits"/>
+        <result column="path" property="path"/>
+        <result column="latency_ms" property="latencyMs"/>
+        <result column="top_json" property="topJson"/>
+        <result column="from_cache" property="fromCache"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO retrieval_log (query_text, audience, user_id, kb_ids, top_k,
+                                   sparse_hits, dense_hits, fused_hits, both_hits, path,
+                                   latency_ms, top_json, from_cache, create_time)
+        VALUES (#{queryText}, #{audience}, #{userId}, #{kbIds}, COALESCE(#{topK}, 0),
+                COALESCE(#{sparseHits}, 0), COALESCE(#{denseHits}, 0),
+                COALESCE(#{fusedHits}, 0), COALESCE(#{bothHits}, 0),
+                COALESCE(#{path}, 'none'), COALESCE(#{latencyMs}, 0), #{topJson},
+                COALESCE(#{fromCache}, 0), NOW())
+    </insert>
+
+    <sql id="QueryWhere">
+        <where>
+            <if test="queryText != null and queryText != ''">
+                AND query_text LIKE CONCAT('%', #{queryText}, '%')
+            </if>
+            <if test="audience != null and audience != ''">AND audience = #{audience}</if>
+            <if test="path != null and path != ''">AND path = #{path}</if>
+            <if test="userId != null">AND user_id = #{userId}</if>
+        </where>
+    </sql>
+
+    <select id="query" resultMap="BaseResultMap">
+        SELECT * FROM retrieval_log
+        <include refid="QueryWhere"/>
+        ORDER BY id DESC
+        <if test="current != null and size != null">
+            LIMIT #{current},#{size}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM retrieval_log
+        <include refid="QueryWhere"/>
+    </select>
+
+    <select id="aggregateByPath" resultType="java.util.Map">
+        SELECT path              AS path,
+               COUNT(*)          AS cnt,
+               AVG(latency_ms)   AS avgLatency,
+               AVG(fused_hits)   AS avgHits
+        FROM retrieval_log
+        <where>
+            <if test="start != null">AND create_time &gt;= #{start}</if>
+            <if test="end != null">AND create_time &lt; #{end}</if>
+        </where>
+        GROUP BY path
+        ORDER BY cnt DESC
+    </select>
+
+    <!--
+        一条 SQL 出全量退化画像。
+        sparse_only 占比是最该盯的数：长期偏高说明向量服务其实一直没在工作，
+        系统表面正常，只是悄悄退化成了一台关键词检索。
+    -->
+    <select id="summarize" resultType="java.util.Map">
+        SELECT COUNT(*)                                                        AS total,
+               SUM(CASE WHEN path = 'hybrid'      THEN 1 ELSE 0 END)           AS hybrid,
+               SUM(CASE WHEN path = 'sparse_only' THEN 1 ELSE 0 END)           AS sparseOnly,
+               SUM(CASE WHEN path = 'dense_only'  THEN 1 ELSE 0 END)           AS denseOnly,
+               SUM(CASE WHEN path = 'none'        THEN 1 ELSE 0 END)           AS emptyResult,
+               SUM(CASE WHEN path = 'sparse_like' THEN 1 ELSE 0 END)           AS sparseLikeFallback,
+               AVG(latency_ms)                                                 AS avgLatency
+        FROM retrieval_log
+        <where>
+            <if test="start != null">AND create_time &gt;= #{start}</if>
+            <if test="end != null">AND create_time &lt; #{end}</if>
+        </where>
+    </select>
+
+    <delete id="deleteBefore">
+        DELETE FROM retrieval_log WHERE create_time &lt; #{before}
+    </delete>
+
+</mapper>

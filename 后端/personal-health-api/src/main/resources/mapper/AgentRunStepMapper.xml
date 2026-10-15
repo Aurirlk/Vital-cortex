@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.AgentRunStepMapper">
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO agent_run_step (run_id, step_index, step_type, tool_name, target_agent,
+                                    args_json, result_digest, latency_ms, create_time)
+        VALUES (#{runId}, #{stepIndex}, #{stepType}, #{toolName}, #{targetAgent},
+                #{argsJson}, #{resultDigest}, COALESCE(#{latencyMs}, 0), NOW())
+    </insert>
+
+    <insert id="batchSave">
+        INSERT INTO agent_run_step (run_id, step_index, step_type, tool_name, target_agent,
+                                    args_json, result_digest, latency_ms, create_time)
+        VALUES
+        <foreach collection="list" item="s" separator=",">
+            (#{s.runId}, #{s.stepIndex}, #{s.stepType}, #{s.toolName}, #{s.targetAgent},
+             #{s.argsJson}, #{s.resultDigest}, COALESCE(#{s.latencyMs}, 0), NOW())
+        </foreach>
+    </insert>
+
+    <select id="listByRunId" resultMap="BaseResultMap">
+        SELECT * FROM agent_run_step
+        WHERE run_id = #{runId}
+        ORDER BY step_index ASC, id ASC
+    </select>
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.entity.AgentRunStep">
+        <id column="id" property="id"/>
+        <result column="run_id" property="runId"/>
+        <result column="step_index" property="stepIndex"/>
+        <result column="step_type" property="stepType"/>
+        <result column="tool_name" property="toolName"/>
+        <result column="target_agent" property="targetAgent"/>
+        <result column="args_json" property="argsJson"/>
+        <result column="result_digest" property="resultDigest"/>
+        <result column="latency_ms" property="latencyMs"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+</mapper>

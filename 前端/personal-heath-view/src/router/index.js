@@ -6,7 +6,6 @@ import {
   homeOf,
   isDoctorLoggedIn,
   clearDoctorToken,
-  ROLE_DOCTOR,
 } from "@/utils/doctorAuth.js";
 
 const routes = [
@@ -183,6 +182,20 @@ const routes = [
         name: "数据智能体",
         icon: "DataAnalysis",
         component: () => import(`@/views/admin/DataAgentManage.vue`),
+        meta: { requireAuth: true, group: "AI 与数据" },
+      },
+      {
+        path: "agentPlatformManage",
+        name: "智能体平台",
+        icon: "Cpu",
+        component: () => import(`@/views/admin/AgentPlatformManage.vue`),
+        meta: { requireAuth: true, group: "AI 与数据" },
+      },
+      {
+        path: "knowledgeBaseManage",
+        name: "知识库管理",
+        icon: "Collection",
+        component: () => import(`@/views/admin/KnowledgeBaseManage.vue`),
         meta: { requireAuth: true, group: "AI 与数据" },
       },
       {

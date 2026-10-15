@@ -5,6 +5,7 @@ import cn.kmbeast.pojo.api.ApiResult;
 import cn.kmbeast.pojo.api.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -25,6 +27,10 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /** 实际生效的上传上限（各 profile 可覆盖），仅在超限提示里回显。 */
+    @Value("${spring.servlet.multipart.max-file-size:10MB}")
+    private String maxFileSize = "10MB";
 
     /**
      * 处理参数校验异常
@@ -93,6 +99,26 @@ public class GlobalExceptionHandler {
     public Result<Void> handleCrmException(cn.kmbeast.crm.CrmException e) {
         log.warn("CRM异常 [{}]: {}", e.getErrorCode(), e.getMessage());
         return ApiResult.error(e.getMessage());
+    }
+
+    /**
+     * 处理上传体积超限。
+     *
+     * <p>阶段 2 新增：知识库支持上传 PDF/Word/Excel 之后才第一次有真实的
+     * 大文件上传路径。此前本异常会落到下面的兜底分支，用户只看到
+     * 「系统异常，请稍后重试（追踪ID: …）」——一个<b>他改不了也看不懂</b>的提示。
+     * 这里要说的只有两件事：多大算大、怎么办。</p>
+     *
+     * <p>上限值从配置读：各 profile 的 {@code spring.servlet.multipart.max-file-size}
+     * 可能不同，写死一个数字会在改配置后立刻变成假话。</p>
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public Result<Void> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
+        log.warn("上传文件超过上限: {}", e.getMessage());
+        return ApiResult.error("文件超过上传上限（当前 " + maxFileSize
+                + "），请压缩或拆分后重试。也可调整 spring.servlet.multipart.max-file-size 与 "
+                + "crm.rag.parse.max-bytes（两者需保持一致）。");
     }
 
     /**

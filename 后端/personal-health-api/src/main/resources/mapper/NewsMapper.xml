@@ -212,7 +212,7 @@
     <insert id="insertPost" useGeneratedKeys="true" keyProperty="post.id">
         INSERT INTO news (content_type, user_id, title, name, content, cover, tag_id,
                           view_count, like_count, favorite_count, comment_count, share_count,
-                          hot_score, status, is_top, create_time, update_time)
+                          hot_score, status, is_top, create_time, updated_at)
         VALUES ('POST', #{post.userId}, #{post.title}, #{post.title}, #{post.content}, #{post.cover},
                 #{post.tagId}, COALESCE(#{post.viewCount}, 0), COALESCE(#{post.likeCount}, 0),
                 COALESCE(#{post.favoriteCount}, 0), COALESCE(#{post.commentCount}, 0),
@@ -230,14 +230,14 @@
             <if test="post.tagId != null">tag_id = #{post.tagId},</if>
             <if test="post.status != null">status = #{post.status},</if>
             <if test="post.isTop != null">is_top = #{post.isTop},</if>
-            <if test="post.updateTime != null">update_time = #{post.updateTime},</if>
+            <if test="post.updateTime != null">updated_at = #{post.updateTime},</if>
         </set>
         WHERE id = #{post.id} AND content_type = 'POST'
     </update>
 
     <!-- 软删除：置 status=2（已下架），保留数据便于回溯与审计 -->
     <update id="deletePost">
-        UPDATE news SET status = 2, update_time = NOW()
+        UPDATE news SET status = 2, updated_at = NOW()
         WHERE content_type = 'POST' AND id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
     </update>

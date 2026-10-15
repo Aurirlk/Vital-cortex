@@ -9,6 +9,7 @@ import cn.kmbeast.crm.dto.CrmChatResponse;
 import cn.kmbeast.crm.dto.SqlQueryRequest;
 import cn.kmbeast.crm.sqlite.SqliteChatHistoryService;
 import cn.kmbeast.crm.workflow.SeaChatWorkflow;
+import cn.kmbeast.core.agent.Audience;
 import cn.kmbeast.core.agent.ChatRouting;
 import cn.kmbeast.mapper.UserMapper;
 import cn.kmbeast.pojo.api.ApiResult;
@@ -61,7 +62,10 @@ public class CrmChatController {
 
     @PostMapping(value = "/chat")
     public Result<CrmChatResponse> chat(@RequestBody CrmChatRequest request) {
-        CrmChatResponse response = seaChatWorkflow.processChat(request);
+        // 阶段 3（多端解耦）：userId 传 null 是刻意的 —— 本通道走 API Key + 手机号反查，
+        // 没有 JWT；端则显式声明为用户端，与本类下游的 ToolContext.setIdentity(2, null)
+        // 同口径。
+        CrmChatResponse response = seaChatWorkflow.processChat(request, null, Audience.USER);
         return ApiResult.success(response);
     }
 
@@ -105,7 +109,9 @@ public class CrmChatController {
 
         // 2026-10-05：本链路此前完全没有意图路由，6 个角色永不生效。
         // 与 /user/chat、/user/chat/stream 共用同一个 route()，行为保持一致。
-        ChatRouting routing = seaChatWorkflow.route(userId, query);
+        // 阶段 3：端也一并显式传（与上面的 /crm/chat 同一个端），
+        // 否则同一个手机号在两条链路上会被分到不同的 Agent。
+        ChatRouting routing = seaChatWorkflow.route(userId, query, Audience.USER);
 
         List<Map<String, String>> messages = seaChatWorkflow.buildInitialMessages(request);
 

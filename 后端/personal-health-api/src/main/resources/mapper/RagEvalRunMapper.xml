@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.RagEvalRunMapper">
+
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.entity.RagEvalRun">
+        <id column="id" property="id"/>
+        <result column="run_id" property="runId"/>
+        <result column="kb_ids" property="kbIds"/>
+        <result column="audience" property="audience"/>
+        <result column="top_k" property="topK"/>
+        <result column="case_total" property="caseTotal"/>
+        <result column="case_hit" property="caseHit"/>
+        <result column="recall" property="recall"/>
+        <result column="precision_at_k" property="precisionAtK"/>
+        <result column="mrr" property="mrr"/>
+        <result column="hit_rate" property="hitRate"/>
+        <result column="avg_latency_ms" property="avgLatencyMs"/>
+        <result column="sparse_only" property="sparseOnly"/>
+        <result column="detail_json" property="detailJson"/>
+        <result column="trigger_by" property="triggerBy"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <!-- 列表查询排除 detail_json：逐题明细可能很大，列表页把 N 行大字段拉进内存纯属浪费 -->
+    <sql id="ListColumns">
+        id, run_id, kb_ids, audience, top_k, case_total, case_hit, recall, precision_at_k,
+        mrr, hit_rate, avg_latency_ms, sparse_only, trigger_by, create_time
+    </sql>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO rag_eval_run (run_id, kb_ids, audience, top_k, case_total, case_hit,
+                                  recall, precision_at_k, mrr, hit_rate, avg_latency_ms,
+                                  sparse_only, detail_json, trigger_by, create_time)
+        VALUES (#{runId}, #{kbIds}, #{audience}, COALESCE(#{topK}, 0),
+                COALESCE(#{caseTotal}, 0), COALESCE(#{caseHit}, 0),
+                COALESCE(#{recall}, 0), COALESCE(#{precisionAtK}, 0),
+                COALESCE(#{mrr}, 0), COALESCE(#{hitRate}, 0), COALESCE(#{avgLatencyMs}, 0),
+                COALESCE(#{sparseOnly}, 0), #{detailJson},
+                COALESCE(#{triggerBy}, 'manual'), NOW())
+    </insert>
+
+    <select id="query" resultMap="BaseResultMap">
+        SELECT <include refid="ListColumns"/>
+        FROM rag_eval_run
+        <where>
+            <if test="audience != null and audience != ''">AND audience = #{audience}</if>
+        </where>
+        ORDER BY id DESC
+        <if test="current != null and size != null">
+            LIMIT #{current},#{size}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM rag_eval_run
+        <where>
+            <if test="audience != null and audience != ''">AND audience = #{audience}</if>
+        </where>
+    </select>
+
+    <select id="getByRunId" resultMap="BaseResultMap">
+        SELECT * FROM rag_eval_run WHERE run_id = #{runId}
+    </select>
+
+    <select id="latest" resultMap="BaseResultMap">
+        SELECT * FROM rag_eval_run
+        <where>
+            <if test="audience != null and audience != ''">AND audience = #{audience}</if>
+        </where>
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <delete id="deleteBefore">
+        DELETE FROM rag_eval_run WHERE id &lt; #{keepId}
+    </delete>
+
+</mapper>

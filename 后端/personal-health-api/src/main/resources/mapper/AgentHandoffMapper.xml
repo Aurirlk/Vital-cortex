@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.AgentHandoffMapper">
+
+    <insert id="batchSave">
+        INSERT INTO agent_handoff (from_agent_id, to_agent_id, condition_desc, enabled, create_time)
+        VALUES
+        <foreach collection="list" item="h" separator=",">
+            (#{h.fromAgentId}, #{h.toAgentId}, #{h.conditionDesc}, COALESCE(#{h.enabled}, 1), NOW())
+        </foreach>
+    </insert>
+
+    <delete id="deleteByFromAgentId">
+        DELETE FROM agent_handoff WHERE from_agent_id = #{fromAgentId}
+    </delete>
+
+    <!-- 两侧都删：删 Agent 时用，避免留下指向不存在 Agent 的悬空行 -->
+    <delete id="deleteByAgentId">
+        DELETE FROM agent_handoff
+        WHERE from_agent_id = #{agentId} OR to_agent_id = #{agentId}
+    </delete>
+
+    <select id="queryByFromAgentId" resultMap="BaseResultMap">
+        SELECT * FROM agent_handoff
+        WHERE from_agent_id = #{fromAgentId}
+        ORDER BY id ASC
+    </select>
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.entity.AgentHandoff">
+        <id column="id" property="id"/>
+        <result column="from_agent_id" property="fromAgentId"/>
+        <result column="to_agent_id" property="toAgentId"/>
+        <result column="condition_desc" property="conditionDesc"/>
+        <result column="enabled" property="enabled"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+</mapper>

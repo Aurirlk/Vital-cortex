@@ -826,7 +826,6 @@ export default {
   box-shadow: 0 1px 4px rgba(27, 110, 243, 0.16);
 }
 
-}
 @media (max-width: 1100px) {
   .data-main {
     grid-template-columns: 1fr;

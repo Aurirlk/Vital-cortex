@@ -54,6 +54,20 @@ public abstract class BaseReActAgent {
     protected cn.kmbeast.core.agent.AgentMemoryService memoryService;
 
     /**
+     * Agent 注册表（阶段 1 多 Agent 架构）：提供工具白名单与委派关系。
+     *
+     * <p>同样 {@code required=false}：单元测试里的子类不走 Spring 装配，硬注入会 NPE。
+     * 取不到时按「无白名单」处理 —— 恰好等于改造前的全量工具行为，
+     * 因此所有存量单测无需改动。</p>
+     */
+    @Autowired(required = false)
+    protected cn.kmbeast.core.agent.registry.AgentRegistry agentRegistry;
+
+    /** 运行记录器（阶段 1）；未装配时为 null，所有记录动作自然跳过。 */
+    @Autowired(required = false)
+    protected cn.kmbeast.core.agent.run.AgentRunRecorder runRecorder;
+
+    /**
      * 注入到 prompt 的偏好段最大字符数。
      *
      * <p>偏好是长期累积的，用户若不断追加会无限增长 → 必须设上限，否则单次对话的
@@ -136,12 +150,13 @@ public abstract class BaseReActAgent {
             
             ## 工作流程
             1. 分析用户问题，判断属于哪个功能类别
-            2. 使用对应工具获取信息（search_drug、search_knowledge、get_chat_history、get_health_data、query_health_records、query_knowledge_graph）
+            2. 使用对应工具获取信息（search_drug、search_knowledge、search_knowledge_base、get_chat_history、get_health_data、query_health_records、query_knowledge_graph）
             3. 综合信息给出专业、有帮助的回答
-            
+
             ## 规则
             - 涉及药品推荐时，必须使用 search_drug 获取真实药品数据
             - 涉及健康知识时，使用 search_knowledge 检索文章
+            - 需要权威依据（用法用量、禁忌、指标参考范围、流程规范）时，优先用 search_knowledge_base 查管理员维护的知识库；查不到就如实说明没有依据，不要编造出处
             - 涉及用户历史对话时，优先使用 get_chat_history
             - 涉及用户健康数据（血压、血糖、体重等），必须使用 get_health_data
             - 涉及「某指标最近测量值/统计/是否达标」（如「我最近的血压正常吗」「查一下空腹血糖」），使用 query_health_records
@@ -199,6 +214,22 @@ public abstract class BaseReActAgent {
      */
     private final ThreadLocal<String> roleHint = new ThreadLocal<>();
 
+    /**
+     * 本轮的 Agent 身份（阶段 1 新增）。
+     *
+     * <p><b>为什么不能复用 {@link #roleHint}</b>：roleHint 是「读取即清除」的一次性消费
+     * ——{@code enhanceSystemPrompt()} 在读它的同时 {@code remove()}，
+     * 而那时 ReAct 循环还没开始。循环里的工具白名单过滤（{@code callLLMWithTools}）
+     * 与工具派发校验（{@code executeTool}）都还需要这个身份，
+     * 那时 ThreadLocal 里已经空了，只能退化成 general_assistant。
+     * 故仿照 {@code intentHint} 的「读取不清除」模式另存一份。</p>
+     *
+     * <p>写入点只有 {@link #setRoleHint}，释放点只有 {@link #clearConversationContext}。
+     * 这两处已覆盖全部入口（同步 {@code runWithContext} 两个重载 + 流式
+     * {@code runWithContextStreaming} 两个重载），无需在每个入口重复 set/clear。</p>
+     */
+    private final ThreadLocal<String> agentKey = new ThreadLocal<>();
+
     /** Harness 生成的追问指令（无缺失槽位时为 null） */
     private final ThreadLocal<String> guidancePrompt = new ThreadLocal<>();
 
@@ -234,7 +265,20 @@ public abstract class BaseReActAgent {
      * @param roleType 角色编码，如 doctor / nutritionist；null 视为默认角色
      */
     public void setRoleHint(String roleType) {
-        roleHint.set((roleType == null || roleType.isBlank()) ? "general_assistant" : roleType);
+        String key = (roleType == null || roleType.isBlank())
+                ? cn.kmbeast.core.agent.registry.AgentRegistry.FALLBACK_KEY
+                : roleType;
+        roleHint.set(key);
+        // 同步记录 Agent 身份（见 agentKey 字段注释：roleHint 会被一次性消费）
+        agentKey.set(key);
+    }
+
+    /**
+     * 读取本轮 Agent 身份但<b>不清除</b>，供 ReAct 循环内的工具白名单过滤与派发校验使用。
+     * 未设置时返回 null（裸 {@code run()} 路径）。
+     */
+    public String peekAgentKey() {
+        return agentKey.get();
     }
 
     public String getRoleHint() {
@@ -463,8 +507,61 @@ public abstract class BaseReActAgent {
      */
     public void clearConversationContext() {
         roleHint.remove();
+        agentKey.remove();
         guidancePrompt.remove();
         intentHint.remove();
+    }
+
+    /**
+     * 本线程对话上下文的一份快照。
+     *
+     * <p>存在的唯一理由是<b>委派</b>：Agent A 在 ReAct 循环中途委派给 Agent B 时，
+     * B 也跑在同一个线程上，而 {@code runWithContext} 的 finally 会无条件
+     * {@link #clearConversationContext()} —— 那会把 <b>A 的</b>上下文一并抹掉。
+     * A 回到循环后，工具白名单、角色、意图倾向全丢了，后续轮次会静默退化成
+     * general_assistant。所以委派方必须在调用前 snapshot、返回后 restore。</p>
+     */
+    public static final class ConversationContext {
+        private final String roleHint;
+        private final String agentKey;
+        private final String guidance;
+        private final IntentRouter.IntentHint intentHint;
+
+        ConversationContext(String roleHint, String agentKey,
+                           String guidance, IntentRouter.IntentHint intentHint) {
+            this.roleHint = roleHint;
+            this.agentKey = agentKey;
+            this.guidance = guidance;
+            this.intentHint = intentHint;
+        }
+    }
+
+    /** 快照当前线程的对话上下文，供委派前后保存/恢复。 */
+    public ConversationContext snapshotContext() {
+        return new ConversationContext(roleHint.get(), agentKey.get(),
+                guidancePrompt.get(), intentHint.get());
+    }
+
+    /**
+     * 恢复快照。用 {@code remove()} 恢复「本来就是空」的字段，
+     * 而不是写入 null —— 保持 ThreadLocal 的干净状态，避免残留一份 null 值。
+     */
+    public void restoreContext(ConversationContext ctx) {
+        if (ctx == null) {
+            return;
+        }
+        restoreOne(roleHint, ctx.roleHint);
+        restoreOne(agentKey, ctx.agentKey);
+        restoreOne(guidancePrompt, ctx.guidance);
+        restoreOne(intentHint, ctx.intentHint);
+    }
+
+    private static <T> void restoreOne(ThreadLocal<T> holder, T value) {
+        if (value == null) {
+            holder.remove();
+        } else {
+            holder.set(value);
+        }
     }
 
     /**
@@ -516,10 +613,88 @@ public abstract class BaseReActAgent {
                                               String guidance) {
         setRoleHint(roleType);
         setGuidancePrompt(guidance);
+        beginRunRecording(userMessages);
+        ReActResponse response = null;
+        String failure = null;
         try {
-            return doRun(userMessages);
+            response = doRun(userMessages);
+            return response;
+        } catch (RuntimeException e) {
+            failure = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            throw e;
         } finally {
+            finishRunRecording(response, failure);
             clearConversationContext();
+        }
+    }
+
+    /**
+     * 开启本轮运行记录（阶段 1 可观测性）。
+     * 记录器内部已经把所有异常吞成 debug，这里再加一层是防止
+     * {@code runRecorder} 自身装配异常把整个对话带崩。
+     */
+    protected void beginRunRecording(List<Map<String, String>> userMessages) {
+        if (runRecorder == null) {
+            return;
+        }
+        try {
+            runRecorder.begin(peekAgentKey(), lastUserMessage(userMessages), ToolContext.getUserId());
+            // run_id 也要进 ToolContext：工具跑在池线程上，那些线程读不到
+            // 记录器的 ThreadLocal 运行栈，只能靠透传值把步骤挂回本次运行。
+            ToolContext.set(ToolContext.KEY_RUN_ID, runRecorder.currentRunId());
+        } catch (Exception e) {
+            log.debug("[ReAct] 开启运行记录失败，本轮不记录: {}", e.getMessage());
+        }
+    }
+
+    /** 结束本轮运行记录。{@code failure} 非空即为失败态。 */
+    protected void finishRunRecording(ReActResponse response, String failure) {
+        if (runRecorder == null) {
+            return;
+        }
+        try {
+            runRecorder.finish(failure == null ? "SUCCESS" : "FAILED",
+                    response != null ? response.getContent() : null, failure, 0);
+        } catch (Exception e) {
+            log.debug("[ReAct] 结束运行记录失败: {}", e.getMessage());
+        }
+    }
+
+    /** 取最后一条用户消息作为本轮「问题」，用于运行记录。 */
+    private static String lastUserMessage(List<Map<String, String>> messages) {
+        if (messages == null) {
+            return null;
+        }
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Map<String, String> m = messages.get(i);
+            if (m != null && "user".equals(m.get("role"))) {
+                return m.get("content");
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 记一次 LLM 调用的迭代数与 token 用量。
+     *
+     * <p>usage 是 OpenAI 兼容协议里的标准字段，非流式响应必然带；缺了就按 0 记，
+     * 不能让一个统计字段缺失把整轮对话打断。</p>
+     */
+    protected void recordLlmUsage(JSONObject json, long latencyMs) {
+        if (runRecorder == null) {
+            return;
+        }
+        try {
+            if (json != null && json.getJSONObject("usage") != null) {
+                JSONObject usage = json.getJSONObject("usage");
+                Integer prompt = usage.getInteger("prompt_tokens");
+                Integer completion = usage.getInteger("completion_tokens");
+                runRecorder.addTokens(prompt == null ? 0 : prompt, completion == null ? 0 : completion);
+            }
+            // 迭代数由记录器累计 —— ReAct 的一轮就是一次 LLM 调用
+            runRecorder.recordLlm(latencyMs);
+        } catch (Exception e) {
+            log.debug("[ReAct] 记录 LLM 用量失败: {}", e.getMessage());
         }
     }
 
@@ -742,7 +917,61 @@ public abstract class BaseReActAgent {
                 results[i] = ToolResult.error("工具执行超时或未完成（" + calls.get(i).getName() + "），本轮结果不可用");
             }
         }
+
+        recordToolSteps(calls, results);
         return results;
+    }
+
+    /**
+     * 把本轮的工具调用逐条记进 {@code agent_run_step}。
+     *
+     * <p><b>为什么在这里记、而不是在 {@link #executeTool} 里</b>：
+     * {@code executeTool} 是提交到工具线程池执行的，那里读不到记录器的
+     * ThreadLocal 运行栈（RUN_STACK），步骤会记到别处或直接丢失。
+     * 这里 {@code latch.await()} 之后已经回到<b>请求线程</b>，
+     * 上下文齐全，且能一次性拿到「调用 + 结果」的完整配对。</p>
+     *
+     * <p><b>取舍</b>：代价是拿不到单个工具自身的耗时（工具在别的线程跑，
+     * 耗时要跨线程带回才行）。这里记 0，运行级耗时（agent_run.latency_ms）
+     * 仍然是准的。若日后确实需要单工具耗时，应把耗时塞进 {@link ToolResult}
+     * 一并带回，而不是在这里凭空测量。</p>
+     */
+    protected void recordToolSteps(List<ToolCall> calls, ToolResult[] results) {
+        if (runRecorder == null || calls == null || results == null) {
+            return;
+        }
+        try {
+            for (int i = 0; i < calls.size() && i < results.length; i++) {
+                ToolCall tc = calls.get(i);
+                ToolResult result = results[i];
+                if (tc == null) {
+                    continue;
+                }
+                String digest = result != null ? result.getContent() : null;
+                String argsJson = tc.getArguments() != null ? tc.getArguments().toString() : null;
+
+                if (cn.kmbeast.crm.agent.tool.CallAgentTool.TOOL_NAME.equals(tc.getName())) {
+                    // 委派单独记成 handoff 步：一次委派与一次普通工具调用在事后
+                    // 必须能区分开，否则「A 把问题交给了 B」在数据上不留痕。
+                    Object target = tc.getArguments() != null
+                            ? tc.getArguments().get(cn.kmbeast.crm.agent.tool.CallAgentTool.ARG_AGENT_KEY)
+                            : null;
+                    runRecorder.recordHandoff(target == null ? null : target.toString(),
+                            tc.getArguments() != null
+                                    ? strOf(tc.getArguments().get(cn.kmbeast.crm.agent.tool.CallAgentTool.ARG_QUESTION))
+                                    : null,
+                            digest, 0L);
+                } else {
+                    runRecorder.recordTool(tc.getName(), argsJson, digest, 0L);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("[ReAct] 记录工具步骤失败: {}", e.getMessage());
+        }
+    }
+
+    private static String strOf(Object o) {
+        return o == null ? null : o.toString();
     }
 
     /**
@@ -785,7 +1014,92 @@ public abstract class BaseReActAgent {
         return false;
     }
 
+    /**
+     * 计算本轮下发给模型的工具白名单。
+     *
+     * <p>返回 null 表示「全量」——注册表不可用、未设 Agent 身份、
+     * 或该 Agent 没有任何绑定行，都归到这一类，保证行为不缩水。</p>
+     */
+    protected Set<String> resolveAllowedTools() {
+        if (agentRegistry == null) {
+            return null;
+        }
+        String key = currentAgentKey();
+        if (key == null) {
+            return null;
+        }
+        boolean canDelegate = !agentRegistry.handoffTargets(key).isEmpty();
+        Set<String> allowed = agentRegistry.allowedToolsOrNull(key);
+
+        if (allowed == null) {
+            // 无白名单 = 全量。但 call_agent 不能跟着全量走：
+            // 「能不能委派」是配置出来的能力，不是默认能力。放它进去，
+            // 没有委派关系的 Agent 也会看到一个必然报错的工具，
+            // 白白浪费一轮模型调用。
+            if (canDelegate) {
+                return null;   // 全量本就含 call_agent
+            }
+            Set<String> all = new LinkedHashSet<>();
+            for (Tool t : toolRegistry.getAll()) {
+                all.add(t.getName());
+            }
+            all.remove(cn.kmbeast.crm.agent.tool.CallAgentTool.TOOL_NAME);
+            return all;
+        }
+
+        // 配了委派目标就必须把 call_agent 下发，否则「可委派」只存在于 DB 里，
+        // 模型根本看不到这个工具，管理员配完会以为没生效；
+        // 反之没配就得显式剔除，防止管理员把它错绑进白名单。
+        Set<String> merged = new LinkedHashSet<>(allowed);
+        if (canDelegate) {
+            merged.add(cn.kmbeast.crm.agent.tool.CallAgentTool.TOOL_NAME);
+        } else {
+            merged.remove(cn.kmbeast.crm.agent.tool.CallAgentTool.TOOL_NAME);
+        }
+        return merged;
+    }
+
+    /**
+     * 本轮 Agent key，两个来源按优先级取。
+     *
+     * <p>{@code executeTool} 是<b>跑在工具线程池里</b>的（{@code executeToolsParallel}
+     * 把它 submit 进池），而 ThreadLocal 不跨线程 —— 那里只有
+     * {@link ToolContext} 里透传过来的那一份。反过来在请求线程上
+     * ToolContext 并没有被写过，所以两个来源都要看，而不是二选一。</p>
+     */
+    protected String currentAgentKey() {
+        String key = peekAgentKey();
+        return key != null ? key : ToolContext.getAgentKey();
+    }
+
+    /**
+     * 派发侧的白名单校验。
+     *
+     * <p>schema 过滤（{@link #resolveAllowedTools()}）只是「不告诉模型有这个工具」，
+     * 模型仍可能凭幻觉或 prompt 里的历史信息拼出一个工具名。所以真正的边界必须
+     * 落在派发这一侧：能进 {@code executeTool} 的调用，才有资格执行。</p>
+     */
+    protected boolean isToolPermitted(String toolName) {
+        if (agentRegistry == null) {
+            return true;
+        }
+        String key = currentAgentKey();
+        if (key == null) {
+            return true;
+        }
+        if (cn.kmbeast.crm.agent.tool.CallAgentTool.TOOL_NAME.equals(toolName)) {
+            // call_agent 是架构内置能力，白名单里不会被显式绑定；
+            // 它的准入条件就是「该 Agent 有委派目标」。
+            return !agentRegistry.handoffTargets(key).isEmpty();
+        }
+        return agentRegistry.isToolAllowed(key, toolName);
+    }
+
     protected ToolResult executeTool(ToolCall tc) {
+        if (!isToolPermitted(tc.getName())) {
+            log.warn("[ReAct] Agent[{}] 未绑定工具 {}，已拒绝调用", currentAgentKey(), tc.getName());
+            return ToolResult.error("当前角色无权调用工具: " + tc.getName());
+        }
         Tool tool = toolRegistry.get(tc.getName());
         if (tool == null) {
             return ToolResult.error("未知工具: " + tc.getName());
@@ -811,12 +1125,21 @@ public abstract class BaseReActAgent {
             final String userAgent = ToolContext.getUserAgent();
             final String method = ToolContext.getRequestMethod();
             final String url = ToolContext.getRequestUrl();
+            // 阶段 1：Agent 身份与 run_id 也必须跨线程透传 ——
+            // 工具派发侧的白名单校验就跑在这个池线程上，而 ThreadLocal 在池线程里是空的；
+            // 委派工具同样要知道自己属于哪个 Agent、哪一次运行。
+            final String agentKey = currentAgentKey();
+            final String runId = runRecorder != null ? runRecorder.currentRunId() : null;
+            final Integer handoffDepth = ToolContext.getHandoffDepth();
 
             future = toolExecutor.submit(() -> {
                 // 在线程池线程中设置ToolContext
                 ToolContext.setPhoneAndUserId(phone, userId);
                 ToolContext.setIdentity(roleId, doctorId);
                 ToolContext.setHttpMeta(clientIp, userAgent, method, url);
+                ToolContext.set(ToolContext.KEY_AGENT_KEY, agentKey);
+                ToolContext.set(ToolContext.KEY_RUN_ID, runId);
+                ToolContext.set(ToolContext.KEY_HANDOFF_DEPTH, handoffDepth);
                 try {
                     return tool.execute(tc.getArguments());
                 } finally {
@@ -859,11 +1182,13 @@ public abstract class BaseReActAgent {
         CrmException lastError = null;
         for (int attempt = 0; attempt < LLM_MAX_RETRIES; attempt++) {
             try {
+                long attemptStartMs = System.currentTimeMillis();
                 JSONObject body = new JSONObject();
                 body.put("model", aiConfig.getModel());
                 body.put("messages", messages);
                 body.put("temperature", crmConfig.getReactTemperature());
-                body.put("tools", toolRegistry.buildToolsArray(crmConfig.isReactToolStrict()));
+                body.put("tools", toolRegistry.buildToolsArray(
+                        resolveAllowedTools(), crmConfig.isReactToolStrict()));
                 body.put("tool_choice", "auto");
                 // 2026-10-07 OpenAI 合规：此前缺这两个标准字段。
                 // max_tokens 不传时由服务端决定默认值，部分自托管推理服务默认仅 1024，
@@ -917,6 +1242,10 @@ public abstract class BaseReActAgent {
                     if (choices == null || choices.isEmpty()) {
                         throw CrmException.badResponse("返回choices为空");
                     }
+
+                    // 阶段 1：记一次 LLM 迭代与 usage。此前整条 ReAct 链路对 usage
+                    // 完全不读，导致「这个 Agent 烧了多少 token」无从回答。
+                    recordLlmUsage(json, System.currentTimeMillis() - attemptStartMs);
 
                     JSONObject choice = choices.getJSONObject(0);
                     JSONObject message = choice.getJSONObject("message");

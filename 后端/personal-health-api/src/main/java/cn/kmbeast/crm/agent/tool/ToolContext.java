@@ -39,6 +39,12 @@ public class ToolContext {
     public static final String KEY_REQUEST_METHOD = "requestMethod";
     /** 请求 URL（审计用） */
     public static final String KEY_REQUEST_URL = "requestUrl";
+    /** 本轮执行对话的 Agent key（阶段 1：委派工具据此判断「我是谁、能委派给谁」） */
+    public static final String KEY_AGENT_KEY = "agentKey";
+    /** 当前 Agent 运行的 run_id（阶段 1：委派产生的子运行要挂到它下面） */
+    public static final String KEY_RUN_ID = "runId";
+    /** 已发生的 Agent 委派层数（阶段 1：防止委派无限递归） */
+    public static final String KEY_HANDOFF_DEPTH = "handoffDepth";
 
     public static void set(String key, Object value) {
         Map<String, Object> ctx = context.get();
@@ -94,7 +100,14 @@ public class ToolContext {
         set(KEY_DOCTOR_ID, doctorId);
     }
 
-    /** 当前调用方角色：null 视为普通用户（2） */
+    /**
+     * 当前调用方角色（1 管理员 / 2 用户 / 3 医生）。
+     *
+     * <p>原注释写的是「null 视为普通用户（2）」，但本方法<b>不会</b>做这个归一 ——
+     * 没写身份就是 null。差一个字，读的人就会写出 {@code if (roleId == 2)} 这种
+     * 漏掉 null 的判定；「null 该算哪一端」是各调用点自己的决定
+     * （例如 {@code DataQueryTool} 把它归到用户轨，而运行审计把它记成「端未知」）。</p>
+     */
     public static Integer getRoleId() {
         return getInt(KEY_ROLE_ID);
     }
@@ -102,6 +115,28 @@ public class ToolContext {
     /** 当前医生账号 ID（仅医生端非空） */
     public static Integer getDoctorId() {
         return getInt(KEY_DOCTOR_ID);
+    }
+
+    /**
+     * 本轮执行对话的 Agent key。
+     *
+     * <p>工具跑在线程池里，{@code BaseReActAgent} 的 {@code agentKey} ThreadLocal
+     * 在那个线程上是空的。委派工具必须靠这份透传值才知道「发起方是谁」，
+     * 否则无法校验「A 是否被允许委派给 B」。</p>
+     */
+    public static String getAgentKey() {
+        return getString(KEY_AGENT_KEY);
+    }
+
+    /** 当前 Agent 运行的 run_id；无记录（表未建 / 未开启记录）时为 null。 */
+    public static String getRunId() {
+        return getString(KEY_RUN_ID);
+    }
+
+    /** 已发生的委派层数；0 表示当前是根 Agent，没有发生过委派。 */
+    public static int getHandoffDepth() {
+        Integer depth = getInt(KEY_HANDOFF_DEPTH);
+        return depth == null ? 0 : depth;
     }
 
     // ==================== HTTP 上下文（P1-3：工具层审计补齐） ====================

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.AgentConfigMapper">
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO agent_config (agent_key, name, description, avatar, system_prompt, model,
+                                  temperature, top_p, max_tokens, audience, max_iterations,
+                                  routing_keywords, enabled, is_default, sort_order, create_time, update_time)
+        VALUES (#{agentKey}, #{name}, #{description}, #{avatar}, #{systemPrompt}, #{model},
+                #{temperature}, #{topP}, #{maxTokens}, COALESCE(#{audience}, 'all'),
+                COALESCE(#{maxIterations}, 5), #{routingKeywords},
+                COALESCE(#{enabled}, 1), COALESCE(#{isDefault}, 0), COALESCE(#{sortOrder}, 0),
+                NOW(), NOW())
+    </insert>
+
+    <!-- 不含 create_time：仅更新非空字段，update_time 由列级 ON UPDATE CURRENT_TIMESTAMP 维护 -->
+    <update id="update">
+        UPDATE agent_config
+        <set>
+            <if test="agentKey != null and agentKey != ''">
+                agent_key = #{agentKey},
+            </if>
+            <if test="name != null and name != ''">
+                name = #{name},
+            </if>
+            <if test="description != null and description != ''">
+                description = #{description},
+            </if>
+            <if test="avatar != null and avatar != ''">
+                avatar = #{avatar},
+            </if>
+            <if test="systemPrompt != null">
+                system_prompt = #{systemPrompt},
+            </if>
+            <if test="model != null and model != ''">
+                model = #{model},
+            </if>
+            <if test="temperature != null">
+                temperature = #{temperature},
+            </if>
+            <if test="topP != null">
+                top_p = #{topP},
+            </if>
+            <if test="maxTokens != null">
+                max_tokens = #{maxTokens},
+            </if>
+            <if test="audience != null and audience != ''">
+                audience = #{audience},
+            </if>
+            <if test="maxIterations != null">
+                max_iterations = #{maxIterations},
+            </if>
+            <if test="routingKeywords != null and routingKeywords != ''">
+                routing_keywords = #{routingKeywords},
+            </if>
+            <if test="enabled != null">
+                enabled = #{enabled},
+            </if>
+            <if test="isDefault != null">
+                is_default = #{isDefault},
+            </if>
+            <if test="sortOrder != null">
+                sort_order = #{sortOrder},
+            </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByIds" parameterType="list">
+        DELETE FROM agent_config WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="getById" resultMap="BaseResultMap">
+        SELECT * FROM agent_config WHERE id = #{id}
+    </select>
+
+    <select id="getByKey" resultMap="BaseResultMap">
+        SELECT * FROM agent_config WHERE agent_key = #{agentKey}
+    </select>
+
+    <select id="query" resultMap="BaseResultMap">
+        SELECT * FROM agent_config
+        <where>
+            <if test="agentKey != null and agentKey != ''">
+                AND agent_key = #{agentKey}
+            </if>
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="audience != null and audience != ''">
+                AND audience = #{audience}
+            </if>
+            <if test="enabled != null">
+                AND enabled = #{enabled}
+            </if>
+        </where>
+        ORDER BY sort_order ASC, id ASC
+        <if test="current != null and size != null">
+            LIMIT #{current},#{size}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="integer">
+        SELECT COUNT(*) FROM agent_config
+        <where>
+            <if test="agentKey != null and agentKey != ''">
+                AND agent_key = #{agentKey}
+            </if>
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="audience != null and audience != ''">
+                AND audience = #{audience}
+            </if>
+            <if test="enabled != null">
+                AND enabled = #{enabled}
+            </if>
+        </where>
+    </select>
+
+    <select id="listAllEnabled" resultMap="BaseResultMap">
+        SELECT * FROM agent_config WHERE enabled = 1 ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <update id="clearDefault">
+        UPDATE agent_config SET is_default = 0 WHERE audience = #{audience}
+    </update>
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.entity.AgentConfig">
+        <id column="id" property="id"/>
+        <result column="agent_key" property="agentKey"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="avatar" property="avatar"/>
+        <result column="system_prompt" property="systemPrompt"/>
+        <result column="model" property="model"/>
+        <result column="temperature" property="temperature"/>
+        <result column="top_p" property="topP"/>
+        <result column="max_tokens" property="maxTokens"/>
+        <result column="audience" property="audience"/>
+        <result column="max_iterations" property="maxIterations"/>
+        <result column="routing_keywords" property="routingKeywords"/>
+        <result column="enabled" property="enabled"/>
+        <result column="is_default" property="isDefault"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+</mapper>

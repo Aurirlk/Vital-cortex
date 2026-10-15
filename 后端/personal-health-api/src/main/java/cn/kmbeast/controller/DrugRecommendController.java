@@ -15,7 +15,8 @@ import java.util.List;
 
     // 2026-10-07 审计修复：原先用 @RequestAttribute("userId") 取身份，
     // 但全项目没有任何 setAttribute("userId", ...) —— JwtInterceptor 只写 LocalThreadHolder，
-    // 故该参数必然抛 MissingRequestAttributeException。改用项目统一的 LocalThreadHolder。@RequestMapping("/drug-recommend")
+    // 故该参数必然抛 MissingRequestAttributeException。改用项目统一的 LocalThreadHolder。
+@RequestMapping("/drug-recommend")
 public class DrugRecommendController {
 
     @Resource

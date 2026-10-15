@@ -91,6 +91,19 @@
             >
               <el-icon><DataAnalysis /></el-icon> 生成健康报告
             </el-button>
+            <!--
+              阶段 4：图片原本只在下方的 file-list 里以「文档图标 + 文件名」出现。
+              体检单/化验单这类图，光看文件名根本认不出是哪一张，
+              所以在真正把它们发给模型之前，得有个地方能放大核对。
+            -->
+            <el-button
+              v-if="uploadFiles.length > 0"
+              size="small"
+              plain
+              @click="photoDrawer = true"
+            >
+              <el-icon><View /></el-icon> 查看图片（{{ uploadFiles.length }}）
+            </el-button>
           </div>
           <div v-if="uploadFiles.length > 0" class="file-list">
             <div
@@ -515,6 +528,15 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 已上传图片的抽屉：缩略图 + 面板内放大查看（左右键翻页、Esc 关闭） -->
+    <PhotoDrawer
+      v-model:visible="photoDrawer"
+      :photos="photoList"
+      title="已上传的图片"
+    >
+      <template #empty>还没有上传图片</template>
+    </PhotoDrawer>
   </div>
 </template>
 <script>
@@ -522,6 +544,7 @@ import { getToken } from "@/utils/storage.js";
 import { sanitizeHtml } from "@/utils/sanitize.js";
 import { URL_API } from "@/utils/request.js";
 import { marked } from "marked";
+import PhotoDrawer from "@/components/effects/PhotoDrawer.vue";
 
 //  marked
 marked.setOptions({
@@ -531,6 +554,7 @@ marked.setOptions({
 
 export default {
   name: "UserAiAnalysis",
+  components: { PhotoDrawer },
   data() {
     return {
       currentRole: "consultant",
@@ -539,6 +563,7 @@ export default {
       loading: false,
       fileList: [],
       uploadFiles: [], //
+      photoDrawer: false,
       // Phase A：AI 能力开关（/ai/config/capabilities，图片多模态；语音待 roadmap §1.1）
       capabilities: {
         visionEnabled: false,
@@ -685,6 +710,15 @@ export default {
   computed: {
     safeHtml(html) {
       return sanitizeHtml(html);
+    },
+
+    /**
+     * 抽屉用的图片列表。
+     * 从 uploadFiles 派生，而不是另存一份 —— 上传/删除都只改 uploadFiles 一处，
+     * 抽屉自动跟上，不会出现「列表里删了、抽屉里还在」。
+     */
+    photoList() {
+      return this.uploadFiles.map((f) => ({ url: f.url, title: f.name || "" }));
     },
 
     // 当前角色配置的安全访问：历史会话的 agentType 可能不在 roles 中，避免渲染崩溃

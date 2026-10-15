@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -62,9 +61,7 @@ class ReactPromptConsistencyRunnerTest {
         ReactPromptLoader loader = new ReactPromptLoader();
         loader.load();
         ToolRegistry registry = new ToolRegistry();
-        for (String t : List.of("search_drug", "search_knowledge", "query_knowledge_graph",
-                "query_health_records", "get_health_data", "get_chat_history",
-                "web_search", "execute_sql")) {
+        for (String t : ToolCatalog.ALL) {
             register(registry, t);
         }
         loader.setToolRegistry(registry);
@@ -119,19 +116,18 @@ class ReactPromptConsistencyRunnerTest {
     }
 
     @Test
-    @DisplayName("T8.5 一致性校验必须包含此前被漏掉的两个工具")
+    @DisplayName("T8.5 一致性校验：把工具全集全注册后不该报 missing")
     void consistencyCoversPreviouslyMissedTools() {
         ReactPromptLoader loader = new ReactPromptLoader();
         loader.load();
         ToolRegistry registry = new ToolRegistry();
-        for (String t : List.of("search_drug", "search_knowledge", "query_knowledge_graph",
-                "query_health_records", "get_health_data", "get_chat_history",
-                "web_search", "execute_sql")) {
+        for (String t : ToolCatalog.ALL) {
             register(registry, t);
         }
         loader.setToolRegistry(registry);
         var report = loader.verifyToolConsistency();
         assertTrue(report.missing.isEmpty(),
-                "提示词已补齐全部 8 个工具（含此前漏掉的 web_search / execute_sql），不该有 missing");
+                "提示词已覆盖工具全集（含此前漏掉的 web_search / execute_sql），不该有 missing: "
+                        + report.missing);
     }
 }

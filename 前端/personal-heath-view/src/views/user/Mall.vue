@@ -66,9 +66,6 @@
         >
           保健品
         </div>
-        <router-link to="/user/drug" class="type-link"
-          >药品百科查询 →</router-link
-        >
       </div>
 
       <!-- 分类 -->
@@ -106,6 +103,28 @@
           @keyup.enter="loadProducts"
         />
         <button class="search-btn" @click="loadProducts">搜索</button>
+      </div>
+
+      <!-- 价格区间：拖动筛选，松手才查询（拖动中不查，避免一次拖拽打出几十个请求） -->
+      <div class="price-bar">
+        <RangeSlider
+          v-model="priceRange"
+          :min="priceBounds[0]"
+          :max="priceBounds[1]"
+          :step="priceStep"
+          :formatter="formatPrice"
+          label="价格区间"
+          low-label="价格下限"
+          high-label="价格上限"
+          @change="onPriceChange"
+        />
+        <button
+          v-if="priceFilterActive"
+          class="price-reset"
+          @click="resetPrice"
+        >
+          重置
+        </button>
       </div>
 
       <!-- 商品 -->
@@ -264,9 +283,11 @@
 
 <script>
 import request from "@/utils/request.js";
+import RangeSlider from "@/components/effects/RangeSlider.vue";
 
 export default {
   name: "Mall",
+  components: { RangeSlider },
   data() {
     return {
       activeTab: "shop",
@@ -279,9 +300,32 @@ export default {
       keyword: "",
       showCart: false,
       selectedProduct: null,
+      /*
+       * 价格滑块的两组值必须分开：
+       *  bounds = 商品全集的极值，只增不减；它是滑块的量程。
+       *  range  = 用户当前选中的区间。
+       * 合成一个的话，用户一筛，量程就跟着结果集缩，滑块会自己往里塌 ——
+       * 表现为「越筛范围越小，最后退不回去」。
+       */
+      priceBounds: [0, 100],
+      priceRange: [0, 100],
     };
   },
   computed: {
+    /** 是否真的缩窄了区间（两端都顶到量程 = 没筛） */
+    priceFilterActive() {
+      return (
+        this.priceRange[0] > this.priceBounds[0] ||
+        this.priceRange[1] < this.priceBounds[1]
+      );
+    },
+    /** 量程跨度大时用粗步长，否则拖一格就跳几十块 */
+    priceStep() {
+      const span = this.priceBounds[1] - this.priceBounds[0];
+      if (span > 1000) return 50;
+      if (span > 200) return 10;
+      return 1;
+    },
     cartCount() {
       return this.cartItems.reduce((sum, i) => sum + i.quantity, 0);
     },
@@ -343,14 +387,67 @@ export default {
         console.error(e);
       }
     },
+    formatPrice(v) {
+      return "¥" + v;
+    },
+
+    /**
+     * 把返回的商品并进量程。
+     *
+     * <p>只**放宽**、从不收窄：筛选后的结果集极值一定落在原量程内，
+     * 若拿它去覆盖量程，滑块两端会随着每次筛选往里缩，
+     * 用户就再也拖不回去了。</p>
+     *
+     * <p>量程第一次变大时，如果用户还没动过滑块（当前区间正好等于旧量程），
+     * 让区间跟着铺满新量程 —— 否则会出现「滑块显示 0-100，
+     * 但商品最贵 800，那 100-800 的商品看不见也筛不到」。</p>
+     */
+    absorbPriceBounds(list) {
+      if (!Array.isArray(list) || !list.length) return;
+      const prices = list
+        .map((p) => Number(p && p.price))
+        .filter((n) => Number.isFinite(n));
+      if (!prices.length) return;
+
+      const lo = Math.floor(Math.min(...prices));
+      const hi = Math.ceil(Math.max(...prices));
+      if (lo >= this.priceBounds[0] && hi <= this.priceBounds[1]) return;
+
+      const wasWideOpen = !this.priceFilterActive;
+      this.priceBounds = [
+        Math.min(this.priceBounds[0], lo),
+        Math.max(this.priceBounds[1], hi),
+      ];
+      if (wasWideOpen) this.priceRange = [...this.priceBounds];
+    },
+
+    /** 松手才查：滑块 change 事件只在释放时触发，拖动中不打扰服务端 */
+    onPriceChange() {
+      this.loadProducts();
+    },
+
+    resetPrice() {
+      this.priceRange = [...this.priceBounds];
+      this.loadProducts();
+    },
+
     async loadProducts() {
       try {
         const params = {};
         if (this.selectedCategory) params.categoryId = this.selectedCategory;
         if (this.selectedType) params.productType = this.selectedType;
         if (this.keyword) params.keyword = this.keyword;
+        // 只在真的缩窄了区间时才带上价格条件：
+        // 两端顶满量程等价于「不限」，带上反而多一条无意义的比较
+        if (this.priceFilterActive) {
+          params.minPrice = this.priceRange[0];
+          params.maxPrice = this.priceRange[1];
+        }
         const { data } = await request.post("mall/product/query", params);
-        if (data.code === 200) this.products = data.data;
+        if (data.code === 200) {
+          this.products = data.data;
+          this.absorbPriceBounds(data.data);
+        }
       } catch (e) {
         console.error(e);
       }
@@ -493,16 +590,6 @@ export default {
   background: #ff2442;
   color: #fff;
 }
-.type-link {
-  margin-left: auto;
-  font-size: 13px;
-  color: #0050cb;
-  text-decoration: none;
-}
-.type-link:hover {
-  text-decoration: underline;
-}
-
 .category-bar {
   display: flex;
   gap: 12px;
@@ -547,6 +634,41 @@ export default {
   border: none;
   border-radius: 10px;
   cursor: pointer;
+}
+
+/* 价格区间：滑块在左，重置按钮在右；重置按钮只在真的筛过之后出现，
+   平时不占位、不干扰 */
+.price-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 4px 16px 10px;
+  border: 1px solid #f2f2f2;
+  border-radius: 12px;
+}
+.price-bar > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+/* 商城主色是红（#ff2442），滑块的强调色跟着走，否则蓝色滑块在一屏红里很突兀 */
+.price-bar :deep(.rng) {
+  --rng-accent: #ff2442;
+}
+.price-reset {
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+  margin-bottom: 6px;
+  background: #fff;
+  color: #ff2442;
+  border: 1px solid #ffd6dd;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.price-reset:hover {
+  background: #fff5f7;
 }
 
 .product-grid {

@@ -8,7 +8,7 @@ import cn.kmbeast.crm.dto.CrmChatResponse;
 import cn.kmbeast.crm.sqlite.SqliteChatHistoryService;
 import cn.kmbeast.mapper.UserMapper;
 import cn.kmbeast.pojo.entity.User;
-import cn.kmbeast.core.agent.AgentCoordinator;
+import cn.kmbeast.core.agent.Audience;
 import cn.kmbeast.core.agent.ChatRouting;
 import cn.kmbeast.core.harness.HarnessEngine;
 import lombok.extern.slf4j.Slf4j;
@@ -39,8 +39,12 @@ public class SeaChatWorkflow {
     private UserMapper userMapper;
 
     /** 2026-10-05：意图路由（6 个专业角色） */
+    /**
+     * 阶段 1：路由决策改由编排器负责（角色定义可来自 DB）。
+     * 原先这里注入的是 {@code AgentCoordinator}，它现在只作为注册表的兜底角色源。
+     */
     @Resource
-    private AgentCoordinator agentCoordinator;
+    private cn.kmbeast.core.agent.orchestrator.AgentOrchestrator agentOrchestrator;
 
     /** 2026-10-05：健康档案数据引导（槽位抽取与追问话术生成） */
     @Resource
@@ -54,10 +58,6 @@ public class SeaChatWorkflow {
             "您好！我是健康管理员助手，可以帮您解答健康问题、分析体检报告、提供营养饮食建议。" +
             "请告诉我您想咨询什么？";
 
-    public CrmChatResponse processChat(CrmChatRequest request) {
-        return processChat(request, null);
-    }
-
     /**
      * 处理一轮同步对话。
      *
@@ -68,8 +68,14 @@ public class SeaChatWorkflow {
      *        userId 恒为 null → 槽位不落库、{@code get_health_data} 工具直接罢工。
      *        <p>用户端本来就有 JWT，身份应当以 token 为准，而不是靠手机号反查。
      *        传 null 时才退回手机号反查（供 {@code /crm/**} 这类无 JWT 的通道使用）。
+     * @param audience 调用端，见 {@link #route(Integer, String, String)}。
+     *        <p><b>为什么这里是必填参数</b>：改造前本方法只有
+     *        {@code processChat(request)} / {@code processChat(request, userId)} 两个重载，
+     *        端信息在内部被写死成 null（= 不过滤），而调用点看上去毫无异样。
+     *        两个「短一点、看起来更方便」的重载正是这个缺陷赖以存活的地方，
+     *        所以它们不是被改成默认值，而是被删掉 —— 由编译器保证每个调用点都想过这件事。
      */
-    public CrmChatResponse processChat(CrmChatRequest request, Integer authenticatedUserId) {
+    public CrmChatResponse processChat(CrmChatRequest request, Integer authenticatedUserId, String audience) {
         String phoneNumber = request.getPhoneNumber();
         String query = request.getQuery();
 
@@ -107,7 +113,7 @@ public class SeaChatWorkflow {
 
         // 2026-10-05：同步链路此前完全没有意图路由，所有问题走同一套 prompt。
         // 这里与流式链路共用同一个 route()，保证两条链路角色一致、行为可预期。
-        ChatRouting routing = route(userId, query);
+        ChatRouting routing = route(userId, query, audience);
 
         try {
             ToolContext.setPhoneAndUserId(phoneNumber, userId);
@@ -180,8 +186,20 @@ public class SeaChatWorkflow {
      * @param userId 当前用户 id；<b>为 null 时既不落库也不生成追问</b>
      *        （认不出身份就别做数据引导，否则会出现「反复追问却存不下来」）
      * @param query  本轮用户输入原文
+     * @param audience 调用端（{@link Audience#USER} / {@link Audience#DOCTOR} /
+     *        {@link Audience#ADMIN}），决定本轮哪些 Agent 可被路由到：
+     *        {@code audience='all'} 的 Agent 对所有端可见，只在医生端开放的 Agent
+     *        在用户端不会被选中。
+     *
+     *        <p><b>为什么它是必填参数，而不是给它一个默认值</b>：改造前这里硬编码传
+     *        {@code null}，而 {@code null} 在编排器里等于「不过滤」—— 于是管理员
+     *        在后台为医生端新建的 Agent，会从用户端的普通问诊里被路由到。
+     *        给个「默认 user」看似能兜住，但把它接到医生端调用点上时，
+     *        就会静默地把医生端专属 Agent 全部藏起来。
+     *        两种错都只表现为「路由结果不太对」，没有一处日志能归因到这一步。
+     *        做成必填，编译器会替我们检查每个调用点都真的想过「我是哪一端」。</p>
      */
-    public ChatRouting route(Integer userId, String query) {
+    public ChatRouting route(Integer userId, String query, String audience) {
         // 阶段 3 统一入口：IntentResolver（规则先行 + LLM 兜底）产出 Resolution。
         // 独立 try，失败绝不拖垮主对话——降级为中性 CHAT 意图。
         cn.kmbeast.core.agent.Resolution resolution = null;
@@ -193,10 +211,15 @@ public class SeaChatWorkflow {
             log.warn("[CRM] 意图识别失败，本轮退回中性意图: {}", e.getMessage());
         }
 
-        // 角色识别：优先消费 Resolution（非 CHAT 直接定角色），CHAT 才走关键词打分
+        // 角色识别：优先消费 Resolution（非 CHAT 直接定角色），CHAT 才走关键词打分。
+        // 阶段 1 起改由 AgentOrchestrator 决策 —— 角色定义与关键词表来自 AgentRegistry
+        // （DB 驱动，表未建时自动回退到 AgentCoordinator 的内置 6 角色）。
+        // 阶段 3（多端解耦，2026-10-13）：audience 由调用方显式传入并原样透传给编排器，
+        // 不再写死 null。写死 null 时「只在医生端开放的 Agent」在用户端照样会被选中，
+        // 因为 null 对编排器而言是「不过滤」而不是「用户端」。
         String agentType = "general_assistant";
         try {
-            String identified = agentCoordinator.identifyAgent(resolution, query);
+            String identified = agentOrchestrator.route(resolution, query, audience);
             if (identified != null && !identified.isBlank()) {
                 agentType = identified;
             }

@@ -1,6 +1,6 @@
 package cn.kmbeast.core.nl2sql;
 
-import cn.kmbeast.config.Nl2SqlReadOnlyDataSourceConfig;
+import cn.kmbeast.config.Nl2SqlReadOnlyDataSourceProvider;
 import cn.kmbeast.core.nl2sql.JdbcSchemaIntrospector.ForeignKey;
 import cn.kmbeast.core.nl2sql.JdbcSchemaIntrospector.TableMeta;
 import cn.kmbeast.core.nl2sql.JdbcSchemaIntrospector.TableSchema;
@@ -91,23 +91,25 @@ public class DataAgentPipeline {
     private DataSource primaryDataSource;
 
     /**
-     * NL2SQL 专用只读数据源，<b>可能不存在</b>（未配置 {@code crm.ai.nl2sql.read-only.url}
-     * 时 {@code Nl2SqlReadOnlyDataSourceConfig} 整个不加载），故 required=false。
+     * NL2SQL 专用只读数据源提供者。bean 恒存在，但未配置
+     * {@code crm.ai.nl2sql.read-only.url} 时其 {@link Nl2SqlReadOnlyDataSourceProvider#get()}
+     * 返回 {@code null}，由 {@link #execDataSource()} 回落主数据源。
      */
     @Autowired(required = false)
-    @Qualifier(Nl2SqlReadOnlyDataSourceConfig.BEAN_NAME)
-    private DataSource readOnlyDataSource;
+    @Qualifier(Nl2SqlReadOnlyDataSourceProvider.BEAN_NAME)
+    private Nl2SqlReadOnlyDataSourceProvider readOnlyDataSourceProvider;
 
     /**
      * 取「执行 SQL 用」的数据源：优先只读源，缺失时回落主数据源。
      *
-     * <p>2026-10-07：此前本类直接 {@code @Resource(name="nl2sqlReadOnlyDataSource")}
-     * 注入，但该 bean 只在配置了只读 URL 时才存在，未配置会启动失败；
-     * 而改成无条件注册又会让 Spring Boot 的 DataSource 自动配置被跳过（同样启动失败）。
-     * 故改为「可选注入 + 回落」，两种配置下都能正常启动。</p>
+     * <p>2026-10-12：只读池改由 {@link Nl2SqlReadOnlyDataSourceProvider} 持有。
+     * 此前本类注入的是一个 {@code DataSource} bean，而「注册任何 DataSource bean」
+     * 会让 Spring Boot 的 {@code DataSourceAutoConfiguration} 整体退避，导致主
+     * {@code dataSource} 永不创建、应用在任何 profile 下都启动失败。详见该提供者类注释。</p>
      */
     private DataSource execDataSource() {
-        DataSource ro = readOnlyDataSource;
+        Nl2SqlReadOnlyDataSourceProvider provider = readOnlyDataSourceProvider;
+        DataSource ro = provider == null ? null : provider.get();
         return ro != null ? ro : primaryDataSource;
     }
 

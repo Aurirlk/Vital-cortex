@@ -1,5 +1,6 @@
 package cn.kmbeast.core.nl2sql;
 
+import cn.kmbeast.core.agent.Audience;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -57,10 +58,16 @@ public class DataAgentConfigHolder {
     // 这样既保证向后兼容（原有 enabled/max-rows 等键继续生效），
     // 又让管理员可以只针对医生端或用户端单独收紧/放宽。
 
-    /** 使用者类型：用户端（角色 2）。 */
-    public static final String AUDIENCE_USER = "user";
-    /** 使用者类型：医生端（角色 3）。 */
-    public static final String AUDIENCE_DOCTOR = "doctor";
+    /**
+     * 使用者类型：用户端（角色 2）。
+     *
+     * <p>取值来自 {@link Audience} —— 这两个常量保留旧名字只是为了不动已有调用点，
+     * 值本身不再是本类定义的（同一组字符串在编排器与建表脚本里各出现过一次，
+     * 一处漏改就会让某个 Agent 在某些端上凭空消失）。</p>
+     */
+    public static final String AUDIENCE_USER = Audience.USER;
+    /** 使用者类型：医生端（角色 3）。取值同样来自 {@link Audience}。 */
+    public static final String AUDIENCE_DOCTOR = Audience.DOCTOR;
 
     /** 分层开关：数据智能体总开关是否对该端开放（未配置则回落全局 enabled）。 */
     public static final String KEY_ENABLED_AUDIENCE_PREFIX = "enabled-";

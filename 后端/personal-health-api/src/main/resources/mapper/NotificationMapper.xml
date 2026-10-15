@@ -6,30 +6,30 @@
          link_url/biz_type/biz_id 等字段，用 SELECT * 在字段顺序变化时会错位 -->
     <sql id="BaseColumns">
         n.id, n.user_id, n.title, n.content, n.type, n.message_type,
-        n.is_read, n.sender_id, n.related_id, n.source,
+        n.is_read, n.sender_id, n.source,
         n.link_url, n.biz_type, n.biz_id, n.create_time
     </sql>
 
     <insert id="save" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO notification
             (user_id, title, content, type, message_type, is_read, sender_id,
-             related_id, source, link_url, biz_type, biz_id, create_time)
+             source, link_url, biz_type, biz_id, create_time)
         VALUES
             (#{userId}, #{title}, #{content}, #{type},
              COALESCE(#{messageType}, 1), COALESCE(#{isRead}, 0), #{senderId},
-             #{relatedId}, #{source}, #{linkUrl}, #{bizType}, #{bizId}, #{createTime})
+             #{source}, #{linkUrl}, #{bizType}, #{bizId}, #{createTime})
     </insert>
 
     <!-- 批量插入：系统通知要推给全站用户，逐条 insert 会产生 N 次网络往返 -->
     <insert id="batchSave">
         INSERT INTO notification
             (user_id, title, content, type, message_type, is_read, sender_id,
-             related_id, source, create_time)
+             source, biz_type, biz_id, create_time)
         VALUES
         <foreach collection="list" item="m" separator=",">
             (#{m.userId}, #{m.title}, #{m.content}, COALESCE(#{m.type}, 0),
              COALESCE(#{m.messageType}, 1), COALESCE(#{m.isRead}, 0), #{m.senderId},
-             #{m.relatedId}, #{m.source},
+             #{m.source}, #{m.bizType}, #{m.bizId},
              COALESCE(#{m.createTime}, NOW()))
         </foreach>
     </insert>

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.RagEvalCaseMapper">
+
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.entity.RagEvalCase">
+        <id column="id" property="id"/>
+        <result column="question" property="question"/>
+        <result column="expected_refs" property="expectedRefs"/>
+        <result column="match_level" property="matchLevel"/>
+        <result column="kb_ids" property="kbIds"/>
+        <result column="audience" property="audience"/>
+        <result column="expected_keywords" property="expectedKeywords"/>
+        <result column="remark" property="remark"/>
+        <result column="enabled" property="enabled"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, question, expected_refs, match_level, kb_ids, audience,
+        expected_keywords, remark, enabled, create_time, update_time
+    </sql>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO rag_eval_case (question, expected_refs, match_level, kb_ids, audience,
+                                   expected_keywords, remark, enabled, create_time, update_time)
+        VALUES (#{question}, #{expectedRefs}, COALESCE(#{matchLevel}, 'chunk'), #{kbIds},
+                COALESCE(#{audience}, 'all'), #{expectedKeywords}, #{remark},
+                COALESCE(#{enabled}, 1), NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE rag_eval_case
+        <set>
+            <if test="question != null and question != ''">question = #{question},</if>
+            <if test="expectedRefs != null">expected_refs = #{expectedRefs},</if>
+            <if test="matchLevel != null and matchLevel != ''">match_level = #{matchLevel},</if>
+            <if test="kbIds != null">kb_ids = #{kbIds},</if>
+            <if test="audience != null and audience != ''">audience = #{audience},</if>
+            <if test="expectedKeywords != null">expected_keywords = #{expectedKeywords},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            update_time = NOW(),
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM rag_eval_case WHERE id = #{id}
+    </delete>
+
+    <select id="query" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM rag_eval_case
+        <where>
+            <if test="question != null and question != ''">
+                AND question LIKE CONCAT('%', #{question}, '%')
+            </if>
+            <if test="matchLevel != null and matchLevel != ''">AND match_level = #{matchLevel}</if>
+            <if test="audience != null and audience != '' and audience != 'all'">
+                AND (audience = #{audience} OR audience = 'all')
+            </if>
+            <if test="enabled != null">AND enabled = #{enabled}</if>
+        </where>
+        ORDER BY id DESC
+        <if test="current != null and size != null">
+            LIMIT #{current},#{size}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM rag_eval_case
+        <where>
+            <if test="question != null and question != ''">
+                AND question LIKE CONCAT('%', #{question}, '%')
+            </if>
+            <if test="matchLevel != null and matchLevel != ''">AND match_level = #{matchLevel}</if>
+            <if test="audience != null and audience != '' and audience != 'all'">
+                AND (audience = #{audience} OR audience = 'all')
+            </if>
+            <if test="enabled != null">AND enabled = #{enabled}</if>
+        </where>
+    </select>
+
+    <select id="getById" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM rag_eval_case WHERE id = #{id}
+    </select>
+
+    <select id="listEnabled" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM rag_eval_case
+        WHERE enabled = 1
+        <if test="audience != null and audience != '' and audience != 'all'">
+            AND (audience = #{audience} OR audience = 'all')
+        </if>
+        ORDER BY id ASC
+    </select>
+
+    <select id="countEnabled" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM rag_eval_case WHERE enabled = 1
+    </select>
+
+</mapper>

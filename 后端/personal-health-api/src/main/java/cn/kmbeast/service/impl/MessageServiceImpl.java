@@ -42,7 +42,7 @@ import java.util.Objects;
  *   Message.receiverId → Notification.userId      （接收人）
  *   Message.senderId   → Notification.senderId    （发送人）
  *   Message.messageType→ Notification.messageType （用户视角分类）
- *   Message.contentId  → Notification.relatedId
+ *   Message.contentId  → Notification.bizId
  * </pre>
  */
 @Slf4j
@@ -241,7 +241,11 @@ public class MessageServiceImpl implements MessageService {
         n.setType(0);                                  // 业务分类：原 message 无此语义，归公告
         // Message.isRead 是 Boolean，而 notification.is_read 是 tinyint(0/1)
         n.setIsRead(toDbIsRead(m.getIsRead()));
-        n.setRelatedId(m.getContentId() == null ? null : String.valueOf(m.getContentId()));
+        // 2026-10-12：原先写 relatedId，但 notification 表根本没有 related_id 列
+        // （建库与迁移脚本均无），INSERT 必抛 Unknown column。改用真实存在的 biz_id。
+        // 刻意不设 bizType：存量 37 条通知的 biz_type 全为 NULL，保持口径一致，
+        // 也避免与 UserNotifier 基于 (biz_type,biz_id,message_type,title) 的幂等判定相互干扰。
+        n.setBizId(m.getContentId() == null ? null : String.valueOf(m.getContentId()));
         n.setCreateTime(m.getCreateTime() == null ? LocalDateTime.now() : m.getCreateTime());
         return n;
     }

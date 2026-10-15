@@ -46,7 +46,15 @@ public class Notification {
     /** 发送人（合并自 message.sender_id） */
     private Integer senderId;
 
-    /** 关联业务 ID（合并自 message.content_id） */
+    /**
+     * 关联业务 ID（合并自 message.content_id）。
+     *
+     * <p>2026-10-12 移除：本字段原映射到 {@code notification.related_id}，但该列
+     * <b>在建库脚本与迁移脚本里都不存在</b>，导致 {@code NotificationMapper.save/batchSave}
+     * 必然抛 {@code Unknown column 'related_id'} —— 通知写入链路整条失效。
+     * 其语义（关联业务实体）现由真实存在的 {@link #bizType} + {@link #bizId} 承担。
+     */
+    @Deprecated
     private String relatedId;
 
     private String source;

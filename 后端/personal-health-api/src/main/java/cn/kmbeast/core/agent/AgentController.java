@@ -34,6 +34,18 @@ public class AgentController {
     @Resource
     private AgentCoordinator agentCoordinator;
 
+    /**
+     * 阶段 1 起角色清单与意图识别的真值源。
+     *
+     * <p>保留 {@link #agentCoordinator} 仍有用：它是注册表在表未建/不可用时的
+     * 兜底角色源，两者不是替代关系。</p>
+     */
+    @Resource
+    private cn.kmbeast.core.agent.orchestrator.AgentOrchestrator agentOrchestrator;
+
+    @Resource
+    private cn.kmbeast.core.agent.registry.AgentRegistry agentRegistry;
+
     @Resource
     private AgentMemoryService agentMemoryService;
 
@@ -41,11 +53,37 @@ public class AgentController {
     @Resource
     private cn.kmbeast.core.harness.HarnessEngine harnessEngine;
 
-    /** Agent 角色列表（登录即可见，不含用户数据） */
+    /**
+     * Agent 角色列表（登录即可见，不含用户数据）。
+     *
+     * <p><b>为什么改成读注册表</b>：原来直读 {@code AgentCoordinator} 的内置 Map，
+     * 那是写死的 6 个角色。管理员在后台新建的智能体<b>永远不会出现在这里</b>，
+     * 前端「AI 健康分析」页的角色下拉框也就永远只有 6 项 —— 后台加了个智能体，
+     * 用户端却看不见、选不到，功能等于没上线。</p>
+     *
+     * <p>响应结构保持 {@link AgentCoordinator.AgentRole} 不变（type/name/keywords/description），
+     * 前端无需改动；表未建时注册表回退到内置 6 角色，返回内容与改造前一致。</p>
+     */
     @Protector
     @GetMapping("/roles")
     public Result<Map<String, AgentCoordinator.AgentRole>> getRoles() {
-        return ApiResult.success(agentCoordinator.getAllAgentRoles());
+        Map<String, AgentCoordinator.AgentRole> roles = new java.util.LinkedHashMap<>();
+        for (cn.kmbeast.core.agent.registry.AgentDefinition def : agentRegistry.listAll()) {
+            if (!def.isEnabled()) {
+                // 停用的不应出现在可选清单里，否则用户选中后路由会退回兜底，
+                // 表现为「选了营养师，回答的却像全能助手」
+                continue;
+            }
+            roles.put(def.getAgentKey(), new AgentCoordinator.AgentRole(
+                    def.getAgentKey(), def.getName(),
+                    def.keywordsOrEmpty(), def.getDescription()));
+        }
+        if (roles.isEmpty()) {
+            // 注册表为空（极小概率：DB 有数据但全部停用）时给出内置清单，
+            // 总比返回空对象让前端渲染出一个空白下拉框好
+            return ApiResult.success(agentCoordinator.getAllAgentRoles());
+        }
+        return ApiResult.success(roles);
     }
 
     /** 意图识别：返回最适合处理该消息的 Agent 类型 */
@@ -53,7 +91,7 @@ public class AgentController {
     @PostMapping("/identify")
     public Result<String> identifyAgent(@RequestBody JSONObject request) {
         String message = request.getString("message");
-        return ApiResult.success(agentCoordinator.identifyAgent(message));
+        return ApiResult.success(agentOrchestrator.identifyAgent(message));
     }
 
     /**

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.KbDocumentMapper">
+
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.entity.KbDocument">
+        <id column="id" property="id"/>
+        <result column="kb_id" property="kbId"/>
+        <result column="title" property="title"/>
+        <result column="file_name" property="fileName"/>
+        <result column="file_type" property="fileType"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="source_type" property="sourceType"/>
+        <result column="source_path" property="sourcePath"/>
+        <result column="content_hash" property="contentHash"/>
+        <result column="status" property="status"/>
+        <result column="chunk_count" property="chunkCount"/>
+        <result column="char_count" property="charCount"/>
+        <result column="error_msg" property="errorMsg"/>
+        <result column="uploader_id" property="uploaderId"/>
+        <result column="audience" property="audience"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, kb_id, title, file_name, file_type, file_size, source_type, source_path,
+        content_hash, status, chunk_count, char_count, error_msg, uploader_id, audience,
+        deleted, create_time, update_time
+    </sql>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO kb_document (kb_id, title, file_name, file_type, file_size, source_type,
+                                 source_path, content_hash, status, chunk_count, char_count,
+                                 error_msg, uploader_id, audience, deleted, create_time, update_time)
+        VALUES (#{kbId}, #{title}, #{fileName}, #{fileType}, COALESCE(#{fileSize}, 0),
+                COALESCE(#{sourceType}, 'file'), #{sourcePath}, #{contentHash},
+                COALESCE(#{status}, 'PENDING'), COALESCE(#{chunkCount}, 0), COALESCE(#{charCount}, 0),
+                #{errorMsg}, #{uploaderId}, COALESCE(#{audience}, 'all'), 0, NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE kb_document
+        <set>
+            <if test="kbId != null">kb_id = #{kbId},</if>
+            <if test="title != null and title != ''">title = #{title},</if>
+            <if test="fileName != null">file_name = #{fileName},</if>
+            <if test="fileType != null">file_type = #{fileType},</if>
+            <if test="sourcePath != null">source_path = #{sourcePath},</if>
+            <if test="contentHash != null">content_hash = #{contentHash},</if>
+            <!-- status 允许置空以外的任何值；errorMsg 允许被清空（重新解析成功时要抹掉旧错误） -->
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="chunkCount != null">chunk_count = #{chunkCount},</if>
+            <if test="charCount != null">char_count = #{charCount},</if>
+            <if test="errorMsg != null">error_msg = #{errorMsg},</if>
+            <if test="audience != null and audience != ''">audience = #{audience},</if>
+            update_time = NOW(),
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="softDelete">
+        UPDATE kb_document SET deleted = 1, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <delete id="hardDelete">
+        DELETE FROM kb_document WHERE id = #{id}
+    </delete>
+
+    <!-- 删除知识库时的级联：父记录已删，软删的文档行留着就是孤儿 -->
+    <delete id="deleteByKbId">
+        DELETE FROM kb_document WHERE kb_id = #{kbId}
+    </delete>
+
+    <!-- 逻辑删除的文档一律不出现在管理端列表与检索里 -->
+    <sql id="QueryWhere">
+        <where>
+            deleted = 0
+            <if test="kbId != null">AND kb_id = #{kbId}</if>
+            <if test="title != null and title != ''">
+                AND title LIKE CONCAT('%', #{title}, '%')
+            </if>
+            <if test="status != null and status != ''">AND status = #{status}</if>
+            <if test="sourceType != null and sourceType != ''">AND source_type = #{sourceType}</if>
+            <if test="uploaderId != null">AND uploader_id = #{uploaderId}</if>
+        </where>
+    </sql>
+
+    <select id="query" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM kb_document
+        <include refid="QueryWhere"/>
+        ORDER BY id DESC
+        <if test="current != null and size != null">
+            LIMIT #{current},#{size}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM kb_document
+        <include refid="QueryWhere"/>
+    </select>
+
+    <select id="getById" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM kb_document WHERE id = #{id}
+    </select>
+
+    <!-- 查重只认最早那条：重复上传时提示「库中已有同名内容」并给出它的 id -->
+    <select id="findByHash" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM kb_document
+        WHERE kb_id = #{kbId} AND content_hash = #{contentHash} AND deleted = 0
+        ORDER BY id ASC
+        LIMIT 1
+    </select>
+
+    <select id="listIdsByKb" resultType="java.lang.Long">
+        SELECT id FROM kb_document WHERE kb_id = #{kbId} AND deleted = 0 ORDER BY id ASC
+    </select>
+
+    <select id="countByStatus" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM kb_document WHERE deleted = 0 AND status = #{status}
+    </select>
+
+</mapper>

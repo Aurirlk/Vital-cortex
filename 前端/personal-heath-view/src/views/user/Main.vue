@@ -73,6 +73,17 @@
         </span>
       </template>
     </el-dialog>
+    <!--
+      阶段 4：边缘吸附悬浮球。挂在用户端外壳上而不是某个页面里 ——
+      它的用途是「任何页面都能一键叫出健康助手」，挂在页面里就退化成页面内按钮了。
+      角标取真实的未读数（notification/unread），不造假数据；
+      取不到时保持 0，也就是不显示角标。
+    -->
+    <FloatBall
+      :badge="unreadCount"
+      aria-label="打开健康助手"
+      @click="openAssistant"
+    />
     <!-- 健康数据记录弹窗 -->
     <el-dialog v-model="healthModelConfigDialog" width="28%" :show-close="true">
       <template #title>
@@ -242,15 +253,19 @@ import { closeWs } from "@/utils/ws.js";
 import router from "@/router";
 import UserMenu from "@/components/LevelMenu.vue";
 import ModelBanner from "@/components/ModelBanner.vue";
+import FloatBall from "@/components/FloatBall.vue";
+import { addWsListener, removeWsListener } from "@/utils/ws.js";
 export default {
   name: "UserMain",
   components: {
     UserMenu,
     ModelBanner,
+    FloatBall,
   },
   data() {
     return {
       userInfo: {},
+      unreadCount: 0,
       pwdEntity: { oldPwd: "", newPwd: "", againPwd: "" },
       dialogRetPwdOperaion: false,
       foodList: [],
@@ -275,11 +290,39 @@ export default {
     console.log("[Main.vue] created, route:", this.$route.path);
     this.tokenCheckLoad();
     this.loadSettings();
+    this.loadUnreadCount();
+    // WS 推来新通知时把角标 +1，不必轮询 notification/unread
+    addWsListener("notification", this.onNotification);
   },
   mounted() {
     console.log("[Main.vue] mounted, DOM ready");
   },
+  beforeUnmount() {
+    // WS 监听器挂在一个模块级 Map 上，不摘掉的话组件销毁后回调仍在跑
+    removeWsListener("notification", this.onNotification);
+  },
   methods: {
+    /**
+     * 悬浮球点击：去健康助手。
+     * 已经在助手页时不再 push —— 同路由重复 push 在 vue-router 4 虽不抛错，
+     * 但会白白走一次导航流程，而且用户会以为「点了没反应」。
+     */
+    openAssistant() {
+      if (this.$route.path === "/user/assistant") return;
+      this.$router.push("/user/assistant");
+    },
+    onNotification() {
+      this.unreadCount += 1;
+    },
+    async loadUnreadCount() {
+      try {
+        const { data } = await this.$axios.get("notification/unread");
+        if (data.code === 200) this.unreadCount = data.data || 0;
+      } catch (e) {
+        // 未读数拿不到不影响外壳可用，保持 0（不显示角标）
+        console.error("加载未读通知数失败:", e);
+      }
+    },
     healthModelChange() {
       const healthModel =
         this.healthModelConfig[this.selecedHealthModelIndex - 2];
@@ -293,9 +336,11 @@ export default {
         console.log("该指标已存在");
       }
     },
-    updateUserPwd() {
-      this.resetPwd();
-    },
+    /*
+     * 原来这里有两个同名方法（一个 async、一个不 async），后一个静默覆盖前一个 ——
+     * ESLint 报 "Duplicate key 'updateUserPwd'"。两者函数体完全一样，
+     * 删掉被覆盖的那个，行为不变。
+     */
     async updateUserPwd() {
       this.resetPwd();
     },
@@ -336,12 +381,6 @@ export default {
         this.dialogOperaion = false;
         this.$message.error(e.response?.data?.msg || "修改密码失败");
         console.error(`修改密码失败:${e}`);
-      }
-    },
-    handleAvatarSuccess(res, file) {
-      // 个人中心头像上传已在 UserProfile.vue 实现，此处保留兼容入口
-      if (res.code !== 200) {
-        this.$message.error(`头像上传失败：${res.msg}`);
       }
     },
     //
@@ -528,13 +567,7 @@ export default {
           this.$router.push("/login");
           return;
         }
-        const {
-          id: userId,
-          userAvatar,
-          userName,
-          userRole,
-          userEmail,
-        } = res.data.data;
+        const { userAvatar, userName, userRole, userEmail } = res.data.data;
         sessionStorage.setItem("userInfo", JSON.stringify(res.data.data));
         this.userInfo = {
           url: userAvatar,

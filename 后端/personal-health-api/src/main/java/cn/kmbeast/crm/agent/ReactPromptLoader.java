@@ -72,9 +72,18 @@ public class ReactPromptLoader {
     private static final Pattern TOOL_NAME_PATTERN =
             Pattern.compile("\\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\\b");
 
-    /** 已被内置模板描述的工具名白名单（这些下划线词不是工具名，校验时排除）。 */
+    /**
+     * 下划线标识符白名单（这些词不是工具名，校验时排除）。
+     *
+     * <p>{@code agent_key} 是 {@code call_agent} 的<b>参数名</b>，但形态上完全符合
+     * 工具名正则。prompt 里必须写它（否则模型不知道该传什么），于是每次启动都会
+     * 抽出一个「提到但未注册的工具」并打进 WARN 日志。这类假阳性最危险的地方不是
+     * 日志难看，而是它会训练运维「这条 WARN 可以忽略」—— 等真的漏注册工具时，
+     * 没人再会去看它。所以发现一个就补一个。</p>
+     */
     private static final Set<String> NON_TOOL_IDENTIFIERS = Set.of(
-            "prompt_cache", "tool_choice", "tool_call_id", "max_tokens", "top_p");
+            "prompt_cache", "tool_choice", "tool_call_id", "max_tokens", "top_p",
+            "agent_key");
 
     /**
      * @PostConstruct 在 {@code ToolRegistry.init()} 之前还是之后执行<b>不确定</b>，

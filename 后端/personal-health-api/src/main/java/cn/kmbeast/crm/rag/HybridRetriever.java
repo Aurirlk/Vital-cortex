@@ -1,5 +1,7 @@
 package cn.kmbeast.crm.rag;
 
+import cn.kmbeast.crm.config.RagProperties;
+import cn.kmbeast.crm.rag.fusion.RRFusion;
 import cn.kmbeast.crm.vectordb.LocalVectorStore;
 import cn.kmbeast.mapper.NewsMapper;
 import cn.kmbeast.pojo.vo.NewsVO;
@@ -23,14 +25,18 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class HybridRetriever {
 
-    /** RRF 常数 k（标准取 60） */
-    private static final int RRF_K = 60;
-
     @Resource
     private LocalVectorStore vectorStore;
 
     @Resource
     private NewsMapper newsMapper;
+
+    /**
+     * 带初始化器的注入：纯单测（不起 Spring 容器）只 setField 了 vectorStore / newsMapper 时，
+     * 这里的默认值就是改造前的行为（两路各 1.0、k=60），不会因为缺注入而 NPE。
+     */
+    @Resource
+    private RagProperties ragProperties = new RagProperties();
 
     /** 检索结果缓存（同一轮对话内避免重复嵌入调用） */
     private final Map<String, List<RetrievedDoc>> cache = new ConcurrentHashMap<>();
@@ -55,10 +61,19 @@ public class HybridRetriever {
     }
 
     /**
-     * 混合检索：RRF 融合向量与 LIKE 两路结果。
+     * 混合检索：RRF 融合向量（稠密）与 LIKE（稀疏）两路结果。
      *
-     * @param query    用户问题（向量路）
-     * @param keywords 关键词（LIKE 路）
+     * <p>阶段 2 改造：融合逻辑收敛到 {@link RRFusion}，权重与 k 走
+     * {@link RagProperties} 配置。默认值（两路各 1.0、k=60）与改造前完全一致，
+     * 因此行为不变；改配置才需要重启，不需要改代码。</p>
+     *
+     * <p>顺带修掉一个原有的计分错误：同一篇文章若在<b>同一条路</b>里出现两次，
+     * 旧实现会把两次的 RRF 分<b>累加</b>（{@code rrfScore.merge}）却只保留一个结果，
+     * 等于给重复项额外加分，排名被人为抬高。{@link RRFusion} 对同一路内的重复
+     * 只取首次（最好）名次。</p>
+     *
+     * @param query    用户问题（向量/稠密路）
+     * @param keywords 关键词（LIKE/稀疏路）
      * @param topK     返回条数
      */
     public List<RetrievedDoc> search(String query, List<String> keywords, int topK) {
@@ -68,66 +83,78 @@ public class HybridRetriever {
             return cached;
         }
 
-        Map<Integer, RetrievedDoc> fused = new LinkedHashMap<>();
-        Map<Integer, Double> rrfScore = new HashMap<>();
+        int candidate = topK * ragProperties.effectiveCandidateFactor();
+        Map<String, RetrievedDoc> payload = new LinkedHashMap<>();
 
-        // 路 1：向量语义检索
-        List<LocalVectorStore.SearchResult> vectorHits = new ArrayList<>();
+        // ---- 稠密路：向量语义检索 ----
+        List<String> denseKeys = new ArrayList<>();
         try {
             if (vectorStore.collectionExists(KnowledgeIngestionService.COLLECTION)) {
-                vectorHits = vectorStore.search(KnowledgeIngestionService.COLLECTION, query, topK * 2);
+                List<LocalVectorStore.SearchResult> vectorHits =
+                        vectorStore.search(KnowledgeIngestionService.COLLECTION, query, candidate);
+                for (LocalVectorStore.SearchResult hit : vectorHits) {
+                    int articleId = parseArticleId(hit.metadata);
+                    if (articleId <= 0) {
+                        continue;
+                    }
+                    String key = String.valueOf(articleId);
+                    if (payload.containsKey(key)) {
+                        continue;
+                    }
+                    String title = hit.metadata != null && hit.metadata.get("article_title") != null
+                            ? String.valueOf(hit.metadata.get("article_title")) : "";
+                    String tag = hit.metadata != null && hit.metadata.get("tag") != null
+                            ? String.valueOf(hit.metadata.get("tag")) : "";
+                    payload.put(key, new RetrievedDoc(articleId, title, tag, hit.content, 0.0, "vector"));
+                    denseKeys.add(key);
+                }
             }
         } catch (Exception e) {
             log.warn("[Hybrid] 向量检索不可用（检查 EMBEDDING_API_URL），退化为纯关键词: {}", e.getMessage());
         }
 
-        int rank = 1;
-        for (LocalVectorStore.SearchResult hit : vectorHits) {
-            int articleId = parseArticleId(hit.metadata);
-            if (articleId <= 0) continue;
-            String title = hit.metadata != null && hit.metadata.get("article_title") != null
-                    ? String.valueOf(hit.metadata.get("article_title")) : "";
-            String tag = hit.metadata != null && hit.metadata.get("tag") != null
-                    ? String.valueOf(hit.metadata.get("tag")) : "";
-            double score = 1.0 / (RRF_K + rank);
-            rrfScore.merge(articleId, score, Double::sum);
-            fused.put(articleId, new RetrievedDoc(articleId, title, tag, hit.content, score, "vector"));
-            rank++;
-        }
-
-        // 路 2：关键词 LIKE 检索
-        List<NewsVO> likeHits = new ArrayList<>();
+        // ---- 稀疏路：关键词 LIKE ----
+        List<String> sparseKeys = new ArrayList<>();
         try {
             if (keywords != null && !keywords.isEmpty()) {
-                likeHits = newsMapper.ragSearch(keywords, topK * 2);
+                List<NewsVO> likeHits = newsMapper.ragSearch(keywords, candidate);
+                for (NewsVO article : likeHits) {
+                    if (article.getId() == null) {
+                        continue;
+                    }
+                    String key = String.valueOf(article.getId());
+                    if (payload.containsKey(key)) {
+                        continue;
+                    }
+                    String content = article.getContent() != null ? article.getContent() : "";
+                    payload.put(key, new RetrievedDoc(article.getId(),
+                            article.getName() != null ? article.getName() : "",
+                            article.getTagName() != null ? article.getTagName() : "",
+                            content, 0.0, "keyword"));
+                    sparseKeys.add(key);
+                }
             }
         } catch (Exception e) {
             log.warn("[Hybrid] LIKE 检索异常: {}", e.getMessage());
         }
 
-        rank = 1;
-        for (NewsVO article : likeHits) {
-            if (article.getId() == null) continue;
-            int articleId = article.getId();
-            double score = 1.0 / (RRF_K + rank);
-            rrfScore.merge(articleId, score, Double::sum);
-            if (fused.containsKey(articleId)) {
-                RetrievedDoc doc = fused.get(articleId);
-                doc.source = "both";
-                doc.score = rrfScore.get(articleId);
-            } else {
-                String content = article.getContent() != null ? article.getContent() : "";
-                fused.put(articleId, new RetrievedDoc(articleId, article.getName() != null ? article.getName() : "",
-                        article.getTagName() != null ? article.getTagName() : "",
-                        content, score, "keyword"));
-            }
-            rank++;
-        }
+        // ---- 融合 ----
+        List<RRFusion.FusedItem> fused = RRFusion.fuse(sparseKeys, denseKeys,
+                ragProperties.effectiveSparseWeight(),
+                ragProperties.effectiveDenseWeight(),
+                ragProperties.getRrfK(), topK);
 
-        List<RetrievedDoc> results = new ArrayList<>(fused.values());
-        results.sort((a, b) -> Double.compare(b.score, a.score));
-        if (results.size() > topK) {
-            results = results.subList(0, topK);
+        List<RetrievedDoc> results = new ArrayList<>(fused.size());
+        for (RRFusion.FusedItem item : fused) {
+            RetrievedDoc doc = payload.get(item.getKey());
+            if (doc == null) {
+                continue;
+            }
+            doc.score = item.getScore();
+            // 沿用改造前的来源取值（vector / keyword / both），
+            // AiServiceImpl 会把它直接写进给模型看的 prompt
+            doc.source = item.fromBoth() ? "both" : (item.fromDense() ? "vector" : "keyword");
+            results.add(doc);
         }
 
         // 缓存：限制容量避免无限增长（简单 FIFO 淘汰）

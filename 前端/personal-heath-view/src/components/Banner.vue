@@ -8,17 +8,24 @@
       ]"
     ></div>
     <h3 @click="onClick" class="tip-name">{{ activeData.name }}</h3>
-    <!--  -->
+    <!--
+      阶段 4：换成 CarouselDots。
+      顺带修掉一个真实的错位 —— 原来判定高亮用的是
+      `idx === index - 1 || (index === 0 && idx === data.length - 1)`，
+      也就是**永远高亮上一张**（index=0 时高亮最后一个点）。
+      改成直接比较 `idx === index`（由 CarouselDots 内部完成），
+      并顺带获得：自动播放进度、方向键导航、以及「当前项拉长成胶囊」
+      这层不依赖颜色的状态信号。
+    -->
     <div class="dots-container" v-if="data.length > 1">
-      <span
-        v-for="(item, idx) in data"
-        :key="idx"
-        class="dot"
-        :class="{
-          active: idx === index - 1 || (index === 0 && idx === data.length - 1),
-        }"
-        @click.stop="goToSlide(idx)"
-      ></span>
+      <CarouselDots
+        variant="pill"
+        :count="data.length"
+        :model-value="index"
+        :autoplay-ms="time"
+        aria-label="资讯轮播导航"
+        @update:model-value="goToSlide"
+      />
     </div>
     <!--  -->
     <div
@@ -39,9 +46,12 @@
 </template>
 
 <script>
+import CarouselDots from "@/components/effects/CarouselDots.vue";
+
 //
 export default {
   name: "Banner",
+  components: { CarouselDots },
   props: {
     data: {
       type: Array,
@@ -212,30 +222,10 @@ export default {
   display: flex;
   gap: 10px;
   z-index: 10;
-  padding: 4px 8px;
+  padding: 4px 10px;
   background: rgba(255, 255, 255, 0.8);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.4);
-    transform: scale(1.2);
-  }
-
-  &.active {
-    background: #667eea;
-    transform: scale(1.3);
-    box-shadow: 0 0 8px rgba(102, 126, 234, 0.5);
-  }
 }
 
 //
@@ -243,17 +233,10 @@ export default {
   background: rgba(0, 0, 0, 0.6);
 }
 
-:deep(.dark) .dot {
-  background: rgba(255, 255, 255, 0.3);
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.5);
-  }
-
-  &.active {
-    background: #667eea;
-    box-shadow: 0 0 8px rgba(102, 126, 234, 0.5);
-  }
+// 轮播图底色是任意渐变色，指示点的强调色跟着 banner 自己的紫色走
+:deep(.dots) {
+  --dots-accent: #667eea;
+  gap: 4px;
 }
 
 .arrow {

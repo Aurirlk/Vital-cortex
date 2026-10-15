@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.KbChunkMapper">
+
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.entity.KbChunk">
+        <id column="id" property="id"/>
+        <result column="kb_id" property="kbId"/>
+        <result column="doc_id" property="docId"/>
+        <result column="chunk_index" property="chunkIndex"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="content_len" property="contentLen"/>
+        <result column="enabled" property="enabled"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, kb_id, doc_id, chunk_index, title, content, content_len, enabled, create_time
+    </sql>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO kb_chunk (kb_id, doc_id, chunk_index, title, content, content_len, enabled, create_time)
+        VALUES (#{kbId}, #{docId}, #{chunkIndex}, #{title}, #{content},
+                COALESCE(#{contentLen}, CHAR_LENGTH(#{content})), COALESCE(#{enabled}, 1), NOW())
+    </insert>
+
+    <!--
+        批量插入：一份 PDF 切出几百块是常态，逐条 insert 会带来几百次网络往返。
+
+        useGeneratedKeys + keyProperty="id" 在 foreach 形式下由 MyBatis 回填每行的
+        自增主键（MySQL 支持）。这不是可有可无的优化：灌向量库时要用 chunk.id 作为
+        向量条目 id，拿不到 id 就得整表重查一遍。
+    -->
+    <insert id="batchInsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO kb_chunk (kb_id, doc_id, chunk_index, title, content, content_len, enabled, create_time)
+        VALUES
+        <foreach collection="list" item="c" separator=",">
+            (#{c.kbId}, #{c.docId}, #{c.chunkIndex}, #{c.title}, #{c.content},
+             COALESCE(#{c.contentLen}, CHAR_LENGTH(#{c.content})), COALESCE(#{c.enabled}, 1), NOW())
+        </foreach>
+    </insert>
+
+    <delete id="deleteByDocId">
+        DELETE FROM kb_chunk WHERE doc_id = #{docId}
+    </delete>
+
+    <delete id="deleteByKbId">
+        DELETE FROM kb_chunk WHERE kb_id = #{kbId}
+    </delete>
+
+    <delete id="deleteByIds">
+        DELETE FROM kb_chunk WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="listByDocId" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM kb_chunk
+        WHERE doc_id = #{docId}
+        ORDER BY chunk_index ASC
+    </select>
+
+    <select id="listByIds" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM kb_chunk
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="countByKbId" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM kb_chunk WHERE kb_id = #{kbId}
+    </select>
+
+    <select id="countByDocId" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM kb_chunk WHERE doc_id = #{docId}
+    </select>
+
+    <!--
+        稀疏路主路径：ngram 全文索引。
+
+        自然语言模式（默认）而非布尔模式：布尔模式下中文查询会被要求
+        「必须包含全部 token」，召回过窄；自然语言模式按相关度排序，
+        更贴近「用户问一句话，我给他最相关的几段」这个实际用法。
+
+        ⚠️ 本语句依赖 kb_chunk 上的 FULLTEXT ... WITH PARSER ngram。
+        若该索引不存在（迁移脚本未执行或 MySQL 未启用 ngram），
+        本语句会抛异常 —— 由 KbChunkRetriever 捕获后回落 likeSearch，
+        并把 retrieval_log.path 记成 sparse_like，让退化可见。
+    -->
+    <select id="fullTextSearch" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM kb_chunk
+        WHERE enabled = 1
+          AND MATCH(content) AGAINST(#{query} IN NATURAL LANGUAGE MODE)
+        <if test="kbIds != null and kbIds.size() > 0">
+            AND kb_id IN
+            <foreach collection="kbIds" item="kbId" open="(" separator="," close=")">
+                #{kbId}
+            </foreach>
+        </if>
+        ORDER BY MATCH(content) AGAINST(#{query} IN NATURAL LANGUAGE MODE) DESC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <!--
+        LIKE 兜底：只在 ngram 全文索引不可用时走。
+        关键词由上层给出（分词或意图词表），这里逐个 OR ——
+        任一词命中即召回，比「全部命中」宽松，符合兜底定位。
+    -->
+    <select id="likeSearch" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM kb_chunk
+        WHERE enabled = 1
+          AND (
+            <foreach collection="keywords" item="kw" separator=" OR ">
+                content LIKE CONCAT('%', #{kw}, '%')
+            </foreach>
+          )
+        <if test="kbIds != null and kbIds.size() > 0">
+            AND kb_id IN
+            <foreach collection="kbIds" item="kbId" open="(" separator="," close=")">
+                #{kbId}
+            </foreach>
+        </if>
+        ORDER BY id DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

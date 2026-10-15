@@ -6,7 +6,9 @@ import cn.kmbeast.crm.agent.StreamingReActAgent;
 import cn.kmbeast.crm.agent.tool.ToolContext;
 import cn.kmbeast.crm.dto.CrmChatRequest;
 import cn.kmbeast.crm.dto.CrmChatResponse;
+import cn.kmbeast.crm.sqlite.SqliteChatHistoryService;
 import cn.kmbeast.crm.workflow.SeaChatWorkflow;
+import cn.kmbeast.core.agent.Audience;
 import cn.kmbeast.core.agent.ChatRouting;
 import cn.kmbeast.mapper.UserMapper;
 import cn.kmbeast.pojo.entity.User;
@@ -42,9 +44,24 @@ public class UserChatController {
     @Resource
     private UserMapper userMapper;
 
-    /** 2026-10-05：仅用于把角色编码换成中文名回给前端（路由本身在 SeaChatWorkflow 里） */
+    /**
+     * 会话历史落库。与同步链路（{@link SeaChatWorkflow#processChat}）共用同一份存储，
+     * 因此 {@code /user/chat/history} 能读到流式链路产生的记录。
+     */
     @Resource
-    private cn.kmbeast.core.agent.AgentCoordinator agentCoordinator;
+    private SqliteChatHistoryService chatHistoryService;
+
+    /**
+     * 仅用于把角色编码换成中文名回给前端（路由本身在 SeaChatWorkflow 里）。
+     *
+     * <p>阶段 1 起不再直连 {@code AgentCoordinator}：它的
+     * {@code getAgentRole(key)} 查不到时<b>返回「全能助手」</b>，
+     * 而管理员新建的智能体它根本不认识 —— 结果是一个叫「睡眠顾问」的智能体
+     * 在回执里显示成「全能助手」。改走编排器的 {@code agentName()}，
+     * 注册表优先，见 {@link cn.kmbeast.core.agent.orchestrator.AgentOrchestrator#agentName}。</p>
+     */
+    @Resource
+    private cn.kmbeast.core.agent.orchestrator.AgentOrchestrator agentOrchestrator;
 
     /**
      * 同步聊天
@@ -75,7 +92,12 @@ public class UserChatController {
         // ⚠️ 必须把 JWT 里的 userId 传进去：手机号存的是 user_account（登录名），
         // 而 user.phone 字段在库里大量为 NULL，工作流按 phone 反查必然查不到，
         // 会导致槽位不落库、get_health_data 工具罢工。
-        CrmChatResponse response = seaChatWorkflow.processChat(crmRequest, userId);
+        //
+        // 阶段 3（多端解耦）：显式声明这是用户端。本类所有链路都把调用方身份标成
+        // roleId=2（ToolContext.setIdentity），即用户端频道 —— 路由的端过滤必须与
+        // 这个身份判定同口径，否则会出现「工具层当你是用户、路由层却把医生端 Agent
+        // 派给你」的割裂。
+        CrmChatResponse response = seaChatWorkflow.processChat(crmRequest, userId, Audience.USER);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("reply", response.getReply());
@@ -84,7 +106,7 @@ public class UserChatController {
         result.put("isNewUser", response.getIsNewUser());
         // 回传本轮识别到的角色与追问话术，便于前端做引导展示
         result.put("agentType", response.getAgentType());
-        result.put("agentName", agentCoordinator.getAgentRole(response.getAgentType()).getName());
+        result.put("agentName", agentOrchestrator.agentName(response.getAgentType()));
         result.put("guidance", response.getGuidance());
 
         return ApiResult.success(result);
@@ -141,6 +163,13 @@ public class UserChatController {
         crmRequest.setQuery(query);
         crmRequest.setSessionId(sessionId);
 
+        // 2026-10-12 修复：用户提问此前从不落库，导致多轮上下文、历史记录、
+        // 会话统计与审计追溯全部归零（同链路的 CrmChatController:91 是存的）。
+        // 与同步链路 SeaChatWorkflow:102 保持同一口径：失败只告警，不阻断回答。
+        if (!chatHistoryService.saveMessage(phoneNumber, sessionId, "user", query, null, null)) {
+            log.warn("[UserChat] 用户消息保存失败: phone={}, session={}", phoneNumber, sessionId);
+        }
+
         List<Map<String, String>> messages = seaChatWorkflow.buildInitialMessages(crmRequest);
 
         StringBuilder answerCollector = new StringBuilder();
@@ -167,14 +196,16 @@ public class UserChatController {
 
             // 2026-10-05：与同步链路共用同一个 route()，避免「同步走医生、流式走默认」。
             // route() 内部做：意图识别 → 槽位抽取 → 落库 → 生成缺失项追问话术。
-            ChatRouting routing = seaChatWorkflow.route(userId, query);
+            // 阶段 3：端同样要传 —— 同步链路已经传了，这里漏传会让同一个用户在
+            // 「打字发送」和「流式发送」两条路径上被分到不同的 Agent。
+            ChatRouting routing = seaChatWorkflow.route(userId, query, Audience.USER);
 
             // ⚠️ 不能用 Map.of()：guidance 在档案完整时为 null，而 Map.of 不接受 null value，
             // 会直接抛 NPE 把整个 SSE 流打断（general_assistant 关键词表为空，
             // 绝大多数普通问句都会命中它 → 必然踩中）。这里显式允许 null。
             Map<String, Object> agentInfo = new LinkedHashMap<>();
             agentInfo.put("agentType", routing.getAgentType());
-            agentInfo.put("agentName", agentCoordinator.getAgentRole(routing.getAgentType()).getName());
+            agentInfo.put("agentName", agentOrchestrator.agentName(routing.getAgentType()));
             agentInfo.put("extractedSlots", routing.getExtractedSlots());
             callback.onEvent("agent_info", JSONObject.toJSONString(agentInfo));
 
@@ -189,6 +220,18 @@ public class UserChatController {
             writer.write("event: session_info\n");
             writer.write("data: " + JSONObject.toJSONString(sessionInfo) + "\n\n");
             writer.flush();
+
+            // 2026-10-12 修复：助手回复此前同样不落库（answerCollector 全程只写不读）。
+            // 口径对齐 CrmChatController:153 —— 有内容才存，失败只告警不打断 SSE。
+            if (answerCollector.length() > 0) {
+                Map<String, Object> metadata = new LinkedHashMap<>();
+                metadata.put("session_id", sessionId);
+                metadata.put("agent_type", routing.getAgentType());
+                if (!chatHistoryService.saveMessage(phoneNumber, sessionId, "assistant",
+                        answerCollector.toString(), null, metadata)) {
+                    log.warn("[UserChat] AI回答保存失败: phone={}, session={}", phoneNumber, sessionId);
+                }
+            }
 
             writer.close();
         } catch (Exception e) {

@@ -1,0 +1,173 @@
+/*
+ * ============================================================
+ * 视觉特效令牌层（阶段 4：前端 UI 深化）
+ * ============================================================
+ *
+ * 为什么单开一个文件、而不是继续往 design-tokens.css 里塞：
+ * design-tokens.css 是「设计基线」——颜色、间距、字号这类**任何页面都可能用**的常量，
+ * 它被 elementui-cover / sweetalert 等全局样式依赖，改动面是整个应用。
+ * 本文件是「特效层」——3D 透视、玻璃、光晕、撕线这些**只有新组件用**的常量。
+ * 分开之后，特效调参不会碰到基线，回滚特效也不会带走基线。
+ *
+ * 命名沿用 --xh- 前缀（与基线同一套词表），并按 「xh-<域>-<属性>」 分层：
+ *   3d-   透视 / 景深 / 倾斜         net-  网络图节点与连线
+ *   glass-玻璃拟态                   glow- 光晕与描边
+ *   torn- 撕线                       morph-按钮形变
+ *
+ * 深色模式：与 dark-mode.scss 同一个选择器（html.dark），
+ * 只覆盖**颜色类**令牌，透视/时长这类几何与时间常量两端共用。
+ */
+
+:root {
+  /* ---------------- 3D 透视与景深 ---------------- */
+  /* 透视距离越小、变形越夸张；1200px 是「看得出立体但不至于晕」的档位 */
+  --xh-3d-perspective: 1200px;
+  --xh-3d-perspective-near: 800px;
+  /* 卡片默认倾斜角：只做「微微侧身」，超过 8deg 文字就开始发虚 */
+  --xh-3d-tilt-x: 6deg;
+  --xh-3d-tilt-y: -4deg;
+  --xh-3d-lift: 10px;
+  /* 分层投影：下层是大面积软阴影（离地感），上层是 1px 亮边（受光感） */
+  --xh-3d-shadow-rest: 0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 6px 18px rgba(15, 23, 42, 0.07), 0 2px 4px rgba(15, 23, 42, 0.05);
+  --xh-3d-shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 22px 48px rgba(15, 23, 42, 0.14), 0 6px 14px rgba(15, 23, 42, 0.08);
+
+  /* ---------------- 网络图 ---------------- */
+  --xh-net-node: #0050cb;
+  --xh-net-node-alt: #632ce5;
+  --xh-net-node-accent: #10b981;
+  --xh-net-link: rgba(0, 80, 203, 0.26);
+  --xh-net-link-hot: rgba(99, 44, 229, 0.55);
+  --xh-net-halo: rgba(0, 80, 203, 0.16);
+  --xh-net-bg-from: #f4f8ff;
+  --xh-net-bg-to: #eef2fb;
+
+  /* ---------------- 玻璃拟态 ---------------- */
+  --xh-glass-bg: rgba(255, 255, 255, 0.72);
+  --xh-glass-bg-strong: rgba(255, 255, 255, 0.88);
+  --xh-glass-border: rgba(255, 255, 255, 0.65);
+  --xh-glass-blur: 14px;
+  --xh-glass-shadow: 0 8px 32px rgba(15, 23, 42, 0.1);
+
+  /* ---------------- 光晕 / 描边 ---------------- */
+  --xh-glow-primary: 0 0 0 1px rgba(0, 80, 203, 0.14),
+    0 8px 30px rgba(0, 80, 203, 0.18);
+  --xh-glow-purple: 0 0 0 1px rgba(99, 44, 229, 0.14),
+    0 8px 30px rgba(99, 44, 229, 0.18);
+  --xh-ring-track: rgba(0, 80, 203, 0.16);
+
+  /* ---------------- 撕线 ---------------- */
+  /* 撕线用当前容器背景色「咬掉」一块，所以它必须等于被撕的那层底色 */
+  --xh-torn-bg: var(--xh-bg-card);
+  --xh-torn-shadow: rgba(15, 23, 42, 0.09);
+
+  /* ---------------- 形变时长 ---------------- */
+  --xh-morph-dur: 420ms;
+  --xh-morph-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html.dark {
+  --xh-3d-shadow-rest: 0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 6px 18px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.35);
+  --xh-3d-shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.09) inset,
+    0 22px 48px rgba(0, 0, 0, 0.6), 0 6px 14px rgba(0, 0, 0, 0.45);
+
+  --xh-net-node: #5b9bff;
+  --xh-net-node-alt: #a78bfa;
+  --xh-net-link: rgba(91, 155, 255, 0.24);
+  --xh-net-link-hot: rgba(167, 139, 250, 0.5);
+  --xh-net-halo: rgba(91, 155, 255, 0.18);
+  --xh-net-bg-from: #16181f;
+  --xh-net-bg-to: #101319;
+
+  --xh-glass-bg: rgba(38, 41, 48, 0.66);
+  --xh-glass-bg-strong: rgba(38, 41, 48, 0.86);
+  --xh-glass-border: rgba(255, 255, 255, 0.12);
+  --xh-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  --xh-glow-primary: 0 0 0 1px rgba(91, 155, 255, 0.22),
+    0 8px 30px rgba(91, 155, 255, 0.22);
+  --xh-glow-purple: 0 0 0 1px rgba(167, 139, 250, 0.22),
+    0 8px 30px rgba(167, 139, 250, 0.22);
+  --xh-ring-track: rgba(91, 155, 255, 0.2);
+
+  --xh-torn-bg: #1e1e1e;
+  --xh-torn-shadow: rgba(0, 0, 0, 0.55);
+}
+
+/* ==================== 共享关键帧 ==================== */
+
+/* 悬浮球呼吸：只动 transform/opacity，不动布局属性 */
+@keyframes xhBreathe {
+  0%,
+  100% {
+    transform: translateZ(0) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateZ(0) scale(1.06);
+    opacity: 0.9;
+  }
+}
+
+/* 提示点扩散：用于悬浮球有新消息时的外圈 */
+@keyframes xhRipple {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+/* 进度环描边动画：绕一圈用 dashoffset 从整圈走到 0 */
+@keyframes xhSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 画廊/抽屉滑入 */
+@keyframes xhSlideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* 撕线面板弹出：从撕口处「掀开」 */
+@keyframes xhTearOpen {
+  from {
+    clip-path: inset(0 0 100% 0);
+    opacity: 0;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
+/* ==================== 无障碍：尊重系统的「减少动态效果」 ==================== */
+/*
+ * 这不是可选项。前庭功能障碍的用户会因为持续的位移动画产生眩晕、恶心，
+ * 而我们要加的 3D 网络图恰好是一屏不停运动的元素。系统层开关打开时，
+ * 所有装饰性动画都必须停住 —— 功能不受影响，只是不再动。
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --xh-morph-dur: 1ms;
+  }
+
+  .xh-animated,
+  [class*="xh-motion-"] {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+}

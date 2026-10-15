@@ -2,23 +2,10 @@
   <div class="audit-container">
     <div class="page-header">
       <h2>审核管理</h2>
-      <p>管理敏感词库和帖子审核</p>
+      <p>审核用户举报的帖子</p>
     </div>
 
     <div class="stats-grid">
-      <div class="stat-card">
-        <div
-          class="stat-card__icon"
-          style="background: rgba(245, 158, 11, 0.1); color: #f59e0b"
-        >
-          S
-        </div>
-        <div class="stat-card__info">
-          <div class="stat-label">敏感词总数</div>
-          <div class="stat-value">{{ sensitiveWords.length }}</div>
-        </div>
-        <div class="stat-card__deco"></div>
-      </div>
       <div class="stat-card">
         <div
           class="stat-card__icon"
@@ -34,83 +21,34 @@
       </div>
     </div>
 
-    <div class="module-tabs">
-      <button
-        :class="{ active: activeTab === 'sensitive' }"
-        @click="activeTab = 'sensitive'"
-      >
-        敏感词管理
-      </button>
-      <button
-        :class="{ active: activeTab === 'posts' }"
-        @click="activeTab = 'posts'"
-      >
-        帖子审核
-      </button>
+    <div v-if="pendingPosts.length === 0" class="empty-state">
+      暂无待审核帖子
     </div>
-
-    <div v-if="activeTab === 'sensitive'" class="tab-content">
-      <div class="toolbar">
-        <div class="input-group">
-          <input
-            v-model="newWord"
-            class="form-input"
-            placeholder="输入敏感词，按回车添加"
-            @keyup.enter="addSensitiveWord"
-          />
-          <button
-            class="action-btn action-btn--primary"
-            @click="addSensitiveWord"
-          >
-            添加
-          </button>
-        </div>
-      </div>
-      <div class="word-cloud">
-        <span
-          v-for="word in sensitiveWords"
-          :key="word.id"
-          class="word-tag"
-          @click="deleteWord(word.id)"
-        >
-          {{ word.word }} <i class="word-tag__rm">x</i>
-        </span>
-      </div>
-      <div v-if="sensitiveWords.length === 0" class="empty-state">
-        暂无敏感词
-      </div>
-    </div>
-
-    <div v-if="activeTab === 'posts'" class="tab-content">
-      <div v-if="pendingPosts.length === 0" class="empty-state">
-        暂无待审核帖子
-      </div>
-      <div v-else class="post-list">
-        <div v-for="post in pendingPosts" :key="post.id" class="post-card">
-          <div class="post-card__head">
-            <div class="post-author">
-              <div class="post-avatar">
-                {{ (post.userName || "U").charAt(0) }}
-              </div>
-              <span>{{ post.userName || "匿名用户" }}</span>
+    <div v-else class="post-list">
+      <div v-for="post in pendingPosts" :key="post.id" class="post-card">
+        <div class="post-card__head">
+          <div class="post-author">
+            <div class="post-avatar">
+              {{ (post.userName || "U").charAt(0) }}
             </div>
-            <span class="post-time">{{ post.createTime }}</span>
+            <span>{{ post.userName || "匿名用户" }}</span>
           </div>
-          <h4 class="post-title">{{ post.title }}</h4>
-          <div class="post-actions">
-            <button
-              class="action-btn action-btn--success"
-              @click="approvePost(post.id)"
-            >
-              通过
-            </button>
-            <button
-              class="action-btn action-btn--danger"
-              @click="rejectPost(post.id)"
-            >
-              拒绝
-            </button>
-          </div>
+          <span class="post-time">{{ post.createTime }}</span>
+        </div>
+        <h4 class="post-title">{{ post.title }}</h4>
+        <div class="post-actions">
+          <button
+            class="action-btn action-btn--success"
+            @click="approvePost(post.id)"
+          >
+            通过
+          </button>
+          <button
+            class="action-btn action-btn--danger"
+            @click="rejectPost(post.id)"
+          >
+            拒绝
+          </button>
         </div>
       </div>
     </div>
@@ -118,55 +56,27 @@
 </template>
 
 <script>
+// 2026-10-12 删除「敏感词管理」Tab 及配套「敏感词总数」统计卡：
+// 该 Tab 调用的 audit/sensitive-word/list|save|batchDelete 三个接口
+// 在整个后端不存在（controller/service/mapper/entity 皆无）。
+// 同时 07_sensitive_word.sql 描述的那个 SensitiveWordMapper.xml 也早已删除，
+// 且 sensitive_word 表不在结构基线文档中 —— 即该能力从未落地。
+// 保留它只会让管理员点到一个必然 404 的页面，故整体摘除。
+// 相关 SQL 脚本已移入 Data/90_归档/。
+// 唯一保留的 Tab「帖子审核」对应的 post/reports/* 接口是真实存在的。
 import request from "@/utils/request.js";
 
 export default {
   name: "AuditManage",
   data() {
     return {
-      activeTab: "sensitive",
-      sensitiveWords: [],
       pendingPosts: [],
-      newWord: "",
     };
   },
   created() {
-    this.loadSensitiveWords();
     this.loadPendingPosts();
   },
   methods: {
-    async loadSensitiveWords() {
-      try {
-        const { data } = await request.get("audit/sensitive-word/list");
-        if (data.code === 200) this.sensitiveWords = data.data;
-      } catch (e) {
-        console.error(e);
-      }
-    },
-    async addSensitiveWord() {
-      if (!this.newWord.trim()) {
-        this.$message.warning("请输入敏感词");
-        return;
-      }
-      try {
-        await request.post("audit/sensitive-word/save", {
-          word: this.newWord.trim(),
-        });
-        this.newWord = "";
-        this.loadSensitiveWords();
-        this.$message.success("添加成功");
-      } catch (e) {
-        this.$message.error("添加失败");
-      }
-    },
-    async deleteWord(id) {
-      try {
-        await request.post("audit/sensitive-word/batchDelete", [id]);
-        this.loadSensitiveWords();
-      } catch (e) {
-        console.error(e);
-      }
-    },
     async loadPendingPosts() {
       try {
         const { data } = await request.get("post/reports/pending");
@@ -223,7 +133,7 @@ export default {
 }
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -273,56 +183,6 @@ export default {
   background: rgba(0, 80, 203, 0.03);
 }
 
-.module-tabs {
-  display: flex;
-  gap: 4px;
-  background: #fff;
-  padding: 4px;
-  border-radius: 10px;
-  margin-bottom: 24px;
-  width: fit-content;
-  border: 1px solid #e6ebf2;
-}
-.module-tabs button {
-  padding: 10px 24px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 600;
-  color: #647084;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.module-tabs button.active {
-  background: linear-gradient(135deg, #0050cb, #0066ff);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 80, 203, 0.3);
-}
-
-.toolbar {
-  margin-bottom: 20px;
-}
-.input-group {
-  display: flex;
-  gap: 12px;
-}
-.form-input {
-  width: 320px;
-  height: 44px;
-  padding: 0 16px;
-  border: 2px solid #e6ebf2;
-  border-radius: 10px;
-  font-size: 14px;
-  color: #191c1e;
-  transition: all 0.2s;
-}
-.form-input:focus {
-  outline: none;
-  border-color: #0050cb;
-  box-shadow: 0 0 0 3px rgba(0, 80, 203, 0.08);
-}
-
 .action-btn {
   padding: 10px 24px;
   border-radius: 8px;
@@ -332,10 +192,6 @@ export default {
   border: none;
   transition: all 0.2s;
 }
-.action-btn--primary {
-  background: linear-gradient(135deg, #0050cb, #0066ff);
-  color: #fff;
-}
 .action-btn--success {
   background: linear-gradient(135deg, #10b981, #34d399);
   color: #fff;
@@ -343,40 +199,6 @@ export default {
 .action-btn--danger {
   background: linear-gradient(135deg, #ef4444, #f87171);
   color: #fff;
-}
-
-.word-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 20px;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e6ebf2;
-  min-height: 80px;
-}
-.word-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  background: rgba(239, 68, 68, 0.06);
-  color: #ef4444;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.word-tag:hover {
-  background: #ef4444;
-  color: #fff;
-  transform: scale(1.05);
-}
-.word-tag__rm {
-  font-style: normal;
-  opacity: 0.4;
-  font-size: 11px;
 }
 
 .post-list {

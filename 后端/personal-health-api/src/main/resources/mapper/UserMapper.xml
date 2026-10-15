@@ -119,7 +119,7 @@
                 AND u.phone LIKE concat('%',#{phone},'%')
             </if>
             <if test="role != null">
-                AND u.role = #{role}
+                AND u.user_role = #{role}
             </if>
             <if test="isLogin != null">
                 AND u.is_login = #{isLogin}
@@ -156,7 +156,7 @@
                 AND u.phone LIKE concat('%',#{phone},'%')
             </if>
             <if test="role != null">
-                AND u.role = #{role}
+                AND u.user_role = #{role}
             </if>
             <if test="isLogin != null">
                 AND u.is_login = #{isLogin}

@@ -45,8 +45,41 @@ public class ToolRegistry {
      *                   任何实现都认，且能约束模型不要发明未声明的入参。
      */
     public List<Map<String, Object>> buildToolsArray(boolean toolStrict) {
+        return buildToolsArray(null, toolStrict);
+    }
+
+    /**
+     * 按 Agent 白名单过滤后构造 {@code tools} 参数。
+     *
+     * <p><b>null 与空集语义完全不同，不能合并</b>：
+     * {@code allowedToolNames == null} 表示「该 Agent 没有配任何绑定行」，
+     * 此时下发<b>全量</b>工具 —— 这是向后兼容的默认，保证存量 Agent
+     * 在后台还没配白名单时能力不缩水。空集则表示「绑了但全被停用」，
+     * 一个工具都不下发。把两者都当空集处理，会让升级瞬间所有 Agent
+     * 集体失去工具能力。</p>
+     *
+     * @param allowedToolNames 允许的工具名；null = 全量
+     */
+    public List<Map<String, Object>> buildToolsArray(Set<String> allowedToolNames, boolean toolStrict) {
         List<Map<String, Object>> toolsArray = new ArrayList<>();
+        boolean filtered = allowedToolNames != null;
+
+        if (filtered) {
+            // 白名单里写了代码里不存在的工具名（拼错、或工具已被删除）——
+            // 这是纯静默失效的配置错误，不告警的话管理员只会看到
+            // 「绑了但模型从来不用」，排查成本极高。
+            Set<String> unknown = new LinkedHashSet<>(allowedToolNames);
+            unknown.removeAll(tools.keySet());
+            if (!unknown.isEmpty()) {
+                log.warn("[ToolRegistry] 白名单含未注册的工具名，已忽略: {}（当前已注册: {}）",
+                        unknown, tools.keySet());
+            }
+        }
+
         for (Tool tool : tools.values()) {
+            if (filtered && !allowedToolNames.contains(tool.getName())) {
+                continue;
+            }
             Map<String, Object> toolDef = new LinkedHashMap<>();
             toolDef.put("type", "function");
 
@@ -63,6 +96,11 @@ public class ToolRegistry {
                 Map<String, Object> fn = (Map<String, Object>) toolDef.get("function");
                 fn.put("strict", true);
             }
+        }
+
+        if (filtered && toolsArray.isEmpty()) {
+            log.warn("[ToolRegistry] 白名单过滤后无任何工具可用，本轮 LLM 将无工具可调（白名单: {}）",
+                    allowedToolNames);
         }
         return toolsArray;
     }

@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -83,14 +82,11 @@ class ReactPromptToolConsistencyTest {
     }
 
     @Test
-    @DisplayName("T7.3 8 个工具全部在 system prompt 中被提及（含此前被漏掉的 execute_sql / web_search）")
+    @DisplayName("T7.3 工具全集全部在 system prompt 中被提及（含此前被漏掉的 execute_sql / web_search）")
     void allToolsMentionedInPrompt() {
         ReactPromptLoader loader = newLoader();
         String prompt = loader.classpathSystemPrompt();
-        List<String> tools = List.of("search_drug", "search_knowledge",
-                "query_knowledge_graph", "query_health_records", "get_health_data",
-                "get_chat_history", "web_search", "execute_sql");
-        for (String t : tools) {
+        for (String t : ToolCatalog.ALL) {
             assertTrue(prompt.contains(t),
                     "🔴 system prompt 未提及工具 " + t + " —— 模型永远不会调用它（这是已发生过的真实缺陷）");
         }
@@ -101,9 +97,7 @@ class ReactPromptToolConsistencyTest {
     void consistencyPassesWhenAllRegistered() {
         ReactPromptLoader loader = newLoader();
         ToolRegistry registry = new ToolRegistry();
-        for (String t : List.of("search_drug", "search_knowledge", "query_knowledge_graph",
-                "query_health_records", "get_health_data", "get_chat_history",
-                "web_search", "execute_sql")) {
+        for (String t : ToolCatalog.ALL) {
             register(registry, t);
         }
         loader.setToolRegistry(registry);
@@ -111,7 +105,7 @@ class ReactPromptToolConsistencyTest {
         ReactPromptLoader.ConsistencyReport report = loader.verifyToolConsistency();
         assertTrue(report.missing.isEmpty(),
                 "🔴 提示词提到但未注册的工具: " + report.missing);
-        assertEquals(8, report.registryTools.size());
+        assertEquals(ToolCatalog.size(), report.registryTools.size());
         assertTrue(report.declaredTools.contains("execute_sql"));
         assertTrue(report.declaredTools.contains("web_search"));
     }

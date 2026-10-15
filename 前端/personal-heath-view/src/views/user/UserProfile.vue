@@ -151,7 +151,13 @@
       </el-form>
       <template #footer>
         <el-button @click="editDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveProfile">保存</el-button>
+        <!-- 保存按钮点击后收成圆形进度环，成功浮出对勾再变回按钮 -->
+        <MorphSaveButton
+          ref="saveBtn"
+          label="保存"
+          success-label="已保存"
+          @click="saveProfile"
+        />
       </template>
     </el-dialog>
 
@@ -213,10 +219,12 @@ import {
   Check,
   Setting,
 } from "@element-plus/icons-vue";
+import MorphSaveButton from "@/components/effects/MorphSaveButton.vue";
 
 export default {
   name: "UserProfile",
   components: {
+    MorphSaveButton,
     Camera,
     Plus,
     EditPen,
@@ -249,7 +257,7 @@ export default {
         { label: "我的收藏", value: 0, path: "/user/my-save" },
         { label: "健康记录", value: 0, path: "/record" },
         { label: "AI 对话", value: 0, path: "/user/assistant" },
-        { label: "用药订阅", value: 0, path: "/user/drug" },
+        { label: "药品选购", value: 0, path: "/user/mall?type=drug" },
         { label: "我的订单", value: 0, path: "/user/mall?tab=orders" },
         { label: "我的预约", value: 0, path: "/user/appointment" },
       ],
@@ -264,7 +272,7 @@ export default {
         {
           icon: "FirstAidKit",
           label: "药品查询",
-          path: "/user/drug",
+          path: "/user/mall?type=drug",
           bg: "rgba(0, 80, 203, 0.08)",
           color: "#0050cb",
         },
@@ -402,11 +410,14 @@ export default {
       this.editDialog = true;
     },
     async saveProfile() {
+      // 校验不通过时不进入形变：按钮已经转起来了却什么都没发生，
+      // 比单纯弹一句提示更让人困惑
       if (!this.editForm.userName || !this.editForm.userName.trim()) {
         this.$message.warning("昵称不能为空");
         return;
       }
-      this.saving = true;
+      const btn = this.$refs.saveBtn;
+      if (btn) btn.begin();
       try {
         const { data } = await request.put("user/update", {
           userAvatar: this.userInfo.userAvatar,
@@ -414,16 +425,20 @@ export default {
           userEmail: this.editForm.userEmail,
         });
         if (data.code === 200) {
-          this.$message.success("保存成功");
-          this.editDialog = false;
-          this.loadUserInfo();
+          if (btn) btn.succeed();
+          // 等对勾播完再关弹窗。立刻关会把按钮连同动画一起卸载，
+          // 用户只看到弹窗一闪 —— 反而像是没保存成功。
+          window.setTimeout(() => {
+            this.editDialog = false;
+            this.loadUserInfo();
+          }, 900);
         } else {
+          if (btn) btn.fail();
           this.$message.error(data.msg || "保存失败");
         }
       } catch (e) {
+        if (btn) btn.fail();
         this.$message.error("保存失败，请稍后重试");
-      } finally {
-        this.saving = false;
       }
     },
     async savePwd() {

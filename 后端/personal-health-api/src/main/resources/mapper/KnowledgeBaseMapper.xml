@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.KnowledgeBaseMapper">
+
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.entity.KnowledgeBase">
+        <id column="id" property="id"/>
+        <result column="code" property="code"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="data_source_id" property="dataSourceId"/>
+        <result column="audience" property="audience"/>
+        <result column="chunk_size" property="chunkSize"/>
+        <result column="chunk_overlap" property="chunkOverlap"/>
+        <result column="top_k" property="topK"/>
+        <result column="weight" property="weight"/>
+        <result column="embedding_model" property="embeddingModel"/>
+        <result column="enabled" property="enabled"/>
+        <result column="doc_count" property="docCount"/>
+        <result column="chunk_count" property="chunkCount"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, code, name, description, data_source_id, audience, chunk_size, chunk_overlap,
+        top_k, weight, embedding_model, enabled, doc_count, chunk_count, create_time, update_time
+    </sql>
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO knowledge_base (code, name, description, data_source_id, audience,
+                                    chunk_size, chunk_overlap, top_k, weight, embedding_model,
+                                    enabled, doc_count, chunk_count, create_time, update_time)
+        VALUES (#{code}, #{name}, #{description}, #{dataSourceId}, COALESCE(#{audience}, 'all'),
+                COALESCE(#{chunkSize}, 200), COALESCE(#{chunkOverlap}, 50), COALESCE(#{topK}, 5),
+                COALESCE(#{weight}, 1.000), #{embeddingModel},
+                COALESCE(#{enabled}, 1), 0, 0, NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE knowledge_base
+        <set>
+            <if test="code != null and code != ''">code = #{code},</if>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="dataSourceId != null">data_source_id = #{dataSourceId},</if>
+            <if test="audience != null and audience != ''">audience = #{audience},</if>
+            <if test="chunkSize != null">chunk_size = #{chunkSize},</if>
+            <if test="chunkOverlap != null">chunk_overlap = #{chunkOverlap},</if>
+            <if test="topK != null">top_k = #{topK},</if>
+            <if test="weight != null">weight = #{weight},</if>
+            <if test="embeddingModel != null">embedding_model = #{embeddingModel},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            update_time = NOW(),
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM knowledge_base WHERE id = #{id}
+    </delete>
+
+    <select id="query" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM knowledge_base
+        <where>
+            <if test="code != null and code != ''">
+                AND code LIKE CONCAT('%', #{code}, '%')
+            </if>
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="audience != null and audience != '' and audience != 'all'">
+                AND (audience = #{audience} OR audience = 'all')
+            </if>
+            <if test="enabled != null">
+                AND enabled = #{enabled}
+            </if>
+        </where>
+        ORDER BY id ASC
+        <if test="current != null and size != null">
+            LIMIT #{current},#{size}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM knowledge_base
+        <where>
+            <if test="code != null and code != ''">
+                AND code LIKE CONCAT('%', #{code}, '%')
+            </if>
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="audience != null and audience != '' and audience != 'all'">
+                AND (audience = #{audience} OR audience = 'all')
+            </if>
+            <if test="enabled != null">
+                AND enabled = #{enabled}
+            </if>
+        </where>
+    </select>
+
+    <select id="getById" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM knowledge_base WHERE id = #{id}
+    </select>
+
+    <select id="getByCode" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/> FROM knowledge_base WHERE code = #{code}
+    </select>
+
+    <!-- audience=all 的知识库对所有端可见，故用 OR 而不是等值 -->
+    <select id="listEnabled" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM knowledge_base
+        WHERE enabled = 1
+        <if test="audience != null and audience != '' and audience != 'all'">
+            AND (audience = #{audience} OR audience = 'all')
+        </if>
+        ORDER BY id ASC
+    </select>
+
+    <select id="listByIds" resultMap="BaseResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM knowledge_base
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY id ASC
+    </select>
+
+    <select id="listAllEnabledIds" resultType="java.lang.Integer">
+        SELECT id FROM knowledge_base WHERE enabled = 1 ORDER BY id ASC
+    </select>
+
+    <!-- 冗余计数由真实数据重算：计数一旦漂移，管理端显示与检索范围就会长期不一致 -->
+    <update id="refreshCounts">
+        UPDATE knowledge_base kb
+        SET kb.doc_count = (
+                SELECT COUNT(*) FROM kb_document d
+                WHERE d.kb_id = kb.id AND d.deleted = 0 AND d.status = 'INDEXED'
+            ),
+            kb.chunk_count = (
+                SELECT COUNT(*) FROM kb_chunk c WHERE c.kb_id = kb.id
+            ),
+            kb.update_time = NOW()
+        WHERE kb.id = #{id}
+    </update>
+
+</mapper>

@@ -98,7 +98,22 @@
     </div>
 
     <!-- 成绩结果 -->
-    <div v-if="examResult" class="result-panel">
+    <!--
+      阶段 4：成绩单改用撕线弹出面板。
+      成绩结果天然是「一张单子」—— 交卷后从卷面撕下来递给你，撕口正好承担
+      「这是一个新出现的、独立的结果」这层语义，比淡入一个圆角卡片更贴题。
+      v-if 而不是靠 visible 切换：TornPanel 隐藏时是 opacity:0 仍占位，
+      常驻会在这块位置留一片空白。挂载时 visible 即为 true，
+      xhTearOpen 动画在首帧就会播。
+    -->
+    <TornPanel
+      v-if="examResult"
+      class="result-panel"
+      title="测评结果"
+      torn="both"
+      :edge-height="16"
+      @close="backToList"
+    >
       <div class="result-card">
         <div class="result-score">
           <div
@@ -137,13 +152,7 @@
           </div>
         </div>
         <div class="result-actions">
-          <button
-            class="btn btn--outline"
-            @click="
-              currentExam = null;
-              examResult = null;
-            "
-          >
+          <button class="btn btn--outline" @click="backToList">
             返回列表
           </button>
           <button class="btn btn--primary" @click="viewAnswers">
@@ -151,7 +160,7 @@
           </button>
         </div>
       </div>
-    </div>
+    </TornPanel>
 
     <!-- 历史记录 -->
     <div class="history-section">
@@ -179,9 +188,11 @@
 
 <script>
 import request from "@/utils/request.js";
+import TornPanel from "@/components/effects/TornPanel.vue";
 
 export default {
   name: "Quiz",
+  components: { TornPanel },
   data() {
     return {
       exams: [],
@@ -210,6 +221,16 @@ export default {
     if (this.timer) clearInterval(this.timer);
   },
   methods: {
+    /**
+     * 回到测评列表：清掉当前试卷与成绩。
+     * 原来这段是写在「返回列表」按钮的 @click 内联语句里的，
+     * 现在撕线面板右上角的关闭按钮也要走同一条路径，
+     * 抽成方法避免两处各写一遍（也就不会各自漂移）。
+     */
+    backToList() {
+      this.currentExam = null;
+      this.examResult = null;
+    },
     parseOptions(options) {
       try {
         return JSON.parse(options);
@@ -548,11 +569,21 @@ export default {
 
 .result-panel {
   margin-bottom: 40px;
+  /*
+    撕口咬的是面板自己的底色（--xh-torn-bg），这里让它跟成绩单同为白色，
+    否则撕口会以一种颜色出现在另一种底色的卡片外围。
+  */
+  --xh-torn-bg: #fff;
 }
-.result-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 32px;
+/*
+  成绩单本体不再当「一张白卡片」—— 撕线面板已经是那张纸了。
+  再叠一层白底 + 32px 内边距会出现「卡片叠卡片」的双层留白，
+  这里只保留排版职责，底色和圆角交给面板。
+*/
+.result-panel :deep(.result-card) {
+  background: transparent;
+  border-radius: 0;
+  padding: 12px 4px 4px;
   text-align: center;
 }
 .result-score {

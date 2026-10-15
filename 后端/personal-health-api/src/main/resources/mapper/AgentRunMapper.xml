@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.kmbeast.mapper.AgentRunMapper">
+
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO agent_run (run_id, parent_run_id, agent_id, agent_key, session_id, user_id, audience,
+                               question, status, iterations, prompt_tokens, completion_tokens, latency_ms,
+                               answer_digest, error_msg, create_time)
+        VALUES (#{runId}, #{parentRunId}, #{agentId}, #{agentKey}, #{sessionId}, #{userId}, #{audience},
+                #{question}, COALESCE(#{status}, 'RUNNING'), COALESCE(#{iterations}, 0),
+                COALESCE(#{promptTokens}, 0), COALESCE(#{completionTokens}, 0), COALESCE(#{latencyMs}, 0),
+                #{answerDigest}, #{errorMsg}, NOW())
+    </insert>
+
+    <!-- 仅更新非空字段：RUNNING 行由业务侧把 status/耗时/token 等收敛为终态 -->
+    <update id="update">
+        UPDATE agent_run
+        <set>
+            <if test="parentRunId != null and parentRunId != ''">
+                parent_run_id = #{parentRunId},
+            </if>
+            <if test="agentId != null">
+                agent_id = #{agentId},
+            </if>
+            <if test="agentKey != null and agentKey != ''">
+                agent_key = #{agentKey},
+            </if>
+            <if test="sessionId != null and sessionId != ''">
+                session_id = #{sessionId},
+            </if>
+            <if test="userId != null">
+                user_id = #{userId},
+            </if>
+            <if test="audience != null and audience != ''">
+                audience = #{audience},
+            </if>
+            <if test="question != null">
+                question = #{question},
+            </if>
+            <if test="status != null and status != ''">
+                status = #{status},
+            </if>
+            <if test="iterations != null">
+                iterations = #{iterations},
+            </if>
+            <if test="promptTokens != null">
+                prompt_tokens = #{promptTokens},
+            </if>
+            <if test="completionTokens != null">
+                completion_tokens = #{completionTokens},
+            </if>
+            <if test="latencyMs != null">
+                latency_ms = #{latencyMs},
+            </if>
+            <if test="answerDigest != null">
+                answer_digest = #{answerDigest},
+            </if>
+            <if test="errorMsg != null">
+                error_msg = #{errorMsg},
+            </if>
+        </set>
+        WHERE run_id = #{runId}
+    </update>
+
+    <select id="query" resultMap="BaseResultMap">
+        SELECT * FROM agent_run
+        <where>
+            <if test="runId != null and runId != ''">
+                AND run_id = #{runId}
+            </if>
+            <if test="parentRunId != null and parentRunId != ''">
+                AND parent_run_id = #{parentRunId}
+            </if>
+            <if test="agentKey != null and agentKey != ''">
+                AND agent_key = #{agentKey}
+            </if>
+            <if test="sessionId != null and sessionId != ''">
+                AND session_id = #{sessionId}
+            </if>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY id DESC
+        <if test="current != null and size != null">
+            LIMIT #{current},#{size}
+        </if>
+    </select>
+
+    <select id="queryCount" resultType="integer">
+        SELECT COUNT(*) FROM agent_run
+        <where>
+            <if test="runId != null and runId != ''">
+                AND run_id = #{runId}
+            </if>
+            <if test="parentRunId != null and parentRunId != ''">
+                AND parent_run_id = #{parentRunId}
+            </if>
+            <if test="agentKey != null and agentKey != ''">
+                AND agent_key = #{agentKey}
+            </if>
+            <if test="sessionId != null and sessionId != ''">
+                AND session_id = #{sessionId}
+            </if>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="getByRunId" resultMap="BaseResultMap">
+        SELECT * FROM agent_run WHERE run_id = #{runId}
+    </select>
+
+    <select id="listByRunIdPrefix" resultMap="BaseResultMap">
+        SELECT * FROM agent_run
+        WHERE run_id LIKE CONCAT(#{runIdPrefix}, '%')
+        ORDER BY id ASC
+    </select>
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="cn.kmbeast.pojo.entity.AgentRun">
+        <id column="id" property="id"/>
+        <result column="run_id" property="runId"/>
+        <result column="parent_run_id" property="parentRunId"/>
+        <result column="agent_id" property="agentId"/>
+        <result column="agent_key" property="agentKey"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="user_id" property="userId"/>
+        <result column="audience" property="audience"/>
+        <result column="question" property="question"/>
+        <result column="status" property="status"/>
+        <result column="iterations" property="iterations"/>
+        <result column="prompt_tokens" property="promptTokens"/>
+        <result column="completion_tokens" property="completionTokens"/>
+        <result column="latency_ms" property="latencyMs"/>
+        <result column="answer_digest" property="answerDigest"/>
+        <result column="error_msg" property="errorMsg"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+</mapper>
