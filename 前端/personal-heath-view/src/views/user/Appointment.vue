@@ -290,6 +290,8 @@ export default {
       selectedSlot: null,
       symptomDesc: "",
       availableDates: [],
+      /** 选中医生产出的号源列表（第 3 步的数据源，必须在此声明才具备响应式） */
+      timeSlots: [],
       /** 用户勾出的空闲区间 [{start,end}]，空数组 = 不限 */
       freeRanges: [],
     };
