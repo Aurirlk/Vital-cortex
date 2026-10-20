@@ -92,10 +92,6 @@ public class CrmChatController {
             sessionId = UUID.randomUUID().toString();
         }
 
-        if (!chatHistoryService.saveMessage(phoneNumber, sessionId, "user", query, null, null)) {
-            log.warn("[CRM] 用户消息保存失败: phone={}", phoneNumber);
-        }
-
         Integer userId = null;
         try {
             User user = userMapper.findByPhone(phoneNumber);
@@ -114,6 +110,13 @@ public class CrmChatController {
         ChatRouting routing = seaChatWorkflow.route(userId, query, Audience.USER);
 
         List<Map<String, String>> messages = seaChatWorkflow.buildInitialMessages(request);
+
+        // 落库必须在拼装之后：buildInitialMessages 会读历史并按「历史是否为空」判定新用户，
+        // 先存会让当前这句既从历史里回来、又被显式加一遍，且欢迎语再也不触发。
+        // 口径与 /user/chat/stream 一致：失败只告警，不阻断回答。
+        if (!chatHistoryService.saveMessage(phoneNumber, sessionId, "user", query, null, null)) {
+            log.warn("[CRM] 用户消息保存失败: phone={}", phoneNumber);
+        }
 
         StringBuilder answerCollector = new StringBuilder();
 

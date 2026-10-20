@@ -104,6 +104,13 @@ public class SeaChatWorkflow {
             sessionId = UUID.randomUUID().toString();
         }
 
+        // 历史必须在落库之前读：先存再读会让当前这句既从历史里回来、又被显式加一遍，
+        // 提示词里同一句话出现两次（token 翻倍，模型还容易重复回应）。
+        // 读取点也留在 route() 之前 —— 万一路由抛错，用户这一句仍然已经留痕。
+        List<Map<String, Object>> priorHistory = isNewUser
+                ? List.of()
+                : chatHistoryService.getHistory(phoneNumber, 10);
+
         // AG-10：保存失败不再静默，记录告警（不阻塞主流程）
         if (!chatHistoryService.saveMessage(phoneNumber, sessionId, "user", query, null, null)) {
             log.warn("[CRM] 用户消息保存失败: phone={}", phoneNumber);
@@ -125,8 +132,7 @@ public class SeaChatWorkflow {
             if (isNewUser) {
                 userMessages.add(userMsg("user", WELCOME_MESSAGE + "\n\n现在用户说：" + query));
             } else {
-                List<Map<String, Object>> history = chatHistoryService.getHistory(phoneNumber, 10);
-                for (Map<String, Object> record : history) {
+                for (Map<String, Object> record : priorHistory) {
                     String role = (String) record.get("role");
                     String content = (String) record.get("content");
                     if (role != null && content != null) {
