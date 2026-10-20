@@ -163,14 +163,17 @@ public class UserChatController {
         crmRequest.setQuery(query);
         crmRequest.setSessionId(sessionId);
 
+        // 拼装必须在落库之前：buildInitialMessages 会读历史、并按「历史是否为空」判定新用户。
+        // 先落库会让当前这句既从历史里读回来、又被显式加一遍（提示词里出现两遍），
+        // 同时 isNewUser 永远为 false，新用户欢迎语再也进不去。
+        List<Map<String, String>> messages = seaChatWorkflow.buildInitialMessages(crmRequest);
+
         // 2026-10-12 修复：用户提问此前从不落库，导致多轮上下文、历史记录、
         // 会话统计与审计追溯全部归零（同链路的 CrmChatController:91 是存的）。
-        // 与同步链路 SeaChatWorkflow:102 保持同一口径：失败只告警，不阻断回答。
+        // 失败只告警，不阻断回答。
         if (!chatHistoryService.saveMessage(phoneNumber, sessionId, "user", query, null, null)) {
             log.warn("[UserChat] 用户消息保存失败: phone={}, session={}", phoneNumber, sessionId);
         }
-
-        List<Map<String, String>> messages = seaChatWorkflow.buildInitialMessages(crmRequest);
 
         StringBuilder answerCollector = new StringBuilder();
 
