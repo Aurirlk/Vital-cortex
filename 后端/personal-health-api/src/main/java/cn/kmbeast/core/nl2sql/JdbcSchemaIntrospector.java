@@ -55,16 +55,34 @@ public class JdbcSchemaIntrospector {
     @Qualifier(Nl2SqlReadOnlyDataSourceProvider.BEAN_NAME)
     private Nl2SqlReadOnlyDataSourceProvider readOnlyDataSourceProvider;
 
+    /** 是否已就「内省回落到主数据源」告警过一次（避免每次刷新都刷屏）。 */
+    private volatile boolean fallbackWarned = false;
+
     /**
-     * 取「执行 SQL 用」的数据源：优先只读源，缺失时回落主数据源。
+     * 取「内省用」的数据源：优先只读源，缺失时回落主数据源。
      *
      * <p>2026-10-12：只读池改由 {@link Nl2SqlReadOnlyDataSourceProvider} 持有，
      * 原因见该类注释（注册 DataSource bean 会令主数据源自动配置退避，应用无法启动）。</p>
+     *
+     * <p><b>为什么这里仍允许回落</b>（而 {@code DataAgentPipeline#execDataSource()}
+     * 在阶段 6 已改为 fail-closed）：内省只读 {@code information_schema} 元数据，
+     * 不执行任何模型生成的 SQL，用主库账号不会带来写入风险；反过来若也 fail-closed，
+     * 未配置只读账号的环境连「数据智能体 → 表清单」都打不开。执行路径才是必须
+     * 拒绝的那一层。回落时打一条 warn，避免「以为走了只读账号」的误解。</p>
      */
     private DataSource execDataSource() {
         Nl2SqlReadOnlyDataSourceProvider provider = readOnlyDataSourceProvider;
         DataSource ro = provider == null ? null : provider.get();
-        return ro != null ? ro : primaryDataSource;
+        if (ro != null) {
+            return ro;
+        }
+        if (!fallbackWarned) {
+            fallbackWarned = true;
+            log.warn("[JdbcSchemaIntrospector] 未配置 crm.ai.nl2sql.read-only.url，"
+                    + "表结构内省回落主数据源（仅读 information_schema；SQL 执行侧仍会拒绝）。"
+                    + "建议执行 Data/02_迁移脚本/09_create_ai_ro_user.sql 并配置只读账号。");
+        }
+        return primaryDataSource;
     }
 
     /** 从连接 URL 解析库名（兜底用，优先用 {@link Connection#getCatalog()}）。 */

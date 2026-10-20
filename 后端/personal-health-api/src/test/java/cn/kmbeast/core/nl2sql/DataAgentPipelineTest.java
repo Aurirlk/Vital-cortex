@@ -1,5 +1,6 @@
 package cn.kmbeast.core.nl2sql;
 
+import cn.kmbeast.config.Nl2SqlReadOnlyDataSourceProvider;
 import cn.kmbeast.core.nl2sql.JdbcSchemaIntrospector.ColumnSchema;
 import cn.kmbeast.core.nl2sql.JdbcSchemaIntrospector.TableMeta;
 import cn.kmbeast.core.nl2sql.JdbcSchemaIntrospector.TableSchema;
@@ -237,9 +238,25 @@ class DataAgentPipelineTest {
         inject(p, "promptBuilder", new StubPromptBuilder());
         inject(p, "schemaService", schemaService);
         inject(p, "introspector", new JdbcSchemaIntrospector());
-        inject(p, "primaryDataSource", null);
         inject(p, "evidenceService", new StubEvidenceService());
         return p;
+    }
+
+    /**
+     * 把「只读数据源提供者」注入流水线。
+     *
+     * <p>阶段 6 起 {@code execDataSource()} 不再回落主数据源：拿不到只读源就抛
+     * {@link IllegalStateException}。测试用匿名子类覆盖 {@code get()}，
+     * 避免去反射写 provider 的私有连接池字段。</p>
+     */
+    private static void injectReadOnly(DataAgentPipeline p, DataSource ds) throws Exception {
+        Nl2SqlReadOnlyDataSourceProvider provider = new Nl2SqlReadOnlyDataSourceProvider() {
+            @Override
+            public DataSource get() {
+                return ds;
+            }
+        };
+        inject(p, "readOnlyDataSourceProvider", provider);
     }
 
     private static void inject(Object target, String field, Object value) throws Exception {
@@ -594,7 +611,7 @@ class DataAgentPipelineTest {
     @DisplayName("步骤 9 EXECUTE：查询成功时返回 rowCount 与预览")
     void executeSucceedsWithRows() throws Exception {
         DataAgentPipeline p = pipeline(new StubConfig(), llmForHappyPath());
-        inject(p, "primaryDataSource", stubDataSource());
+        injectReadOnly(p, stubDataSource());
         DataAgentQaRequest r = req("看看我的血压");
         r.setEnableReport(false);
 
@@ -616,7 +633,7 @@ class DataAgentPipelineTest {
         StubConfig config = new StubConfig();
         config.reportEnabled = true;
         DataAgentPipeline p = pipeline(config, llmForHappyPath("## 分析结论\n共 2 条记录，血压偏高。"));
-        inject(p, "primaryDataSource", stubDataSource());
+        injectReadOnly(p, stubDataSource());
         DataAgentQaRequest r = req("看看我的血压");
         r.setEnableReport(true);
 
@@ -637,7 +654,7 @@ class DataAgentPipelineTest {
         StubConfig config = new StubConfig();
         config.reportEnabled = false;
         DataAgentPipeline p = pipeline(config, llmForHappyPath());
-        inject(p, "primaryDataSource", stubDataSource());
+        injectReadOnly(p, stubDataSource());
         DataAgentQaRequest r = req("看看我的血压");
         r.setEnableReport(false);
 
@@ -655,7 +672,7 @@ class DataAgentPipelineTest {
     @DisplayName("同步链路：result.steps 回填十步过程（此前恒为空数组）")
     void stepsFilledOnSyncPath() throws Exception {
         DataAgentPipeline p = pipeline(new StubConfig(), llmForHappyPath());
-        inject(p, "primaryDataSource", stubDataSource());
+        injectReadOnly(p, stubDataSource());
         DataAgentQaRequest r = req("看看我的血压");
         r.setEnableReport(false);
 
@@ -667,5 +684,32 @@ class DataAgentPipelineTest {
         assertTrue(result.getSteps().stream()
                         .anyMatch(e -> AgentStep.SQL_GENERATE.name().equals(e.getStep())),
                 "steps 里应能看到 SQL_GENERATE");
+    }
+
+    @Test
+    @DisplayName("阶段 6：未配置只读数据源时拒绝执行（不再静默回落主库）")
+    void refusesToExecuteWithoutReadOnlyDataSource() throws Exception {
+        // 不注入 readOnlyDataSourceProvider —— 模拟「只配了主库、没执行 09 脚本」的环境
+        DataAgentPipeline p = pipeline(new StubConfig(), llmForHappyPath());
+        DataAgentQaRequest r = req("看看我的血压");
+        r.setEnableReport(false);
+
+        List<AgentStepEvent> events = new ArrayList<>();
+        DataAgentQaResult result = p.run(r, 9527L, events::add);
+
+        assertFalse(result.isSuccess(), "缺只读源时必须失败而不是打到主库");
+        assertTrue(result.getMessage().contains("只读数据源"),
+                "应明确指出缺少只读数据源，实际: " + result.getMessage());
+        assertTrue(result.getMessage().contains("09_create_ai_ro_user.sql"),
+                "应给出补配置的脚本路径，实际: " + result.getMessage());
+        assertEquals(0, result.getRowCount(), "不得返回任何行");
+
+        AgentStepEvent exec = lastStep(events, AgentStep.EXECUTE);
+        assertNotNull(exec, "应产生 EXECUTE 失败事件");
+        assertEquals(AgentStepEvent.FAILED, exec.getStatus());
+        // 配置错误不应进入「让模型改 SQL 重试」的循环：事件里不应出现修复轮标记
+        boolean retried = events.stream()
+                .anyMatch(e -> e.getPayload() != null && e.getPayload().containsKey("fixAttempt"));
+        assertFalse(retried, "缺只读源时不应触发 SQL 修复重试");
     }
 }

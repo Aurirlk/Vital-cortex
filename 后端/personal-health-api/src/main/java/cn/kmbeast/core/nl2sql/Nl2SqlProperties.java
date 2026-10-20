@@ -27,24 +27,13 @@ public class Nl2SqlProperties {
     private String dialect;
 
     /**
-     * SQL 生成/执行失败后，故障修复最大重试次数。
-     *
-     * <p>⚠️ 2026-10-07 修正：原 key 写成 {@code crm.ai.nl2sql.maxSqlRetryCount}（驼峰），
-     * 而 application.yml 里是 {@code max-sql-retry-count}（kebab-case）。
-     * <b>{@code @Value} 不支持 relaxed binding</b>（那是 {@code @ConfigurationProperties} 的能力），
-     * 因此该项一直取不到 yml 的值、只能落到默认值 —— 属于「配置看起来能配、实际不生效」的隐性缺陷。
-     * 同批修正的还有 maxColumnsPerTable / maxRows / queryTimeout / sampleLimit。</p>
-     */
-    @Value("${crm.ai.nl2sql.max-sql-retry-count:10}")
-    private int maxSqlRetryCount;
-
-    /**
      * 故障修复重试上限 —— <b>流水线实际使用的那个</b>。
      *
-     * <p>与 {@link #maxSqlRetryCount} 的区别：后者只被已废弃的
-     * {@link MySqlText2SqlService} 消费；现役的 {@link DataAgentPipeline} 用的是
-     * {@code MAX_FIX_RETRY = 2} 硬编码。现把真实值暴露为可配置项，钳制在 0~5
-     * （见 {@code DataAgentConfigHolder#getMaxFixRetry}）——上限刻意收紧，
+     * <p>阶段 6 删除了已废弃的 {@code MySqlText2SqlService}，随之移除它独占使用的
+     * {@code crm.ai.nl2sql.max-sql-retry-count}（默认 10）——那个键从未生效过
+     * （{@code @Value} 不支持 relaxed binding，而 yml 写的是 kebab-case），
+     * 留着只会让人以为重试次数可控。现役 {@link DataAgentPipeline} 只认本项，
+     * 由 {@code DataAgentConfigHolder#getMaxFixRetry} 钳制在 0~5，
      * 避免管理员误填 10 造成 11 次 LLM 调用的放大攻击。</p>
      */
     @Value("${crm.ai.nl2sql.max-fix-retry:2}")

@@ -84,33 +84,54 @@ public class DataAgentPipeline {
     private Nl2SqlLlmClient llm;
 
     /**
-     * 主数据源（Spring Boot 自动配置，bean 名固定为 {@code dataSource}）。
-     * 未配置只读数据源时，NL2SQL 查询走它。
-     */
-    @Resource(name = "dataSource")
-    private DataSource primaryDataSource;
-
-    /**
      * NL2SQL 专用只读数据源提供者。bean 恒存在，但未配置
      * {@code crm.ai.nl2sql.read-only.url} 时其 {@link Nl2SqlReadOnlyDataSourceProvider#get()}
-     * 返回 {@code null}，由 {@link #execDataSource()} 回落主数据源。
+     * 返回 {@code null}，此时 {@link #execDataSource()} <b>拒绝执行</b>。
      */
     @Autowired(required = false)
     @Qualifier(Nl2SqlReadOnlyDataSourceProvider.BEAN_NAME)
     private Nl2SqlReadOnlyDataSourceProvider readOnlyDataSourceProvider;
 
     /**
-     * 取「执行 SQL 用」的数据源：优先只读源，缺失时回落主数据源。
+     * 取「执行 SQL 用」的数据源：<b>只接受只读源，缺失即失败</b>。
      *
      * <p>2026-10-12：只读池改由 {@link Nl2SqlReadOnlyDataSourceProvider} 持有。
      * 此前本类注入的是一个 {@code DataSource} bean，而「注册任何 DataSource bean」
      * 会让 Spring Boot 的 {@code DataSourceAutoConfiguration} 整体退避，导致主
      * {@code dataSource} 永不创建、应用在任何 profile 下都启动失败。详见该提供者类注释。</p>
+     *
+     * <p><b>2026-10-20（阶段 6）：取消「未配置只读源 → 回落主数据源」的兜底。</b>
+     * 原兜底把模型生成的 SQL 打到主库账号上执行 —— 而主库账号拥有全部写权限，
+     * 只读保证只剩 {@code MySqlAiSqlGuard} 的正则词法守卫这一层。守卫是正则级的，
+     * 不能作为唯一防线（本项目自己的类注释就是这么写的）。缺只读源时静默回落，
+     * 等于让「配置遗漏」变成「安全等级无提示地降级」，且从日志上完全看不出来。
+     * 现在改为 fail-closed：明确报错并给出补配置的路径。</p>
      */
     private DataSource execDataSource() {
         Nl2SqlReadOnlyDataSourceProvider provider = readOnlyDataSourceProvider;
         DataSource ro = provider == null ? null : provider.get();
-        return ro != null ? ro : primaryDataSource;
+        if (ro == null) {
+            throw new ReadOnlyDataSourceUnavailableException(
+                    "未配置 NL2SQL 只读数据源（crm.ai.nl2sql.read-only.url），"
+                            + "为避免用主库账号执行模型生成的 SQL，已拒绝执行。"
+                            + "请先执行 Data/02_迁移脚本/09_create_ai_ro_user.sql 创建只读账号，"
+                            + "再配置 crm.ai.nl2sql.read-only.url / username / password。");
+        }
+        return ro;
+    }
+
+    /**
+     * 只读数据源缺失。
+     *
+     * <p>刻意做成独立类型：这是<b>配置错误</b>，不是「SQL 写得不对」。
+     * {@link #executeWithRetry} 捕获所有异常后会让模型重写 SQL 再试，
+     * 而缺配置重写一万次也不会好 —— 那样只会刷掉重试次数、
+     * 并把真正的原因埋在一串「已修复 SQL 并重试」日志后面。</p>
+     */
+    static final class ReadOnlyDataSourceUnavailableException extends IllegalStateException {
+        ReadOnlyDataSourceUnavailableException(String message) {
+            super(message);
+        }
     }
 
     /**
@@ -586,6 +607,9 @@ public class DataAgentPipeline {
         for (int attempt = 0; attempt <= maxRetry; attempt++) {
             try {
                 return execute(currentSql, dataOwnerId, currentTenantColumns, audience);
+            } catch (ReadOnlyDataSourceUnavailableException e) {
+                // 配置问题不重试：让模型重写 SQL 解决不了「没有只读账号」
+                throw e;
             } catch (Exception e) {
                 lastError = e.getMessage();
                 if (attempt >= maxRetry) {

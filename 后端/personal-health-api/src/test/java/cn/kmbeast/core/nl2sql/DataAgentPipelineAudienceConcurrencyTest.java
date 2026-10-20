@@ -264,6 +264,16 @@ class DataAgentPipelineAudienceConcurrencyTest {
         return ds;
     }
 
+    /** 注入用的只读数据源提供者：覆盖 {@code get()}，避免反射写私有连接池字段。 */
+    private static cn.kmbeast.config.Nl2SqlReadOnlyDataSourceProvider readOnlyProvider(DataSource ds) {
+        return new cn.kmbeast.config.Nl2SqlReadOnlyDataSourceProvider() {
+            @Override
+            public DataSource get() {
+                return ds;
+            }
+        };
+    }
+
     private static void inject(Object target, String field, Object value) throws Exception {
         Field f = target.getClass().getDeclaredField(field);
         f.setAccessible(true);
@@ -281,7 +291,8 @@ class DataAgentPipelineAudienceConcurrencyTest {
         inject(sharedPipeline, "promptBuilder", new FixedPromptBuilder());
         inject(sharedPipeline, "schemaService", new FixedSchemaService());
         inject(sharedPipeline, "introspector", new JdbcSchemaIntrospector());
-        inject(sharedPipeline, "primaryDataSource", stubDataSource());
+        // 阶段 6：执行只认只读数据源（不再回落主库），测试用匿名子类注入 mock 连接池
+        inject(sharedPipeline, "readOnlyDataSourceProvider", readOnlyProvider(stubDataSource()));
         inject(sharedPipeline, "evidenceService", new FixedEvidenceService());
 
         CountDownLatch start = new CountDownLatch(1);
