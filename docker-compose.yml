@@ -49,6 +49,11 @@ services:
       # 14 必挂：user 表的 notify_appointment / notify_order / notify_ai_chat 三列由该脚本补齐，
       # 缺列时通知开关是静默失效（读不到开关一律按「开启」处理），不会报错。
       - ./Data/02_迁移脚本/08_user_settings_columns.sql:/docker-entrypoint-initdb.d/14-migrate-08-user-settings.sql
+      # 15/16：阶段 1 的多 Agent 表与阶段 2 的 RAG 知识库表。
+      # 两者都建在独立新表上、脚本幂等，代码在空表下也能启动；
+      # 但漏挂会让全新部署的「智能体平台 / 知识库管理」页面永远是空的。
+      - ./Data/02_迁移脚本/10_agent_architecture.sql:/docker-entrypoint-initdb.d/15-migrate-10-agent.sql
+      - ./Data/02_迁移脚本/11_knowledge_base.sql:/docker-entrypoint-initdb.d/16-migrate-11-knowledge-base.sql
       # 注 1：Data/01_建库建表/rbac_schema.sql 已于 2026-10-07 移入 Data/90_归档/（建 4 张本项目未使用的表），故不挂载。
       # 注 2：02_迁移脚本/09_create_ai_ro_user.sql 是需 DBA 权限的运维脚本，不在自动部署链中。
     networks:
