@@ -1,16 +1,14 @@
 <template>
-  <div class="nav-assistant">
+  <div ref="root" class="nav-assistant">
     <!--  -->
-    <el-badge :value="unreadCount" :hidden="unreadCount === 0">
-      <el-button
-        type="primary"
-        round
-        @click="showPanel = !showPanel"
-        class="assistant-btn"
-      >
-        <el-icon><Service /></el-icon> 健康助手
-      </el-button>
-    </el-badge>
+    <el-button
+      type="primary"
+      round
+      @click="showPanel = !showPanel"
+      class="assistant-btn"
+    >
+      <el-icon><Service /></el-icon> 健康助手
+    </el-button>
 
     <!--  -->
     <div v-if="showPanel" class="assistant-panel">
@@ -181,7 +179,6 @@ export default {
   data() {
     return {
       showPanel: false,
-      unreadCount: 0,
       //
       showSymptom: false,
       symptomInput: "",
@@ -234,7 +231,24 @@ export default {
       },
     };
   },
+  mounted() {
+    // 面板没有遮罩，点击外部/按 Esc 收起，否则会一直挂在顶栏下面
+    document.addEventListener("click", this.onDocumentClick);
+    document.addEventListener("keydown", this.onKeydown);
+  },
+  beforeUnmount() {
+    document.removeEventListener("click", this.onDocumentClick);
+    document.removeEventListener("keydown", this.onKeydown);
+  },
   methods: {
+    onDocumentClick(e) {
+      if (!this.showPanel) return;
+      const root = this.$refs.root;
+      if (root && !root.contains(e.target)) this.showPanel = false;
+    },
+    onKeydown(e) {
+      if (e.key === "Escape" && this.showPanel) this.showPanel = false;
+    },
     safeHtml(html) {
       return sanitizeHtml(html);
     },
@@ -327,7 +341,9 @@ export default {
           });
           const kwData = await kwRes.json();
           if (kwData.code === 200 && kwData.data) keywords = kwData.data;
-        } catch (e) {}
+        } catch (e) {
+          /* 关键词提取是增强项：失败就退化为不带 keywords 的普通检索 */
+        }
         // AI
         const res = await fetch(URL_API + "/ai/chat", {
           method: "POST",

@@ -26,9 +26,14 @@
           <span class="breadcrumb-text"> / {{ tag || "" }}</span>
         </div>
         <div class="admin-header-right">
+          <!-- 阶段 6：管理端顶栏补上通知铃（此前管理端任何页面都收不到通知提示） -->
+          <NotificationBell all-path="/admin/messageManage" />
           <el-dropdown class="user-dropdown" popper-class="admin-user-dropdown">
             <span class="dropdown-trigger">
-              <el-avatar :size="32" :src="userInfo.url || '/default-avatar.svg'" />
+              <el-avatar
+                :size="32"
+                :src="userInfo.url || '/default-avatar.svg'"
+              />
               <span class="user-name">{{ userInfo.name }}</span>
               <el-icon :size="12"><ArrowDown /></el-icon>
             </span>
@@ -59,9 +64,21 @@ import { clearToken } from "@/utils/storage";
 import { Fold, Expand, ArrowDown, Back } from "@element-plus/icons-vue";
 import AdminMenu from "@/components/VerticalMenu.vue";
 import Logo from "@/components/Logo.vue";
+import NotificationBell from "@/components/NotificationBell.vue";
 export default {
-  name: "Admin",
-  components: { Logo, AdminMenu, Fold, Expand, ArrowDown, Back },
+  // 单单词组件名会被 vue/multi-word-component-names 判错；此处不参与 keep-alive，改名无副作用
+  name: "AdminHome",
+  components: {
+    Logo,
+    AdminMenu,
+    NotificationBell,
+    Fold,
+    Expand,
+    ArrowDown,
+    // 注：Back 只在模板的 `:icon="Back"` 里用到，ESLint 检测不到属性绑定形式的引用
+    // eslint-disable-next-line vue/no-unused-components
+    Back,
+  },
   data() {
     return {
       adminRoutes: [],
@@ -268,6 +285,7 @@ export default {
 .admin-header-right {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .dropdown-trigger {

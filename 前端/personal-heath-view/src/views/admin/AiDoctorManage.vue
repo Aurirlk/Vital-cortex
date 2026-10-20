@@ -178,8 +178,20 @@
 </template>
 
 <script>
+// 卡片图标通过 <component :is="doctor.icon"> 用字符串解析。
+// main.js 的全局图标表里没有 Apple / Sunny，此前这两个角色（营养师、心理顾问）
+// 的图标渲染为空白。这里在页面内注册，避免为一个页面去膨胀全局表。
+import {
+  Apple,
+  Sunny,
+  FirstAidKit,
+  DataAnalysis,
+  Service,
+} from "@element-plus/icons-vue";
+
 export default {
   name: "AiDoctorManage",
+  components: { Apple, Sunny, FirstAidKit, DataAnalysis, Service },
   data() {
     return {
       doctorList: [],

@@ -86,7 +86,14 @@ const routes = [
         path: "adminLayout",
         name: "数据概览",
         icon: "PieChart",
-        component: () => import(`@/views/admin/Main.vue`),
+        // 阶段 5：管理端首页改为 Bento 看板。
+        // Dashboard.vue 此前是一份没有被任何路由引用的孤儿页面，
+        // 且它的五个标签页从未加载到数据（aiStats 等从未赋值）。
+        // 现在它被重写为 8×2 主模块 + 4 列侧块 + 6 个指标块，
+        // 数据全部来自真实接口；原来 admin/Main.vue 的四个数据源
+        // （staticControls、user/daysQuery、user-health/daysQuery、message/query）
+        // 已并入看板，因此 Main.vue 删除。
+        component: () => import(`@/views/admin/Dashboard.vue`),
         meta: { requireAuth: true },
       },
       // ============ 用户与权限 ============
@@ -203,6 +210,16 @@ const routes = [
         name: "RAG 监控",
         icon: "Monitor",
         component: () => import(`@/views/admin/RagMonitor.vue`),
+        meta: { requireAuth: true, group: "AI 与数据" },
+      },
+      {
+        // 阶段 6：AiDoctorManage.vue 此前零引用。它读写的是真实接口
+        // （/ai/config/list、/ai/config/{role}、PUT 保存、reset-all），
+        // 且接口为空时回落到本地默认角色表，所以接入即为可用页面。
+        path: "aiDoctorManage",
+        name: "AI 医生配置",
+        icon: "FirstAidKit",
+        component: () => import(`@/views/admin/AiDoctorManage.vue`),
         meta: { requireAuth: true, group: "AI 与数据" },
       },
       // ============ 系统管理 ============

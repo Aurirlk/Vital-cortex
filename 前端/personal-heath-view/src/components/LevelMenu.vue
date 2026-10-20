@@ -57,56 +57,24 @@
         <span>记录健康</span>
       </button>
 
-      <!-- 消息通知 -->
-      <el-popover
-        placement="bottom-end"
-        :width="320"
-        trigger="click"
-        popper-class="msg-popover"
-        @show="loadMsgList"
-      >
-        <template #reference>
-          <div class="bell-area">
-            <el-badge :hidden="noReadMsg === 0" :value="noReadMsg">
-              <el-icon class="bell-icon"><Bell /></el-icon>
-            </el-badge>
-          </div>
-        </template>
-        <div class="msg-panel">
-          <div class="msg-panel__header">
-            <span class="msg-panel__title">消息通知</span>
-            <span
-              v-if="msgList.length > 0"
-              class="msg-panel__all"
-              @click="messageCenter"
-              >查看全部</span
-            >
-          </div>
-          <div v-if="msgList.length === 0" class="msg-panel__empty">
-            <el-icon :size="36"><Bell /></el-icon>
-            <p>暂无未读消息</p>
-          </div>
-          <div
-            v-for="msg in msgList"
-            :key="msg.id"
-            class="msg-item"
-            @click="openMessage(msg)"
-          >
-            <div class="msg-item__dot"></div>
-            <div class="msg-item__body">
-              <div class="msg-item__title">{{ msg.title || "系统通知" }}</div>
-              <div class="msg-item__content">{{ msg.content }}</div>
-              <div class="msg-item__time">{{ msg.createTime }}</div>
-            </div>
-          </div>
-        </div>
-      </el-popover>
+      <!-- 全局健康助手（原先零引用的 NavAssistant） -->
+      <NavAssistant />
+
+      <!-- 消息通知：改用 NotificationBell。
+           原先这里是一份手写的 el-popover，未读数来自 /message/query 的
+           「返回条数」—— 该接口不传 size 时默认只取 10 条，未读超过 10 条
+           就永远显示 10；点开消息也只是跳去消息中心，不会标记已读。
+           NotificationBell 走 /notification/unread，且支持 "查看全部" 落点。 -->
+      <NotificationBell all-path="/message" />
 
       <!--  -->
       <div class="user-area">
         <el-dropdown trigger="click">
           <div class="user-trigger">
-            <el-avatar :size="32" :src="userInfo.url || '/default-avatar.svg'"></el-avatar>
+            <el-avatar
+              :size="32"
+              :src="userInfo.url || '/default-avatar.svg'"
+            ></el-avatar>
             <span class="user-name">{{ userInfo.name }}</span>
             <el-icon class="arrow-icon"><ArrowDown /></el-icon>
           </div>
@@ -133,11 +101,11 @@
 </template>
 
 <script>
-import { clearToken } from "@/utils/storage.js";
 import Logo from "@/components/Logo.vue";
+import NavAssistant from "@/components/NavAssistant.vue";
+import NotificationBell from "@/components/NotificationBell.vue";
 import {
   Upload,
-  Bell,
   ArrowDown,
   User,
   WarningFilled,
@@ -159,8 +127,9 @@ export default {
   name: "UserMenu",
   components: {
     Logo,
+    NavAssistant,
+    NotificationBell,
     Upload,
-    Bell,
     ArrowDown,
     User,
     WarningFilled,
@@ -180,23 +149,20 @@ export default {
   data() {
     return {
       selectedIndex: 0,
-      messagePath: "/message",
       defaultPath: "/user/news-record",
       filterText: "",
-      noReadMsg: 0,
-      msgList: [],
       User,
       WarningFilled,
       Back,
       Setting,
     };
-  },  props: {
+  },
+  props: {
     menus: { type: Array, required: true },
     userInfo: { type: Object, required: true },
   },
   mounted() {
     this.pathToDo(this.defaultPath);
-    this.loadMsgCount();
   },
   methods: {
     search() {
@@ -222,31 +188,6 @@ export default {
     healthDataRecord() {
       this.$emit("eventListener", "healthDataRecord");
     },
-    async loadMsgCount() {
-      try {
-        const userInfo = sessionStorage.getItem("userInfo");
-        if (!userInfo) return;
-        const userInfoEntity = JSON.parse(userInfo);
-        const messageQueryDto = { userId: userInfoEntity.id, isRead: false };
-        const response = await this.$axios.post(
-          `/message/query`,
-          messageQueryDto
-        );
-        const { data } = response;
-        if (data.code === 200) {
-          this.noReadMsg = data.data.length;
-          this.msgList = (data.data || []).slice(0, 8);
-        }
-      } catch (e) {
-        /* ignore */
-      }
-    },
-    async loadMsgList() {
-      this.loadMsgCount();
-    },
-    openMessage(msg) {
-      this.messageCenter();
-    },
     pathToDo(path) {
       if (this.$route.path !== path) {
         this.$router.push(path);
@@ -255,10 +196,6 @@ export default {
     menuClick(path, index) {
       this.selectedIndex = index;
       this.pathToDo(`/user/${path}`);
-    },
-    messageCenter() {
-      this.selectedIndex = null;
-      this.pathToDo(this.messagePath);
     },
   },
 };
@@ -431,25 +368,6 @@ export default {
   flex-shrink: 0;
 }
 
-.bell-area {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.bell-area:hover {
-  background: #f3f4f6;
-}
-
-.bell-icon {
-  font-size: 20px;
-  color: #10b981;
-}
-
 .user-area {
   display: flex;
   align-items: center;
@@ -483,96 +401,5 @@ export default {
 .arrow-icon {
   font-size: 12px;
   color: #9ca3af;
-}
-</style>
-
-<style lang="scss">
-.msg-popover.el-popover {
-  padding: 0;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-.msg-panel {
-  &__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 16px;
-    border-bottom: 1px solid #f0f0f0;
-  }
-
-  &__title {
-    font-size: 15px;
-    font-weight: 600;
-    color: #1a1a1a;
-  }
-
-  &__all {
-    font-size: 12px;
-    color: #0050cb;
-    cursor: pointer;
-  }
-
-  &__empty {
-    padding: 32px 16px;
-    text-align: center;
-    color: #bbb;
-
-    p {
-      margin: 8px 0 0;
-      font-size: 13px;
-    }
-  }
-}
-
-.msg-item {
-  display: flex;
-  gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid #f7f7f7;
-  cursor: pointer;
-  transition: background 0.15s;
-
-  &:hover {
-    background: #f8faff;
-  }
-
-  &__dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #f56c6c;
-    margin-top: 6px;
-    flex-shrink: 0;
-  }
-
-  &__body {
-    flex: 1;
-    overflow: hidden;
-  }
-
-  &__title {
-    font-size: 13px;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 2px;
-  }
-
-  &__content {
-    font-size: 12px;
-    color: #888;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-
-  &__time {
-    font-size: 11px;
-    color: #bbb;
-    margin-top: 4px;
-  }
 }
 </style>
