@@ -5,7 +5,7 @@
 
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.16-brightgreen) ![Java](https://img.shields.io/badge/Java-17-orange) ![Vue](https://img.shields.io/badge/Vue-3-42b883) ![Docker](https://img.shields.io/badge/Docker-compose-2496ed) ![License](https://img.shields.io/badge/License-MIT-blue)
 
-基于 **Spring Boot 3.5 + Java 17 + Vue 3** 构建的 AI 健康平台：AI 智能问诊、**受控 NL2SQL 数据智能体**（自然语言查自己的数据 → 出报告）、知识库双路 RAG 检索、健康数据追踪、体检报告解读、预约挂号、健康商城与社区。支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理，并由覆盖 858 个用例的测试套件守住回归。
+基于 **Spring Boot 3.5 + Java 17 + Vue 3** 构建的 AI 健康平台：AI 智能问诊、**受控 NL2SQL 数据智能体**（自然语言查自己的数据 → 出报告）、知识库双路 RAG 检索、健康数据追踪、体检报告解读、预约挂号、健康商城与社区。支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理，并由覆盖 859 个用例的测试套件守住回归。
 
 ## 项目解决什么问题
 
@@ -93,6 +93,13 @@
 
 > 平台级里程碑；单次缺陷修复与内部重构不在此列。测试口径均为 Mockito 纯对象测试，详见 [`docs/测试报告.md`](docs/测试报告.md)。
 
+- **2026-10-20 · 六阶段深化收尾（多 Agent / RAG / 多端 / UI / 看板 / 补强）**
+  - 管理端首页改为 Bento 看板（12 列栅格：主模块 8×2 + 两个 4 列侧块 + 6 个指标块），数据全部来自真实接口并带骨架屏。
+  - 用户端与管理端顶栏接入通知铃（原来占位组件文案为空、点通知不跳转）；管理端补上通知入口。
+  - 数据智能体缺只读数据源时改为 **fail-closed**：拒绝执行并提示执行 `09_create_ai_ro_user.sql`，不再静默用主库账号跑模型生成的 SQL。
+  - 工具清单改为类路径扫描 `Tool` 实现（11 个），`system.txt` 与真实注册数由测试强制对齐。
+  - 清理零引用页面/组件与死代码（`MySqlText2SqlService`、`AgentWorkspace` 五组未使用能力、`permission.js` 等），孤儿页面 `AiDoctorManage` / `NavAssistant` 接入布局。
+  - 全量 `mvn -o -B test` = **859 用例 / 86 测试类全绿**（0 失败 / 0 错误 / 0 跳过）。
 - **2026-10-15 · DataAgent 开发完成 + claude 增强合并**
   - 数据智能体（受控 NL2SQL）十步流水线正式落地：自然语言 → 真实 SQL → 真实数据 → Markdown 分析报告；三端接口（用户/医生/管理）+ SSE 实时步骤事件；双守卫（词法校验 + 租户重写）fail-closed。功能说明见 [`docs/功能文档.md`](docs/功能文档.md) §四。
   - 合并 `origin/claude` 分支与 claude 增强：新增 **RAG 知识库子系统**（`crm/rag/`）与 **多智能体编排框架**（`core/agent/orchestrator|registry|run`、`Audience.java`）。
@@ -312,9 +319,9 @@
 | LLM 稳定性 | Provider 工厂 + 熔断器（429/5xx 自动重试，故障快速失败）+ Sentinel 限流（登录/AI/上传） |
 | 成本可观测 | 每次调用 token 用量落库（`ai_usage` 表） |
 | 日志 | `TraceIdFilter` 注入 MDC `traceId`/`userId`，logback 滚动归档，异常不回传前端 |
-| 单元测试 | 用例规模按时点分别为：我方 2026-10-07 基线 **405 个用例 / 38 个测试类全绿**（含 SqlGuard、NL2SQL 双守卫、数据智能体流水线），2026-10-11 P0-P2 合入后达 **541/541**；通知线 2026-10-10~12 自报 **364 例 `mvn -o test` 全绿**并另增一批后端测试。**2026-10-12 两条线合并后实测 `mvn -o -B test`：684 例 / 69 个测试类全绿**；**2026-10-15 合并 + claude 增强后实测 `mvn -o -B test`：858 例 / 86 个测试类全绿**（新增 RAG 知识库子系统与多智能体编排框架，均已编入并跑过）（口径仍全为 Mockito，零 `@SpringBootTest`），详见 [`docs/测试报告.md`](docs/测试报告.md) §7，另见「部署指南 · 测试」 |
+| 单元测试 | 用例规模按时点分别为：我方 2026-10-07 基线 **405 个用例 / 38 个测试类全绿**（含 SqlGuard、NL2SQL 双守卫、数据智能体流水线），2026-10-11 P0-P2 合入后达 **541/541**；通知线 2026-10-10~12 自报 **364 例 `mvn -o test` 全绿**并另增一批后端测试。**2026-10-12 两条线合并后实测 `mvn -o -B test`：684 例 / 69 个测试类全绿**；**2026-10-15 合并 + claude 增强后实测 `mvn -o -B test`：859 例 / 86 个测试类全绿**（新增 RAG 知识库子系统与多智能体编排框架，均已编入并跑过）（口径仍全为 Mockito，零 `@SpringBootTest`），详见 [`docs/测试报告.md`](docs/测试报告.md) §7，另见「部署指南 · 测试」 |
 
-> 测试位于 `后端/personal-health-api`；以 Mockito 纯对象测试为主，`@SpringBootTest` 仅 2 处（`GraphExtractorDbTest`、`MapperTableConsistencyTest`），Mapper XML 由 `MapperXmlParseTest` 静态兜底（该测试曾揪出服务启动阻断缺陷）。
+> 测试位于 `后端/personal-health-api`；以 Mockito 纯对象测试为主，`@SpringBootTest` **实际 0 处**（`GraphExtractorDbTest` 是 Mockito 单测、`MapperTableConsistencyTest` 只比对 `Data/04_结构基线/` 的 markdown，二者都不启动容器；唯一的「真装配」用例是 `Nl2SqlReadOnlyDataSourceWiringTest`，用 `ApplicationContextRunner` 拉起最小上下文校验只读数据源装配）。Mapper XML 由 `MapperXmlParseTest` 静态兜底（该测试曾揪出服务启动阻断缺陷）。
 
 **合规提醒**：平台涉及个人健康信息（敏感个人信息），正式商用前建议完成**等保三级测评**与个人信息保护影响评估，并对第三方 AI 厂商的数据出境做合规确认。
 
@@ -549,7 +556,7 @@ source Data/01_建库建表/ai_usage_schema.sql;
 source Data/01_建库建表/audit_log.sql;
 source Data/01_建库建表/model_announcement_schema.sql;
 
--- ② 增量升级（7 个脚本，按序执行且全部幂等）→ 终态 35 张表 / 391 字段
+-- ② 增量升级（按序执行且全部幂等）→ 终态 47 张表
 source Data/02_迁移脚本/01_schema_refactor.sql;
 source Data/02_迁移脚本/02_patient_profile_normalize.sql;
 source Data/02_迁移脚本/03_align_demo_appointments.sql;   -- 演示数据，生产勿执行
@@ -557,10 +564,20 @@ source Data/02_迁移脚本/04_consolidate_tables.sql;
 source Data/02_迁移脚本/05_drop_unused_tables.sql;
 source Data/02_迁移脚本/06_merge_message_into_notification.sql;
 source Data/02_迁移脚本/07_mall_product_medical_fields.sql;
+source Data/02_迁移脚本/08_user_settings_columns.sql;
+-- 09_create_ai_ro_user.sql 是需 DBA 权限的运维脚本（创建 NL2SQL 只读账号），见下方「数据智能体」说明
+-- 10/11 分别为阶段 1 的多 Agent 表（5 张）与阶段 2 的 RAG 知识库表（7 张）
+source Data/02_迁移脚本/10_agent_architecture.sql;
+source Data/02_迁移脚本/11_knowledge_base.sql;
 ```
 
+> 表数口径：`35`（2026-10-03 基线）+ `5` 张 `agent_*` + `7` 张 `knowledge_base` / `kb_*` / `retrieval_log` / `rag_eval_*` = **47 张**。
+> 字段总数未在合并后逐列复核，`数据表结构基线-20261003.md` 仍是 10-03 快照（35 表 / 405 字段）。
+> `09_create_ai_ro_user.sql` 不是建表脚本，但**数据智能体启用前必须执行** —— 阶段 6 起 `DataAgentPipeline`
+> 缺只读数据源会直接拒绝执行，而不是回落主库。
+
 `Data/01_建库建表/rbac_schema.sql` 已于 2026-10-07 移入 `Data/90_归档/`（它会建 4 张本项目从未使用的 RBAC 表），**不要执行**。
-容器化部署（`docker compose up`）已把上述 14 个脚本按序挂载到 `/docker-entrypoint-initdb.d/`，无需手工执行。完整说明与备份恢复见 [`Data/README.md`](Data/README.md)。
+容器化部署（`docker compose up`）已把上述初始化与迁移脚本按序挂载到 `/docker-entrypoint-initdb.d/`，无需手工执行。完整说明与备份恢复见 [`Data/README.md`](Data/README.md)。
 
 ### 2. 配置密钥（本地开发）
 
@@ -666,7 +683,7 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 
 ```bash
 # 后端：javac + 自写 RunAll（本项目不用 mvn 跑测试，见 docs/开发指南.md）
-#   当前规模：858 个用例 / 86 个测试类，全量通过
+#   当前规模：859 个用例 / 86 个测试类，全量通过
 
 # 前端：静态自检（模板标签栈式配平 + <script> 交 node --check）
 python 前端/personal-heath-view/selfcheck.py
@@ -1190,7 +1207,7 @@ VitalCortex/
 ## 编译状态
 
 - 后端编译：**BUILD SUCCESS**（Spring Boot 3.5.16 + Java 17，**468 个 Java 源文件**；`javac -encoding UTF-8` 零 error）
-- 后端测试：**858 个用例 / 86 个测试类全部通过**
+- 后端测试：**859 个用例 / 86 个测试类全部通过**
 - 前端：**74 个 `.vue` + 19 个 `.js` 静态自检零失败**（热更新免构建）
 - 无编码损坏
 
