@@ -32,26 +32,36 @@ class ReactPromptToolConsistencyTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static void register(ToolRegistry registry, String name) {
+    private static Map<String, Tool> toolsOf(ToolRegistry registry) {
         try {
             Field f = ToolRegistry.class.getDeclaredField("tools");
             f.setAccessible(true);
-            ((Map<String, Tool>) f.get(registry)).put(name, new Tool() {
-                @Override public String getName() { return name; }
-                @Override public String getDescription() { return "d"; }
-                @Override public Map<String, Object> getParametersSchema() {
-                    Map<String, Object> s = new LinkedHashMap<>();
-                    s.put("type", "object");
-                    s.put("properties", new LinkedHashMap<>());
-                    return s;
-                }
-                @Override public cn.kmbeast.crm.agent.model.ToolResult execute(Map<String, Object> a) {
-                    return null;
-                }
-            });
+            return (Map<String, Tool>) f.get(registry);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /** 注册真实工具实例（T7.4 用：验证的是「类路径上真实存在的工具」而非手写名单）。 */
+    private static void register(ToolRegistry registry, Tool tool) {
+        toolsOf(registry).put(tool.getName(), tool);
+    }
+
+    /** 注册一个同名桩（T7.5 用：只关心名字集合，不需要工具行为）。 */
+    private static void register(ToolRegistry registry, String name) {
+        register(registry, new Tool() {
+            @Override public String getName() { return name; }
+            @Override public String getDescription() { return "d"; }
+            @Override public Map<String, Object> getParametersSchema() {
+                Map<String, Object> s = new LinkedHashMap<>();
+                s.put("type", "object");
+                s.put("properties", new LinkedHashMap<>());
+                return s;
+            }
+            @Override public cn.kmbeast.crm.agent.model.ToolResult execute(Map<String, Object> a) {
+                return null;
+            }
+        });
     }
 
     @Test
@@ -93,12 +103,14 @@ class ReactPromptToolConsistencyTest {
     }
 
     @Test
-    @DisplayName("T7.4 一致性校验：全部注册时 missing 为空")
+    @DisplayName("T7.4 一致性校验：类路径扫描出的真实工具全部注册时 missing 为空")
     void consistencyPassesWhenAllRegistered() {
         ReactPromptLoader loader = newLoader();
         ToolRegistry registry = new ToolRegistry();
-        for (String t : ToolCatalog.ALL) {
-            register(registry, t);
+        // 注册真实 Tool 实现（而不是按名字造桩）：若某个工具类的 getName()
+        // 与类路径清单不一致，这里就会以真实的注册名参与校验。
+        for (Tool tool : ToolCatalog.instances()) {
+            register(registry, tool);
         }
         loader.setToolRegistry(registry);
 
