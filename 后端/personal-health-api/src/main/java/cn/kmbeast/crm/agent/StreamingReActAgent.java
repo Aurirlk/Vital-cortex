@@ -36,6 +36,38 @@ public class StreamingReActAgent extends BaseReActAgent {
     }
 
     protected void doRunStreaming(List<Map<String, String>> userMessages, StreamCallback callback) {
+        // 运行记录此前只挂在同步入口 BaseReActAgent.runWithContext 上，流式整条链路一个都没调，
+        // 表现为「智能体运行记录」页面只有医生端那几条，用户端对话全程无痕。
+        // 回答正文从 SSE 事件里回捞：下面的执行循环有 6 个出口，逐个塞不现实。
+        StringBuilder answerCollector = new StringBuilder();
+        StreamCallback recordingCallback = (eventName, jsonData) -> {
+            if ("answer_chunk".equals(eventName)) {
+                try {
+                    String content = JSON.parseObject(jsonData).getString("content");
+                    if (content != null) {
+                        answerCollector.append(content);
+                    }
+                } catch (Exception e) {
+                    log.debug("[StreamingReAct] answer_chunk 事件体解析失败，仅影响本轮运行记录");
+                }
+            }
+            callback.onEvent(eventName, jsonData);
+        };
+
+        beginRunRecording(userMessages);
+        String failure = null;
+        try {
+            runRounds(userMessages, recordingCallback);
+        } catch (RuntimeException e) {
+            failure = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            throw e;
+        } finally {
+            finishRunRecording(answerCollector.length() == 0
+                    ? null : ReActResponse.text(answerCollector.toString()), failure);
+        }
+    }
+
+    private void runRounds(List<Map<String, String>> userMessages, StreamCallback callback) {
         List<Map<String, Object>> messages = buildInitialMessages(userMessages);
         int maxRounds = crmConfig.getMaxReactRounds();
 
@@ -352,7 +384,10 @@ public class StreamingReActAgent extends BaseReActAgent {
 
         boolean withTools = crmConfig.isReactStreamToolsEnabled();
         if (withTools && toolRegistry != null) {
-            body.put("tools", toolRegistry.buildToolsArray(crmConfig.isReactToolStrict()));
+            // 必须按当前 Agent 的白名单下发，与非流式链路同一口径（BaseReActAgent:1190）。
+            // 此前用的是无参全局数组，管理端精心配的白名单在用户实际聊天时根本不生效。
+            body.put("tools", toolRegistry.buildToolsArray(
+                    resolveAllowedTools(), crmConfig.isReactToolStrict()));
             body.put("tool_choice", "auto");
             body.put("parallel_tool_calls", true);
         }
