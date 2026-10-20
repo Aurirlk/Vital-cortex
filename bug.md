@@ -1,0 +1,197 @@
+# bug.md — Claude 本轮改动的审核结论（2026-10-19）
+
+> **审核对象**：`e530d9c` → `dbe8db4` 这 3 个提交（`24072ce`、`f6810a8`、`dbe8db4`，提交日期 2026-10-15），共 177 个文件、新增 25353 行、删除 1925 行。
+> **写法约定**：每条先用大白话说"你作为使用者会看到什么"，再给技术定位（文件:行号），方便你直接把定位丢给 AI 去改。
+> **我实际跑过的验证**：`mvn -o -B test` → **858 例全绿，BUILD SUCCESS**（与提交说明的 858/86 一致，我复核过计数）。
+> **我没跑的**：前端 `npm run build`（改用静态编译 84 个 .vue 判断，0 报错）、真实数据库连接（本机口令被拒）、服务真实启动、浏览器点页面。
+
+---
+
+## 〇、2026-10-20 复核状态（本文写完后又发生的变化，先看清这个再往下读）
+
+Claude Code 之后又做了一轮（下称阶段 6，已拆成 7 个提交并入 `main`）。我在 2026-10-20 独立复跑并逐条打开源码核对：
+
+| 本文条目 | 现在的真实状态 |
+|---|---|
+| P0-1 十二张新表不进部署链 | **已修** —— `docker-compose.yml:55-56` 挂成 15/16 两支 initdb |
+| P0-2 挂号第 3 步白屏（缺 `timeSlots`） | **未修** —— `Appointment.vue` 的 `data()` 仍无该字段 |
+| P1-3 问题双份 / 欢迎语消失 | **未修** —— `UserChatController.java:169` 存、`:173` 拼的顺序没动 |
+| P1-4 流式绕过白名单与运行记录 | **未修** —— `StreamingReActAgent.java:355` 仍是全局工具数组，无运行记录装配 |
+| P1-5 白名单保存失败即权限放大 | **未修** —— `AgentAdminServiceImpl.java:301` 先删、`:315/:319` 用 `return` 报错不回滚 |
+| P1-8 工具口径一致性护栏 | **半修** —— 测试侧 `ToolCatalog` 已改真类路径扫描；生产侧 `ReactPromptLoader.java:257-261` 仍只算 prompt→registry，反向差集没人查，且只 `log.warn` |
+| P2-10 README 指向已删脚本 | **未修** —— `Data/README.md:47,49,102` 仍列 `07_sensitive_word.sql`，该文件已不存在 |
+| P2-12 表数口径 | **半修** —— `README.md:574`、`docs/项目现状基线.md:358` 已写 47；`Data/README.md:5,6,15,48` 还是"35 张 / 405 字段" |
+| P2-18 死代码三处 | **已修** —— `NotificationBell.vue` 已挂进两端顶栏；`utils/permission.js` 与 `directives.js` 按"明确不做"删除 |
+| P1 里的 NL2SQL 只读回落（见 `项目调查报告-2026-10-12.md`） | **已修，且是行为变更** —— 缺只读源时直接拒绝执行。因 `09_create_ai_ro_user.sql` 按决策不进部署链，新环境不手工建 `ai_ro` 就等于数据智能体不可用 |
+
+**新增的、只能实跑定论的风险**：`11_knowledge_base.sql:177` 的 `WITH PARSER ngram` 现在进了部署链，脚本报错会让 MySQL 容器的整个 initdb 中断（`mysql:8.0` 内建 ngram，按理能过，但没实测）。
+
+**证据口径更新**：本轮我自己实跑过 `mvn -o -B test`（859 例 / 0 失败 / BUILD SUCCESS）和 `npm run build`（exit 0，40.3s），所以"前端能否构建""单测是否绿"已属已核实；仍只有静态推导的是**真实启动日志**与**真实库表结构**。
+
+---
+
+## 一、先说好消息：上一轮报告里的问题，确实修了 6 处
+
+| 上轮问题 | 现在 |
+|---|---|
+| 4 个控制器的路由前缀被吞进注释（导致服务起不来） | 已修，`NotificationController.java:18` 等 4 处恢复为独立注解 |
+| 前端构建失败（`Assistant.vue:829` 多一个 `}`） | 已修，样式块括号 52/52 平衡 |
+| 通知表引用不存在的 `related_id` | 已修，改用 `biz_type` / `biz_id` |
+| `news` 表 `update_time` 与真实列名不符 | 已修，统一为 `updated_at` |
+| `user.role` 与真实列名不符 | 已修，改为 `u.user_role` |
+| 敏感词功能前端在调、后端已删（3 个请求必 404） | 已修，管理页那个 Tab 整块摘除（属回避式修法，但方向合理） |
+
+**但下面这些是新的。** 其中第 1、2 条会让新部署和核心页面直接坏掉，第 3 条是"修一个 bug 顺手引入的另一个 bug"。
+
+---
+
+## 二、P0：新部署会缺表、核心页面会白屏
+
+### 1. 按 README 建出来的新库，会缺 12 张表；AI 相关页面一打开就报错
+
+**你会看到什么**：本地或服务器上按 `Data/README.md` 的场景 A（全新部署）建库之后，进"智能体管理""知识库管理""RAG 日志/评测"这些页面 → 报错或空白；AI 对话回答完了，但服务端写"运行记录"时报错。
+
+**为什么**：本轮新增了两个建表脚本 `Data/02_迁移脚本/10_agent_architecture.sql`（建 5 张 agent 相关表）和 `11_knowledge_base.sql`（建 7 张知识库/RAG 表），但**没有任何地方引用它们**：`docker-compose.yml` 的自动初始化清单只挂到 `14-migrate-08-user-settings.sql`（`:39-51`），全仓搜索这两个文件名，文档、脚本、Dockerfile 里零命中。项目没有 Flyway/Liquibase，所以没有第二条路把它们执行掉。
+
+**怎么修**：给 compose 追加两条挂载（`15-migrate-10-agent.sql`、`16-migrate-11-kb.sql`），并在 `Data/README.md` 的部署步骤里补上。
+
+**附带一个坑**：`11_knowledge_base.sql:177` 用了 `WITH PARSER ngram`。如果 MySQL 没启用 ngram 插件，这个脚本会**整段中断**，即挂上了也可能只建成一半。
+
+### 2. 患者端"预约挂号"走到第 3 步会白屏
+
+**你会看到什么**：选科室 → 选医生 → 选到第 3 步（选时段）时，整块内容消失变白屏；即使不白，时段列表也不会出现。
+
+**为什么**：页面模板和计算逻辑都要读一个叫 `timeSlots` 的数据（`Appointment.vue:139`、`:165`、`:309-310`），但 `data()` 里从来没声明它（`:282-295` 声明了 10 个字段，没有 `timeSlots`）。它只在 `:399` 请求回来后直接赋值 —— Vue 3 里给未声明的字段赋值不会变成响应式数据，读的时候还是空。
+
+**怎么修**：`data()` 里补一行 `timeSlots: []`。
+
+---
+
+## 三、P1：功能看着在，实际不生效或数据是错的
+
+### 3. 每问一句，AI 都把你的问题读两遍；新用户的欢迎语永久消失
+
+**你会看到什么**：用户端聊天里，你问的问题在上下文里出现两次（模型可能重复回应、token 白白翻倍）；第一次使用的新用户再也收不到那句开场引导语。
+
+**为什么**：这是本轮"把用户侧流式对话补上落库"这个修复**自己引入的新问题**。`UserChatController.java:169` 先把用户这句问题存进历史，紧接着 `:173` 才去拼给模型的上下文；而拼装的 `SeaChatWorkflow.buildInitialMessages():266-285` 会（a）先读历史 —— 刚存的那条被读回来，（b）再把当前问题加一遍 → 重复；同时它用"历史是否为空"判断是否新用户（`:266`），刚存了一条之后永远判定为"老用户" → 欢迎语分支再也不进。
+
+**怎么修**：调整顺序为"先拼上下文 → 模型答完 → 再落库"（同文件同步链路的顺序是对的，照它改）。
+
+### 4. 用户端聊天绕过了本轮新做的两项能力
+
+**你会看到什么**：管理端精心配的"每个智能体只能用哪几个工具"在**用户实际聊天时不生效**；"智能体运行记录"页面里看不到用户端的对话过程，只有医生端的几条。
+
+**为什么**：用户端走的是流式入口 `StreamingReActAgent.java:355`，它下发工具用的是全局配置 `buildToolsArray(crmConfig.isReactToolStrict())`，而不是按智能体的白名单；并且整个流式方法里没有运行记录的装配（对比 `BaseReActAgent.java:616` 的 `beginRunRecording` 与 `:626` 的 `finishRunRecording`，流式侧一个都没有）。
+
+**怎么修**：流式重载里补上与同步链路相同的白名单装配 + 运行记录。
+
+### 5. 保存工具白名单一旦失败，那个智能体立刻拿到全部工具（安全语义是"错开方向"）
+
+**你会看到什么**：管理员给某个智能体配工具白名单，只要名单里有一个工具名拼错，保存会提示"未知工具"——**但原来配好的白名单已经被清空了**，该智能体随即变成"不限制、全部工具可用"。
+
+**为什么**：`AgentAdminServiceImpl.java:303` 先执行 `deleteByAgentId(id)` 把旧绑定删掉，然后才开始逐个校验，遇到未知名字在 `:319` 用 `return ApiResult.error(...)` 直接返回。方法上虽然有 `@Transactional`（`:292`），但**正常返回不会触发回滚**（只有抛异常才回滚），删除就被提交了。而读取侧 `:126` 的判定是 `restricted = !bindings.isEmpty()` —— 绑定为空 = 不限制。三步连起来就是"校验失败 → 权限放大"。
+
+**怎么修**：先整体校验、校验全通过再删再插；或者把提前 return 改成抛业务异常让事务回滚。
+
+### 6. 用户端可以搜到医生端专属知识库
+
+**你会看到什么**：给医生用的内部知识库，患者在聊天里问一句就能被检索出来、甚至出现在回答里。
+
+**为什么**：检索工具的 `audience`（受众）和 `kb_ids` 两个参数是**由模型自己填的**（`SearchKbTool.java:109-110`），服务端不拿当前登录身份去校正；更糟的是显式指定 `kb_ids` 时会**跳过受众过滤**（`KbSearchService.java:361` 走 `listByIds`，对应 `KnowledgeBaseMapper.xml:122-130` 里没有 audience 条件）。
+
+**怎么修**：以当前身份/当前 Agent 为准强制改写 audience，并把请求的 `kb_ids` 与该身份可见的库取交集。
+
+### 7. 聊天记录改存 SQLite 之后，有三件事要提前知道
+
+**你会看到什么**：(a) 备份数据库时以为全备了，其实聊天记录不在里面，机器一坏就没了；(b) 将来起第二个实例或容器重建后，历史对话"凭空消失"，因为各存各的文件；(c) 管理端统计对不上账。
+
+**为什么**：本轮把用户侧对话持久化接到了 `SqliteChatHistoryService`（`UserChatController.java:52,169,230`），落的是本地文件而非 MySQL 业务库；`SqliteChatHistoryService.java:91` 的查询键是 `phone_number`，但用户端传进去的其实是账号，与 MySQL 侧 `ai_conversation` 的口径不同，两套数据没法互相核对。compose 里新加的 `backend_crm_data:/app/crm_data` 卷说明作者意识到了持久化问题，但备份/多实例这件事没有任何文档说明。
+
+**怎么修**：定一个"正本"（建议双写 MySQL，或至少把这个卷纳入每日备份），并在部署文档里写清共享卷要求。
+
+### 8. "工具清单一致性"这道护栏，方向装反了
+
+**你会看到什么**：以后再加一个新工具、忘了写进 AI 的提示词，858 个测试照样全绿，而那个工具模型永远调不到 —— 这正是上轮 `query_health_data` 漏掉的同一个坑，号称已闭环，实际没闭。
+
+**为什么**：新增的 `ToolCatalog.java:19-22` 注释声称"注册了但没写进 prompt 会报 missing"，但 `ReactPromptLoader.java:244-266` 只计算 **prompt→registry** 的差集，**registry→prompt** 从未计算；`ReactPromptConsistencyRunner.java:37-48` 即使发现问题也只 `log.warn`，不影响启动。全仓没有任何测试把 `src/main` 里真实的 11 个工具与 `ToolCatalog` 手抄名单做反向比对。`ReactPromptToolConsistencyTest.java:97-108` 是"自己按名单注册假工具、再断言名单和它对得上"，按构造必然通过。
+
+**怎么修**：加一个真扫描目录的测试（取所有 `Tool.getName()` 断言等于清单），并在生产侧补上 `undeclared` 差集。
+
+### 9. "服务能不能启动"这件事，仍然没有任何测试守着
+
+**你会看到什么**：像今天这种"路由注解写坏导致整个服务起不来"的问题，还会再发生，而且测试全绿骗你一次。
+
+**为什么**：仓库里仍然 **0 个 `@SpringBootTest`**。本轮新增的 `MappingAnnotationCommentGuardTest` 只有 1 个用例，判据是"注解出现在同一行 `//` 之后"，能挡住这次的形态，但挡不住：注解被 `/* */` 或 Javadoc 吞掉、类级 `@RequestMapping` 被直接删掉、两个控制器路径撞在一起引发 Ambiguous mapping。
+
+**怎么修**：用 `ApplicationContextRunner` 或 `@WebMvcTest` 真起一次上下文，断言 `RequestMappingHandlerMapping` 里的路由条数与路径集合。
+
+---
+
+## 四、P2：隐患与"看得见但没坏"的问题
+
+| # | 你会看到什么 | 技术定位 |
+|---|---|---|
+| 10 | 照 `Data/README.md` 手工部署的人会去执行一个**已经不存在的文件** | `Data/README.md:47,49,84,102` 仍把 `07_sensitive_word.sql` 列为必经步骤，该脚本本轮已移出 |
+| 11 | 仓库里悄悄多了一个"本该不入库"的文件 | `Data/90_归档/sensitive_word_未落地_20261012.sql` 在 `24072ce` 被强制跟踪，与 `.gitignore:94` 的 `Data/90_归档/` 以及本项目"归档快照不入库"的既定口径冲突 |
+| 12 | 文档口径全面落后：表数 35 → 实际 47 | `Data/04_结构基线/数据表结构基线-20261003.md:4` 仍写"35 张表 / 405 字段"，`Data/README.md:5-6,15`、`docs/数据库设计.md:359` 同；项目自己规定的 `python Data/tools/gen_schema_doc.py` 没跑 |
+| 13 | "智能体运行记录"里"会话"这一列永远是空 | 写侧 `AgentRunRecorder.java:94-116` 没写 `session_id`，读侧 `AgentRunMapper.xml:78` 按它筛 |
+| 14 | 运行/检索日志只增不减，且写失败你完全不知道 | `RetrievalLogRecorder.java:139` 无清理任务；`AgentRunRecorder.java:120-122` 写库失败只 `log.debug` |
+| 15 | 并发高时客服可能"卡住不回话" | 委派子智能体时把子任务投回同一个有界线程池并阻塞等待（`CallAgentTool.java:191` + `BaseReActAgent.java:89-97` 的 2/8/队列16/AbortPolicy），父任务正占着线程，队列满即抛拒绝 |
+| 16 | AI 报告页点"查看图片"，抽屉里全是裂图；多模态其实没把图片喂给模型 | `AiAnalysis.vue:721` 读 `f.url`，但上传回填处 `:1300-1307` 用的是 `res.data`（后端 `FileController.java:96,103-105` 返回 `{url:"…"}` 对象）→ `src="[object Object]"`；`:1130` 同样把对象数组当地址发出去。`UserProfile.vue:404` 头像同病 |
+| 17 | 管理端"审核管理"卡片看不出审的是什么：标题空白、作者恒显示 `U`、举报原因不显示 | `AuditManage.vue:33-45` 渲染 `post.title` / `post.userName`，后端返回的是 `PostReport`（只有 `id/userId/postId/reason/status`） |
+| 18 | 三处死代码：写了但用户够不着 | `components/NotificationBell.vue` 全站零引用（通知实际由 `Main.vue:83,317-320` 角标实现）；`utils/permission.js:15,31` 调不存在的接口且无人 import；后端 `/drug-recommend/by-health` 前缀修好了但前端 0 调用 |
+| 19 | 以后加工具忘了补种子白名单，该工具静默不可用 | `10_agent_architecture.sql:247-289` 的工具白名单是逐个枚举的（脚本 `:239-243` 自己承认踩过） |
+| 20 | 一个不再被写的死字段 | `Notification.java:58` 仍留 `relatedId` |
+
+### 复核中推翻的一条（记下来免得又被提出来）
+
+有一条审查结论说"管理端数据智能体的记忆统计调 `/agent/memory/stats`，后端没有这个端点，面板恒显示 `—`"。**这是误报**：`core/agent/AgentController.java:31` 的类级前缀就是 `/agent`，`:132` 有 `@GetMapping("/memory/stats")`，与 `DataAgentManage.vue:529` 的调用完全对得上，前端取值的双层解包 `res.data.data` 也和 `Result` 包装一致。
+
+---
+
+## 五、按 diff 内容自动判定的提交类型
+
+本轮 3 个提交把太多不同性质的东西混在一起了（`24072ce` 一个提交 171 文件、25088 行，且 message 写的是 `docs+code`）。按实际内容重新归类如下：
+
+### feat（新功能，主体）
+1. **多智能体编排一期** —— `core/agent/`（`AgentRegistry`、`AgentOrchestrator`、`AgentRunRecorder`、`Audience`）、`crm/agent/tool/CallAgentTool`、`AgentAdminController`，配套 `agent_config` / `agent_tool_binding` / `agent_handoff` / `agent_run` / `agent_run_step` 建表。
+2. **知识库与 RAG 可观测** —— `crm/rag/`（`RRFusion`、`KeywordExtractor`、`DocumentParserRegistry`、`RetrievalMetrics`、`ChunkUtil`、`KbSearchService`、`RetrievalLogRecorder`）、`KnowledgeBaseController`、`RagEvalAdminController`、`RetrievalLogMapper.xml`，配套 7 张 kb/rag 表。
+3. **前端特效与两个管理页** —— `components/effects/*` 7 个 + `directives/reveal.js` + `styles/effects.css`，`admin/AgentPlatformManage.vue`、`admin/KnowledgeBaseManage.vue` 及两条路由。
+
+> 建议拆成 `feat(agent)`、`feat(rag)`、`feat(ui-effects)` 三个提交，因为它们各自都能独立回滚。
+
+### fix（缺陷修复）
+4. 4 个控制器类级 `@RequestMapping` 前缀恢复（纯修复，前端依赖它，应独立成一个提交）。
+5. 只读数据源改造成 Provider（解掉"DataSource bean 让自动配置退避"的启动故障，含 3 个消费方跟改）。
+6. `Assistant.vue:829` 多余括号删除。
+7. `utils/doctorAuth.js:20` jwt-decode 改默认导入（此前 token 解析恒为 null，所有需登录页被守卫弹回 —— 这条修得很实，方向正确）。
+8. 三处 SQL 列名对齐：`NewsMapper` 的 `updated_at`、`NotificationMapper` 去 `related_id`、`UserMapper` 的 `u.user_role`。
+9. `MallProductMapper` 价格区间条件与 `queryCount` 补齐。
+10. `AuditManage.vue` 摘除敏感词 Tab（**注意**：这是回避式修复 —— 前端不喊 404 了，但"敏感词"这个能力在计划里仍是缺口）。
+11. `UserChatController` 用户侧流式对话落库（**但引入了本文第 3 条的新缺陷，严格说不能算完成态的 fix**）。
+
+### refactor（不改行为的重构）
+12. `SeaChatWorkflow` / `BaseReActAgent` 的 audience、agentKey、`ToolContext` 透传与方法签名收敛。
+13. `router/index.js` 去掉未使用的 `ROLE_DOCTOR`。
+14. `ToolCatalog` 从测试里抽成公共类（但见 P1-8，它没起到声称的作用）。
+
+### test（新增测试，本轮 684 → 858 例）
+15. 真护栏：`MapperTableConsistencyTest`（列校验部分含 planted-bug 自检，是本轮质量最高的守护）、`Nl2SqlReadOnlyDataSourceWiringTest`（用 `ApplicationContextRunner` 真起容器）、`MallProductPriceFilterTest`、`DocumentParserRegistryTest`、`RRFusionTest`、`RetrievalMetricsTest`。
+16. 自证式/需返工：`ReactPromptToolConsistencyTest:97-108`、`ToolWhitelistSeedTest:75`（找不到 SQL 就 `assumeTrue` 整类静默跳过）、`RagPropertiesTest:24-31`（只 `new` 对象测钳位，yml 绑定从未被测）、`DocumentParserRegistryTest:95-99`（手抄 4 个 parser 名单）。
+17. `ReadOnlyDataSourceConfigTest`（-78 行）被 `Nl2SqlReadOnlyDataSourceWiringTest` 替换，方向是升级，但丢了两条覆盖：消费方的 `@Resource(name=…)`/`@Qualifier` 写错没人测、"注入侧必须 `required=false`"无替代者。
+
+### docs
+18. `f6810a8`（新增功能文档 + README 更新日志 + 清死链）、`dbe8db4`（测试数 684→858）、`Data/README.md` 与结构基线的字符集说明订正。
+> **未完成的 docs**：表数 35→47 的口径没同步（P2-12），README 部署步骤仍指向已删脚本（P2-10）。
+
+### chore
+19. `docker-compose.yml` 新增 `backend_crm_data` 卷；`pom.xml` 依赖/插件同步；`07_sensitive_word.sql` 移出并归档。
+
+---
+
+## 六、建议动手顺序
+
+1. **今天就该补的 4 行**：`Appointment.vue` 的 `timeSlots: []`（P0-2）、compose 追加两条 initdb 挂载（P0-1）、`UserChatController` 落库与拼装换序（P1-3）、`AgentAdminServiceImpl` 先校验后删（P1-5，安全）。
+2. **补真护栏**：registry→prompt 反向差集测试（P1-8）+ 一个能起上下文的启动类测试（P1-9）。这两条不做，同类问题还会再来。
+3. **口径回写**：跑 `gen_schema_doc.py`，同步 4 处表数；修 `Data/README.md` 的部署步骤；决定 `90_归档` 到底入不入库（P2-10/11/12）。
+4. **产品决策项**（需要你先定方向，不适合直接改代码）：聊天历史正本放哪（P1-7）、知识库受众隔离策略（P1-6）、敏感词是补后端还是正式取消（见 §五 fix 第 10 条）。
