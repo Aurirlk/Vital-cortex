@@ -1,80 +1,42 @@
 package cn.kmbeast.core.workspace;
 
-import cn.kmbeast.mapper.UserMapper;
-import cn.kmbeast.mapper.UserHealthMapper;
-import cn.kmbeast.pojo.entity.User;
-import cn.kmbeast.pojo.entity.UserHealth;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.Resource;
-import java.io.*;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Agent 工作空间
- * 为 Agent 提供本地存储能力，包括：
- * - 用户画像缓存
- * - 对话历史摘要
- * - 临时计算结果
- * - Agent 协作状态
- * - 任务执行日志
+ * Agent 工作空间的<b>文件存储</b>能力。
+ *
+ * <p><b>2026-10-20（阶段 6）清理：</b>这个类原先还带着用户画像缓存、Agent 协作状态、
+ * 对话摘要、任务日志、临时数据五组能力，合计约 200 行；全仓唯一的调用方
+ * {@code AgentMemoryService} 只用到 {@link #readJson} / {@link #saveJson}。
+ * 其余方法没有任何引用 —— 其中画像缓存还要注入 {@code UserMapper} /
+ * {@code UserHealthMapper}，即「没人调，但组件启动时要装配两个 Mapper」。
+ * 死代码留在仓库里不只是噪音：它们看起来像现役能力，会让人误以为
+ * 「用户画像已经缓存好了」「Agent 之间已经在共享状态」。</p>
+ *
+ * <p>保留的就是记忆功能真正需要的那条最小链路：
+ * {@link #getUserWorkDir} → {@link #saveToFile} / {@link #readFromFile} →
+ * {@link #saveJson} / {@link #readJson}。</p>
  */
 @Slf4j
 @Component
 public class AgentWorkspace {
 
-    @Resource
-    private UserMapper userMapper;
-
-    @Resource
-    private UserHealthMapper userHealthMapper;
-
-    /** 工作空间根目录 */
+    /** 工作空间根目录。 */
     private static final String WORKSPACE_ROOT = "./cache/agent_workspace";
 
     /**
-     * 缓存上限。
-     *
-     * <p>2026-10-10 说明：这两个 map 目前<b>没有任何调用方</b>
-     * （全项目只用到下面的 {@code readJson} / {@code saveJson} 文件接口，
-     * 见 {@code AgentMemoryService}），因此当下不存在实际泄漏。
-     * 但它们是无界缓存 + 存放可变 {@link JSONObject}，
-     * 一旦被启用就会同时踩到「无界增长」与「并发原地修改」两个坑，
-     * 所以先加一道上限兜底，并留此说明。
-     */
-    private static final int MAX_CACHE_ENTRIES = 5000;
-
-    /** 用户画像缓存 */
-    private final ConcurrentHashMap<Integer, JSONObject> userProfileCache = new ConcurrentHashMap<>();
-
-    /** Agent 协作状态 */
-    private final ConcurrentHashMap<String, JSONObject> agentStates = new ConcurrentHashMap<>();
-
-    /**
-     * 获取 Agent 工作目录
-     */
-    public Path getAgentWorkDir(String agentType) {
-        Path dir = Path.of(WORKSPACE_ROOT, agentType);
-        try {
-            Files.createDirectories(dir);
-        } catch (IOException e) {
-            log.error("创建 Agent 工作目录失败: {}", dir, e);
-        }
-        return dir;
-    }
-
-    /**
-     * 获取用户专属工作目录
+     * 获取用户专属工作目录（不存在时创建）。
      */
     public Path getUserWorkDir(String agentType, Integer userId) {
         Path dir = Path.of(WORKSPACE_ROOT, agentType, "user_" + userId);
@@ -86,67 +48,8 @@ public class AgentWorkspace {
         return dir;
     }
 
-    // ========== 用户画像 ==========
-
     /**
-     * 获取用户画像（带缓存）
-     */
-    public JSONObject getUserProfile(Integer userId) {
-        return userProfileCache.computeIfAbsent(userId, id -> {
-            JSONObject profile = new JSONObject();
-            User user = userMapper.getUserById(id);
-            if (user != null) {
-                profile.put("userId", id);
-                profile.put("userName", user.getUserName());
-                profile.put("userAccount", user.getUserAccount());
-                profile.put("userRole", user.getUserRole());
-            }
-            // 加载健康数据
-            List<UserHealth> healthData = userHealthMapper.getRecentByUserId(id, 30);
-            profile.put("healthRecordCount", healthData.size());
-            profile.put("lastHealthRecordTime", healthData.isEmpty() ? null :
-                    healthData.get(0).getCreateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
-            return profile;
-        });
-    }
-
-    /**
-     * 更新用户画像缓存
-     */
-    public void updateUserProfile(Integer userId, JSONObject updates) {
-        if (userId == null || updates == null || updates.isEmpty()) {
-            return;
-        }
-        // 2026-10-10：原实现是「取出缓存里的那个 JSONObject，就地 putAll」
-        // —— JSONObject 底层是 LinkedHashMap，两个请求并发写同一个画像
-        // 会结构性破坏该 map（读取方可能死循环或读到半截数据）。
-        // 改为「复制 → 合并 → 整体替换」：读方要么看到旧快照、要么看到新快照，
-        // 永远不会看到正在被改写的对象。同时补上无界增长的兜底。
-        JSONObject merged = new JSONObject(getUserProfile(userId));
-        merged.putAll(updates);
-        evictIfOversized(userProfileCache, MAX_CACHE_ENTRIES);
-        userProfileCache.put(userId, merged);
-    }
-
-    /** 缓存超过上限时，丢弃最旧的一批（Agent 缓存均属可重建数据，直接清空最省事） */
-    private void evictIfOversized(Map<?, ?> cache, int max) {
-        if (cache.size() >= max) {
-            log.warn("AgentWorkspace 缓存已达上限 {}，执行清空以避免无界增长", max);
-            cache.clear();
-        }
-    }
-
-    /**
-     * 清除用户画像缓存
-     */
-    public void clearUserProfileCache(Integer userId) {
-        userProfileCache.remove(userId);
-    }
-
-    // ========== 本地文件存储 ==========
-
-    /**
-     * 保存数据到文件
+     * 保存数据到文件。
      */
     public void saveToFile(String agentType, Integer userId, String fileName, String content) {
         Path filePath = getUserWorkDir(agentType, userId).resolve(fileName);
@@ -160,7 +63,7 @@ public class AgentWorkspace {
     }
 
     /**
-     * 读取文件内容
+     * 读取文件内容；文件不存在或读取失败时返回 {@code null}。
      */
     public String readFromFile(String agentType, Integer userId, String fileName) {
         Path filePath = getUserWorkDir(agentType, userId).resolve(fileName);
@@ -175,15 +78,19 @@ public class AgentWorkspace {
     }
 
     /**
-     * 保存 JSON 数据
+     * 保存 JSON 数据（自动补 {@code _savedAt} 时间戳）。
+     *
+     * <p>写入的是副本：原实现直接往调用方传入的 {@link JSONObject} 里
+     * {@code put("_savedAt", ...)}，调用方之后读自己的对象会莫名多出一个字段。</p>
      */
     public void saveJson(String agentType, Integer userId, String key, JSONObject data) {
-        data.put("_savedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-        saveToFile(agentType, userId, key + ".json", data.toJSONString());
+        JSONObject copy = data == null ? new JSONObject() : new JSONObject(data);
+        copy.put("_savedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        saveToFile(agentType, userId, key + ".json", copy.toJSONString());
     }
 
     /**
-     * 读取 JSON 数据
+     * 读取 JSON 数据；不存在或解析失败时返回 {@code null}。
      */
     public JSONObject readJson(String agentType, Integer userId, String key) {
         String content = readFromFile(agentType, userId, key + ".json");
@@ -193,126 +100,6 @@ public class AgentWorkspace {
             } catch (Exception e) {
                 log.error("解析 JSON 失败: {}", key, e);
             }
-        }
-        return null;
-    }
-
-    // ========== 对话历史摘要 ==========
-
-    /**
-     * 保存对话摘要
-     */
-    public void saveConversationSummary(Integer userId, String agentType, String summary) {
-        JSONObject data = new JSONObject();
-        data.put("summary", summary);
-        data.put("agentType", agentType);
-        data.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-        saveJson("history", userId, "summary_" + agentType, data);
-    }
-
-    /**
-     * 获取对话摘要
-     */
-    public String getConversationSummary(Integer userId, String agentType) {
-        JSONObject data = readJson("history", userId, "summary_" + agentType);
-        return data != null ? data.getString("summary") : null;
-    }
-
-    // ========== Agent 协作状态 ==========
-
-    /**
-     * 设置 Agent 状态
-     */
-    public void setAgentState(String agentType, JSONObject state) {
-        agentStates.put(agentType, state);
-    }
-
-    /**
-     * 获取 Agent 状态
-     */
-    public JSONObject getAgentState(String agentType) {
-        return agentStates.getOrDefault(agentType, new JSONObject());
-    }
-
-    /**
-     * 获取所有活跃 Agent
-     */
-    public Set<String> getActiveAgents() {
-        return agentStates.keySet();
-    }
-
-    // ========== 任务日志 ==========
-
-    /**
-     * 记录任务执行日志
-     */
-    public void logTask(String agentType, Integer userId, String taskType, String detail) {
-        JSONObject logEntry = new JSONObject();
-        logEntry.put("taskType", taskType);
-        logEntry.put("detail", detail);
-        logEntry.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-
-        String fileName = "task_log_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String existing = readFromFile(agentType, userId, fileName + ".json");
-        List<JSONObject> logs = new ArrayList<>();
-        if (existing != null) {
-            try {
-                logs = JSON.parseArray(existing, JSONObject.class);
-            } catch (Exception ignored) {}
-        }
-        logs.add(logEntry);
-        saveToFile(agentType, userId, fileName + ".json", JSON.toJSONString(logs));
-    }
-
-    /**
-     * 获取任务日志
-     */
-    public List<JSONObject> getTaskLogs(String agentType, Integer userId, String date) {
-        String content = readFromFile(agentType, userId, "task_log_" + date + ".json");
-        if (content != null) {
-            try {
-                return JSON.parseArray(content, JSONObject.class);
-            } catch (Exception ignored) {}
-        }
-        return Collections.emptyList();
-    }
-
-    // ========== 临时数据 ==========
-
-    /**
-     * 保存临时数据（自动过期）
-     */
-    public void saveTempData(String key, JSONObject data, long ttlMillis) {
-        data.put("_expiresAt", System.currentTimeMillis() + ttlMillis);
-        Path filePath = Path.of(WORKSPACE_ROOT, "temp", key + ".json");
-        try {
-            Files.createDirectories(filePath.getParent());
-            Files.write(filePath, data.toJSONString().getBytes(StandardCharsets.UTF_8),
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-        } catch (IOException e) {
-            log.error("保存临时数据失败: {}", key, e);
-        }
-    }
-
-    /**
-     * 获取临时数据
-     */
-    public JSONObject getTempData(String key) {
-        Path filePath = Path.of(WORKSPACE_ROOT, "temp", key + ".json");
-        try {
-            if (Files.exists(filePath)) {
-                String content = new String(Files.readAllBytes(filePath), StandardCharsets.UTF_8);
-                JSONObject data = JSON.parseObject(content);
-                // 检查是否过期
-                Long expiresAt = data.getLong("_expiresAt");
-                if (expiresAt != null && System.currentTimeMillis() > expiresAt) {
-                    Files.deleteIfExists(filePath);
-                    return null;
-                }
-                return data;
-            }
-        } catch (Exception e) {
-            log.error("读取临时数据失败: {}", key, e);
         }
         return null;
     }
