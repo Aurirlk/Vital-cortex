@@ -298,14 +298,13 @@ public class AgentAdminServiceImpl implements AgentAdminService {
         if (restricted == null) {
             return ApiResult.error("缺少 restricted 参数（false=不限制，true=按白名单）");
         }
-        agentToolBindingMapper.deleteByAgentId(id);
 
+        List<AgentToolBinding> rows = new ArrayList<>();
         if (Boolean.TRUE.equals(restricted)) {
             Set<String> known = new LinkedHashSet<>();
             for (Tool t : toolRegistry.getAll()) {
                 known.add(t.getName());
             }
-            List<AgentToolBinding> rows = new ArrayList<>();
             int order = 0;
             for (String name : new LinkedHashSet<>(toolNames == null ? List.<String>of() : toolNames)) {
                 if (name == null || name.isBlank()) {
@@ -325,11 +324,16 @@ public class AgentAdminServiceImpl implements AgentAdminService {
                 row.setSortOrder(order++);
                 rows.add(row);
             }
-            if (!rows.isEmpty()) {
-                agentToolBindingMapper.batchSave(rows);
-            }
             // 空白名单（rows 为空）是合法状态：一个纯路由 Agent 不直接调工具，
             // 只把问题委派出去。这里刻意不报错，也不退化成「全量」。
+        }
+
+        // 校验全部通过之后才动库。旧写法是「先 deleteByAgentId 再逐个校验」，而校验失败走的是
+        // return ApiResult.error 而不是抛异常 —— @Transactional 对正常返回并不回滚，
+        // 于是名单里一个工具名拼错就把原白名单清空，读侧又把空绑定判为「不限制」，等于权限放大。
+        agentToolBindingMapper.deleteByAgentId(id);
+        if (!rows.isEmpty()) {
+            agentToolBindingMapper.batchSave(rows);
         }
         agentRegistry.invalidate();
         log.info("[AgentAdmin] 设置工具绑定: key={}, restricted={}, tools={}",
