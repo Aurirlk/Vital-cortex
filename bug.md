@@ -196,3 +196,53 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 2. **补真护栏**：registry→prompt 反向差集测试（P1-8）+ 一个能起上下文的启动类测试（P1-9）。这两条不做，同类问题还会再来。
 3. **口径回写**：跑 `gen_schema_doc.py`，同步 4 处表数；修 `Data/README.md` 的部署步骤；决定 `90_归档` 到底入不入库（P2-10/11/12）。
 4. **产品决策项**（需要你先定方向，不适合直接改代码）：聊天历史正本放哪（P1-7）、知识库受众隔离策略（P1-6）、敏感词是补后端还是正式取消（见 §五 fix 第 10 条）。
+
+---
+
+## 七、2026-10-24 二轮代码级扫描（本文 §〇 之后新发现的那些）
+
+上面那份台账收口后，我又扫了一轮**运行期代码**（先让子代理按「出错时往哪个方向降级」
+筛候选，再逐条打开源码复核，共 11 个候选，推翻或降级了其中若干）。这一轮里
+6 条当场改掉，7 条只报不动 —— 它们的正确改法需要你先定方向，或者会改变对外可见行为。
+
+### 7.1 本轮已修（6 条，`bc4a45a..be9b995`）
+
+| 你会看到什么 | 定位 | 改法 / 提交 |
+|---|---|---|
+| 库一抖动，老用户的上下文被清空，AI 还像第一次见面那样打招呼 | `crm/sqlite/SqliteChatHistoryService.java:90-106`（`isNewUser` 的 catch 原先 `return true`） | 失败按「老用户」降级；`bc4a45a` |
+| 逐条删完 AI 会话后，被删的那批（标题+全部消息）整批复活 | `service/impl/AiChatCacheServiceImpl.java:234-253`（只删 MySQL 与缓存，不删磁盘 JSON；而 `getConversationList:137-146` 在 MySQL 空时回落到磁盘） | 补磁盘副本清理，属主在删除之前取；`b5286c1` |
+| 健康偏好「保存成功」，重启后其实一条都没留下 | `core/workspace/AgentWorkspace.java:59-70`（吞 `IOException` 返回 void）→ `core/agent/AgentMemoryService.java:119`、`core/agent/AgentController.java:123-126` | 逐级返回 boolean，写失败不刷缓存、接口报错；`08ec6ab` |
+| 通知铃某天起不再更新，日志只有一行 error | `websocket/WebSocketServer.java`（心跳/单发/广播三处并发调 `getBasicRemote()`，JSR-356 明确非线程安全） | 收敛为按 session 串行的唯一发送出口；`139c595` |
+| 提问为空时流式接口「像是卡住了」：200 + 事件流头 + 0 字节 | `crm/controller/CrmChatController.java:73-90`、`controller/UserChatController.java:131-148`（先设 SSE 头再校验，不合格 `return`） | 校验前置，回 400 JSON；`bd258f2` |
+| 新工具上线忘了写进提示词 → 模型永远调不到，而没有任何一处会报 | `crm/agent/ReactPromptLoader.java:245-275`（原先只算 prompt→registry 单向差集） | 补 `unmentioned` 反向差集 + 启动横幅 + T7.10 活护栏；`be9b995`（台账 P1-8 收口） |
+
+### 7.2 本轮**未修**，需要你点头（7 条）
+
+1. **账号被封还能照常使用（数据库报错的那一刻）** —— `core/auth/AuthSessionManager.java:151-155`：
+   `queryLockedFromDb` 查库失败时 `return false`（=「没被锁定」）。它是 Redis 失败后的最后一道，
+   所以 MySQL 一抖，被停用的账号（JWT 还没过期）照样畅通。
+   **为什么不直接改**：反过来 fail-closed 会让数据库抖动的几分钟里**所有用户都被锁在外面**，
+   在健康管理系统里这个代价未必更小。三个选项：① 改成拒绝（最安全，最伤可用性）；
+   ② 保留放行但把「查不出状态」计数告警出去；③ 给锁定状态加一个短的强制回源窗口。
+   **需要你选一个。**
+2. **通知开关读不到就按「开启」发** —— `service/impl/NotificationPreferenceServiceImpl.java:35-36` 与 `:60`：
+   明确写了注释、也论证过（通知默认想收到），但效果是：用户关掉「预约提醒」后，一旦读开关失败
+   （例如 `08_*.sql` 迁移没跑）就会重新开始被打扰。要不要改成「读不到就不发」，属产品取向。
+3. **NL2SQL 的「语义一致」绿灯可能是假的** —— `core/nl2sql/DataAgentPipeline.java:422`：
+   模型返回的不是 JSON、或压根没返回 `passed` 字段时，判定按「通过」处理，界面显示
+   「SQL 与问题语义一致」。安全守卫（`:443`）和租户改写（`:462`）是真 fail-closed，我复核过，
+   所以这只是质量步骤虚绿，不是越权。改法：判空视为不通过并标注「未校验」。
+4. **`/dashboard/stats` 任何登录用户都能读平台用户总数** —— `controller/DashboardController.java:25-26`
+   只有 `@Protector`（=「登录即可」），没写 `role`。敏感度低（只有两个计数），
+   且我在前端**找不到任何调用点** —— 它要么是死接口（该删），要么本就打算给管理员看板（该加 `role="管理员"`）。
+5. **鉴权失败回 HTTP 200** —— `aop/ProtectorAspect.java:44/49/59/71`：token 过期时返回
+   `ApiResult.error("身份认证失败…")` 但状态码 200，而 `JwtInterceptor:173` 走的是真 401。
+   前端按 401 跳转登录的拦截器对前者不触发 → 用户停在原页面看到「请先登录」而不跳转。
+   **要统一成 401 就得同时核对前端的响应拦截器**，改动跨前后端，没点头我不动。
+6. **`saveUserPreferences`（批量写偏好）注释说「供 SlotFilling 使用」，实际生产代码里没人调** ——
+   `core/agent/AgentMemoryService.java:133`（唯一调用方在测试里）。属「文档写着有这能力、链路没接」，
+   与 §五 那几条同类。要么把槽位回填接上去，要么删掉；删掉是行为收敛，我不擅自做。
+7. **文件读失败一律回空** —— `core/workspace/AgentWorkspace.java:41-49/75-85`：
+   `createDirectories` 失败只打日志继续往下走，`readFromFile` 把「读失败」和「文件不存在」
+   都返回 `null`。第 1 条修完之后写侧已经能如实报失败，读侧仍然分不出这两种情况；
+   影响是磁盘故障时偏好会「看起来像从没设置过」。
