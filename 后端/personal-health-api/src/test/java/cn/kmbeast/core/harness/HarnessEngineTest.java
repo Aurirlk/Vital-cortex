@@ -21,6 +21,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -42,12 +43,17 @@ class HarnessEngineTest {
     @Mock
     private PatientProfileMapper profileMapper;
 
+    /** 2026-10-24 起 persistSlots 会把槽位镜像进 Agent 记忆，这里必须给出替身。 */
+    @Mock
+    private cn.kmbeast.core.agent.AgentMemoryService agentMemoryService;
+
     @InjectMocks
     private HarnessEngine engine;
 
     @BeforeEach
     void setUp() {
         LocalThreadHolder.setUserId(3, 2);
+        when(agentMemoryService.saveUserPreferences(any(), any())).thenReturn(true);
     }
 
     @AfterEach
@@ -233,6 +239,54 @@ class HarnessEngineTest {
         // BMI 应自动补算：70 / 1.75^2 = 22.86 → 22.9
         assertNotNull(saved.getBmi());
         assertEquals(22.9, saved.getBmi(), 0.05);
+    }
+
+    @Test
+    @DisplayName("槽位同时镜像进 Agent 记忆（profile. 前缀），下一轮对话才认得用户")
+    void slotsShouldMirrorIntoMemory() {
+        when(profileMapper.getByUserId(3)).thenReturn(null);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> captor = ArgumentCaptor.forClass(Map.class);
+
+        Map<String, String> slots = new HashMap<>();
+        slots.put("age", "34");
+        slots.put("weight", "   ");
+
+        engine.persistSlots(3, slots);
+
+        verify(agentMemoryService).saveUserPreferences(eq(3), captor.capture());
+        Map<String, String> saved = captor.getValue();
+        assertEquals("34", saved.get("profile.age"));
+        assertFalse(saved.containsKey("profile.weight"), "没落进档案的值不该进记忆");
+    }
+
+    @Test
+    @DisplayName("被档案挡下的口误只丢在本轮，不写进记忆")
+    void rejectedSlotMustNotReachMemory() {
+        PatientProfile existing = new PatientProfile();
+        existing.setUserId(3);
+        existing.setHeight(180.0);          // 已核实的身高
+        when(profileMapper.getByUserId(3)).thenReturn(existing);
+
+        Map<String, String> slots = new HashMap<>();
+        slots.put("height", "175");         // 这次口误
+        assertEquals(0, engine.persistSlots(3, slots));
+
+        // 记忆是覆盖写的：175 一旦进去，AI 后面每一轮都按错身高回答
+        verify(agentMemoryService, never()).saveUserPreferences(any(), any());
+    }
+
+    @Test
+    @DisplayName("记忆写失败不改档案落库的结果（档案是正本）")
+    void memoryFailureDoesNotChangeProfileResult() {
+        when(profileMapper.getByUserId(3)).thenReturn(null);
+        when(agentMemoryService.saveUserPreferences(any(), any())).thenReturn(false);
+
+        Map<String, String> slots = new HashMap<>();
+        slots.put("age", "34");
+
+        assertEquals(1, engine.persistSlots(3, slots), "记忆写失败时档案仍应照常落库");
+        verify(profileMapper).insertOrUpdate(any());
     }
 
     @Test

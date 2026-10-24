@@ -58,6 +58,15 @@ public class HarnessEngine {
     @Resource
     private PatientProfileMapper patientProfileMapper;
 
+    /**
+     * Agent 记忆服务：槽位采集成功后把值镜像进记忆（见 {@link #mirrorSlotsToMemory}）。
+     * 2026-10-24 接上 —— 此前 {@code AgentMemoryService.saveUserPreferences} 的注释写着
+     * 「供 SlotFilling 使用」，但生产代码里没有任何调用方，采集到的性别/年龄/身高
+     * 只进了患者档案，对话提示词的个性化注入读的记忆里一直是空的。
+     */
+    @Resource
+    private cn.kmbeast.core.agent.AgentMemoryService agentMemoryService;
+
     // ================================================================ 1. 完整性检查
 
     /**
@@ -372,23 +381,32 @@ public class HarnessEngine {
                 p.setUserId(userId);
             }
 
-            int changed = 0;
+            // 只登记「确实落进档案」的值：被既有值挡下的口误、解析不出来的空串都不算写。
+            // changed 由它得出，镜像进记忆也用同一份，两条路径不会有分歧。
+            Map<String, String> applied = new LinkedHashMap<>();
             if (slots.get("gender") != null && isBlank(p.getGender())) {
                 p.setGender(slots.get("gender"));
-                changed++;
+                applied.put("gender", p.getGender());
             }
             if (slots.get("age") != null && p.getAge() == null) {
                 p.setAge(parseInt(slots.get("age")));
-                changed++;
+                if (p.getAge() != null) {
+                    applied.put("age", String.valueOf(p.getAge()));
+                }
             }
             if (slots.get("height") != null && p.getHeight() == null) {
                 p.setHeight(parseDouble(slots.get("height")));
-                changed++;
+                if (p.getHeight() != null) {
+                    applied.put("height", trimNum(p.getHeight()));
+                }
             }
             if (slots.get("weight") != null && p.getWeight() == null) {
                 p.setWeight(parseDouble(slots.get("weight")));
-                changed++;
+                if (p.getWeight() != null) {
+                    applied.put("weight", trimNum(p.getWeight()));
+                }
             }
+            int changed = applied.size();
             // 身高体重都齐了才算得 BMI，补算一次
             if (p.getHeight() != null && p.getWeight() != null && p.getBmi() == null) {
                 Double bmi = calculateBMI(p.getHeight(), p.getWeight());
@@ -399,7 +417,15 @@ public class HarnessEngine {
 
             if (changed > 0) {
                 patientProfileMapper.insertOrUpdate(p);
-                log.info("[Harness] 写入患者档案 {} 个字段: userId={}, keys={}", changed, userId, slots.keySet());
+                log.info("[Harness] 写入患者档案 {} 个字段: userId={}, keys={}", changed, userId, applied.keySet());
+            }
+            // 槽位同步进 Agent 记忆（偏好）：对话提示词的个性化注入读的是记忆，
+            // 只写档案的话，AI 下一轮仍然「不知道用户的年龄/性别」。
+            // 传 applied 而不是 slots —— 没落进档案的值不能进记忆（记忆是覆盖写，会把口误固化）。
+            // 这一步不做兜底重试，失败只记日志：档案才是正本，下一轮追问会重新采到。
+            if (!mirrorSlotsToMemory(userId, applied)) {
+                log.warn("[Harness] 槽位写入 Agent 记忆未成功（档案已写入，不影响本轮回答）: "
+                        + "userId={}, keys={}", userId, applied.keySet());
             }
             return changed;
         } catch (Exception e) {
@@ -409,11 +435,26 @@ public class HarnessEngine {
         }
     }
 
+    /**
+     * 把本轮确实写进档案的槽位镜像进 Agent 记忆，键名加 {@code profile.} 前缀，
+     * 免得和用户自己设置的健康偏好（{@code diet} 之类）撞名。
+     *
+     * @param appliedSlots {@link #persistSlots} 登记的实际写入项，值已归一化
+     * @return 是否写入成功；{@code AgentMemoryService} 读不出既有偏好时会放弃覆盖写
+     */
+    private boolean mirrorSlotsToMemory(Integer userId, Map<String, String> appliedSlots) {
+        if (appliedSlots.isEmpty()) {
+            return true;
+        }
+        Map<String, String> toSave = new LinkedHashMap<>();
+        appliedSlots.forEach((k, v) -> toSave.put("profile." + k, v));
+        return agentMemoryService.saveUserPreferences(userId, toSave);
+    }
+
     /** 当前登录用户的缺失槽位（供对外接口查询） */
     public Map<String, String> currentUserMissingSlots() {
         return checkDataCompleteness(loadCurrentUserSlots());
     }
-
     /** 所有关键槽位名（前端可用来渲染「完善档案」表单） */
     public Set<String> getRequiredSlotKeys() {
         Set<String> keys = new LinkedHashSet<>();
