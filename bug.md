@@ -204,7 +204,8 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 上面那份台账收口后，我又扫了一轮**运行期代码**（先让子代理按「出错时往哪个方向降级」
 筛候选，再逐条打开源码复核，共 11 个候选，推翻或降级了其中若干）。这一轮里
 6 条当场改掉，7 条只报不动 —— 它们的正确改法需要你先定方向，或者会改变对外可见行为。
-**同日你点头后，7 条里又修掉 2 条（§7.2 的第 1、3 条），剩 5 条仍在等你定方向。**
+**同日你逐条定了方向，7 条已全部修完（含 §7.2 第 3 条的二次升级），补修记录见 §7.3；
+下面 §7.2 的原文保留，只把标题划掉并标上你的选择，便于对照「当初为什么不敢擅动」。**
 
 ### 7.1 本轮已修（6 条，`bc4a45a..be9b995`）
 
@@ -217,7 +218,11 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 | 提问为空时流式接口「像是卡住了」：200 + 事件流头 + 0 字节 | `crm/controller/CrmChatController.java:73-90`、`controller/UserChatController.java:131-148`（先设 SSE 头再校验，不合格 `return`） | 校验前置，回 400 JSON；`bd258f2` |
 | 新工具上线忘了写进提示词 → 模型永远调不到，而没有任何一处会报 | `crm/agent/ReactPromptLoader.java:245-275`（原先只算 prompt→registry 单向差集） | 补 `unmentioned` 反向差集 + 启动横幅 + T7.10 活护栏；`be9b995`（台账 P1-8 收口） |
 
-### 7.2 本轮**未修**，需要你点头（原 7 条，第 1、3 条已点头修完 → 见 §7.3，剩 5 条）
+### 7.2 当时只报不动的 7 条 —— 你已逐条点头，**7 条全部修完**（修法见 §7.3）
+
+原文保留，便于对照「当初为什么不敢擅动」。你的选择依次是：① 全部拒绝；② 读不到就不发；
+③ 把假功能做成真功能、默认未校验；④ 给管理员看板加功能；⑤ 统一 401；⑥ 槽位回填接上去；
+⑦ 区分「读失败」与「文件不存在」。
 
 1. ~~**账号被封还能照常使用（数据库报错的那一刻）**~~ → **已修，你选的是「改成拒绝」，见 §7.3**
    —— `core/auth/AuthSessionManager.java:151-155`：
@@ -227,30 +232,34 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
    在健康管理系统里这个代价未必更小。三个选项：① 改成拒绝（最安全，最伤可用性）；
    ② 保留放行但把「查不出状态」计数告警出去；③ 给锁定状态加一个短的强制回源窗口。
    **需要你选一个。**
-2. **通知开关读不到就按「开启」发** —— `service/impl/NotificationPreferenceServiceImpl.java:35-36` 与 `:60`：
+2. ~~**通知开关读不到就按「开启」发**~~ → **已修，你选的是「读不到就不发」，见 §7.3**
+   —— `service/impl/NotificationPreferenceServiceImpl.java:35-36` 与 `:60`：
    明确写了注释、也论证过（通知默认想收到），但效果是：用户关掉「预约提醒」后，一旦读开关失败
    （例如 `08_*.sql` 迁移没跑）就会重新开始被打扰。要不要改成「读不到就不发」，属产品取向。
-3. ~~**NL2SQL 的「语义一致」绿灯可能是假的**~~ → **已修，见 §7.3**
+3. ~~**NL2SQL 的「语义一致」绿灯可能是假的**~~ → **已修两步：先止住假绿灯 `26fc054`，再按你选的「做成真功能」补追问与复核，见 §7.3**
    —— `core/nl2sql/DataAgentPipeline.java:422`：
    模型返回的不是 JSON、或压根没返回 `passed` 字段时，判定按「通过」处理，界面显示
    「SQL 与问题语义一致」。安全守卫（`:443`）和租户改写（`:462`）是真 fail-closed，我复核过，
    所以这只是质量步骤虚绿，不是越权。改法：判空视为不通过并标注「未校验」。
-4. **`/dashboard/stats` 任何登录用户都能读平台用户总数** —— `controller/DashboardController.java:25-26`
+4. ~~**`/dashboard/stats` 任何登录用户都能读平台用户总数**~~ → **已修，你选的是「给管理员看板加功能」，见 §7.3**
+   —— `controller/DashboardController.java:25-26`
    只有 `@Protector`（=「登录即可」），没写 `role`。敏感度低（只有两个计数），
    且我在前端**找不到任何调用点** —— 它要么是死接口（该删），要么本就打算给管理员看板（该加 `role="管理员"`）。
-5. **鉴权失败回 HTTP 200** —— `aop/ProtectorAspect.java:44/49/59/71`：token 过期时返回
+5. ~~**鉴权失败回 HTTP 200**~~ → **已修，你选的是「统一 401」（越权另归 403），见 §7.3**
+   —— `aop/ProtectorAspect.java:44/49/59/71`：token 过期时返回
    `ApiResult.error("身份认证失败…")` 但状态码 200，而 `JwtInterceptor:173` 走的是真 401。
    前端按 401 跳转登录的拦截器对前者不触发 → 用户停在原页面看到「请先登录」而不跳转。
    **要统一成 401 就得同时核对前端的响应拦截器**，改动跨前后端，没点头我不动。
-6. **`saveUserPreferences`（批量写偏好）注释说「供 SlotFilling 使用」，实际生产代码里没人调** ——
+6. ~~**`saveUserPreferences`（批量写偏好）注释说「供 SlotFilling 使用」，实际生产代码里没人调**~~ → **已修，你选的是「把槽位回填接上去」，见 §7.3** ——
    `core/agent/AgentMemoryService.java:133`（唯一调用方在测试里）。属「文档写着有这能力、链路没接」，
    与 §五 那几条同类。要么把槽位回填接上去，要么删掉；删掉是行为收敛，我不擅自做。
-7. **文件读失败一律回空** —— `core/workspace/AgentWorkspace.java:41-49/75-85`：
+7. ~~**文件读失败一律回空**~~ → **已修，你选的就是「区分这两种情况分别报」，见 §7.3**
+   —— `core/workspace/AgentWorkspace.java:41-49/75-85`：
    `createDirectories` 失败只打日志继续往下走，`readFromFile` 把「读失败」和「文件不存在」
    都返回 `null`。第 1 条修完之后写侧已经能如实报失败，读侧仍然分不出这两种情况；
    影响是磁盘故障时偏好会「看起来像从没设置过」。
 
-### 7.3 你点头后补修的 2 条（`5dd92a7`、`26fc054`）
+### 7.3 你点头后补修的全部 7 条（`5dd92a7` … `c40d25d`）
 
 | 你会看到什么 | 定位 | 改法 / 提交 |
 |---|---|---|
@@ -258,12 +267,47 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 | 同上，但更隐蔽的一侧：一次查库失败被缓存成 60 秒的「正常」 | `AuthSessionManager.java:88-89`（改前把降级出来的 `false` 直接 `setAccountState` 写进 Redis） | `UNKNOWN` **不写缓存**，下个请求重新回源；否则抖动被放大成整分钟，且刚禁用的账号还要等 TTL 到期才生效；`5dd92a7` |
 | 数据问答的报告写着「SQL 与问题语义一致」，其实模型压根没给判定 | `core/nl2sql/DataAgentPipeline.java:422`（`checkJson == null \|\| !Boolean.FALSE.equals(...)`） | 判定为读不出时改发 `SKIPPED` 事件「未完成语义校验：本报告结论未经语义核对」，`payload` 带 `checked=false`；仍照常执行（这是质量步骤，不是安全门）；`26fc054` |
 | 补上的坑：`{"passed":"maybe"}` 这种含糊回复 | `DataAgentPipeline.java` 新增 `readSemanticVerdict` | 不能用 `JSONObject.getBoolean` —— 实测它会把字符串强转出布尔值，绿灯照样假；改成只认 `Boolean` / `0-1` / `true-false-yes-no`，其它一律算未判定；`26fc054` |
+| 上一行的收尾太早：模型偶尔只是不守格式，问一次就要不回判定就等于这个环节没做 | `DataAgentPipeline.java:846-862`（新 `semanticCheck`） | 按你选的「做成真功能」：第一遍读不出就**带上输出格式要求追问一次**，两轮都要不回才认「未校验」，措辞相应改成「模型连续两轮均未返回判定」；`payload` 加 `attempts`；`c40d25d` |
+| 更实在的一个洞：校验判「不通过」→ 重生成 → 执行的是**新版** SQL，可绿灯是给旧版点的，新版从头到尾没人核对过 | `DataAgentPipeline.java:417-441`（第 6 步）+ `emitSemanticCheck` | 重生成后对新版**再核一次**（`afterRegeneration=true`，只核一轮不打转）；复核读不出同样照实标未校验，不通过的措辞改「按现状执行」；追问与复核都不改安全守卫、租户改写那两道真 fail-closed 的门；`c40d25d` |
+| 用户明明关掉了「预约提醒」，却在大库抖动 / `08_*.sql` 没跑期间重新开始被打扰 | `service/impl/NotificationPreferenceServiceImpl.java:35-36/60`（`allows()` 的 catch `return true`） | 按你选的**读不到就不发**：查询失败不投递并把日志升到 error（这条持续命中=全站静默停发，留 warn 看不见）；`NULL` 仍按开启解释 —— 「从没设置过」不等于「读不到」，一律当关闭会让从没进过设置页的人静默收不到服药/复诊提醒；`10a93c7` |
+| 健康偏好读不出来时，下一次保存会把盘上既有的内容当成「本来就是空的」覆盖掉 | `core/workspace/AgentWorkspace.java:41-49/75-85` → `core/agent/AgentMemoryService.java` | 按你选的**分三种情况报**：`ReadStatus{FOUND,MISSING,IO_FAILED,PARSE_FAILED}` + `ReadOutcome`，人话分别是「文件不存在 / 磁盘读取失败 / 文件内容无法解析」；只有 `MISSING` 才当空档案起步，`IO_FAILED`/`PARSE_FAILED` 时两个 save 都**放弃本次保存**并 warn，接口如实报错；`e6771eb` |
+| AI 问了身高体重年龄，下一轮又问一遍 —— 采集到的槽位只进内存对象，没进 Agent 记忆 | `core/agent/AgentMemoryService.java:133`（`saveUserPreferences` 生产零调用）→ `core/harness/HarnessEngine.java:persistSlots` | 按你选的**接上去**：只把真正写进档案的槽位（`applied`）以 `profile.*` 镜像进 Agent 记忆 —— 全量镜像会把被否掉的口误（如 175 覆盖已确认的 180）写进去，而记忆是覆盖写的；镜像失败只 warn，不影响本轮回答（档案已落库）；`bc0a152` |
+| token 过期后停在原页面看到「请先登录」而不跳登录；越权访问也回 200，前端按 401 的拦截器不触发 | `aop/ProtectorAspect.java:44/49/59/71`（五处拒绝点全部 `ApiResult.error` + HTTP 200） | 按你选的**统一 401**，并把两类问题分开：身份类（无 token/过期/解不开/role 读不出）→ 真 401，前端照旧清 token 跳登录；**越权类（role 不符）→ 403**，绝不清 token（清了等于把管理员踢成登出）；新增 `reject()` 统一写状态码，注解读不出时按未认证拒绝并 warn（不再静默放行）；`a37f4d6` |
+| 同上，前端侧：403 落到通用分支会弹「请求失败」并可能洗掉登录态 | `前端/personal-heath-view/src/utils/request.js`（响应拦截器） | 补 403 分支：只 `ElMessage.warning(msg \|\| "无权访问该功能")`，不动 token、不跳转；`a37f4d6` |
+| 管理员看板只有四个存量计数，`/dashboard/stats` 这个接口在前端找不到任何调用点，谁都能读 | `controller/DashboardController.java:25-26`（只有 `@Protector`）、`mapper/AppointmentMapper.countByStatus()`（写好但没人调） | 按你选的**给管理员看板加功能**：接口收归 `@Protector(role="管理员")`，返回体补 `appointment.total/pending`（顺带给那个死方法一个调用方）；`views/admin/Dashboard.vue` 最近预约卡片表头显示「待确认 N 单」，取不到数就不渲染；`4efa874` |
 
-两条各配守卫测试：`AuthSessionLockFailClosedTest` 8 例、`DataAgentPipelineTest` 新增 6 例，
-其中 8 例做过反向验证（换回改前代码分别报 `expected <true> but was <false>` 与
-`expected <SKIPPED> but was <SUCCESS>`）。改完全量 `mvn -o -B test` = **893 例 / 91 个测试类全绿**。
+守卫测试（新增 25 例 / 2 个测试类）：`NotificationPreferenceServiceImplTest` 改 1 例断言 + 新增 1 例、
+`AgentWorkspaceReadOutcomeTest` 5 例（真实文件系统）+ `AgentMemoryServiceTest` 4 例回归、
+`HarnessEngineTest` +3 例（28 例）、`ProtectorAspectTest` +4 例（16 例）、
+`DashboardControllerStatsTest` 6 例、`DataAgentPipelineTest` 语义校验段 8 例（26 例）、
+另有 `AuthSessionLockFailClosedTest` 8 例（属 `5dd92a7`）。
 
-一条仍待你点头的后续：拒绝时接口回的是 401 +「账号已被禁用，请联系管理员」，
-数据库抖动期间正常用户也会看到这句（措辞不准确，但状态码与前端跳转是对的）。
-要改成「系统繁忙，请稍后重试」就得给拦截器加一条区分 `UNKNOWN` 的分支，
-那是对外可见行为变化，等你说。
+反向验证逐条记（换回改前代码，确认对应用例报红）—— 共 18 例：
+`10a93c7` 2 例；`bc0a152` 1 例（`rejectedSlotMustNotReachMemory`）；`a37f4d6` 4 例
+（`expected <401/403> but was <200>`）；`4efa874` 4 例（`expected: <管理员> but was: <>` 1 例 +
+待确认桶错位 3 例）；`c40d25d` 7 例（去掉追问 → 6 例报红，含 `expected: <SUCCESS> but was: <SKIPPED>`；
+去掉复核 → 2 例 `expected: <2> but was: <1>`；两组重叠 1 例）。
+**`e6771eb` 只补了用例、没做反向验证**，写在这里是为了不含糊过去。
+
+`mvn -o -B test` 现值 = **918 例 / 93 个测试类全绿**（2026-10-25 实测；§7 起于 893/91）。
+仍要提醒：这套用例里没有一个 `@SpringBootTest`，全绿只证明方法级逻辑，**不证明应用能启动**；
+`Dashboard.vue` 只做了 `vue-cli-service build` 通过 + 脚本段语法检查，
+本机连不上 MySQL/后端，未做浏览器实测。
+
+### 7.4 §七 收口后仍开着的两条
+
+1. **AI 每轮都问「既往病史」，用户的回答既抽不出来也不落库** ——
+   `core/harness/HarnessEngine.java:55` 把 `chronicDiseases` 列进 `REQUIRED_SLOTS`，
+   但 `:226-239` 的 `EXTRACT_RULES` 只有身高/体重/年龄三条正则（性别与病史都不在抽取范围内），
+   `persistSlots` 也只写性别/年龄/身高/体重这四样；全项目唯一写 `chronicDiseases` 的地方是档案表单
+   `service/impl/PatientProfileServiceImpl.java:118`。
+   后果：没在表单里填过病史的人，`checkDataCompleteness` 永远判定它缺失 →
+   追问话术每轮注入 → 用户答了「有高血压，长期吃络活喜」，系统照旧不懂，下一轮再问一遍。
+   **要改得先定方向**：① 把病史也纳入抽取并落库（需归一化成 JSON 数组 —— `HarnessEngine.java:94`
+   注明迁移脚本把「无慢性病」写成 `[]`，判「没病」和「没答」得分开）；
+   ② 把这条从 `REQUIRED_SLOTS` 摘掉，对话里不再追问，只在档案表单填。
+   我倾向 ②（对话里抽自由文本属于 LLM 的活，而本类的注释明确写着「不做 LLM 调用」），但这是产品取向，等你说。
+2. **被禁用与数据库抖动共用一句提示** —— 拒绝时接口回的是 401 +「账号已被禁用，请联系管理员」，
+   数据库抖动期间正常用户也会看到这句（措辞不准确，但状态码与前端跳转是对的）。
+   要改成「系统繁忙，请稍后重试」就得给拦截器加一条区分 `UNKNOWN` 的分支，
+   那是对外可见行为变化，等你说。
