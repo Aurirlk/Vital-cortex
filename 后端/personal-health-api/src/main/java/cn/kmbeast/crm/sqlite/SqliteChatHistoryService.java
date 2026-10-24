@@ -98,7 +98,12 @@ public class SqliteChatHistoryService {
         } catch (Exception e) {
             log.error("[CRM-SQLite] 检查新用户失败: phone={}", phoneNumber, e);
         }
-        return true;
+        // 查不出来时按「老用户」降级，而不是按「新用户」。
+        // 原先返回 true，后果是让调用方跳过整段历史并塞进欢迎语：
+        // 一个有多轮记录的用户在 SQLite 抖动的这一刻，会突然被当成第一次来的人打招呼，
+        // 且上一轮说过的身高体重全部消失（SeaChatWorkflow 见 isNewUser=true 就不读历史）。
+        // 返回 false 的最坏情况只是本次没有欢迎语，历史读回来是空列表也不会造假上下文。
+        return false;
     }
 
     /**
