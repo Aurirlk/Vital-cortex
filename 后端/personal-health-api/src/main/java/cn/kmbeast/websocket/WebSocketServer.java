@@ -71,11 +71,7 @@ public class WebSocketServer {
         // 心跳保活：客户端每隔 30s 发送 {"type":"heartbeat"}，服务端回包以维持连接活跃。
         // 前端 ws.onmessage 会忽略 type=heartbeat 的回包，不影响业务消息分发（D-004 整改）。
         if (session != null && session.isOpen() && message != null && message.contains("heartbeat")) {
-            try {
-                session.getBasicRemote().sendText("{\"type\":\"heartbeat\"}");
-            } catch (IOException e) {
-                log.error("WebSocket 心跳回包失败: userId={}", userId, e);
-            }
+            sendSafely(session, "{\"type\":\"heartbeat\"}", "心跳回包");
         }
     }
 
@@ -85,11 +81,7 @@ public class WebSocketServer {
     public static void sendToUser(String userId, String message) {
         Session session = SESSIONS.get(userId);
         if (session != null && session.isOpen()) {
-            try {
-                session.getBasicRemote().sendText(message);
-            } catch (IOException e) {
-                log.error("发送消息失败: userId={}", userId, e);
-            }
+            sendSafely(session, message, "单发 userId=" + userId);
         }
     }
 
@@ -99,13 +91,35 @@ public class WebSocketServer {
     public static void broadcast(String message) {
         SESSIONS.forEach((userId, session) -> {
             if (session.isOpen()) {
-                try {
-                    session.getBasicRemote().sendText(message);
-                } catch (IOException e) {
-                    log.error("广播消息失败: userId={}", userId, e);
-                }
+                sendSafely(session, message, "广播 userId=" + userId);
             }
         });
+    }
+
+    /**
+     * 唯一的发送出口：<b>按 session 串行</b>写帧。
+     *
+     * <p>JSR-356 规定 {@code session.getBasicRemote()} 是同步且<b>非线程安全</b>的：
+     * 同一个 session 上并发调用 {@code sendText}，容器要么直接抛
+     * {@code IllegalStateException}，要么把两帧交错写出去。本类的三个调用点恰好来自
+     * 三种不同线程 —— 心跳回包在容器线程、{@code sendToUser} 在业务请求线程
+     * （发通知时同步调用）、{@code broadcast} 在管理员/定时任务线程。
+     * 用户端的表现为「通知铃从此不再更新」，而服务端只有一行 error 日志；
+     * 帧交错时前端还会收到一条解析失败的脏消息。
+     *
+     * <p>锁对象用 session 本身：每条连接一把锁，互不阻塞，也不需要额外的 map。
+     */
+    private static void sendSafely(Session session, String message, String context) {
+        try {
+            synchronized (session) {
+                session.getBasicRemote().sendText(message);
+            }
+        } catch (IOException e) {
+            log.error("WebSocket 发送失败({}): {}", context, e.getMessage(), e);
+        } catch (RuntimeException e) {
+            // session 已关闭 / 容器状态异常等：不能让一次通知投递把调用方的业务带崩
+            log.error("WebSocket 发送异常({}): {}", context, e.getMessage(), e);
+        }
     }
 
     /**
