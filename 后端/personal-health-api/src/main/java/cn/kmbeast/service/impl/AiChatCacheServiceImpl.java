@@ -232,8 +232,24 @@ public class AiChatCacheServiceImpl implements AiChatCacheService {
     @Override
     @Transactional
     public void deleteConversation(Integer conversationId) {
+        // 属主必须在删除之前取：删完再查就只剩 null 了，磁盘副本会永远找不到归属。
+        // 与 batchDeleteConversations 同一套做法（那处 2026-10-07 修过，单条删除漏了）。
+        AiConversation owned = conversationCache.get(conversationId);
+        if (owned == null || owned.getUserId() == null) {
+            owned = conversationMapper.getById(conversationId);
+        }
+        Integer ownerId = owned != null ? owned.getUserId() : null;
+
         chatRecordMapper.deleteByConversationId(conversationId);
         conversationMapper.deleteById(conversationId);
+        if (ownerId != null) {
+            // 不删磁盘副本的话，getConversationList 在 MySQL 查空时会回落到
+            // historyStorage.loadConversations(userId)，被删掉的会话（含标题与全部消息）
+            // 会整批重新出现，直到 24 小时的孤儿文件清理任务跑过。
+            historyStorage.deleteConversation(ownerId, conversationId);
+        } else {
+            log.warn("[Cache] 删除会话未能定位属主，跳过磁盘副本清理: conversationId={}", conversationId);
+        }
         messageCache.remove(conversationId);
         conversationCache.remove(conversationId);
         log.info("[Cache] 删除会话: conversationId={}", conversationId);
