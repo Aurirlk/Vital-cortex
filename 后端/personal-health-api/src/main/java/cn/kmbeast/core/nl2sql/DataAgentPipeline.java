@@ -414,17 +414,29 @@ public class DataAgentPipeline {
             genEv.withThinking(sql).withPayload("sql", sql);
             out.emit(genEv);
 
-            // ---- 6. 语义一致性校验（不通过则重生成一轮）----
+            // ---- 6. 语义一致性校验（明确不通过才重生成一轮；读不出判定就如实标未校验）----
             t = System.currentTimeMillis();
             out.emit(AgentStepEvent.running(AgentStep.SEMANTIC_CHECK));
             JSONObject checkJson = parseObject(llm.chat(promptBuilder.buildSemanticConsistencyPrompt(
                     config.getDialect(), canonical, question, "", schemaText, sql), false, ""));
-            boolean passed = checkJson == null || !Boolean.FALSE.equals(checkJson.getBoolean("passed"));
-            AgentStepEvent checkEv = AgentStepEvent.success(AgentStep.SEMANTIC_CHECK, elapsed(t),
-                    passed ? "SQL 与问题语义一致" : "校验未通过，重新生成");
-            checkEv.withThinking(checkJson == null ? null : checkJson.toJSONString()).withPayload("passed", passed);
+            // 只有模型明确给出 passed 才算校验做过。改前是
+            // {@code checkJson == null || !Boolean.FALSE.equals(...)}，把「没返回」「返回的不是 JSON」
+            // 「压根没有 passed 字段」全算成通过，界面因此亮一盏假绿灯。
+            Boolean verdict = readSemanticVerdict(checkJson);
+            AgentStepEvent checkEv;
+            if (verdict == null) {
+                checkEv = AgentStepEvent.skipped(AgentStep.SEMANTIC_CHECK,
+                        "未完成语义校验：模型未返回判定（本报告结论未经语义核对）");
+                checkEv.setElapsedMs(elapsed(t));
+            } else {
+                checkEv = AgentStepEvent.success(AgentStep.SEMANTIC_CHECK, elapsed(t),
+                        verdict ? "SQL 与问题语义一致" : "校验未通过，重新生成");
+            }
+            checkEv.withThinking(checkJson == null ? null : checkJson.toJSONString())
+                    .withPayload("checked", verdict != null)
+                    .withPayload("passed", verdict);
             out.emit(checkEv);
-            if (!passed && checkJson != null) {
+            if (Boolean.FALSE.equals(verdict)) {
                 String reason = nullToEmpty(checkJson.getString("reason"));
                 t = System.currentTimeMillis();
                 out.emit(AgentStepEvent.running(AgentStep.SQL_GENERATE));
@@ -820,6 +832,41 @@ public class DataAgentPipeline {
             }
             return null;
         }
+    }
+
+    /**
+     * 读语义校验判定。返回 {@code null} 表示「模型没给出判定」（没返回、不是 JSON、缺字段、
+     * 字段值不是可认的布尔），调用方必须据此显示「未完成语义校验」而不是「一致」。
+     *
+     * <p>刻意不用 {@code JSONObject.getBoolean}：它会把字符串强行转换，
+     * {@code {"passed":"maybe"}} 这类含糊回复也能转出个布尔值，绿灯就又假了。
+     */
+    private static Boolean readSemanticVerdict(JSONObject checkJson) {
+        if (checkJson == null) {
+            return null;
+        }
+        Object raw;
+        try {
+            raw = checkJson.get("passed");
+        } catch (Exception ignored) {
+            return null;
+        }
+        if (raw instanceof Boolean b) {
+            return b;
+        }
+        if (raw instanceof Number n) {
+            return n.intValue() != 0;
+        }
+        if (raw instanceof String s) {
+            String v = s.trim();
+            if ("true".equalsIgnoreCase(v) || "yes".equalsIgnoreCase(v) || "1".equals(v)) {
+                return true;
+            }
+            if ("false".equalsIgnoreCase(v) || "no".equalsIgnoreCase(v) || "0".equals(v)) {
+                return false;
+            }
+        }
+        return null;
     }
 
     private DataAgentQaResult fill(DataAgentQaResult result, DataAgentQaResult src) {

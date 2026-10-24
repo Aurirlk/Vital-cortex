@@ -712,4 +712,95 @@ class DataAgentPipelineTest {
                 .anyMatch(e -> e.getPayload() != null && e.getPayload().containsKey("fixAttempt"));
         assertFalse(retried, "缺只读源时不应触发 SQL 修复重试");
     }
+
+    // ---------------- 语义一致性校验：这盏绿灯是真的吗（2026-10-24） ----------------
+
+    /** 前五步固定应答，只换第 5 个（语义校验的返回值）。 */
+    private static StubLlm llmWithVerdict(String verdictResponse) {
+        return new StubLlm().enqueue(
+                "{\"classification\":\"《可能的数据分析请求》\"}",
+                "{\"canonical_query\":\"我的血压记录\"}",
+                "[\"user_health\"]",
+                "SELECT id, value FROM user_health",
+                verdictResponse);
+    }
+
+    private void assertVerdictHonesty(String verdictResponse, String label) throws Exception {
+        DataAgentPipeline p = pipeline(new StubConfig(), llmWithVerdict(verdictResponse));
+        List<AgentStepEvent> events = new ArrayList<>();
+        p.run(req("看看我的血压"), 9527L, events::add);
+
+        AgentStepEvent check = lastStep(events, AgentStep.SEMANTIC_CHECK);
+        assertNotNull(check, "应产生 SEMANTIC_CHECK 事件");
+        assertEquals(AgentStepEvent.SKIPPED, check.getStatus(),
+                "🔴 " + label + "：读不出判定却标成功 = 界面显示「SQL 与问题语义一致」的假绿灯");
+        assertTrue(check.getSummary().contains("未完成语义校验"),
+                label + "：摘要应如实说明没校验，实际: " + check.getSummary());
+        assertFalse(check.getSummary().contains("语义一致"),
+                label + "：不得出现「语义一致」，实际: " + check.getSummary());
+        assertEquals(Boolean.FALSE, check.getPayload().get("checked"), label + "：payload.checked 必须为 false");
+        assertNull(check.getPayload().get("passed"), label + "：passed 应为 null（未判定）");
+        long generateCount = events.stream()
+                .filter(e -> AgentStep.SQL_GENERATE.name().equals(e.getStep())
+                        && AgentStepEvent.SUCCESS.equals(e.getStatus()))
+                .count();
+        assertEquals(1, generateCount, label + "：读不出判定不应额外多打一轮生成");
+    }
+
+    @Test
+    @DisplayName("语义校验：模型返回的不是 JSON → 如实标「未完成语义校验」")
+    void unparsableVerdictIsNotReportedAsPassed() throws Exception {
+        assertVerdictHonesty("抱歉，这个问题我无法判断。", "返回自然语言");
+    }
+
+    @Test
+    @DisplayName("语义校验：返回空串（模型没输出）→ 如实标「未完成语义校验」")
+    void emptyVerdictIsNotReportedAsPassed() throws Exception {
+        assertVerdictHonesty("", "返回空串");
+    }
+
+    @Test
+    @DisplayName("语义校验：是 JSON 但没有 passed 字段 → 如实标「未完成语义校验」")
+    void missingPassedFieldIsNotReportedAsPassed() throws Exception {
+        assertVerdictHonesty("{\"reason\":\"看起来还行\"}", "缺 passed 字段");
+    }
+
+    @Test
+    @DisplayName("语义校验：模型给了非布尔的 passed → 同样算未判定，不因此抛异常中断")
+    void nonBooleanPassedFallsBackToUnverified() throws Exception {
+        assertVerdictHonesty("{\"passed\":\"maybe\"}", "passed 不是布尔");
+    }
+
+    @Test
+    @DisplayName("语义校验：显式 passed=true 才算通过，绿灯才是真的")
+    void explicitPassIsSuccess() throws Exception {
+        DataAgentPipeline p = pipeline(new StubConfig(), llmWithVerdict("{\"passed\":true}"));
+        List<AgentStepEvent> events = new ArrayList<>();
+        p.run(req("看看我的血压"), 9527L, events::add);
+
+        AgentStepEvent check = lastStep(events, AgentStep.SEMANTIC_CHECK);
+        assertNotNull(check);
+        assertEquals(AgentStepEvent.SUCCESS, check.getStatus());
+        assertTrue(check.getSummary().contains("语义一致"), "实际: " + check.getSummary());
+        assertEquals(Boolean.TRUE, check.getPayload().get("checked"));
+        assertEquals(Boolean.TRUE, check.getPayload().get("passed"));
+    }
+
+    @Test
+    @DisplayName("语义校验：显式 passed=false 才触发重生成（原有行为不变）")
+    void explicitFailStillRegenerates() throws Exception {
+        StubLlm llm = llmWithVerdict("{\"passed\":false,\"reason\":\"漏了时间范围\"}");
+        llm.enqueue("SELECT id, value FROM user_health WHERE create_time > NOW() - INTERVAL 7 DAY");
+        DataAgentPipeline p = pipeline(new StubConfig(), llm);
+        List<AgentStepEvent> events = new ArrayList<>();
+        p.run(req("看看我近一周的血压"), 9527L, events::add);
+
+        AgentStepEvent check = lastStep(events, AgentStep.SEMANTIC_CHECK);
+        assertEquals(AgentStepEvent.SUCCESS, check.getStatus(), "明确判不通过是一次有效的校验");
+        assertEquals(Boolean.FALSE, check.getPayload().get("passed"));
+        assertTrue(check.getSummary().contains("重新生成"), "实际: " + check.getSummary());
+        assertTrue(events.stream().anyMatch(e -> Boolean.TRUE.equals(
+                        e.getPayload() == null ? null : e.getPayload().get("regenerated"))),
+                "passed=false 时必须重生成一轮");
+    }
 }
