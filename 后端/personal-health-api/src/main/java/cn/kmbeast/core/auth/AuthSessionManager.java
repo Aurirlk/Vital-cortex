@@ -22,7 +22,8 @@ import java.time.LocalDateTime;
  *   <li>{@code auth:user:{id}:vip}   —— VIP 标记缓存（"1"=VIP），TTL 60s，miss 查库回填，
  *       供上下文窗口分级（roadmap §1.2 Phase B）与能力下发使用。</li>
  * </ul>
- * 降级策略：Redis 异常时 ver 校验跳过（仅保留 JWT 签名校验）、状态与 VIP 直接查库。
+ * 降级策略：Redis 异常时 ver 校验跳过（仅保留 JWT 签名校验）、状态与 VIP 直接查库；
+ * <b>账号状态连查库都失败时按「已锁定」拒绝</b>（fail-closed，2026-10-24 定），VIP 判定失败仍按非 VIP。
  */
 @Slf4j
 @Component
@@ -75,23 +76,33 @@ public class AuthSessionManager {
 
     /**
      * 账号是否被锁定（is_login=1）。Redis 缓存 miss 时查库回填；Redis 异常时直接查库。
+     *
+     * <p><b>查不出状态时按「已锁定」处理（fail-closed）</b>：被停用的账号不该因为
+     * 数据库报错就恢复访问。代价是数据库抖动的几分钟里正常用户也会被拒 —— 这是
+     * 2026-10-24 明确选定的取向，理由见 {@link #queryStateFromDb}。
      */
     public boolean isAccountLocked(Integer userId) {
         if (userId == null) {
             return false;
         }
+        String cached = null;
         try {
-            String cached = stringRedisTemplate.opsForValue().get(key(KEY_STATE, userId));
-            if (cached != null) {
-                return "1".equals(cached);
-            }
-            boolean locked = queryLockedFromDb(userId);
-            setAccountState(userId, locked);
-            return locked;
+            cached = stringRedisTemplate.opsForValue().get(key(KEY_STATE, userId));
         } catch (Exception e) {
             log.warn("[Auth] 读取账号状态缓存失败，降级查库: userId={}", userId);
-            return queryLockedFromDb(userId);
         }
+        if (cached != null) {
+            return "1".equals(cached);
+        }
+        AccountState state = queryStateFromDb(userId);
+        if (state == AccountState.UNKNOWN) {
+            // 不回填缓存：把一次查库失败写成 60s 的「锁定」，等于把抖动放大成整分钟的全员拒绝，
+            // 且数据库恢复后还要等 TTL 到期才放行。下一个请求会重新尝试回源。
+            return true;
+        }
+        boolean locked = state == AccountState.LOCKED;
+        setAccountState(userId, locked);
+        return locked;
     }
 
     /**
@@ -145,14 +156,23 @@ public class AuthSessionManager {
         }
     }
 
-    private boolean queryLockedFromDb(Integer userId) {
+    private AccountState queryStateFromDb(Integer userId) {
         try {
             User user = userMapper.getByActive(User.builder().id(userId).build());
-            return user != null && Boolean.TRUE.equals(user.getIsLogin());
+            if (user == null) {
+                return AccountState.NORMAL;
+            }
+            return Boolean.TRUE.equals(user.getIsLogin()) ? AccountState.LOCKED : AccountState.NORMAL;
         } catch (Exception e) {
-            log.warn("[Auth] 查库判定账号状态失败，按未锁定处理: userId={}", userId);
-            return false;
+            log.error("[Auth] 查库判定账号状态失败，本次请求按「已锁定」拒绝（fail-closed）: userId={}, err={}",
+                    userId, e.getMessage());
+            return AccountState.UNKNOWN;
         }
+    }
+
+    /** 账号状态三态：{@link #UNKNOWN} 只用于「基础设施读不出状态」，绝不写成缓存。 */
+    private enum AccountState {
+        LOCKED, NORMAL, UNKNOWN
     }
 
     private boolean queryVipFromDb(Integer userId) {
