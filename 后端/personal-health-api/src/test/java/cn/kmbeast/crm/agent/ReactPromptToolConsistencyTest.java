@@ -140,6 +140,45 @@ class ReactPromptToolConsistencyTest {
         assertTrue(report.missing.contains("query_health_records"));
     }
 
+    /**
+     * T7.9（2026-10-20 补，台账 P1-8）：反向差集。
+     *
+     * <p>原先 {@code verifyToolConsistency()} 只算 prompt→registry（「prompt 写了但没注册」），
+     * 而<b>本类开头写的那个真实缺陷在反方向</b>：工具注册好了、prompt 一个字没提，
+     * 于是模型永远看不到它。只 warn 不报这一侧，等于最难自查的那类 bug 仍然没人管。
+     */
+    @Test
+    @DisplayName("T7.9 反向差集：注册了但提示词未提及的工具进 unmentioned")
+    void consistencyDetectsUnmentioned() {
+        ReactPromptLoader loader = newLoader();
+        ToolRegistry registry = new ToolRegistry();
+        register(registry, "get_health_data");  // prompt 里有，不该出现在 unmentioned
+        register(registry, "brand_new_tool");   // 全新工具，prompt 从没提过
+        loader.setToolRegistry(registry);
+
+        ReactPromptLoader.ConsistencyReport report = loader.verifyToolConsistency();
+        assertTrue(report.unmentioned.contains("brand_new_tool"),
+                "🔴 注册了但 prompt 未提及，必须报出来，实际: " + report.unmentioned);
+        assertFalse(report.unmentioned.contains("get_health_data"),
+                "prompt 已提及的工具不该被算进 unmentioned");
+    }
+
+    @Test
+    @DisplayName("T7.10 类路径扫出的真实工具全部注册时，unmentioned 必须为空（新工具不写 prompt 就红）")
+    void everyRegisteredToolIsMentionedInPrompt() {
+        ReactPromptLoader loader = newLoader();
+        ToolRegistry registry = new ToolRegistry();
+        for (Tool tool : ToolCatalog.instances()) {
+            register(registry, tool);
+        }
+        loader.setToolRegistry(registry);
+
+        ReactPromptLoader.ConsistencyReport report = loader.verifyToolConsistency();
+        assertTrue(report.unmentioned.isEmpty(),
+                "🔴 这些工具已注册但提示词从未提及，模型调不到（就是 execute_sql/web_search 当年的症状）: "
+                        + report.unmentioned);
+    }
+
     @Test
     @DisplayName("T7.6 工具名抽取不误伤普通英文/非工具标识符")
     void toolNameExtractionHasLowFalsePositive() {

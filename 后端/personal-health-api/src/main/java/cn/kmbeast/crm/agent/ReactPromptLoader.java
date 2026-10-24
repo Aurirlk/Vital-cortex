@@ -239,7 +239,8 @@ public class ReactPromptLoader {
      * 但必须在启动日志里显眼地报出来 —— 因为它的后果是「模型永远不会调那个工具」，
      * 表现为「功能好像没生效」，极难排查。</p>
      *
-     * @return 校验结果，供管理端界面展示（{@code declaredTools} / {@code registryTools} / {@code missing}）
+     * @return 校验结果，供管理端界面展示（{@code declaredTools} / {@code registryTools} /
+     *         {@code missing}（prompt 有、registry 无）与 {@code unmentioned}（registry 有、prompt 无））
      */
     public ConsistencyReport verifyToolConsistency() {
         ConsistencyReport report = new ConsistencyReport();
@@ -259,14 +260,29 @@ public class ReactPromptLoader {
                 report.missing.add(name);
             }
         }
+        // 反向差集（2026-10-20 补，台账 P1-8）：注册了但提示词里一个字都没提。
+        // 这一侧才是已经真实发生过的缺陷 —— execute_sql / web_search 上线时 prompt 没写，
+        // 于是模型永远不会调用它们，表现为「功能好像上线了但从来没人用过」，不报错也不告警。
+        // 原先只算 prompt→registry，等于只防「加了工具忘了写 prompt」的反方向。
+        for (String name : report.registryTools) {
+            if (!report.declaredTools.contains(name)) {
+                report.unmentioned.add(name);
+            }
+        }
 
         if (!report.missing.isEmpty()) {
             log.warn("[ReactPrompt] ⚠️ 提示词提到但未注册的工具: {} —— "
                             + "这些工具模型永远不会被调用，请检查 prompt 是否与 ToolRegistry 同步",
                     report.missing);
         }
-        log.info("[ReactPrompt] 工具名一致性校验：prompt 声明 {} 个，registry 注册 {} 个，缺失 {}",
-                report.declaredTools.size(), report.registryTools.size(), report.missing);
+        if (!report.unmentioned.isEmpty()) {
+            log.warn("[ReactPrompt] ⚠️ 已注册但提示词未提及的工具: {} —— "
+                            + "模型看不到它们，除非是有意灰度，否则等于功能没上线",
+                    report.unmentioned);
+        }
+        log.info("[ReactPrompt] 工具名一致性校验：prompt 声明 {} 个，registry 注册 {} 个，缺失 {}，未提及 {}",
+                report.declaredTools.size(), report.registryTools.size(),
+                report.missing, report.unmentioned);
         return report;
     }
 
@@ -310,12 +326,15 @@ public class ReactPromptLoader {
         public Set<String> registryTools = new LinkedHashSet<>();
         /** 提示词提到但未注册的（需要修 prompt） */
         public Set<String> missing = new LinkedHashSet<>();
+        /** 已注册但提示词从未提及的（模型看不到 = 功能没上线，需要修 prompt 或有意灰度） */
+        public Set<String> unmentioned = new LinkedHashSet<>();
 
         @Override
         public String toString() {
             return "ConsistencyReport{declared=" + declaredTools
                     + ", registry=" + registryTools
-                    + ", missing=" + missing + "}";
+                    + ", missing=" + missing
+                    + ", unmentioned=" + unmentioned + "}";
         }
     }
 

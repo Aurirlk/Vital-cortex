@@ -44,6 +44,17 @@ public class ReactPromptConsistencyRunner {
             if (report.registryTools.isEmpty()) {
                 log.warn("[ReAct 提示词一致性] ToolRegistry 为空（可能未装配），跳过比对");
             }
+            // 反向差集：已注册但提示词没提 —— 这才是历史上真实发生过的那类
+            // （execute_sql / web_search 上线时 prompt 未写），后果与上面完全一样：
+            // 模型看不到这个工具，只是排查时更难归因，因为日志原先根本不报这一侧。
+            if (!report.unmentioned.isEmpty()) {
+                log.warn("┌──────────────────────────────────────────────────────────────┐");
+                log.warn("│ [ReAct 提示词一致性] 已注册但提示词【未提及】的工具：{} │",
+                        report.unmentioned);
+                log.warn("│ 后果：模型看不到这些工具，除非有意灰度，否则等于功能没上线 │");
+                log.warn("│ 修法：在 resources/ai-prompts/react/system.txt 里补用途与调用时机 │");
+                log.warn("└──────────────────────────────────────────────────────────────┘");
+            }
         } catch (Exception e) {
             // 校验失败绝不影响启动
             log.warn("[ReAct 提示词一致性] 校验异常（已忽略）: {}", e.getMessage());
