@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -61,6 +62,9 @@ class ProtectorAspectTest {
 
     private MockHttpServletRequest request;
 
+    /** 2026-10-24：切面要把真实 HTTP 状态写进响应，断言状态码必须拿到真的响应对象。 */
+    private MockHttpServletResponse response;
+
     // 三个被切面读取的目标方法
     private static Object noRoleTarget() { return null; }
     @Protector
@@ -82,7 +86,8 @@ class ProtectorAspectTest {
 
         request = new MockHttpServletRequest();
         request.setRequestURI("/api/personal-health/v1.0/test");
-        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        response = new MockHttpServletResponse();
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request, response));
 
         when(joinPoint.getSignature()).thenReturn(signature);
         // proceed() 声明抛 checked Throwable，用 doReturn().when() 而非 when().thenReturn()：
@@ -138,6 +143,19 @@ class ProtectorAspectTest {
 
         assertTrue(r instanceof Result, "鉴权失败应返回 Result 而不是抛异常");
         verify(joinPoint, never()).proceed();
+    }
+
+    @Test
+    @DisplayName("鉴权失败必须回真 401，不是 HTTP 200 + 业务码")
+    void authFailureShouldCarryRealHttpStatus401() throws Throwable {
+        bindAnnotationTo("endpointAdmin");
+
+        aspect.auth(joinPoint);
+
+        // 前端两个响应拦截器都按 HTTP 状态判断（utils/request.js 的 401 → 清 token 跳登录）。
+        // 状态留在 200 的话用户停在原页面反复看到「请先登录」，却不会被送到登录页。
+        assertEquals(401, response.getStatus(),
+                "token 缺失必须是 HTTP 401，实际: " + response.getStatus());
     }
 
     @Test
@@ -197,6 +215,30 @@ class ProtectorAspectTest {
     }
 
     @Test
+    @DisplayName("越权必须是 403 而不是 401：401 会让前端清 token 把人踢下线")
+    void roleMismatchShouldBeForbiddenNotUnauthorized() throws Throwable {
+        withToken("t-user", 7, 2);
+        bindAnnotationTo("endpointAdmin");
+
+        aspect.auth(joinPoint);
+
+        assertEquals(403, response.getStatus(),
+                "已登录但角色不够，应回 403，实际: " + response.getStatus());
+    }
+
+    @Test
+    @DisplayName("角色不匹配时响应状态码必须被显式设置（默认 200 即为回归）")
+    void roleMismatchShouldNotLeaveDefaultStatus() throws Throwable {
+        withToken("t-doc", 3001, 3);
+        bindAnnotationTo("endpointAdmin");
+
+        aspect.auth(joinPoint);
+
+        assertNotEquals(200, response.getStatus(),
+                "鉴权失败绝不能停在 HTTP 200，否则前端拦截器不触发");
+    }
+
+    @Test
     @DisplayName("@Protector(role=管理员)：医生越权被拒（医生不等于管理员）")
     void doctorCannotAccessAdminEndpoint() throws Throwable {
         withToken("t-doc", 3001, 3);
@@ -249,6 +291,17 @@ class ProtectorAspectTest {
         assertEquals("PROCEEDED", aspect.auth(joinPoint));
     }
 
+    @Test
+    @DisplayName("放行时不改写 HTTP 状态（不许把成功请求标成错误码）")
+    void successShouldLeaveResponseStatusAtDefault() throws Throwable {
+        withToken("t-admin", 1, 1);
+        bindAnnotationTo("endpointAdmin");
+
+        aspect.auth(joinPoint);
+
+        assertEquals(200, response.getStatus(), "放行的请求必须保持 200");
+    }
+
     // ---------------------------------------------------------------- 健壮性
 
     @Test
@@ -264,6 +317,7 @@ class ProtectorAspectTest {
         assertTrue(r instanceof Result);
         assertTrue(((Result<?>) r).getMsg().contains("重新登录"),
                 "应提示重新登录，实际: " + ((Result<?>) r).getMsg());
+        assertEquals(401, response.getStatus(), "缺 role 声明属身份问题，应回 401");
         verify(joinPoint, never()).proceed();
     }
 

@@ -51,6 +51,14 @@ request.interceptors.response.use(
       if (current.indexOf("/login") === -1) {
         window.location.hash = "#/login";
       }
+    } else if (status === 403) {
+      // 403 = 知道你是谁，但没有这个权限（@Protector(role=...) 角色不匹配）。
+      // 与医生端 utils/doctorRequest.js 的口径一致：只提示，绝不能清 token ——
+      // 否则一次误点就把已登录的用户踢下线。
+      // 后端改真状态码之前这里是 HTTP 200 + 业务码，各页面自己 res.data.code === 400
+      // 弹提示；改成 403 后那些代码走不到了，提示统一放在这里。
+      const body = (error.response && error.response.data) || {};
+      ElMessage.warning(body.msg || "无权访问该功能");
     }
     return Promise.reject(error);
   }
