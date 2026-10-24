@@ -75,15 +75,17 @@ public class AuthSessionManager {
     }
 
     /**
-     * 账号是否被锁定（is_login=1）。Redis 缓存 miss 时查库回填；Redis 异常时直接查库。
+     * 账号状态。Redis 缓存 miss 时查库回填；Redis 异常时直接查库。
      *
-     * <p><b>查不出状态时按「已锁定」处理（fail-closed）</b>：被停用的账号不该因为
-     * 数据库报错就恢复访问。代价是数据库抖动的几分钟里正常用户也会被拒 —— 这是
-     * 2026-10-24 明确选定的取向，理由见 {@link #queryStateFromDb}。
+     * <p><b>查不出状态时返回 {@link AccountState#UNKNOWN}，调用方必须按「已锁定」拒绝（fail-closed）</b>：
+     * 被停用的账号不该因为数据库报错就恢复访问。代价是数据库抖动的几分钟里正常用户也会被拒 —— 这是
+     * 2026-10-24 明确选定的取向，理由见 {@link #queryStateFromDb}。但<b>拒绝措辞要分开</b>：
+     * 对真被封禁的人说「已被禁用」是对的，对只是赶上库抖动的人说这句是冤枉，
+     * 所以 {@code JwtInterceptor} 按 UNKNOWN 单独回「系统繁忙，请稍后重试」。
      */
-    public boolean isAccountLocked(Integer userId) {
+    public AccountState accountState(Integer userId) {
         if (userId == null) {
-            return false;
+            return AccountState.NORMAL;
         }
         String cached = null;
         try {
@@ -92,17 +94,23 @@ public class AuthSessionManager {
             log.warn("[Auth] 读取账号状态缓存失败，降级查库: userId={}", userId);
         }
         if (cached != null) {
-            return "1".equals(cached);
+            return "1".equals(cached) ? AccountState.LOCKED : AccountState.NORMAL;
         }
         AccountState state = queryStateFromDb(userId);
         if (state == AccountState.UNKNOWN) {
             // 不回填缓存：把一次查库失败写成 60s 的「锁定」，等于把抖动放大成整分钟的全员拒绝，
             // 且数据库恢复后还要等 TTL 到期才放行。下一个请求会重新尝试回源。
-            return true;
+            return state;
         }
-        boolean locked = state == AccountState.LOCKED;
-        setAccountState(userId, locked);
-        return locked;
+        setAccountState(userId, state == AccountState.LOCKED);
+        return state;
+    }
+
+    /**
+     * 是否该按「已锁定」拒绝：真锁定（LOCKED）与读不出状态（UNKNOWN）都拒绝（fail-closed）。
+     */
+    public boolean isAccountLocked(Integer userId) {
+        return accountState(userId) != AccountState.NORMAL;
     }
 
     /**
@@ -170,8 +178,12 @@ public class AuthSessionManager {
         }
     }
 
-    /** 账号状态三态：{@link #UNKNOWN} 只用于「基础设施读不出状态」，绝不写成缓存。 */
-    private enum AccountState {
+    /**
+     * 账号状态（三态）。{@link #UNKNOWN} 只用于「基础设施读不出状态」（Redis 与 MySQL 都失败），
+     * 绝不写成缓存。调用方要用它区分两件事：<b>真被封禁</b>（LOCKED）与<b>系统暂时读不出</b>
+     * （UNKNOWN），两者的拒绝措辞不同 —— 后者对用户说「账号已被禁用」是冤枉。
+     */
+    public enum AccountState {
         LOCKED, NORMAL, UNKNOWN
     }
 

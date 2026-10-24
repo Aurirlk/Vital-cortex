@@ -36,11 +36,20 @@ request.interceptors.response.use(
   (error) => {
     const status = error && error.response && error.response.status;
     if (status === 401) {
+      const body = error.response.data || {};
       // roadmap §1.3：业务码 4010 = 账号被禁用（管理员锁定），给出明确提示；
       // 其余 401（token 失效/会话过期）静默清 token 跳登录。
-      const body = error.response.data || {};
       if (body.code === 4010) {
         ElMessage.error(body.msg || "账号已被禁用，请联系管理员");
+      }
+      // 业务码 4011 = 后端「读不出账号状态」（Redis 与 MySQL 同时不可用）时的 fail-closed 拒绝。
+      // 这和 4010 是两件事：4010 是「你被封了」，4011 是「我们这边刚才没查出来」，
+      // 所以提示「系统繁忙，请稍后重试」，并且**不清 token、不跳登录页** ——
+      // 此刻本地 token 大概率仍然有效，把它清掉等于因为服务端抖一下就把用户踢下线，
+      // 用户重试也还得重新登录。请求本身仍被拒（走 reject 返回给各页面）。
+      if (body.code === 4011) {
+        ElMessage.error(body.msg || "系统繁忙，请稍后重试");
+        return Promise.reject(error);
       }
       try {
         clearToken();

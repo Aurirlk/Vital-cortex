@@ -30,6 +30,15 @@ public class JwtInterceptor implements HandlerInterceptor {
     /** 业务码：账号已被禁用（锁定），前端据此提示并强制退出（roadmap §1.3） */
     private static final int CODE_ACCOUNT_DISABLED = 4010;
 
+    /**
+     * 业务码：账号状态读不出来（Redis 与 MySQL 同时失败），本次请求按 fail-closed 拒绝。
+     *
+     * <p>和 {@link #CODE_ACCOUNT_DISABLED} 分开是必需的：两者都回 401，但含义完全不同 ——
+     * 一个是「你的账号被管理员封了」，一个是「我们自己的库刚才没答上来」。
+     * 前端按业务码选文案，不能把后者显示成前者。
+     */
+    private static final int CODE_ACCOUNT_STATE_UNAVAILABLE = 4011;
+
     @Resource
     private JwtUtil jwtUtil;
 
@@ -91,8 +100,20 @@ public class JwtInterceptor implements HandlerInterceptor {
         if (!isDoctor) {
             // roadmap §1.3：账号锁定（is_login=1）即时生效——存量 token 立即失效并强制退出。
             // 走 Redis 缓存（60s TTL，miss 查库回填），Redis 不可用时降级查库。
-            if (authSessionManager.isAccountLocked(userId)) {
-                writeAccountDisabled(response);
+            //
+            // 2026-10-25：LOCKED 与 UNKNOWN 都拒绝（fail-closed 不变），但文案分开。
+            // UNKNOWN 表示「Redis 和 MySQL 都没答上来」，此时账号到底有没有被封是未知的，
+            // 对用户说「账号已被禁用」是冤枉的（库抖动的几分钟里正常用户也会看到这句），
+            // 所以回 4011 +「系统繁忙，请稍后重试」，让人知道是服务端临时问题、重试即可。
+            AuthSessionManager.AccountState state = authSessionManager.accountState(userId);
+            if (state == AuthSessionManager.AccountState.LOCKED) {
+                writeFailClosed(response, CODE_ACCOUNT_DISABLED, "账号已被禁用，请联系管理员");
+                return false;
+            }
+            if (state == AuthSessionManager.AccountState.UNKNOWN) {
+                log.warn("[Auth] 账号状态读不出，按 fail-closed 拒绝: userId={}, uri={}",
+                        userId, requestURI);
+                writeFailClosed(response, CODE_ACCOUNT_STATE_UNAVAILABLE, "系统繁忙，请稍后重试");
                 return false;
             }
         }
@@ -126,14 +147,20 @@ public class JwtInterceptor implements HandlerInterceptor {
     }
 
     /**
-     * 401 + 业务码 4010：账号被禁用，前端清 token 并提示后跳登录。
+     * fail-closed 拒绝：HTTP 一律 401（身份此刻不可用），只有业务码与文案随原因变化。
+     *
+     * <p>前端两套处理都要走：清 token 跳登录（401 的通用语义）+ 按业务码弹出如实文案。
+     *
+     * @param code 业务码：{@value #CODE_ACCOUNT_DISABLED} 表示已被禁用，
+     *             {@value #CODE_ACCOUNT_STATE_UNAVAILABLE} 表示状态读不出
+     * @param msg  给用户的文案
      */
-    private void writeAccountDisabled(HttpServletResponse response) throws Exception {
+    private void writeFailClosed(HttpServletResponse response, int code, String msg) throws Exception {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json;charset=UTF-8");
         JSONObject body = new JSONObject();
-        body.put("code", CODE_ACCOUNT_DISABLED);
-        body.put("msg", "账号已被禁用，请联系管理员");
+        body.put("code", code);
+        body.put("msg", msg);
         body.put("data", null);
         Writer stream = response.getWriter();
         stream.write(body.toJSONString());

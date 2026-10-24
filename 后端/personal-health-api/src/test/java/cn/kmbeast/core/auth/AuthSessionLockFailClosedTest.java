@@ -13,6 +13,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -147,5 +148,34 @@ class AuthSessionLockFailClosedTest {
         assertFalse(manager.isAccountLocked(null));
         verify(stringRedisTemplate, never()).opsForValue();
         verify(userMapper, never()).getByActive(any(User.class));
+    }
+
+    // ============ 2026-10-25 补：三态必须可区分，否则拒绝文案会说谎（bug.md §7.4 第 2 条） ============
+
+    @Test
+    @DisplayName("查库失败：状态是 UNKNOWN 而不是 LOCKED —— 拒绝可以，不能冤枉用户「已被禁用」")
+    void dbFailureYieldsUnknownNotNullLocked() {
+        cacheReturns(null);
+        dbFails();
+
+        assertEquals(AuthSessionManager.AccountState.UNKNOWN, manager.accountState(7),
+                "🔴 读不出状态却报 LOCKED，接口就会对赶上库抖动的正常用户说「账号已被禁用，请联系管理员」");
+        assertTrue(manager.isAccountLocked(7), "UNKNOWN 仍要 fail-closed 拒绝");
+    }
+
+    @Test
+    @DisplayName("明确锁定：状态是 LOCKED，与 UNKNOWN 分得开")
+    void lockedYieldsLocked() {
+        cacheReturns("1");
+
+        assertEquals(AuthSessionManager.AccountState.LOCKED, manager.accountState(7));
+    }
+
+    @Test
+    @DisplayName("正常账号：状态是 NORMAL")
+    void normalYieldsNormal() {
+        cacheReturns("0");
+
+        assertEquals(AuthSessionManager.AccountState.NORMAL, manager.accountState(7));
     }
 }
