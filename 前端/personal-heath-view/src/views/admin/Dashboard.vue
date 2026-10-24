@@ -79,7 +79,14 @@
       <!-- ============ 次要块一：最近预约 4 列 ============ -->
       <section class="tile tile--side">
         <div class="tile__head">
-          <h3 class="tile__title">最近预约</h3>
+          <div class="tile__titles">
+            <h3 class="tile__title">最近预约</h3>
+            <!-- 待确认单量：管理员每天要处理的积压。取不到时整块不显示，
+                 而不是显示 0 —— 0 会被读成「没有要处理的」，那是错的安慰。 -->
+            <p v-if="pendingAppointments !== null" class="tile__pending">
+              待确认 <b>{{ pendingAppointments }}</b> 单
+            </p>
+          </div>
           <button
             class="tile__link"
             @click="$router.push('/admin/appointmentManage')"
@@ -249,6 +256,7 @@ export default {
       mallTotal: null,
       appointmentTotal: null,
       recentAppointments: null, // null = 请求失败（不是「没有数据」，空数据是 []）
+      pendingAppointments: null, // /dashboard/stats 的待确认单量，null = 没读到
       messages: null,
 
       /*
@@ -509,6 +517,7 @@ export default {
         this.loadTrend(),
         this.loadStaticStats(),
         this.loadTotals(),
+        this.loadDashboardStats(),
         this.loadMessages(),
       ]).then(() => {
         this.refreshing = false;
@@ -602,6 +611,18 @@ export default {
       this.recentAppointments =
         appt && Array.isArray(appt.data) ? appt.data : null;
       this.loaded.appointments = true;
+    },
+
+    /**
+     * 待确认预约数：来自管理端专用的 /dashboard/stats（一次 GROUP BY，不拉列表）。
+     *
+     * 只认数字 —— 接口挂了要保持 null 让模板整行不显示，
+     * 把「没读到」显示成「待确认 0 单」是反向误导，管理员会以为没有积压要处理。
+     */
+    async loadDashboardStats() {
+      const data = await this.safeGet("dashboard/stats");
+      const pending = data && data.appointment ? data.appointment.pending : null;
+      this.pendingAppointments = typeof pending === "number" ? pending : null;
     },
 
     async loadMessages() {
@@ -905,6 +926,18 @@ export default {
   margin: 4px 0 0;
   font-size: 12px;
   color: var(--xh-text-muted);
+}
+
+/* 待确认单量：紧凑的一行小字，只在有数据时出现，不抢列表的视觉重心 */
+.tile__pending {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  color: #b45309;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile__pending b {
+  font-weight: 700;
 }
 
 .tile__link {
