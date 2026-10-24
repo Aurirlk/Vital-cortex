@@ -204,6 +204,7 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 上面那份台账收口后，我又扫了一轮**运行期代码**（先让子代理按「出错时往哪个方向降级」
 筛候选，再逐条打开源码复核，共 11 个候选，推翻或降级了其中若干）。这一轮里
 6 条当场改掉，7 条只报不动 —— 它们的正确改法需要你先定方向，或者会改变对外可见行为。
+**同日你点头后，7 条里又修掉 2 条（§7.2 的第 1、3 条），剩 5 条仍在等你定方向。**
 
 ### 7.1 本轮已修（6 条，`bc4a45a..be9b995`）
 
@@ -216,9 +217,10 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 | 提问为空时流式接口「像是卡住了」：200 + 事件流头 + 0 字节 | `crm/controller/CrmChatController.java:73-90`、`controller/UserChatController.java:131-148`（先设 SSE 头再校验，不合格 `return`） | 校验前置，回 400 JSON；`bd258f2` |
 | 新工具上线忘了写进提示词 → 模型永远调不到，而没有任何一处会报 | `crm/agent/ReactPromptLoader.java:245-275`（原先只算 prompt→registry 单向差集） | 补 `unmentioned` 反向差集 + 启动横幅 + T7.10 活护栏；`be9b995`（台账 P1-8 收口） |
 
-### 7.2 本轮**未修**，需要你点头（7 条）
+### 7.2 本轮**未修**，需要你点头（原 7 条，第 1、3 条已点头修完 → 见 §7.3，剩 5 条）
 
-1. **账号被封还能照常使用（数据库报错的那一刻）** —— `core/auth/AuthSessionManager.java:151-155`：
+1. ~~**账号被封还能照常使用（数据库报错的那一刻）**~~ → **已修，你选的是「改成拒绝」，见 §7.3**
+   —— `core/auth/AuthSessionManager.java:151-155`：
    `queryLockedFromDb` 查库失败时 `return false`（=「没被锁定」）。它是 Redis 失败后的最后一道，
    所以 MySQL 一抖，被停用的账号（JWT 还没过期）照样畅通。
    **为什么不直接改**：反过来 fail-closed 会让数据库抖动的几分钟里**所有用户都被锁在外面**，
@@ -228,7 +230,8 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 2. **通知开关读不到就按「开启」发** —— `service/impl/NotificationPreferenceServiceImpl.java:35-36` 与 `:60`：
    明确写了注释、也论证过（通知默认想收到），但效果是：用户关掉「预约提醒」后，一旦读开关失败
    （例如 `08_*.sql` 迁移没跑）就会重新开始被打扰。要不要改成「读不到就不发」，属产品取向。
-3. **NL2SQL 的「语义一致」绿灯可能是假的** —— `core/nl2sql/DataAgentPipeline.java:422`：
+3. ~~**NL2SQL 的「语义一致」绿灯可能是假的**~~ → **已修，见 §7.3**
+   —— `core/nl2sql/DataAgentPipeline.java:422`：
    模型返回的不是 JSON、或压根没返回 `passed` 字段时，判定按「通过」处理，界面显示
    「SQL 与问题语义一致」。安全守卫（`:443`）和租户改写（`:462`）是真 fail-closed，我复核过，
    所以这只是质量步骤虚绿，不是越权。改法：判空视为不通过并标注「未校验」。
@@ -246,3 +249,21 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
    `createDirectories` 失败只打日志继续往下走，`readFromFile` 把「读失败」和「文件不存在」
    都返回 `null`。第 1 条修完之后写侧已经能如实报失败，读侧仍然分不出这两种情况；
    影响是磁盘故障时偏好会「看起来像从没设置过」。
+
+### 7.3 你点头后补修的 2 条（`5dd92a7`、`26fc054`）
+
+| 你会看到什么 | 定位 | 改法 / 提交 |
+|---|---|---|
+| 数据库报错的那几分钟，被停用的账号还能照常查数据、发通知 | `core/auth/AuthSessionManager.java:79-121`（原 `queryLockedFromDb` 的 catch `return false`） | 按你选的**拒绝（fail-closed）**：状态改三态 `LOCKED/NORMAL/UNKNOWN`，`UNKNOWN` 一律当已锁定拒绝；`5dd92a7` |
+| 同上，但更隐蔽的一侧：一次查库失败被缓存成 60 秒的「正常」 | `AuthSessionManager.java:88-89`（改前把降级出来的 `false` 直接 `setAccountState` 写进 Redis） | `UNKNOWN` **不写缓存**，下个请求重新回源；否则抖动被放大成整分钟，且刚禁用的账号还要等 TTL 到期才生效；`5dd92a7` |
+| 数据问答的报告写着「SQL 与问题语义一致」，其实模型压根没给判定 | `core/nl2sql/DataAgentPipeline.java:422`（`checkJson == null \|\| !Boolean.FALSE.equals(...)`） | 判定为读不出时改发 `SKIPPED` 事件「未完成语义校验：本报告结论未经语义核对」，`payload` 带 `checked=false`；仍照常执行（这是质量步骤，不是安全门）；`26fc054` |
+| 补上的坑：`{"passed":"maybe"}` 这种含糊回复 | `DataAgentPipeline.java` 新增 `readSemanticVerdict` | 不能用 `JSONObject.getBoolean` —— 实测它会把字符串强转出布尔值，绿灯照样假；改成只认 `Boolean` / `0-1` / `true-false-yes-no`，其它一律算未判定；`26fc054` |
+
+两条各配守卫测试：`AuthSessionLockFailClosedTest` 8 例、`DataAgentPipelineTest` 新增 6 例，
+其中 8 例做过反向验证（换回改前代码分别报 `expected <true> but was <false>` 与
+`expected <SKIPPED> but was <SUCCESS>`）。改完全量 `mvn -o -B test` = **893 例 / 91 个测试类全绿**。
+
+一条仍待你点头的后续：拒绝时接口回的是 401 +「账号已被禁用，请联系管理员」，
+数据库抖动期间正常用户也会看到这句（措辞不准确，但状态码与前端跳转是对的）。
+要改成「系统繁忙，请稍后重试」就得给拦截器加一条区分 `UNKNOWN` 的分支，
+那是对外可见行为变化，等你说。

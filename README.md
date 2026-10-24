@@ -5,7 +5,7 @@
 
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.16-brightgreen) ![Java](https://img.shields.io/badge/Java-17-orange) ![Vue](https://img.shields.io/badge/Vue-3-42b883) ![Docker](https://img.shields.io/badge/Docker-compose-2496ed) ![License](https://img.shields.io/badge/License-MIT-blue)
 
-基于 **Spring Boot 3.5 + Java 17 + Vue 3** 构建的 AI 健康平台：AI 智能问诊、**受控 NL2SQL 数据智能体**（自然语言查自己的数据 → 出报告）、知识库双路 RAG 检索、健康数据追踪、体检报告解读、预约挂号、健康商城与社区。支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理，并由覆盖 879 个用例的测试套件守住回归。
+基于 **Spring Boot 3.5 + Java 17 + Vue 3** 构建的 AI 健康平台：AI 智能问诊、**受控 NL2SQL 数据智能体**（自然语言查自己的数据 → 出报告）、知识库双路 RAG 检索、健康数据追踪、体检报告解读、预约挂号、健康商城与社区。支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理，并由覆盖 893 个用例的测试套件守住回归。
 
 ## 项目解决什么问题
 
@@ -319,7 +319,7 @@
 | LLM 稳定性 | Provider 工厂 + 熔断器（429/5xx 自动重试，故障快速失败）+ Sentinel 限流（登录/AI/上传） |
 | 成本可观测 | 每次调用 token 用量落库（`ai_usage` 表） |
 | 日志 | `TraceIdFilter` 注入 MDC `traceId`/`userId`，logback 滚动归档，异常不回传前端 |
-| 单元测试 | 用例规模按时点分别为：我方 2026-10-07 基线 **405 个用例 / 38 个测试类全绿**（含 SqlGuard、NL2SQL 双守卫、数据智能体流水线），2026-10-11 P0-P2 合入后达 **541/541**；通知线 2026-10-10~12 自报 **364 例 `mvn -o test` 全绿**并另增一批后端测试。**2026-10-12 两条线合并后实测 `mvn -o -B test`：684 例 / 69 个测试类全绿**；**2026-10-15 合并 + claude 增强后实测 `mvn -o -B test`：859 例 / 86 个测试类全绿**（新增 RAG 知识库子系统与多智能体编排框架，均已编入并跑过）；**2026-10-20 补修 4 处链路缺陷后实测：864 例 / 87 个测试类全绿**（新增工具白名单 fail-safe 守卫 5 例）；**同日再补 P1-3 的同类缺陷（同步链路与 /crm 流式先存后读）后实测：867 例 / 88 个测试类全绿**（新增对话上下文顺序守卫 3 例，做过反向验证）；**2026-10-24 二轮代码级扫描再修 6 处（SQLite 降级方向、会话单条删除漏清磁盘副本、偏好写盘假成功、WebSocket 同连接并发发送、流式空参数返回 0 字节 SSE、工具清单反向差集）后实测：879 例 / 90 个测试类全绿**（新增 12 例，其中 4 例做过反向验证）（口径仍全为 Mockito，零 `@SpringBootTest`），详见 [`docs/测试报告.md`](docs/测试报告.md) §7，另见「部署指南 · 测试」 |
+| 单元测试 | 用例规模按时点分别为：我方 2026-10-07 基线 **405 个用例 / 38 个测试类全绿**（含 SqlGuard、NL2SQL 双守卫、数据智能体流水线），2026-10-11 P0-P2 合入后达 **541/541**；通知线 2026-10-10~12 自报 **364 例 `mvn -o test` 全绿**并另增一批后端测试。**2026-10-12 两条线合并后实测 `mvn -o -B test`：684 例 / 69 个测试类全绿**；**2026-10-15 合并 + claude 增强后实测 `mvn -o -B test`：859 例 / 86 个测试类全绿**（新增 RAG 知识库子系统与多智能体编排框架，均已编入并跑过）；**2026-10-20 补修 4 处链路缺陷后实测：864 例 / 87 个测试类全绿**（新增工具白名单 fail-safe 守卫 5 例）；**同日再补 P1-3 的同类缺陷（同步链路与 /crm 流式先存后读）后实测：867 例 / 88 个测试类全绿**（新增对话上下文顺序守卫 3 例，做过反向验证）；**2026-10-24 二轮代码级扫描再修 6 处（SQLite 降级方向、会话单条删除漏清磁盘副本、偏好写盘假成功、WebSocket 同连接并发发送、流式空参数返回 0 字节 SSE、工具清单反向差集）后实测：879 例 / 90 个测试类全绿**（新增 12 例，其中 4 例做过反向验证）；**同日按点头方向补修台账 §7.2 的第 1、3 条（账号状态查不出即拒绝、NL2SQL 语义校验不再虚报通过）后实测：893 例 / 91 个测试类全绿**（新增 14 例，其中 8 例做过反向验证）（口径仍全为 Mockito，零 `@SpringBootTest`），详见 [`docs/测试报告.md`](docs/测试报告.md) §7，另见「部署指南 · 测试」 |
 
 > 测试位于 `后端/personal-health-api`；以 Mockito 纯对象测试为主，`@SpringBootTest` **实际 0 处**（`GraphExtractorDbTest` 是 Mockito 单测、`MapperTableConsistencyTest` 只比对 `Data/04_结构基线/` 的 markdown，二者都不启动容器；唯一的「真装配」用例是 `Nl2SqlReadOnlyDataSourceWiringTest`，用 `ApplicationContextRunner` 拉起最小上下文校验只读数据源装配）。Mapper XML 由 `MapperXmlParseTest` 静态兜底（该测试曾揪出服务启动阻断缺陷）。
 
@@ -683,7 +683,7 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 
 ```bash
 # 后端：javac + 自写 RunAll（本项目不用 mvn 跑测试，见 docs/开发指南.md）
-#   当前规模：879 个用例 / 90 个测试类，全量通过（2026-10-24 实测 mvn -o -B test）
+#   当前规模：893 个用例 / 91 个测试类，全量通过（2026-10-24 实测 mvn -o -B test）
 
 # 前端：静态自检（模板标签栈式配平 + <script> 交 node --check）
 python 前端/personal-heath-view/selfcheck.py
@@ -1207,7 +1207,7 @@ VitalCortex/
 ## 编译状态
 
 - 后端编译：**BUILD SUCCESS**（Spring Boot 3.5.16 + Java 17，**467 个 Java 源文件**；`javac -encoding UTF-8` 零 error）
-- 后端测试：**879 个用例 / 90 个测试类全部通过**（2026-10-24 实测 `mvn -o -B test`）
+- 后端测试：**893 个用例 / 91 个测试类全部通过**（2026-10-24 实测 `mvn -o -B test`）
 - 前端：**76 个 `.vue` + 18 个 `.js`**，`npm run build` exit 0（2026-10-20 实测，约 40s）
 - 无编码损坏
 
