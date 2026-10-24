@@ -414,30 +414,13 @@ public class DataAgentPipeline {
             genEv.withThinking(sql).withPayload("sql", sql);
             out.emit(genEv);
 
-            // ---- 6. 语义一致性校验（明确不通过才重生成一轮；读不出判定就如实标未校验）----
+            // ---- 6. 语义一致性校验（读不出判定先追问一轮；重生成后重新核对）----
             t = System.currentTimeMillis();
             out.emit(AgentStepEvent.running(AgentStep.SEMANTIC_CHECK));
-            JSONObject checkJson = parseObject(llm.chat(promptBuilder.buildSemanticConsistencyPrompt(
-                    config.getDialect(), canonical, question, "", schemaText, sql), false, ""));
-            // 只有模型明确给出 passed 才算校验做过。改前是
-            // {@code checkJson == null || !Boolean.FALSE.equals(...)}，把「没返回」「返回的不是 JSON」
-            // 「压根没有 passed 字段」全算成通过，界面因此亮一盏假绿灯。
-            Boolean verdict = readSemanticVerdict(checkJson);
-            AgentStepEvent checkEv;
-            if (verdict == null) {
-                checkEv = AgentStepEvent.skipped(AgentStep.SEMANTIC_CHECK,
-                        "未完成语义校验：模型未返回判定（本报告结论未经语义核对）");
-                checkEv.setElapsedMs(elapsed(t));
-            } else {
-                checkEv = AgentStepEvent.success(AgentStep.SEMANTIC_CHECK, elapsed(t),
-                        verdict ? "SQL 与问题语义一致" : "校验未通过，重新生成");
-            }
-            checkEv.withThinking(checkJson == null ? null : checkJson.toJSONString())
-                    .withPayload("checked", verdict != null)
-                    .withPayload("passed", verdict);
-            out.emit(checkEv);
-            if (Boolean.FALSE.equals(verdict)) {
-                String reason = nullToEmpty(checkJson.getString("reason"));
+            SemanticVerdict check = semanticCheck(config.getDialect(), canonical, question, schemaText, sql);
+            emitSemanticCheck(out, t, check, false);
+            if (Boolean.FALSE.equals(check.passed())) {
+                String reason = check.reason();
                 t = System.currentTimeMillis();
                 out.emit(AgentStepEvent.running(AgentStep.SQL_GENERATE));
                 sql = Nl2SqlLlmClient.stripFence(llm.chat(promptBuilder.buildSqlGeneratePrompt(
@@ -446,6 +429,13 @@ public class DataAgentPipeline {
                 AgentStepEvent regenEv = AgentStepEvent.success(AgentStep.SQL_GENERATE, elapsed(t), "已按校验意见重生成 SQL");
                 regenEv.withThinking(sql).withPayload("sql", sql).withPayload("regenerated", true);
                 out.emit(regenEv);
+
+                // 改前这里没有再核：旧版的判定被顺延到一版谁都没看过的 SQL 上，报告照常执行。
+                // 现在对新版重跑一次校验；仍读不出判定就照实标未校验。不再据结果二次重生成（只核一轮，不打转）。
+                t = System.currentTimeMillis();
+                out.emit(AgentStepEvent.running(AgentStep.SEMANTIC_CHECK));
+                emitSemanticCheck(out, t,
+                        semanticCheck(config.getDialect(), canonical, question, schemaText, sql), true);
             }
 
             // ---- 7. 安全守卫 ----
@@ -832,6 +822,79 @@ public class DataAgentPipeline {
             }
             return null;
         }
+    }
+
+    /**
+     * 语义校验的一轮结果。{@code passed} 为 {@code null} 表示「问过了，但没问出判定」，
+     * 调用方必须显示「未完成语义校验」；{@code attempts} 是实际问了几次（1 或 2）。
+     */
+    private record SemanticVerdict(Boolean passed, String reason, String thinking, int attempts) {
+    }
+
+    /** 第一遍不守格式时追加的追问：只把输出要求再压一遍，不改问题与 SQL。 */
+    private static final String SEMANTIC_RETRY_HINT =
+            "\n\n注意：上一次的回答无法解析。请只输出一个 JSON 对象，"
+                    + "且必须包含布尔字段 passed（不要加引号、不要写成 yes/可能/不确定），"
+                    + "例如 {\"passed\":true,\"reason\":\"...\"}。不要输出任何其它文字。";
+
+    /**
+     * 向模型核对「SQL 是否答的是这个问题」。
+     *
+     * <p>读不出判定时追问一次再放弃 —— 一次不守格式就判「校验做不了」，等于这个环节形同虚设。
+     * 追问仍读不出才返回 {@code passed=null}，此时措辞说明问了两轮。
+     */
+    private SemanticVerdict semanticCheck(String dialect, String canonical, String question,
+                                         String schemaText, String sql) {
+        String prompt = promptBuilder.buildSemanticConsistencyPrompt(
+                dialect, canonical, question, "", schemaText, sql);
+        JSONObject first = parseObject(llm.chat(prompt, false, ""));
+        Boolean verdict = readSemanticVerdict(first);
+        if (verdict != null) {
+            return new SemanticVerdict(verdict, reasonOf(first), thinkingOf(first), 1);
+        }
+        JSONObject second = parseObject(llm.chat(prompt + SEMANTIC_RETRY_HINT, false, ""));
+        if (readSemanticVerdict(second) != null) {
+            return new SemanticVerdict(readSemanticVerdict(second), reasonOf(second), thinkingOf(second), 2);
+        }
+        // 两轮都没判定：thinking 留最后一次的实际返回，便于排查模型到底回了什么
+        JSONObject shown = second == null ? first : second;
+        return new SemanticVerdict(null, null, thinkingOf(shown), 2);
+    }
+
+    private void emitSemanticCheck(StepSink out, long startedAt, SemanticVerdict check, boolean afterRegeneration) {
+        Boolean verdict = check.passed();
+        AgentStepEvent ev;
+        if (verdict == null) {
+            ev = AgentStepEvent.skipped(AgentStep.SEMANTIC_CHECK,
+                    "未完成语义校验：模型" + (check.attempts() > 1 ? "连续两轮均未" : "未")
+                            + "返回判定（本报告结论未经语义核对）");
+            ev.setElapsedMs(elapsed(startedAt));
+        } else {
+            ev = AgentStepEvent.success(AgentStep.SEMANTIC_CHECK, elapsed(startedAt), verdict
+                    ? "SQL 与问题语义一致"
+                    : (afterRegeneration ? "重生成后仍未通过语义校验，按现状执行" : "校验未通过，重新生成"));
+        }
+        ev.withThinking(check.thinking())
+                .withPayload("checked", verdict != null)
+                .withPayload("passed", verdict)
+                .withPayload("attempts", check.attempts())
+                .withPayload("afterRegeneration", afterRegeneration);
+        out.emit(ev);
+    }
+
+    private static String reasonOf(JSONObject json) {
+        if (json == null) {
+            return "";
+        }
+        try {
+            return nullToEmpty(json.getString("reason"));
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private static String thinkingOf(JSONObject json) {
+        return json == null ? null : json.toJSONString();
     }
 
     /**

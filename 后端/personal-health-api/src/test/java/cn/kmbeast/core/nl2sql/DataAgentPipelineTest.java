@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
@@ -42,17 +43,24 @@ class DataAgentPipelineTest {
 
     // ---------------- 桩件 ----------------
 
-    /** 按队列返回响应，耗尽后返回空串。 */
+    /** 按队列返回响应，耗尽后返回空串；同时记录每次实际发出去的 prompt。 */
     private static class StubLlm extends Nl2SqlLlmClient {
         final Deque<String> queue = new ArrayDeque<>();
+        final List<String> prompts = new ArrayList<>();
 
         StubLlm enqueue(String... responses) {
             queue.addAll(Arrays.asList(responses));
             return this;
         }
 
+        /** 语义校验相关的 prompt（按发出顺序）。 */
+        List<String> semanticPrompts() {
+            return prompts.stream().filter(s -> s.startsWith("SEMANTIC_PROMPT")).collect(Collectors.toList());
+        }
+
         @Override
         public String chat(String prompt, boolean asSystem, String userMessage) {
+            prompts.add(prompt);
             return queue.isEmpty() ? "" : queue.poll();
         }
     }
@@ -162,7 +170,8 @@ class DataAgentPipelineTest {
         @Override
         public String buildSemanticConsistencyPrompt(String dialect, String executionDescription, String userQuery,
                                                      String evidence, String schemaText, String sql) {
-            return "SEMANTIC_PROMPT";
+            // 把被测 SQL 打进 prompt，用例才能证明「核对的是哪一版 SQL」
+            return "SEMANTIC_PROMPT[sql=" + sql + "]";
         }
 
         @Override
@@ -726,7 +735,8 @@ class DataAgentPipelineTest {
     }
 
     private void assertVerdictHonesty(String verdictResponse, String label) throws Exception {
-        DataAgentPipeline p = pipeline(new StubConfig(), llmWithVerdict(verdictResponse));
+        StubLlm llm = llmWithVerdict(verdictResponse);
+        DataAgentPipeline p = pipeline(new StubConfig(), llm);
         List<AgentStepEvent> events = new ArrayList<>();
         p.run(req("看看我的血压"), 9527L, events::add);
 
@@ -745,6 +755,13 @@ class DataAgentPipelineTest {
                         && AgentStepEvent.SUCCESS.equals(e.getStatus()))
                 .count();
         assertEquals(1, generateCount, label + "：读不出判定不应额外多打一轮生成");
+
+        // 问一次就放弃 = 这个环节形同虚设。读不出判定必须追问一轮，且两轮都问完才认输。
+        assertEquals(2, check.getPayload().get("attempts"), label + "：应追问一轮后再认「未校验」");
+        List<String> asked = llm.semanticPrompts();
+        assertEquals(2, asked.size(), label + "：应向模型发出两次语义校验请求，实际 " + asked.size() + " 次");
+        assertTrue(asked.get(1).contains("passed"), label + "：追问要把输出格式要求再压一遍");
+        assertTrue(asked.get(1).startsWith(asked.get(0)), label + "：追问不得篡改待核对的问题与 SQL");
     }
 
     @Test
@@ -772,6 +789,28 @@ class DataAgentPipelineTest {
     }
 
     @Test
+    @DisplayName("语义校验：第一遍不守格式、追问后要回来了 → 绿灯是真的，且不多打一轮生成")
+    void retryRecoversUnparsableVerdict() throws Exception {
+        StubLlm llm = llmWithVerdict("抱歉，这个问题我无法判断。");
+        llm.enqueue("{\"passed\":true}");
+        DataAgentPipeline p = pipeline(new StubConfig(), llm);
+        List<AgentStepEvent> events = new ArrayList<>();
+        p.run(req("看看我的血压"), 9527L, events::add);
+
+        AgentStepEvent check = lastStep(events, AgentStep.SEMANTIC_CHECK);
+        assertEquals(AgentStepEvent.SUCCESS, check.getStatus(), "追问拿到了判定，就不该再报「未校验」");
+        assertTrue(check.getSummary().contains("语义一致"), "实际: " + check.getSummary());
+        assertEquals(Boolean.TRUE, check.getPayload().get("checked"));
+        assertEquals(Boolean.TRUE, check.getPayload().get("passed"));
+        assertEquals(2, check.getPayload().get("attempts"));
+        assertEquals(2, llm.semanticPrompts().size(), "追问一次即止，不该再无谓重试");
+        assertEquals(1, events.stream()
+                .filter(e -> AgentStep.SQL_GENERATE.name().equals(e.getStep())
+                        && AgentStepEvent.SUCCESS.equals(e.getStatus()))
+                .count(), "判定为通过时不应重生成");
+    }
+
+    @Test
     @DisplayName("语义校验：显式 passed=true 才算通过，绿灯才是真的")
     void explicitPassIsSuccess() throws Exception {
         DataAgentPipeline p = pipeline(new StubConfig(), llmWithVerdict("{\"passed\":true}"));
@@ -784,23 +823,71 @@ class DataAgentPipelineTest {
         assertTrue(check.getSummary().contains("语义一致"), "实际: " + check.getSummary());
         assertEquals(Boolean.TRUE, check.getPayload().get("checked"));
         assertEquals(Boolean.TRUE, check.getPayload().get("passed"));
+        assertEquals(1, check.getPayload().get("attempts"), "一遍就给出判定时无需追问");
+    }
+
+    /** 语义校验的【结论】事件（按发生顺序，不含 RUNNING 占位）；重生成后会有一次复核。 */
+    private static List<AgentStepEvent> semanticChecks(List<AgentStepEvent> events) {
+        return events.stream()
+                .filter(e -> AgentStep.SEMANTIC_CHECK.name().equals(e.getStep()))
+                .filter(e -> !AgentStepEvent.RUNNING.equals(e.getStatus()))
+                .collect(Collectors.toList());
     }
 
     @Test
-    @DisplayName("语义校验：显式 passed=false 才触发重生成（原有行为不变）")
+    @DisplayName("语义校验：passed=false 重生成后，核对的是新版 SQL 而不是旧版的判定")
     void explicitFailStillRegenerates() throws Exception {
         StubLlm llm = llmWithVerdict("{\"passed\":false,\"reason\":\"漏了时间范围\"}");
-        llm.enqueue("SELECT id, value FROM user_health WHERE create_time > NOW() - INTERVAL 7 DAY");
+        String regenerated = "SELECT id, value FROM user_health WHERE create_time > NOW() - INTERVAL 7 DAY";
+        llm.enqueue(regenerated);
+        llm.enqueue("{\"passed\":true}");
         DataAgentPipeline p = pipeline(new StubConfig(), llm);
         List<AgentStepEvent> events = new ArrayList<>();
         p.run(req("看看我近一周的血压"), 9527L, events::add);
 
-        AgentStepEvent check = lastStep(events, AgentStep.SEMANTIC_CHECK);
-        assertEquals(AgentStepEvent.SUCCESS, check.getStatus(), "明确判不通过是一次有效的校验");
-        assertEquals(Boolean.FALSE, check.getPayload().get("passed"));
-        assertTrue(check.getSummary().contains("重新生成"), "实际: " + check.getSummary());
+        List<AgentStepEvent> checks = semanticChecks(events);
+        assertEquals(2, checks.size(), "重生成后应对新版 SQL 再核一次，否则执行的是一版没被核对过的 SQL");
+
+        AgentStepEvent first = checks.get(0);
+        assertEquals(AgentStepEvent.SUCCESS, first.getStatus(), "明确判不通过是一次有效的校验");
+        assertEquals(Boolean.FALSE, first.getPayload().get("passed"));
+        assertTrue(first.getSummary().contains("重新生成"), "实际: " + first.getSummary());
         assertTrue(events.stream().anyMatch(e -> Boolean.TRUE.equals(
                         e.getPayload() == null ? null : e.getPayload().get("regenerated"))),
                 "passed=false 时必须重生成一轮");
+
+        AgentStepEvent recheck = checks.get(1);
+        assertEquals(Boolean.TRUE, recheck.getPayload().get("afterRegeneration"));
+        assertEquals(Boolean.TRUE, recheck.getPayload().get("passed"), "复核通过，绿灯才是给新版 SQL 点的");
+        assertEquals(2, llm.semanticPrompts().size(), "两轮核对 = 两次语义校验请求");
+        assertTrue(llm.semanticPrompts().get(1).contains(regenerated),
+                "复核的 prompt 里必须是重生成后的 SQL，实际: " + llm.semanticPrompts().get(1));
+        assertFalse(llm.semanticPrompts().get(0).contains(regenerated),
+                "第一轮核对的应是旧版 SQL");
+    }
+
+    @Test
+    @DisplayName("语义校验：复核只核一轮，判定仍读不出就照实标未校验、不再无限重生成")
+    void recheckIsHonestAndDoesNotLoop() throws Exception {
+        StubLlm llm = llmWithVerdict("{\"passed\":false,\"reason\":\"漏了时间范围\"}");
+        llm.enqueue("SELECT id, value FROM user_health WHERE create_time > NOW() - INTERVAL 7 DAY");
+        // 复核两轮都要不回判定（桩件队列耗尽返回空串）
+        DataAgentPipeline p = pipeline(new StubConfig(), llm);
+        List<AgentStepEvent> events = new ArrayList<>();
+        p.run(req("看看我近一周的血压"), 9527L, events::add);
+
+        List<AgentStepEvent> checks = semanticChecks(events);
+        assertEquals(2, checks.size(), "复核也应留下事件，不能静默吞掉");
+        AgentStepEvent recheck = checks.get(1);
+        assertEquals(AgentStepEvent.SKIPPED, recheck.getStatus(),
+                "🔴 复核读不出判定却算通过 = 新版 SQL 挂着别人的绿灯");
+        assertTrue(recheck.getSummary().contains("未完成语义校验"), "实际: " + recheck.getSummary());
+        assertEquals(Boolean.FALSE, recheck.getPayload().get("checked"));
+        assertEquals(3, llm.semanticPrompts().size(),
+                "首轮一遍给出判定 + 复核追问一轮 = 3 次语义校验请求，实际 " + llm.semanticPrompts().size());
+        assertEquals(2, events.stream()
+                .filter(e -> AgentStep.SQL_GENERATE.name().equals(e.getStep())
+                        && AgentStepEvent.SUCCESS.equals(e.getStatus()))
+                .count(), "复核不通过不再触发第二轮重生成（只核一轮，不打转）");
     }
 }
