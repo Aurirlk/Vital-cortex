@@ -68,25 +68,61 @@ public class AgentMemoryService {
         }
         // 缓存未命中：读磁盘并回填
         Map<String, String> loaded = loadFromDisk(userId);
+        if (loaded == null) {
+            // 读盘失败 / 文件写坏了：回空集合给对话用，但不进缓存。
+            // 把一次磁盘故障缓存成「这个用户偏好为空」，他会以为设置被清空，
+            // 而下一次保存又以这份空集合为基准覆盖磁盘 —— 静默删掉他全部偏好。
+            return Collections.emptyMap();
+        }
         userPreferences.put(userId, loaded);
         return Collections.unmodifiableMap(loaded);
     }
 
+    /**
+     * 写入前应用的当前偏好：缓存优先，miss 时读磁盘。
+     *
+     * @return {@code null} 表示「读不出已存的偏好」，调用方必须放弃本次覆盖写
+     */
+    private Map<String, String> readForWrite(Integer userId) {
+        Map<String, String> cached = userPreferences.get(userId);
+        if (cached != null) {
+            return cached;
+        }
+        Map<String, String> loaded = loadFromDisk(userId);
+        if (loaded != null) {
+            userPreferences.put(userId, loaded);
+        }
+        return loaded;
+    }
+
+    /**
+     * 读磁盘偏好。
+     *
+     * @return 读到的偏好；{@code null} = 磁盘读失败或内容写坏（区别于「文件不存在」返回的空 Map）
+     */
     private Map<String, String> loadFromDisk(Integer userId) {
         Map<String, String> prefs = new LinkedHashMap<>();
+        AgentWorkspace.ReadOutcome outcome;
         try {
-            JSONObject saved = agentWorkspace.readJson("memory", userId, "preferences");
-            if (saved != null) {
-                saved.forEach((k, v) -> {
-                    if (v != null) {
-                        prefs.put(k, String.valueOf(v));
-                    }
-                });
-            }
+            outcome = agentWorkspace.readJson("memory", userId, "preferences");
         } catch (Exception e) {
-            // 磁盘读取失败不能影响对话：降级为空偏好
-            log.warn("[AgentMemory] 读取用户偏好失败，使用空偏好: userId={}, err={}", userId, e.getMessage());
+            log.error("[AgentMemory] 读取用户偏好异常: userId={}, err={}", userId, e.getMessage());
+            return null;
         }
+        if (outcome == null || outcome.status() == AgentWorkspace.ReadStatus.MISSING) {
+            // 真的没有文件 = 从没设置过，按空偏好处理并允许缓存
+            return prefs;
+        }
+        if (!outcome.found()) {
+            log.warn("[AgentMemory] 读不出用户偏好（{}），本次按「未读到」处理，不会覆盖磁盘: userId={}",
+                    outcome.failureReason(), userId);
+            return null;
+        }
+        outcome.json().forEach((k, v) -> {
+            if (v != null) {
+                prefs.put(k, String.valueOf(v));
+            }
+        });
         return prefs;
     }
 
@@ -107,7 +143,14 @@ public class AgentMemoryService {
         if (userId == null || key == null || key.trim().isEmpty()) {
             return false;
         }
-        Map<String, String> prefs = new LinkedHashMap<>(getUserPreferences(userId));
+        Map<String, String> base = readForWrite(userId);
+        if (base == null) {
+            // 读不出磁盘上的偏好就不做覆盖写：此时以空集合为基准落盘，
+            // 等于把用户已有的其它偏好一起删掉。
+            log.warn("[AgentMemory] 读不出既有偏好，放弃本次保存: userId={}, key={}", userId, key);
+            return false;
+        }
+        Map<String, String> prefs = new LinkedHashMap<>(base);
         if (value == null) {
             prefs.remove(key.trim());
         } else {
@@ -134,7 +177,12 @@ public class AgentMemoryService {
         if (userId == null || newPrefs == null || newPrefs.isEmpty()) {
             return false;
         }
-        Map<String, String> prefs = new LinkedHashMap<>(getUserPreferences(userId));
+        Map<String, String> base = readForWrite(userId);
+        if (base == null) {
+            log.warn("[AgentMemory] 读不出既有偏好，放弃本次批量保存: userId={}, keys={}", userId, newPrefs.keySet());
+            return false;
+        }
+        Map<String, String> prefs = new LinkedHashMap<>(base);
         newPrefs.forEach((k, v) -> {
             if (k != null && !k.trim().isEmpty() && v != null && !v.trim().isEmpty()) {
                 prefs.put(k.trim(), v);

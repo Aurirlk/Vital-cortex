@@ -49,12 +49,28 @@ class AgentMemoryServiceTest {
 
     @BeforeEach
     void setUp() {
-        // 默认：磁盘无数据
-        when(agentWorkspace.readJson(anyString(), anyInt(), anyString())).thenReturn(null);
+        // 默认：磁盘上没有这个用户的偏好文件（MISSING，区别于读失败）
+        when(agentWorkspace.readJson(anyString(), anyInt(), anyString()))
+                .thenReturn(missing());
         // 默认：写盘成功。saveJson 的返回类型是 2026-10-20 从 void 改成 boolean 的
         // （为了把「磁盘写失败」如实报给接口），Mockito 对未 stub 的 boolean 返回 false，
         // 于是所有「存了再读回」的用例会集体变成「没存上」—— 这条 stub 是那次改动的配套。
         when(agentWorkspace.saveJson(anyString(), anyInt(), anyString(), any())).thenReturn(true);
+    }
+
+    /** 磁盘上没有偏好文件 —— 与「读失败」是两件事。 */
+    private static AgentWorkspace.ReadOutcome missing() {
+        return new AgentWorkspace.ReadOutcome(AgentWorkspace.ReadStatus.MISSING, null);
+    }
+
+    /** 读到了偏好文件。 */
+    private static AgentWorkspace.ReadOutcome found(JSONObject json) {
+        return new AgentWorkspace.ReadOutcome(AgentWorkspace.ReadStatus.FOUND, json);
+    }
+
+    /** 磁盘故障 / 内容写坏 —— 不能当成「用户没设置过」。 */
+    private static AgentWorkspace.ReadOutcome failed(AgentWorkspace.ReadStatus status) {
+        return new AgentWorkspace.ReadOutcome(status, null);
     }
 
     // ================================================================ 基本读写
@@ -141,7 +157,7 @@ class AgentMemoryServiceTest {
         JSONObject saved = new JSONObject();
         saved.put("diet", "少油");
         saved.put("exercise", "慢走");
-        when(agentWorkspace.readJson("memory", 1, "preferences")).thenReturn(saved);
+        when(agentWorkspace.readJson("memory", 1, "preferences")).thenReturn(found(saved));
 
         Map<String, String> prefs = service.getUserPreferences(1);
 
@@ -177,6 +193,53 @@ class AgentMemoryServiceTest {
                 "档案读不到时对话仍要能继续");
     }
 
+    // ============================================ 读失败 ≠ 文件不存在（2026-10-24，§7.2-7）
+
+    @Test
+    @DisplayName("磁盘读失败：不把「空偏好」写进缓存，磁盘恢复后还能读回真值")
+    void ioFailureMustNotBeCachedAsEmpty() {
+        when(agentWorkspace.readJson("memory", 1, "preferences"))
+                .thenReturn(failed(AgentWorkspace.ReadStatus.IO_FAILED));
+        assertTrue(service.getUserPreferences(1).isEmpty(), "读失败时对话照常用空偏好");
+
+        JSONObject saved = new JSONObject();
+        saved.put("diet", "少盐");
+        when(agentWorkspace.readJson("memory", 1, "preferences")).thenReturn(found(saved));
+
+        assertEquals("少盐", service.getUserPreferences(1).get("diet"),
+                "🔴 一次磁盘故障不该把用户的偏好永久变成「从没设置过」");
+    }
+
+    @Test
+    @DisplayName("磁盘读失败时保存：放弃覆盖写，不能以空集合为基准落盘")
+    void saveMustNotOverwriteWhenDiskUnreadable() {
+        when(agentWorkspace.readJson("memory", 1, "preferences"))
+                .thenReturn(failed(AgentWorkspace.ReadStatus.IO_FAILED));
+
+        assertFalse(service.saveUserPreference(1, "diet", "少盐"),
+                "读不出既有偏好时保存必须回失败");
+        verify(agentWorkspace, never()).saveJson(anyString(), anyInt(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("偏好文件写坏（PARSE_FAILED）时保存：同样放弃覆盖写")
+    void saveMustNotOverwriteWhenContentBroken() {
+        when(agentWorkspace.readJson("memory", 1, "preferences"))
+                .thenReturn(failed(AgentWorkspace.ReadStatus.PARSE_FAILED));
+
+        assertFalse(service.saveUserPreferences(1, Map.of("diet", "少盐")));
+        verify(agentWorkspace, never()).saveJson(anyString(), anyInt(), anyString(), any());
+    }
+
+    @Test
+    @DisplayName("文件确实不存在（MISSING）时保存：正常落盘")
+    void saveWorksWhenFileSimplyMissing() {
+        when(agentWorkspace.readJson("memory", 1, "preferences")).thenReturn(missing());
+
+        assertTrue(service.saveUserPreference(1, "diet", "少盐"));
+        verify(agentWorkspace).saveJson(eq("memory"), eq(1), eq("preferences"), any(JSONObject.class));
+    }
+
     @Test
     @DisplayName("null userId：返回空偏好且不打库")
     void nullUserIdShouldBeSafe() {
@@ -201,7 +264,7 @@ class AgentMemoryServiceTest {
 
         JSONObject saved = new JSONObject();
         saved.put("diet", "少油");
-        when(agentWorkspace.readJson("memory", 1, "preferences")).thenReturn(saved);
+        when(agentWorkspace.readJson("memory", 1, "preferences")).thenReturn(found(saved));
 
         assertEquals("少油", service.getUserPreferences(1).get("diet"),
                 "evict 后应从磁盘重新加载");
