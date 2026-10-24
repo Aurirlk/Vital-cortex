@@ -26,11 +26,13 @@ import static org.mockito.Mockito.when;
  *
  * <p>重点覆盖三处「容易写反」的地方：
  * <ol>
- *   <li><b>NULL 视为开启</b>：列是 {@code DEFAULT 1} 但可空。若把 NULL 当关闭，
- *       一次漏跑迁移就会静默吃掉全站通知且毫无报错；</li>
+ *   <li><b>NULL 视为开启</b>：列是 {@code DEFAULT 1} 但可空。NULL 表示「这个开关从没被设置过」，
+ *       而不是「读不到」，所以仍按 schema 默认值解释；若把 NULL 当关闭，
+ *       从没进过设置页的用户会静默收不到服药/复诊提醒。</li>
  *   <li><b>查不到用户不投递</b>：已注销/脏数据不该产生孤儿通知；</li>
- *   <li><b>查询异常时放行</b>：读开关失败不能连带把下单/挂号打挂 ——
- *       宁可多发一条，也不要因为「通知配置查不到」让主业务失败。</li>
+ *   <li><b>查询异常时不投递</b>（2026-10-24 改向，用户定「读不到就不发」）：原实现是放行，
+ *       效果是用户明明关掉了某个开关，一旦读开关失败就重新开始被打扰，且与设置页显示的相反。
+ *       少发一条能从消息中心补看，错发的打扰补不回来。</li>
  * </ol>
  */
 @ExtendWith(MockitoExtension.class)
@@ -84,15 +86,27 @@ class NotificationPreferenceServiceImplTest {
     }
 
     @Test
-    @DisplayName("读开关报错：按开启处理，不能把主业务打挂")
-    void queryFailureShouldFailOpen() {
+    @DisplayName("读开关报错：不投递（用户关掉的开关不能被一次查询失败打开）")
+    void queryFailureShouldNotSend() {
         when(userMapper.getNotifyPreference(anyInt()))
                 .thenThrow(new RuntimeException("Unknown column 'notify_order'"));
 
         // 漏跑 08 迁移脚本时就是这种情况：列不存在。
-        // 此时若按「关闭」处理，全站通知会静默消失，且没有任何报错。
-        assertTrue(service.allows(UID, NotificationSource.ORDER),
-                "开关读不出来时应放行，而不是把用户的通知全掐掉");
+        // 改前这里 return true（=按开启放行），于是「已经把预约提醒关掉」的用户
+        // 会重新开始收到提醒，且设置页仍显示着他关过的那个开关。
+        assertFalse(service.allows(UID, NotificationSource.ORDER),
+                "🔴 读不出开关状态时不得投递 —— 少发能在消息中心补看，错发打扰补不回来");
+    }
+
+    @Test
+    @DisplayName("读失败时五个来源都不投递，不留一条能发的口子")
+    void queryFailureBlocksEverySource() {
+        when(userMapper.getNotifyPreference(anyInt()))
+                .thenThrow(new RuntimeException("dead connection"));
+
+        for (NotificationSource source : NotificationSource.values()) {
+            assertFalse(service.allows(UID, source), source + " 在读失败时不应投递");
+        }
     }
 
     // ==================== 每个开关各自生效 ====================
