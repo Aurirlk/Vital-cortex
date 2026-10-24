@@ -71,19 +71,27 @@ public class CrmChatController {
 
     @PostMapping(value = "/chat/stream")
     public void chatStream(@RequestBody CrmChatRequest request, HttpServletResponse response) {
+        String phoneNumber = request.getPhoneNumber();
+        String query = request.getQuery();
+
+        // 参数校验放在设 SSE 头之前：设完头再 return，调用方看到的是
+        // 「Content-Type: text/event-stream + 0 字节」，与「服务端卡住」无法区分，
+        // 也拿不到任何错误码。这里回一个普通 400 JSON（与 /user/chat/stream 同口径）。
+        if (phoneNumber == null || phoneNumber.trim().isEmpty()
+                || query == null || query.trim().isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.setContentType("application/json");
+            try {
+                response.getWriter().write("{\"code\":400,\"message\":\"phoneNumber 与 query 均不能为空\"}");
+            } catch (IOException ignored) {}
+            return;
+        }
+
         response.setContentType("text/event-stream");
         response.setCharacterEncoding("UTF-8");
         response.setHeader("Cache-Control", "no-cache");
         response.setHeader("Connection", "keep-alive");
         response.setHeader("X-Accel-Buffering", "no");
-
-        String phoneNumber = request.getPhoneNumber();
-        String query = request.getQuery();
-
-        if (phoneNumber == null || phoneNumber.trim().isEmpty()
-                || query == null || query.trim().isEmpty()) {
-            return;
-        }
 
         String sessionId;
         if (request.getSessionId() != null && !request.getSessionId().trim().isEmpty()) {

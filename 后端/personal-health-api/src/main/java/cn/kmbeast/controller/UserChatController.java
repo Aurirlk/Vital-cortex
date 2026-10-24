@@ -129,6 +129,18 @@ public class UserChatController {
             return;
         }
 
+        String query = request.getMessage();
+        // 空问题必须在设 SSE 头之前挡掉：设完头再 return，客户端拿到的是
+        // 「Content-Type: text/event-stream + 0 字节」，与卡住无法区分（本方法上面
+        // 处理「用户不存在」用的就是这个写法，口径保持一致）。
+        if (query == null || query.trim().isEmpty()) {
+            response.setContentType("application/json");
+            try {
+                response.getWriter().write("{\"code\":400,\"message\":\"请输入您的问题\"}");
+            } catch (IOException ignored) {}
+            return;
+        }
+
         // 设置SSE响应头
         response.setContentType("text/event-stream");
         response.setCharacterEncoding("UTF-8");
@@ -137,11 +149,6 @@ public class UserChatController {
         response.setHeader("X-Accel-Buffering", "no");
 
         String phoneNumber = user.getUserAccount();
-        String query = request.getMessage();
-
-        if (query == null || query.trim().isEmpty()) {
-            return;
-        }
 
         // 生成会话ID
         String sessionId = request.getSessionId();
