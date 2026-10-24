@@ -94,10 +94,18 @@ public class AgentMemoryService {
      * 保存用户偏好
      *
      * <p>先落盘再更新缓存，保证「返回成功」时数据确实持久化了。
+     *
+     * <p>2026-10-20：这个不变式此前是空的 —— {@code saveJson} 返回 void、
+     * 把 {@code IOException} 只写成日志，所以磁盘失败时缓存照样刷、
+     * {@code AgentController} 照样回 {@code ApiResult.success()}。
+     * 用户看到「保存成功」，数据只在内存里，重启即丢失；只读挂载或容器重建下永久丢。
+     * 现在写失败就不刷缓存（内存与磁盘保持一致的旧值）并把 false 一路带回接口层。
+     *
+     * @return 是否已落盘；false 表示本次修改未持久化（缓存也保持原值）
      */
-    public void saveUserPreference(Integer userId, String key, String value) {
+    public boolean saveUserPreference(Integer userId, String key, String value) {
         if (userId == null || key == null || key.trim().isEmpty()) {
-            return;
+            return false;
         }
         Map<String, String> prefs = new LinkedHashMap<>(getUserPreferences(userId));
         if (value == null) {
@@ -108,18 +116,23 @@ public class AgentMemoryService {
 
         JSONObject json = new JSONObject();
         json.putAll(prefs);
-        agentWorkspace.saveJson("memory", userId, "preferences", json);
+        if (!agentWorkspace.saveJson("memory", userId, "preferences", json)) {
+            return false;
+        }
 
         // 落盘成功后再刷缓存，避免磁盘失败时内存与磁盘不一致
         userPreferences.put(userId, prefs);
+        return true;
     }
 
     /**
      * 批量覆盖用户偏好（供 SlotFilling 一次写入多个采集到的槽位）
+     *
+     * @return 是否已落盘，语义同 {@link #saveUserPreference}
      */
-    public void saveUserPreferences(Integer userId, Map<String, String> newPrefs) {
+    public boolean saveUserPreferences(Integer userId, Map<String, String> newPrefs) {
         if (userId == null || newPrefs == null || newPrefs.isEmpty()) {
-            return;
+            return false;
         }
         Map<String, String> prefs = new LinkedHashMap<>(getUserPreferences(userId));
         newPrefs.forEach((k, v) -> {
@@ -129,8 +142,11 @@ public class AgentMemoryService {
         });
         JSONObject json = new JSONObject();
         json.putAll(prefs);
-        agentWorkspace.saveJson("memory", userId, "preferences", json);
+        if (!agentWorkspace.saveJson("memory", userId, "preferences", json)) {
+            return false;
+        }
         userPreferences.put(userId, prefs);
+        return true;
     }
 
     /** 清除某用户的缓存（下次读从磁盘重载） */

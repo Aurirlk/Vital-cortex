@@ -50,15 +50,22 @@ public class AgentWorkspace {
 
     /**
      * 保存数据到文件。
+     *
+     * @return 是否真的写进磁盘。原先返回 void 并把 {@code IOException} 只打成日志，
+     *         调用方无从分辨「写成功」与「写失败」，于是 {@code AgentMemoryService}
+     *         注释里那句「落盘成功后再刷缓存」根本执行不出来，接口也一律回成功 ——
+     *         用户看到的「已保存」其实只存在于内存里，重启就没了。
      */
-    public void saveToFile(String agentType, Integer userId, String fileName, String content) {
+    public boolean saveToFile(String agentType, Integer userId, String fileName, String content) {
         Path filePath = getUserWorkDir(agentType, userId).resolve(fileName);
         try {
             Files.write(filePath, content.getBytes(StandardCharsets.UTF_8),
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             log.debug("AgentWorkspace: 保存文件 {}", filePath);
+            return true;
         } catch (IOException e) {
             log.error("保存文件失败: {}", filePath, e);
+            return false;
         }
     }
 
@@ -82,11 +89,13 @@ public class AgentWorkspace {
      *
      * <p>写入的是副本：原实现直接往调用方传入的 {@link JSONObject} 里
      * {@code put("_savedAt", ...)}，调用方之后读自己的对象会莫名多出一个字段。</p>
+     *
+     * @return 是否写盘成功，语义同 {@link #saveToFile}
      */
-    public void saveJson(String agentType, Integer userId, String key, JSONObject data) {
+    public boolean saveJson(String agentType, Integer userId, String key, JSONObject data) {
         JSONObject copy = data == null ? new JSONObject() : new JSONObject(data);
         copy.put("_savedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-        saveToFile(agentType, userId, key + ".json", copy.toJSONString());
+        return saveToFile(agentType, userId, key + ".json", copy.toJSONString());
     }
 
     /**

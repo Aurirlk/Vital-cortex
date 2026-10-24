@@ -120,9 +120,10 @@ public class AgentController {
             log.warn("[Agent] 拒绝写入他人偏好: current={}, target={}", current, userId);
             return ApiResult.error("无权修改他人的偏好数据");
         }
-        agentMemoryService.saveUserPreference(userId,
+        // 落盘失败不能回成功：偏好只存在于内存时，用户以为记住了，重启后模型又什么都不知道
+        boolean persisted = agentMemoryService.saveUserPreference(userId,
                 request.getString("key"), request.getString("value"));
-        return ApiResult.success();
+        return persisted ? ApiResult.success() : ApiResult.error("偏好保存失败（写入磁盘未成功），请稍后重试");
     }
 
     /**

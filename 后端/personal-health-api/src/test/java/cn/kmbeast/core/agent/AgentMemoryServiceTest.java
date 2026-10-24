@@ -51,6 +51,10 @@ class AgentMemoryServiceTest {
     void setUp() {
         // 默认：磁盘无数据
         when(agentWorkspace.readJson(anyString(), anyInt(), anyString())).thenReturn(null);
+        // 默认：写盘成功。saveJson 的返回类型是 2026-10-20 从 void 改成 boolean 的
+        // （为了把「磁盘写失败」如实报给接口），Mockito 对未 stub 的 boolean 返回 false，
+        // 于是所有「存了再读回」的用例会集体变成「没存上」—— 这条 stub 是那次改动的配套。
+        when(agentWorkspace.saveJson(anyString(), anyInt(), anyString(), any())).thenReturn(true);
     }
 
     // ================================================================ 基本读写
@@ -79,6 +83,36 @@ class AgentMemoryServiceTest {
         service.saveUserPreference(1, "diet", "少盐");
 
         verify(agentWorkspace).saveJson(eq("memory"), eq(1), eq("preferences"), any(JSONObject.class));
+    }
+
+    /**
+     * 2026-10-20 补：写盘失败必须如实报出来，并且不能刷缓存。
+     *
+     * <p><b>为什么锁这两件事</b>：改前 {@code AgentWorkspace.saveToFile} 吞掉
+     * {@code IOException} 返回 void，{@code AgentMemoryService} 那句
+     * 「落盘成功后再刷缓存」的注释所依赖的不变式根本执行不出来 —— 磁盘写失败时
+     * 缓存照刷、接口照样回 success，用户看到「已保存」，实际值只在内存里，
+     * 重启即丢（只读挂载 / 容器重建下永久丢）。
+     */
+    @Test
+    @DisplayName("写盘失败：返回 false，且不刷缓存（内存不能假装已经保存）")
+    void diskFailureIsReportedAndCacheStaysConsistent() {
+        when(agentWorkspace.saveJson(anyString(), anyInt(), anyString(), any())).thenReturn(false);
+
+        boolean persisted = service.saveUserPreference(1, "diet", "少盐");
+
+        assertFalse(persisted, "磁盘写失败必须让调用方知道");
+        assertTrue(service.getUserPreferences(1).isEmpty(),
+                "没落盘就不该把值放进缓存，否则内存说有、磁盘说没有，重启后静默丢失");
+
+        // 已有旧值时同理：失败后读到的应仍是旧值
+        when(agentWorkspace.saveJson(anyString(), anyInt(), anyString(), any())).thenReturn(true);
+        service.saveUserPreference(2, "diet", "少盐");
+        when(agentWorkspace.saveJson(anyString(), anyInt(), anyString(), any())).thenReturn(false);
+
+        assertFalse(service.saveUserPreference(2, "diet", "戒糖"), "删除/覆盖失败同样要返回 false");
+        assertEquals("少盐", service.getUserPreferences(2).get("diet"),
+                "失败的这次修改不应体现在缓存里");
     }
 
     @Test
