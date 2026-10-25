@@ -411,4 +411,78 @@ class HarnessEngineTest {
         assertNull(engine.calculateBMI(0.0, 70.0));
         assertNull(engine.calculateBMI(-175.0, 70.0));
     }
+
+    // ================================================================ 「已确认无慢性病」闭环
+
+    @Test
+    @DisplayName("「没有慢性病」抽成确认值，两种语序都认")
+    void noChronicShouldBeExtracted() {
+        assertEquals(HarnessEngine.NO_CHRONIC_CONFIRMATION,
+                engine.extractSlots("我身体挺好的，没有慢性病").get("chronicDiseases"));
+        assertEquals(HarnessEngine.NO_CHRONIC_CONFIRMATION,
+                engine.extractSlots("慢性病倒是没有").get("chronicDiseases"));
+        assertEquals(HarnessEngine.NO_CHRONIC_CONFIRMATION,
+                engine.extractSlots("既往病史无").get("chronicDiseases"));
+    }
+
+    @Test
+    @DisplayName("句中出现具体病史词时不当「没有慢性病」确认（对比陈述保护）")
+    void diseaseMentionShouldSuppressConfirmation() {
+        // 三句都必须含「没有慢性病」字样，确认负向病史信号是唯一防线 ——
+        // 否则用例会变成「按构造必然通过」的自证式测试（反向验证抓到这个设计漏洞）。
+        assertNull(engine.extractSlots("我没有慢性病，就是有高血压").get("chronicDiseases"));
+        assertNull(engine.extractSlots("没有慢性病，就是血压有点高").get("chronicDiseases"));
+        assertNull(engine.extractSlots("没有慢性病，一直在吃降压药").get("chronicDiseases"));
+    }
+
+    @Test
+    @DisplayName("「无慢性病」确认只进记忆、不写档案列，changed 不计它")
+    void noChronicShouldWriteMemoryNotProfile() {
+        PatientProfile existing = new PatientProfile();
+        existing.setUserId(3);
+        when(profileMapper.getByUserId(3)).thenReturn(existing);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> captor = ArgumentCaptor.forClass(Map.class);
+
+        Map<String, String> slots = new HashMap<>();
+        slots.put("chronicDiseases", HarnessEngine.NO_CHRONIC_CONFIRMATION);
+
+        assertEquals(0, engine.persistSlots(3, slots), "档案一个字段都没动");
+        verify(profileMapper, never()).insertOrUpdate(any());
+        verify(agentMemoryService).saveUserPreferences(eq(3), captor.capture());
+        assertEquals(HarnessEngine.NO_CHRONIC_CONFIRMATION,
+                captor.getValue().get(HarnessEngine.MEMORY_KEY_CHRONIC));
+    }
+
+    @Test
+    @DisplayName("档案 [] + 记忆有确认 → 槽位回读确认值，不再追问既往病史")
+    void loadSlotsShouldReadConfirmationFromMemory() {
+        PatientProfile existing = new PatientProfile();
+        existing.setUserId(3);
+        existing.setChronicDiseases("[]");       // 迁移脚本把「答了没有」与「没答过」统一写成 []
+        when(profileMapper.getByUserId(3)).thenReturn(existing);
+        when(agentMemoryService.getUserPreferences(3))
+                .thenReturn(Map.of(HarnessEngine.MEMORY_KEY_CHRONIC, HarnessEngine.NO_CHRONIC_CONFIRMATION));
+
+        Map<String, String> loaded = engine.loadUserSlots(3);
+
+        assertEquals(HarnessEngine.NO_CHRONIC_CONFIRMATION, loaded.get("chronicDiseases"));
+        assertFalse(engine.checkDataCompleteness(loaded).containsKey("chronicDiseases"),
+                "确认过没有慢性病的人不应再被追问");
+    }
+
+    @Test
+    @DisplayName("档案 [] + 记忆无确认 → 照旧判缺失、继续追问")
+    void loadSlotsWithoutConfirmationShouldStayMissing() {
+        PatientProfile existing = new PatientProfile();
+        existing.setUserId(3);
+        existing.setChronicDiseases("[]");
+        when(profileMapper.getByUserId(3)).thenReturn(existing);
+        when(agentMemoryService.getUserPreferences(3)).thenReturn(Map.of());
+
+        Map<String, String> loaded = engine.loadUserSlots(3);
+
+        assertNull(loaded.get("chronicDiseases"));
+        assertTrue(engine.checkDataCompleteness(loaded).containsKey("chronicDiseases"));
+    }
 }

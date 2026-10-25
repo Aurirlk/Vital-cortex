@@ -55,6 +55,42 @@ public class HarnessEngine {
             new SlotDef("chronicDiseases", "既往病史", "请问您有没有慢性病或者长期在吃的药？比如高血压、糖尿病。")
     );
 
+    /**
+     * 「明确没有慢性病」的登记值。
+     *
+     * <p>它<b>只进 Agent 记忆</b>（{@link #MEMORY_KEY_CHRONIC}），不写 {@code chronic_diseases} 列：
+     * 那一列里 {@code []} 同时表示「没答过」和「答了没有」，写进去判不出来；
+     * 而写任何占位文本（如 {@code ["无"]}）都会让医生端把「无」显示成一条病史 ——
+     * 这正是 {@code 02_patient_profile_normalize.sql} 清理过的脏数据。
+     */
+    public static final String NO_CHRONIC_CONFIRMATION = "已确认无慢性病";
+
+    /**
+     * 「已确认无慢性病」在 Agent 记忆里的键。
+     *
+     * <p>沿用 {@link #mirrorSlotsToMemory} 的 {@code profile.} 前缀约定：用户后来在档案表单
+     * 填了病史时，镜像会以同一个键覆盖掉这条确认，语义自然收敛。
+     */
+    public static final String MEMORY_KEY_CHRONIC = "profile.chronicDiseases";
+
+    /**
+     * 「明确没有慢性病」的表述，两种语序都认：「没有慢性病」与「慢性病倒是没有」。
+     */
+    private static final Pattern NO_CHRONIC_PATTERN = Pattern.compile(
+            "(?:没有|无|沒|未)\\s*(?:患过|患有|得过|什么)?\\s*(?:慢性病|慢性疾病|既往病史|基础病|老毛病)"
+                    + "|(?:慢性病|慢性疾病|既往病史|基础病|老毛病)\\s*(?:倒是|也|都|全)?\\s*(?:没有|无)");
+
+    /**
+     * 具体病史/用药信号：句子里出现这些词时，那句「没有」很可能是在对比陈述
+     * （「我没有高血压，但是有糖尿病」），不能整句当成「没有慢性病」的确认。
+     *
+     * <p>宁可漏认（回到追问现状）也不可错认（错认会永久停止追问）——
+     * 与 {@link #EXTRACT_RULES}「宁可漏抽也不能抽错」同向。
+     */
+    private static final Pattern DISEASE_SIGNAL = Pattern.compile(
+            "高血压|糖尿病|冠心病|心脏病|肾病|肾炎|肝炎|哮喘|肿瘤|癌症|甲亢|甲减|贫血|痛风"
+                    + "|长期服用|长期在吃|一直在吃|确诊|医嘱|血压.{0,6}(?:高|偏高)|血糖.{0,6}(?:高|偏高)");
+
     @Resource
     private PatientProfileMapper patientProfileMapper;
 
@@ -131,13 +167,37 @@ public class HarnessEngine {
             slots.put("weight", p.getWeight() != null ? trimNum(p.getWeight()) : null);
             // 慢病是 JSON 数组文本，取非空判断即可
             String chronic = p.getChronicDiseases();
-            slots.put("chronicDiseases",
-                    (chronic == null || chronic.isBlank() || "[]".equals(chronic.trim())) ? null : chronic);
+            boolean chronicFilled = chronic != null && !chronic.isBlank() && !"[]".equals(chronic.trim());
+            if (chronicFilled) {
+                slots.put("chronicDiseases", chronic);
+            } else {
+                // 档案列分不开「没答过」和「答了没有」：迁移脚本把 NULL 与 ['无'] 统一写成 []
+                // （见 Data/02_迁移脚本/02_patient_profile_normalize.sql:96-100,127），
+                // 所以口头确认过的「我没有慢性病」不写进这一列（写了也判不出来，写占位词又会
+                // 让医生端多出一条叫「无」的病史）。它只登记在 Agent 记忆里，这里回读。
+                slots.put("chronicDiseases",
+                        chronicNoneConfirmed(userId) ? NO_CHRONIC_CONFIRMATION : null);
+            }
         } catch (Exception e) {
             // 档案表查询失败不能阻断对话，降级为「全部缺失」让 AI 追问
             log.warn("[Harness] 读取用户档案失败，按全缺失处理: userId={}, err={}", userId, e.getMessage());
         }
         return slots;
+    }
+
+    /**
+     * 用户是否在对话里明确答过「没有慢性病」。
+     *
+     * <p>读记忆失败只当作「没答过」（继续追问），不能影响其他槽位。
+     */
+    private boolean chronicNoneConfirmed(Integer userId) {
+        try {
+            return NO_CHRONIC_CONFIRMATION.equals(
+                    agentMemoryService.getUserPreferences(userId).get(MEMORY_KEY_CHRONIC));
+        } catch (Exception e) {
+            log.warn("[Harness] 读取慢病确认标记失败，按「未答过」处理: userId={}, err={}", userId, e.getMessage());
+            return false;
+        }
     }
 
     /** 便捷方法：读当前登录用户的槽位 */
@@ -280,7 +340,31 @@ public class HarnessEngine {
         if (gender != null) {
             extracted.put("gender", gender);
         }
+
+        // 「明确没有慢性病」的口头确认：值走 NO_CHRONIC_CONFIRMATION，
+        // 落库时只进 Agent 记忆、不写档案列（见 persistSlots 与 loadUserSlots）。
+        String noChronic = detectNoChronicConfirmation(msg);
+        if (noChronic != null) {
+            extracted.put("chronicDiseases", noChronic);
+        }
         return extracted;
+    }
+
+    /**
+     * 识别「明确没有慢性病」的表述。
+     *
+     * <p>为什么不进 {@link #EXTRACT_RULES}：那是数值槽位的规则表，带 min/max 区间校验；
+     * 本条没有数值，语义是「登记一个确认值」，单独判定更清楚。
+     *
+     * <p>负向信号优先：句子里有具体病史/用药词时不当确认（见 {@link #DISEASE_SIGNAL}）。
+     *
+     * @return 命中返回 {@link #NO_CHRONIC_CONFIRMATION}，否则 null
+     */
+    private String detectNoChronicConfirmation(String msg) {
+        if (DISEASE_SIGNAL.matcher(msg).find()) {
+            return null;
+        }
+        return NO_CHRONIC_PATTERN.matcher(msg).find() ? NO_CHRONIC_CONFIRMATION : null;
     }
 
     /**
@@ -426,6 +510,16 @@ public class HarnessEngine {
             if (!mirrorSlotsToMemory(userId, applied)) {
                 log.warn("[Harness] 槽位写入 Agent 记忆未成功（档案已写入，不影响本轮回答）: "
                         + "userId={}, keys={}", userId, applied.keySet());
+            }
+            // 口头确认「没有慢性病」：不写档案列（[] 分不出「没答过」与「答了没有」，
+            // 写占位词又会污染医生端展示），只登记进 Agent 记忆 —— 下一轮
+            // loadUserSlots 回读它，checkDataCompleteness 不再判缺失、不再追问。
+            // 不计入 changed：档案一个字段都没动。
+            if (NO_CHRONIC_CONFIRMATION.equals(slots.get("chronicDiseases"))) {
+                if (!agentMemoryService.saveUserPreferences(
+                        userId, Map.of(MEMORY_KEY_CHRONIC, NO_CHRONIC_CONFIRMATION))) {
+                    log.warn("[Harness] 「无慢性病」确认写入 Agent 记忆未成功（不影响本轮回答，下一轮会重新追问）: userId={}", userId);
+                }
             }
             return changed;
         } catch (Exception e) {
