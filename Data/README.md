@@ -1,9 +1,9 @@
 # Data 目录说明（Navicat 使用指南）
 
-> 整理时间：2026-10-04　｜　**最近复核：2026-10-07（全新部署路径已端到端验证通过）**　｜　**最近更新：2026-10-10（归档目录移出版本库、`user` 补 14 个设置列、通知开关接线）**
+> 整理时间：2026-10-04　｜　**最近复核：2026-10-25（敏感词脚本残留引用已清、表数口径对齐部署链终态）**　｜　**最近更新：2026-10-12（合入 claude 线：多智能体 5 表 + RAG 知识库 7 表并入部署链；`07_sensitive_word.sql` 移出归档）**
 > 库名：`personal_health`　字符集：`utf8mb4`　**库默认排序规则：`utf8mb4_bin`**（`information_schema` 实测）
-> **35 张表 / 130 个字符列：`utf8mb4_0900_ai_ci`** —— 由各建表脚本在 DDL 里显式指定，与库默认值无关。
-> **数据规模：35 张表 / 405 个字段**（2026-10-03 基线 386 + `mall_product` 5 个医学字段 + `user` 14 个设置列；2026-10-07 实测为 391，10-10 补齐设置列后为 405）
+> **196 个字符列：`utf8mb4_0900_ai_ci`** —— 由各建表脚本在 DDL 里显式指定，与库默认值无关（实库实测 171 + agent 表 25，见 §二·场景 A）
+> **数据规模：47 张表 / 561 个字段**（部署链终态口径：2026-10-03 基线 35 张 / 386 字段 → 10-07 迁移后 35 张 / 391 → 10-10 补 `user` 14 个设置列后 35 张 / 405 → 10-12 并入多智能体 5 张 / 57 列与 RAG 知识库 7 张 / 99 列后 **47 张 / 561**）
 
 ---
 
@@ -44,12 +44,16 @@ Data/
      旧文档里「8 个建表脚本 → 跑完 29 张表」是 10-04 目录重排前的口径，已作废。
 3. 跑完后表数应为 **42 张**（未合并前的初始结构，2026-10-07 临时库实测）
 4. 再执行 `02_迁移脚本/` 下的 `01` → `02` → `04` → `05` → `06`
-   → `07_mall_product_medical_fields.sql` → `07_sensitive_word.sql` → `08_user_settings_columns.sql`
-   （两个 07 互不依赖，按文件名顺序跑即可），进化为现在的 **35 张 / 405 字段**
-   （35 张沿用结构基线的口径；`07_sensitive_word.sql` 新建的 `sensitive_word` 是基线之外的新增表，
-   跑完后 `information_schema` 会多这一张 —— 见 §二·场景 B 的表格说明）
+   → `07_mall_product_medical_fields.sql` → `08_user_settings_columns.sql`
+   → `10_agent_architecture.sql` → `11_knowledge_base.sql`，
+   进化为现在的 **47 张 / 561 字段**
+   （35 张 / 405 字段是 2026-10-10 基线口径；2026-10-12 合入 claude 线后，
+   多智能体架构表 5 张 / 57 列与 RAG 知识库表 7 张 / 99 列并入部署链，见 §二·场景 B）
    - `03_align_demo_appointments.sql` 是本地演示数据对齐，**生产勿执行**；
      `09_create_ai_ro_user.sql` 需 DBA 权限 —— 这两支都**不在** `docker-compose.yml` 的挂载清单里
+   - 曾在此链上的 `07_sensitive_word.sql` 已于 **2026-10-12 移除**：敏感词功能代码在 main 侧
+     清理（`SensitiveWordMapper` / `ContentAudit*` 已删，改由 `system_config` 存储）、从未落地，
+     脚本归档至 `90_归档/sensitive_word_未落地_20261012.sql`，不再挂载、不再执行
 
 > ✅ **2026-10-07 已修复：本路径原先跑不通（P1），现已端到端验证通过**
 > 复核时在临时库 `ph_verify_tmp` 实跑，发现 6 处缺陷并全部修掉：
@@ -72,7 +76,8 @@ Data/
 > B 口径：mysql --default-character-set=utf8mb4 <file>
 >        第 1 遍 零 ERROR；终态与实库逐表比对：多表/少表 = 空
 > 20 个脚本 = 01_建库建表 7 + 02_迁移脚本 8 + 03_数据脚本 6
->   （以上为 2026-10-07 口径；10-10 后 `02_迁移脚本/` 已有 10 个文件，见下方「2026-10-10 增量」）
+>   （以上为 2026-10-07 口径；此后 `02_迁移脚本/` 逐步增至 11 个文件，
+>    见下方「2026-10-10 增量」与「2026-10-12 增量」）
 > ⚠️ 其中 `02_迁移脚本/09_create_ai_ro_user.sql` 是【需 DBA 权限的运维脚本】，不在自动部署链中，
 >   「双跑零 ERROR」的口径只覆盖其余 19 个库内脚本。详见该文件头说明。
 > 仅 01 时：42 张表；仅 01+02 时：表 35 = 35，字段 391 = 391
@@ -81,10 +86,20 @@ Data/
 > ```
 > 注：`03_数据脚本/hot_score_algorithm.sql` 只创建存储过程、**不自动执行**，不会覆盖已有 `hot_score`。
 >
-> **2026-10-10 增量**：本路径新增 `07_sensitive_word.sql`（全新部署原先缺这张表）与
-> `08_user_settings_columns.sql`（`user` 的 14 个设置列），均已按上面的顺序并入 initdb 挂载清单；
-> 两支脚本各自幂等（`CREATE TABLE IF NOT EXISTS` / `information_schema` 守卫 + `PREPARE/EXECUTE`），
-> 但 2026-10-07 那轮端到端实测发生在它们加入之前，「双跑零 ERROR」的结论不覆盖它们。
+> **2026-10-10 增量**：本路径新增 `08_user_settings_columns.sql`（`user` 的 14 个设置列），
+> 已按上面的顺序并入 initdb 挂载清单；脚本幂等（`information_schema` 守卫 + `PREPARE/EXECUTE`），
+> 但 2026-10-07 那轮端到端实测发生在它加入之前，「双跑零 ERROR」的结论不覆盖它。
+>
+> 同批加入的 `07_sensitive_word.sql`（敏感词表）已于 **2026-10-12 移除并归档**
+> （`90_归档/sensitive_word_未落地_20261012.sql`）：该功能代码在 main 侧清理、从未落地，
+> 挂载它只会多出一张无人读写的表并使表数偏离基线，`docker-compose.yml` 已注明不予挂载。
+>
+> **2026-10-12 增量**（合入 `origin/claude`）：新增 `10_agent_architecture.sql`（多智能体架构
+> 5 张表：`agent_config` / `agent_tool_binding` / `agent_handoff` / `agent_run` / `agent_run_step`）
+> 与 `11_knowledge_base.sql`（RAG 知识库 7 张表：`kb_data_source` / `knowledge_base` /
+> `kb_document` / `kb_chunk` / `retrieval_log` / `rag_eval_case` / `rag_eval_run`），
+> 均已并入 initdb 挂载清单（15/16 两个挂载点）。两支脚本只建独立新表、不动既有表、各自幂等；
+> 漏挂的后果是「智能体平台 / 知识库管理」页面永远为空（不报错）。
 
 ### 场景 B：已有库升级（当前你的情况）
 
@@ -99,14 +114,16 @@ Data/
 | 05 | `05_drop_unused_tables.sql` | 空表清理（当前无可删项，全部注释保留） | ✅ |
 | 06 | `06_merge_message_into_notification.sql` | 消息表双轨合并：`message` → `notification` | ✅ |
 | 07 | `07_mall_product_medical_fields.sql` | `mall_product` 补 5 个医学字段（`generic_name` / `specification` / `manufacturer` / `is_otc` / `medical_category`），并回填历史欠账 `product_type` | ✅ |
-| 07 | `07_sensitive_word.sql` | 新建敏感词表 `sensitive_word`（2026-10-10 补：`SensitiveWordMapper` 有 save/batchDelete/queryAll 等读写、前端 `AuditManage.vue` 也调 `audit/sensitive-word/*`，但 `Data/` 下从无建表语句，全新部署必缺）。属新增表，2026-10-07 的全库快照内没有，故本文「35 张」口径未计入它 | ✅ |
+| 07 | ~~`07_sensitive_word.sql`~~ | **已于 2026-10-12 移除**：敏感词表脚本归档至 `90_归档/sensitive_word_未落地_20261012.sql`（功能代码已清理、从未落地，改由 `system_config` 存储）。升级路径上无需执行；若历史环境已跑过，`sensitive_word` 表留着无害（无人读写） | — |
 | 08 | `08_user_settings_columns.sql` | `user` 表补 14 个设置列（语言/时区/通知/隐私/AI），设置页据此落库 | ✅ |
 | 09 | `09_create_ai_ro_user.sql` | 🔴 **运维脚本（需 root）**：创建 `ai_ro` 只读账号，供数据智能体的受控 NL2SQL 使用。**不在自动部署链**，需 DBA 手工执行；密码占位符须替换 | — |
+| 10 | `10_agent_architecture.sql` | 多智能体架构 5 张表：`agent_config`（智能体定义）/ `agent_tool_binding`（工具绑定）/ `agent_handoff`（交接规则）/ `agent_run`（运行记录）/ `agent_run_step`（步骤明细） | ✅ |
+| 11 | `11_knowledge_base.sql` | RAG 知识库 7 张表：`kb_data_source` / `knowledge_base` / `kb_document` / `kb_chunk` / `retrieval_log`（检索日志）/ `rag_eval_case`（评测用例）/ `rag_eval_run`（评测批次） | ✅ |
 
 除 `09` 外的全部脚本**幂等**，重复执行结果一致，不会丢数据。
 `01` 与 `06` 依赖 `notification` 表存在——该表已补入 `01_建库建表/init_database.sql`，**全新部署与升级两条路径均已验证通过**。
 `07_mall_product_medical_fields.sql` 自 2026-10-07 起**不再硬编码 `USE personal_health`**，可安全用于任意库名的环境（含临时库/测试库）；
-2026-10-10 新加的 `07_sensitive_word.sql` / `08_user_settings_columns.sql` 同样不带 `USE`，沿用了这条约束。
+2026-10-10 起的 `08_user_settings_columns.sql` 与 2026-10-12 的 `10_agent_architecture.sql` / `11_knowledge_base.sql` 同样不带 `USE`，沿用了这条约束。
 
 > 08 是 2026-10-10 新增的。`user_settings` 表当初被有意简化并入 `user` 表，
 > 但列一直没建 —— 设置页读的是硬编码默认值、保存直接报「暂未实现」。

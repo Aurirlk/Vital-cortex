@@ -19,8 +19,8 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 | P1-4 流式绕过白名单与运行记录 | **已修（`197a2fa`）** —— 改调基类 `resolveAllowedTools()`，并在 `doRunStreaming` 统一包住 begin/finish（用户端与 CRM 端流式都因此补上记录） |
 | P1-5 白名单保存失败即权限放大 | **已修（`ad0ff33`）** —— 先整体校验再删再插，另加 `AgentAdminToolBindingTest` 5 条用例锁死「校验失败一行都不许动」 |
 | P1-8 工具口径一致性护栏 | **半修** —— 测试侧 `ToolCatalog` 已改真类路径扫描；生产侧 `ReactPromptLoader.java:257-261` 仍只算 prompt→registry，反向差集没人查，且只 `log.warn` |
-| P2-10 README 指向已删脚本 | **未修** —— `Data/README.md:47,49,102` 仍列 `07_sensitive_word.sql`，该文件已不存在 |
-| P2-12 表数口径 | **半修** —— `README.md:574`、`docs/项目现状基线.md:358` 已写 47；`Data/README.md:5,6,15,48` 还是"35 张 / 405 字段" |
+| P2-10 README 指向已删脚本 | **已修（2026-10-25）** —— `Data/README.md` 部署顺序（§二·场景A/B）与场景B表已将 `07_sensitive_word.sql` 改为「~~已移除~~」并注明归档至 `90_归档/sensitive_word_未落地_20261012.sql`；`docker-compose.yml:46-48` 亦注明不予挂载。原引用的 :47,49,102 行现均为「已移除/已归档」表述，无死指令 |
+| P2-12 表数口径 | **已修（2026-10-25）** —— 全仓口径已统一为 47 张 / 561 字段 / 196 字符列：`README.md`、`docs/项目现状基线.md` 写 47；`Data/README.md:5-6` 写明 47/561（并说明 35/405 是 02 迁移中间态、171+25 是实库+agent 表实测），:15 的 35/405 是「仅 01+02」阶段口径、非错误 |
 | P2-18 死代码三处 | **已修** —— `NotificationBell.vue` 已挂进两端顶栏；`utils/permission.js` 与 `directives.js` 按"明确不做"删除 |
 | P1 里的 NL2SQL 只读回落（见 `项目调查报告-2026-10-12.md`） | **已修，且是行为变更** —— 缺只读源时直接拒绝执行。因 `09_create_ai_ro_user.sql` 按决策不进部署链，新环境不手工建 `ai_ro` 就等于数据智能体不可用 |
 
@@ -291,11 +291,14 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 
 `mvn -o -B test` 现值 = **931 例 / 94 个测试类全绿**（2026-10-25 深夜实测；§7 起于 893/91，
 `0787e6f` 的 2 例 auth 验证在其后，2026-10-25 晚的「无慢性病确认」闭环再 +5 例）。
-仍要提醒：这套用例里没有一个 `@SpringBootTest`，全绿只证明方法级逻辑，**不证明应用能启动**；
-`Dashboard.vue` 只做了 `vue-cli-service build` 通过 + 脚本段语法检查，
-本机连不上 MySQL/后端，未做浏览器实测。
+仍要提醒：本仓 `mvn test`（931 例 / 94 类）全为方法级单测，全绿只证明方法级逻辑；
+**2026-10-25 已补 `@SpringBootTest` 集成测试**（`BaseIntegrationTest` 基类 + `PersonalHealthApplicationIT` 上下文启动
++ `CoreBeanWiringIT` 校验 MyBatis/Neo4jClient/RedisTemplate 接线，共 4 例），命名 `*IT` 故不参与 `mvn test`、
+由 `mvn verify`（新增 failsafe 插件）执行，需 MySQL+Redis+Neo4j 就绪。本机实测 4 例全绿
+（MySQL 在线即可启动，Neo4jClient/RedisTemplate 为懒加载、启动期不连，故 Redis/Neo4j 离线也能起）。
+`Dashboard.vue` 只做了 `vue-cli-service build` 通过 + 脚本段语法检查，未做浏览器实测。
 
-### 7.4 §七 收口后仍开着的两条
+### 7.4 §七 收口后仍开着的一条（第 2 条 `0787e6f` 已收口）
 
 > **2026-10-25 晚复核状态**（原文保留，状态标在标题上）：
 > 第 2 条已由 `0787e6f` 落地（`LOCKED`→4010 / `UNKNOWN`→4011 两个出口，前端接住 4011 不清 token）；
@@ -316,7 +319,6 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
    注明迁移脚本把「无慢性病」写成 `[]`，判「没病」和「没答」得分开）；
    ② 把这条从 `REQUIRED_SLOTS` 摘掉，对话里不再追问，只在档案表单填。
    我倾向 ②（对话里抽自由文本属于 LLM 的活，而本类的注释明确写着「不做 LLM 调用」），但这是产品取向，等你说。
-2. **被禁用与数据库抖动共用一句提示** —— 拒绝时接口回的是 401 +「账号已被禁用，请联系管理员」，
-   数据库抖动期间正常用户也会看到这句（措辞不准确，但状态码与前端跳转是对的）。
-   要改成「系统繁忙，请稍后重试」就得给拦截器加一条区分 `UNKNOWN` 的分支，
-   那是对外可见行为变化，等你说。
+2. **被禁用与数据库抖动共用一句提示** —— **已修（`0787e6f`）**：拦截器新增 `UNKNOWN` 分支，
+   `LOCKED`→4010、`UNKNOWN`→4011，读不出判定改回「系统繁忙，请稍后重试」，正常用户不再被误告「账号已被禁用」；
+   前端接住 4011 不清 token（见 `AuthContextConsistencyTest` 等）。原「共用一句提示」缺陷已消除，本条收口。
