@@ -376,6 +376,28 @@
                     <trimStackTrace>false</trimStackTrace>
                 </configuration>
             </plugin>
+
+            <!--
+              2026-10-25 新增 failsafe：让 *IT / *IntegrationTest 在 `mvn verify` 阶段真正执行
+              （surefire 已把它们排除在 `mvn test` 之外，避免本地无 MySQL/Redis/Neo4j 时拖挂基线）。
+              集成测试需要完整依赖（application.yml 的 MySQL + Redis + Neo4j）才能启动上下文。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <argLine>-Dfile.encoding=UTF-8 -Duser.language=zh -Duser.country=CN</argLine>
+                    <trimStackTrace>false</trimStackTrace>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
