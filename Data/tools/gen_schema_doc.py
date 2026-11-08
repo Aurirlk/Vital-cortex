@@ -1,10 +1,18 @@
 # -*- coding: utf-8 -*-
-"""从 information_schema 导出迁移后的表结构基线文档。"""
+"""从 information_schema 导出迁移后的表结构基线文档。
+
+⚠️ 2026-11-08 修正：原脚本把导出日期写死为 2026-10-03、字符集结论写死为
+「全库统一 utf8mb4_0900_ai_ci」（与实测相反），且「迁移要点速查」里的一堆
+行数是 10-03 的手工快照。直接重跑会把已经人工修正过的文档倒退回去。
+现在：日期取当天、字符集按 information_schema 实测生成、历史快照段明确标注时点。
+"""
+import datetime
 import io
 import subprocess
 
 MYSQL = "D:/Program Files/MySQL/bin/mysql.exe"
 DB = "personal_health"
+EXPORT_DATE = datetime.date.today().isoformat()
 
 # 2026-10-03 数据模型重构中新建/改造的表
 NEW = {"news", "comment", "tags", "notification", "department",
@@ -58,6 +66,20 @@ for t in tables:
     v = q("SELECT COUNT(*) FROM `" + t + "`;").strip()
     counts[t] = int(v) if v.isdigit() else -1
 
+# 字符集/排序规则按实库实测生成，不再写死「全库统一 0900」这句错误结论
+SCHEMA_COLLATION = q(
+    "SELECT DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA "
+    "WHERE SCHEMA_NAME='" + DB + "';").strip() or "(读不到)"
+COLLATION_DIST = []
+for line in q(
+        "SELECT IFNULL(COLLATION_NAME,'(非字符列)'),COUNT(*) "
+        "FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='" + DB + "' "
+        "GROUP BY COLLATION_NAME ORDER BY 2 DESC;").splitlines():
+    parts = line.split("\t")
+    if len(parts) >= 2:
+        COLLATION_DIST.append((parts[0], parts[1]))
+CHAR_COLUMNS = sum(int(n) for name, n in COLLATION_DIST if name != "(非字符列)")
+
 GROUPS = [
     ("身份与用户", ["user", "patient_profile", "user_follow", "audit_log"]),
     ("医疗业务（本次重点：科室层级 + 医生解耦）",
@@ -74,21 +96,35 @@ GROUPS = [
     ("问答", ["quiz_question", "quiz_exam", "quiz_exam_question",
              "quiz_record", "quiz_answer"]),
     ("AI", ["ai_config", "ai_conversation", "ai_chat_record", "ai_usage"]),
-    ("系统", ["system_config"]),
+    ("RAG 知识库与检索",
+     ["knowledge_base", "kb_document", "kb_chunk", "kb_data_source",
+      "retrieval_log", "rag_eval_case", "rag_eval_run"]),
+    ("智能体平台",
+     ["agent_config", "agent_run", "agent_tool_binding", "agent_memory",
+      "agent_state", "agent_workspace"]),
+    ("系统", ["system_config", "audit_log"]),
 ]
 
 o = []
 o.append("# 智康云健康管理系统 · 数据表结构基线（迁移后）")
 o.append("")
-o.append("> 导出时间：2026-10-03　　库：`personal_health`")
-o.append("> 规模：%d 张表 / %d 个字段" % (len(tables), len(rows)))
+o.append("> 导出时间：%s　　库：`personal_health`" % EXPORT_DATE)
+o.append("> 规模：%d 张表 / %d 个字段（`information_schema` 实时导出）" % (len(tables), len(rows)))
+o.append(">")
+o.append("> ⚠️ 文件名里的 `20261003` 是**首次基线日期**，不是本文件内容的时间；")
+o.append("> 本文件内容按上面的导出时间从实库机器重新生成。改文件名会牵动")
+o.append("> `MapperTableConsistencyTest` 与多处文档引用，故保留原名。")
 o.append(">")
 o.append("> 本文档由 `information_schema` 实时导出，是后端实体类、Mapper XML、")
 o.append("> 前端接口的**唯一权威结构基线**。改表前请先更新本文档。")
 o.append(">")
-o.append("> 标记说明：")
+o.append("> **口径提醒**：这里导出的是**本机实库**。`Data/01_建库建表` + `02_迁移脚本`")
+o.append("> 全量跑完的部署链终态另含 5 张 `agent_*` 表（47 表 / 561 字段 / 196 字符列），")
+o.append("> 两者不同，引用时务必写明是哪一个口径。")
+o.append(">")
+o.append("> 标记说明（以下两种均为 2026-10-03/04 重构的**历史标记**，不是本次导出新增）：")
 o.append("> - `**[本次变更]**` — 2026-10-03/04 数据模型重构新增或调整的表")
-o.append("> - `**新增**` — 该字段为本次重构新增")
+o.append("> - `**新增**` — 该字段为 2026-10-03/04 重构新增")
 if ARCHIVE:
     o.append("> - `` `[旧表待归档]` `` — 冗余旧表，代码切换完成后归档，用户校验通过后删除")
 else:
@@ -133,7 +169,11 @@ if rest:
 
 o.append("---")
 o.append("")
-o.append("## 迁移要点速查（后端适配必读）")
+o.append("## 迁移要点速查（2026-10-03 迁移当时的历史记录）")
+o.append("")
+o.append("> ⚠️ 本节是 2026-10-03/04 迁移时人工写下的**历史快照**：下面的行数、指标数、")
+o.append("> 科室数、医生账号数都只代表当时，**不代表本次导出的实况**。")
+o.append("> 当前实况以本文件上面的字段表与「### 7 字符集（本次导出实测）」为准。")
 o.append("")
 o.append("### 1. news 已吸收 post")
 o.append("- 旧 `post` 表 10 行已迁入 `news`，`content_type='POST'`")
@@ -167,8 +207,13 @@ o.append("- `user_health` 从 125 → 160 行（回填 35 条来自 `patient_pro
 o.append("- `health_model_config` 从 5 → 12 个指标（补齐血脂四项、餐后血糖、身高、体重）")
 o.append("- ⚠️ `patient_profile` 的 9 个指标字段仍在（代码不再使用，待后续 DROP）")
 o.append("")
-o.append("### 7. 字符集")
-o.append("- 全库统一 `utf8mb4_0900_ai_ci`（含列级），已校验无遗漏")
+o.append("### 7. 字符集（本次导出实测）")
+o.append("- 库默认排序规则：`%s`（`information_schema.SCHEMATA` 实测）" % SCHEMA_COLLATION)
+o.append("- 列级排序规则分布：%s" % "、".join(
+    "`%s` %s 列" % (name, n) for name, n in COLLATION_DIST))
+o.append("- 字符列合计 **%d** 个。" % CHAR_COLUMNS)
+o.append("- ⚠️ **不要写「全库统一 `utf8mb4_0900_ai_ci`」**：库默认值并未改动，")
+o.append("  只是建表 DDL 逐表/逐列显式覆盖了字符列；两种库默认值下终态结构相同。")
 
 DOC = "docs/数据表结构基线-20261003.md"
 io.open(DOC, "w", encoding="utf-8", newline="").write("\n".join(o))

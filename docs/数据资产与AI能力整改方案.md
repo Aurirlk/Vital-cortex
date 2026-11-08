@@ -226,7 +226,7 @@ B 口径 mysql --default-character-set=utf8mb4 第 1 遍 零 ERROR
 | 4  | **`audit_log` 代码在线但写入路径未打通**                | P1 | ✅ **本轮打通** | 数据智能体每次问答写 `audit_log`（含拒绝时的 `status=0` + 拒绝原因）                         |
 | 5  | `ai_usage` 是唯一真死代码                          | P2 | ✅ 已接入      | `AiServiceImpl.recordUsage`（ENG-10）                                     |
 | 6  | RBAC 5 张表从未落地（23 条 SQL 悬空）                  | P1 | ✅ 已清       | 悬空 Mapper 已移除                                                           |
-| 7  | 零数据层测试（229 用例全 Mockito、零 `@SpringBootTest`） | P1 | ✅ 已加       | `MapperTableConsistencyTest`（悬空表即失败）；⚠️ 「无真集成测试」本身**仍未闭环**，最新口径见本附录 §B E1  |
+| 7  | 零数据层测试（229 用例全 Mockito、零 `@SpringBootTest`） | P1 | ✅ 已加       | `MapperTableConsistencyTest`（悬空表即失败）；✅ **「无真集成测试」已于 2026-11-08 闭环**：新增 2 个 `*IT` 类 / 4 个 `@SpringBootTest` 用例，CI 改跑 `mvn verify` 真正执行；当前 942 单测 / 96 类 + 4 集成全绿（原「仍未闭环」为当时结论，最新口径见 `测试报告.md` §2.1 与本附录 §B E1） |
 | 8  | 9 张空表中 4 张只差种子数据                            | P1 | ⚠️ **未变**  | 需人工造数据                                                                  |
 | 9  | `user.phone` 全表 NULL + 短信登录硬编码 `123456`     | P1 | ❌ **未变**   | **上线前必办**                                                               |
 | 10 | 前端 API 层只有 `api/doctor.js`，80+ 接口散落在 .vue   | P1 | ⚠️ 部分改善    | 本轮新增 `AgentHistory` 组件统一走 `utils/request.js` / `doctorRequest.js`；其余仍散落 |
@@ -374,7 +374,7 @@ B 口径 mysql --default-character-set=utf8mb4 第 1 遍 零 ERROR
 
 ### A4 🔴 新增数据层一致性测试
 
-**问题**：6 个悬空 Mapper **全部零测试**；229 个用例全是 Mockito 单测，**零 `@SpringBootTest`**，从不连库 → 所以"删表不改代码"在历史上从未被测试发现。（**2026-10-12 更新**：句中「229」是阶段 0-A 的时点数，此后用例量已增至 claude 线 **364**（2026-10-10）/ main 侧 **541**（2026-10-11，commit `9baa4ea`）—— 单测**数量**已不是瓶颈；但「全是 Mockito 纯对象测试、零 `@SpringBootTest`」的定性**至今未变**，最新口径见本附录 §B E1。）
+**问题**：6 个悬空 Mapper **全部零测试**；229 个用例全是 Mockito 单测，**零 `@SpringBootTest`**，从不连库 → 所以"删表不改代码"在历史上从未被测试发现。（**2026-10-12 更新**：句中「229」是阶段 0-A 的时点数，此后用例量已增至 claude 线 **364**（2026-10-10）/ main 侧 **541**（2026-10-11，commit `9baa4ea`）—— 单测**数量**已不是瓶颈；该「全是 Mockito 纯对象测试、零 `@SpringBootTest`」的定性是**当时的**结论。🔴 **2026-11-08 已改变**：现已有 4 个 `@SpringBootTest` 集成用例，走 `mvn verify`（failsafe）执行；最新口径见 `测试报告.md` §2.1 与本附录 §B E1。）
 
 **做法**：新增 `src/test/java/cn/kmbeast/mapper/MapperTableConsistencyTest.java`
 
