@@ -1,11 +1,14 @@
 package cn.kmbeast.core.agent;
 
+import cn.kmbeast.core.nl2sql.DataAgentConfigHolder;
 import cn.kmbeast.core.workspace.AgentWorkspace;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -29,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li><b>无界缓存 → 有界 LRU</b>：原用 {@code new HashMap<>()} 存全部用户偏好，
  *       既无上限也无淘汰，与此前修复过的「AI 对话缓存必然 OOM」是同类隐患。
  *       现改为 {@code ConcurrentHashMap} + {@link BoundedPreferenceCache}，
- *       上限 {@link #MAX_CACHED_USERS} 个用户，LRU 淘汰。</li>
+ *       上限 由在线配置 {@code memory-max-users}（默认 1000）控制，LRU 淘汰。</li>
  *   <li><b>返回值防篡改</b>：原 {@code computeIfAbsent} 直接返回缓存里的可变引用，
  *       调用方拿到后修改不会落盘，且外部可随意改动缓存内容。
  *       现返回<b>不可变副本</b>。</li>
@@ -41,8 +44,17 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class AgentMemoryService {
 
-    /** 最多缓存多少个用户的偏好（超出按 LRU 淘汰） */
-    private static final int MAX_CACHED_USERS = 1000;
+    /** 最多缓存多少个用户的偏好（超出按 LRU 淘汰）；默认 1000，运行时由在线配置覆盖 */
+    private int maxCachedUsers = 1000;
+
+    /**
+     * 长短期记忆在线配置源（{@code system_config} config_group='data_agent'）。
+     *
+     * <p>{@code required=false}：单测里不走 Spring 装配，硬注入会 NPE；取不到时
+     * 偏好缓存上限保持代码默认值 1000。</p>
+     */
+    @Autowired(required = false)
+    private DataAgentConfigHolder configHolder;
 
     /** 定时清理间隔（分钟）——清理长期未被访问但未满的条目，避免内存缓慢增长 */
     private static final long EVICT_INTERVAL_MINUTES = 30L;
@@ -51,7 +63,21 @@ public class AgentMemoryService {
     private AgentWorkspace agentWorkspace;
 
     /** 内存缓存：用户偏好。有界 LRU，防止用户量增长导致 OOM */
-    private final BoundedPreferenceCache userPreferences = new BoundedPreferenceCache(MAX_CACHED_USERS);
+    private BoundedPreferenceCache userPreferences = new BoundedPreferenceCache(maxCachedUsers);
+
+    /**
+     * 启动时用在线配置重建缓存上限。
+     *
+     * <p>2026-11-08（阶段 4）：此前上限是 {@code static final 1000}，管理员配的
+     * {@code memory-max-users} 改了不生效。现改为读在线配置（回落 1000），
+     * 未装配配置源时维持默认值，与改前行为一致。</p>
+     */
+    @PostConstruct
+    public void initCache() {
+        int n = configHolder != null ? configHolder.getMemoryMaxUsers() : maxCachedUsers;
+        this.maxCachedUsers = n;
+        this.userPreferences = new BoundedPreferenceCache(n);
+    }
 
     /**
      * 获取用户偏好（只读快照）
@@ -208,7 +234,7 @@ public class AgentMemoryService {
     public Map<String, Object> getCacheStats() {
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("cachedUsers", userPreferences.size());
-        stats.put("maxCachedUsers", MAX_CACHED_USERS);
+        stats.put("maxCachedUsers", maxCachedUsers);
         return stats;
     }
 
@@ -219,7 +245,7 @@ public class AgentMemoryService {
      */
     @Scheduled(fixedDelay = EVICT_INTERVAL_MINUTES * 60 * 1000, initialDelay = EVICT_INTERVAL_MINUTES * 60 * 1000)
     public void evictStaleCache() {
-        int removed = userPreferences.evictStale(MAX_CACHED_USERS);
+        int removed = userPreferences.evictStale(maxCachedUsers);
         if (removed > 0) {
             log.info("[AgentMemory] 清理长期未访问的偏好缓存 {} 条，当前 {}", removed, userPreferences.size());
         }

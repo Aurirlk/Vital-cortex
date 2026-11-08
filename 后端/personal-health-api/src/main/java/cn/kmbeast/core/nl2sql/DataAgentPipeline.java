@@ -176,8 +176,15 @@ public class DataAgentPipeline {
     @Autowired(required = false)
     private cn.kmbeast.core.agent.AgentMemoryService memoryService;
 
-    /** 注入 prompt 的偏好段最大字符数（与 ReAct 链路同量级）。 */
-    private static final int MEMORY_SECTION_MAX_CHARS = 400;
+    /**
+     * 注入 prompt 的偏好段字符上限（NL2SQL 链路）。
+     *
+     * <p>2026-11-08（阶段 4）：此前是 {@code static final 400}，管理员配的
+     * {@code memory-max-chars} 改了不生效。现改为读在线配置（未装配配置源时回落 400）。</p>
+     */
+    private int memoryMaxChars() {
+        return config != null ? config.getMemoryMaxChars() : 400;
+    }
 
     /** 单条偏好最大字符数。 */
     private static final int MEMORY_ITEM_MAX_CHARS = 60;
@@ -189,6 +196,10 @@ public class DataAgentPipeline {
      * @return 偏好文本（可能为空串），永不返回 {@code null}
      */
     private String safeMemory(Long dataOwnerId) {
+        // 长短期记忆总开关：关闭时不注入偏好（连磁盘都不读）
+        if (config != null && !config.isMemoryEnabled()) {
+            return "";
+        }
         try {
             if (dataOwnerId == null) {
                 return "";
@@ -224,7 +235,7 @@ public class DataAgentPipeline {
             StringBuilder body = new StringBuilder();
             int omitted = 0;
             for (String item : lines) {
-                if (body.length() + item.length() > MEMORY_SECTION_MAX_CHARS) {
+                if (body.length() + item.length() > memoryMaxChars()) {
                     omitted++;
                     continue;
                 }

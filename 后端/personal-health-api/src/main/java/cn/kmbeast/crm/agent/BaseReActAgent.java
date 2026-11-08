@@ -54,6 +54,15 @@ public abstract class BaseReActAgent {
     protected cn.kmbeast.core.agent.AgentMemoryService memoryService;
 
     /**
+     * 长短期记忆在线配置源（{@code system_config} config_group='data_agent'）。
+     *
+     * <p>{@code required=false}：单测里的子类不走 Spring 装配，硬注入会 NPE；
+     * 取不到时偏好段按代码默认值处理，行为与改前一致。</p>
+     */
+    @Autowired(required = false)
+    private cn.kmbeast.core.nl2sql.DataAgentConfigHolder configHolder;
+
+    /**
      * Agent 注册表（阶段 1 多 Agent 架构）：提供工具白名单与委派关系。
      *
      * <p>同样 {@code required=false}：单元测试里的子类不走 Spring 装配，硬注入会 NPE。
@@ -74,7 +83,16 @@ public abstract class BaseReActAgent {
      * system prompt 会膨胀到挤占 token 预算（{@code TokenBudgetManager} 只校验不压缩）。
      * 超限时<b>按插入顺序保留最新的若干条</b>（更旧的偏好参考价值低）。</p>
      */
-    protected static final int MEMORY_SECTION_MAX_CHARS = 800;
+    /**
+     * 注入 prompt 的偏好段字符上限（ReAct 链路）。
+     *
+     * <p>2026-11-08（阶段 4）：此前是 {@code static final 800}，管理员在
+     * {@code system_config} 配的 {@code memory-max-chars} 改了也不生效（仅 Holder 的
+     * {@code effective()} 展示用）。现改为读在线配置，未装配配置源时回落 800。</p>
+     */
+    private int memoryMaxChars() {
+        return configHolder != null ? configHolder.getMemoryMaxChars() : 800;
+    }
 
     /** 单条偏好的最大字符数，超长截断，防止单条就把整段撑爆。 */
     protected static final int MEMORY_ITEM_MAX_CHARS = 80;
@@ -425,13 +443,17 @@ public abstract class BaseReActAgent {
      *   <li>{@code memoryService} 未注入（单测场景）→ 跳过</li>
      *   <li>当前用户 id 取不到（未登录 / 跨线程身份丢失）→ 跳过，<b>绝不跨用户读偏好</b></li>
      *   <li>偏好为空 → 跳过</li>
-     *   <li>组装后超过 {@link #MEMORY_SECTION_MAX_CHARS} → <b>保留最新若干条</b>并标注已省略</li>
+     *   <li>组装后超过 {@link #memoryMaxChars()} 上限 → <b>保留最新若干条</b>并标注已省略</li>
      * </ol>
      *
      * @return 可直接追加到 system prompt 的文本（含前后换行），或 {@code null} 表示无需注入
      */
     protected String buildMemorySection() {
         try {
+            // 长短期记忆总开关：关闭时连磁盘都不读，直接不注入（性能 + 隐私）
+            if (configHolder != null && !configHolder.isMemoryEnabled()) {
+                return null;
+            }
             if (memoryService == null) {
                 return null;
             }
@@ -466,7 +488,7 @@ public abstract class BaseReActAgent {
             StringBuilder body = new StringBuilder();
             int omitted = 0;
             for (String item : lines) {
-                if (body.length() + item.length() > MEMORY_SECTION_MAX_CHARS) {
+                if (body.length() + item.length() > memoryMaxChars()) {
                     omitted++;
                     continue;
                 }
@@ -478,8 +500,8 @@ public abstract class BaseReActAgent {
             if (body.length() == 0) {
                 // 连一条都放不下：只保留最新一条并截断
                 String first = lines.get(0);
-                body.append(first.length() > MEMORY_SECTION_MAX_CHARS
-                        ? first.substring(0, MEMORY_SECTION_MAX_CHARS) + "…"
+                body.append(first.length() > memoryMaxChars()
+                        ? first.substring(0, memoryMaxChars()) + "…"
                         : first);
                 omitted = lines.size() - 1;
             }
