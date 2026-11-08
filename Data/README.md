@@ -218,9 +218,10 @@ mysqldump --databases personal_health > portable_$(date +%Y%m%d_%H%M%S).sql
 
 | 文件 | 说明 |
 |---|---|
-| `LATEST_PORTABLE.txt` | 指针，指向当前完整备份 |
-| `portable_20261007_050202.sql` | **当前**完整备份（35 表，含 `CREATE DATABASE` + `USE`） |
+| `LATEST_PORTABLE.txt` | 指针，指向最近一份**全库**完整备份 |
+| `portable_20261007_050202.sql` | 最近一份**全库**完整备份（**2026-10-07 时点的 35 表**，含 `CREATE DATABASE` + `USE`）⚠️ **不代表当前实库**（现为 42 表 / 504 字段），恢复后需按 `02_迁移脚本` 补齐 |
 | `portable_20261006_233220.sql` | 上一代完整备份（保留一代作为回滚冗余） |
+| `user_before_08_20261108.sql` | 2026-11-08 执行 `08_user_settings_columns.sql` 前的 **`user` 单表**备份（14 列时点）。⚠️ 不是全库备份、不参与「两代」策略，仅用于回滚那 14 个设置列 |
 | `rbac_schema_deprecated_20261007.sql` | 已废弃的 RBAC 建表脚本（仅作决策留档，**勿执行**） |
 
 > 历史做法是把每次迁移前的快照都留在这里，导致 `90_归档/` 积累 40+ 个文件 / 3.9 MB
