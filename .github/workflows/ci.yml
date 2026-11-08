@@ -34,9 +34,14 @@ jobs:
         working-directory: ./后端/personal-health-api
         run: mvn clean compile -B
 
-      - name: Run tests
+      - name: Run tests (unit + Spring context startup guard)
         working-directory: ./后端/personal-health-api
-        run: mvn test -B
+        # ⚠️ 必须是 verify，不能是 test（2026-11-08 修正）：
+        # 单元测试走 surefire，而 *IT 后缀的 @SpringBootTest 启动守护被 surefire
+        # 显式排除（见 pom.xml），只有 failsafe 在 verify 阶段才执行。
+        # 此前这里写 mvn test，等于「启动守护一行都没跑」—— 应用起不来也发现不了。
+        # 实测：上下文启动不依赖 MySQL/Redis/Neo4j（三者均懒连接），CI 裸机可直接跑。
+        run: mvn verify -B
 
       - name: Package JAR
         working-directory: ./后端/personal-health-api
