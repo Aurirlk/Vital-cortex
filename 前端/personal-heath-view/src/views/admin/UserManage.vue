@@ -385,7 +385,7 @@ export default {
       this.roleStatus = data.userRole === 1;
       this.data = data;
     },
-    handleAvatarSuccess(res, file) {
+    handleAvatarSuccess(res) {
       if (res.code !== 200) {
         this.$notify({
           duration: 2000,

@@ -120,7 +120,7 @@ export default {
           "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
       };
     },
-    onClick(data) {
+    onClick() {
       this.$emit("on-click", this.activeData);
     },
     config() {

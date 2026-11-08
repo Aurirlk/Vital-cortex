@@ -69,14 +69,14 @@ export default {
   },
   watch: {
     receiveContent: {
-      handler(v1, v2) {
+      handler(v1) {
         console.log("", v1);
         this.content = v1;
       },
       deep: true, //
       immediate: true,
     },
-    content(newVal, oldVal) {
+    content(newVal) {
       this.$emit("on-receive", newVal);
     },
   },

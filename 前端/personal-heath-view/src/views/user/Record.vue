@@ -433,7 +433,7 @@ export default {
       this.userHealthModel.name = "";
       this.getAllModelConfig();
     },
-    handleAvatarSuccess(res, file) {
+    handleAvatarSuccess(res) {
       if (res.code !== 200) {
         this.$message.error(`封面上传失败`);
         return;

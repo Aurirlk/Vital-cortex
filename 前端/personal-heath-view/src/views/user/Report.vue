@@ -108,7 +108,6 @@
 </template>
 
 <script>
-import request from "@/utils/request.js";
 
 export default {
   name: "UserReport",

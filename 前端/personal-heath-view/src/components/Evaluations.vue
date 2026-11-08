@@ -79,7 +79,6 @@
             <el-popconfirm
               confirm-button-text=""
               cancel-button-text=""
-              :icon="InfoFilled"
               icon-color="red"
               title=""
               v-if="comment.userId == userId"
@@ -229,7 +228,6 @@
                 <el-popconfirm
                   confirm-button-text=""
                   cancel-button-text=""
-                  :icon="InfoFilled"
                   icon-color="red"
                   title=""
                   v-if="commentChild.userId == userId"
@@ -326,13 +324,15 @@
 <script>
 import { timeAgo } from "@/utils/data";
 import {
-  InfoFilled,
   Delete,
   ChatDotRound,
   Discount,
 } from "@element-plus/icons-vue";
 export default {
-  components: { InfoFilled, Delete, ChatDotRound, Discount },
+  // 2026-11-08：原注册了 InfoFilled 并用 :icon="InfoFilled" 指定，但模板里 InfoFilled 从未被暴露到
+  // 组件实例（既不注册为组件、也不在 data 里），实际取到 undefined → 一直回落到 el-popconfirm 的默认图标。
+  // 已删除该无效绑定与无用导入，视觉与修复前完全一致（仍是红色默认图标）。
+  components: { Delete, ChatDotRound, Discount },
   props: {
     contentId: {
       type: Number,

@@ -1979,8 +1979,8 @@ export default {
       }).catch(() => {});
     },
 
-    updateModelPriority(row) {
-      // 优先级修改后自动排序
+    updateModelPriority() {
+      // 优先级修改后自动排序（排序规则与原行无关，故不接收 row）
       this.modelList.sort((a, b) => (a.priority || 999) - (b.priority || 999));
     },
 

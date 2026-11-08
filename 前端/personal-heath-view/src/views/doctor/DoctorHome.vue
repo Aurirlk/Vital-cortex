@@ -91,8 +91,7 @@
 </template>
 
 <script>
-import { Refresh, Tickets, Calendar, CircleCheck, Clock, ArrowRight } from "@element-plus/icons-vue";
-import * as Icons from "@element-plus/icons-vue";
+import { Refresh } from "@element-plus/icons-vue";
 import { getDoctorOverview, getMyAppointments } from "@/api/doctor.js";
 
 export default {

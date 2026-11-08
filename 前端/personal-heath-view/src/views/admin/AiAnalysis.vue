@@ -918,7 +918,7 @@ export default {
       a.click();
       URL.revokeObjectURL(url);
     },
-    handleFileUpload(res, file) {
+    handleFileUpload(res) {
       if (res.code === 200) {
         this.uploadFiles.push(res.data);
         this.$message.success("");

@@ -396,7 +396,7 @@ export default {
       }
       return true;
     },
-    handleAvatarSuccess(res, file) {
+    handleAvatarSuccess(res) {
       if (res.code !== 200) {
         this.$message.error(`头像上传失败：${res.msg || ""}`);
         return;

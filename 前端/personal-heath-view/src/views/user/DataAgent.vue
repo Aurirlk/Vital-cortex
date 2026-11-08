@@ -93,7 +93,8 @@ import AgentHistoryDialog from "@/components/AgentHistoryDialog.vue";
 
 export default {
   name: "DataAgent",
-  components: { Promotion, Clock, Plus, AgentWorkflow, AgentResult, AgentHistoryDialog },
+  // Promotion / Clock / Plus 只在模板里以 :icon="xxx" 取值使用（见 data()），不是组件标签
+  components: { AgentWorkflow, AgentResult, AgentHistoryDialog },
   data() {
     return {
       Promotion,

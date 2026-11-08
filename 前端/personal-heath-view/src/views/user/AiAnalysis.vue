@@ -1157,7 +1157,9 @@ export default {
           const decoder = new TextDecoder();
           let buffer = "";
 
-          while (true) {
+          // 流式读取：读到 done 即 break，故此处用 for(;;) 而非 while(true)
+          // （while(true) 会被 no-constant-condition 判为常量条件）
+          for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
             buffer += decoder.decode(value, { stream: true });
@@ -1364,7 +1366,8 @@ export default {
         const decoder = new TextDecoder();
         let buffer = "";
 
-        while (true) {
+        // 同上：流式读取循环，退出条件是 done
+        for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });

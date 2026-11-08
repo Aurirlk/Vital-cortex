@@ -240,7 +240,7 @@ export default {
     this.fetchFreshData();
   },
   methods: {
-    handleAvatarSuccess(res, file) {
+    handleAvatarSuccess(res) {
       this.$notify({
         duration: 2000,
         title: "上传结果",

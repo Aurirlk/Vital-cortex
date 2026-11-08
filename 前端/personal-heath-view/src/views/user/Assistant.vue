@@ -134,7 +134,7 @@
 <script>
 import { getToken } from "@/utils/storage.js";
 import { sanitizeHtml } from "@/utils/sanitize.js";
-import request, { URL_API } from "@/utils/request.js";
+import { URL_API } from "@/utils/request.js";
 import { marked } from "marked";
 marked.setOptions({ breaks: true, gfm: true });
 

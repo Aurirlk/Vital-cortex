@@ -39,7 +39,6 @@
 <script>
 const DELAY_TIME = 1300;
 import request from "@/utils/request.js";
-import md5 from "js-md5";
 import Logo from "@/components/Logo.vue";
 export default {
   name: "Register",

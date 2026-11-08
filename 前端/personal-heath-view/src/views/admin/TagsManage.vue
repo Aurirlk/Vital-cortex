@@ -145,7 +145,7 @@ export default {
       this.dialogOperaion = false;
       this.isOperation = false;
     },
-    handleAvatarSuccess(res, file) {
+    handleAvatarSuccess(res) {
       if (res.code !== 200) {
         this.$message.error(`上传失败`);
         return;
