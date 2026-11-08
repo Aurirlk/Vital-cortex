@@ -7,6 +7,7 @@ import cn.kmbeast.core.graph.KnowledgeGraphService;
 import cn.kmbeast.core.guard.OutputValidator;
 import cn.kmbeast.core.guard.SignalDetector;
 import cn.kmbeast.core.guard.SynthesisGuard;
+import cn.kmbeast.core.chat.ChatToolLoop;
 import cn.kmbeast.core.notify.NotifyTemplates;
 import cn.kmbeast.core.notify.UserNotifier;
 import cn.kmbeast.crm.agent.tool.AiSessionContext;
@@ -37,6 +38,7 @@ import okhttp3.*;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -118,6 +120,10 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private UserNotifier userNotifier;
+
+    /** 2026-11-08 阶段5（Q6 默认开启）：AI 问诊工具调用循环。 */
+    @Autowired(required = false)
+    private ChatToolLoop chatToolLoop;
 
     private OkHttpClient httpClient;
 
@@ -228,40 +234,54 @@ public class AiServiceImpl implements AiService {
             // 构建消息后再保存用户消息到缓存
             chatCacheService.addMessage(conversationId, userRecord);
 
-            JSONObject requestBody = new JSONObject();
-            
             // 根据是否启用深度思考选择模型和API
             String apiUrl;
             String apiKey;
+            String model;
             if (Boolean.TRUE.equals(chatRequest.getEnableDeepThink())) {
-                requestBody.put("model", aiConfig.getReasonerModel());
+                model = aiConfig.getReasonerModel();
                 apiUrl = aiConfig.getReasonerApiUrl();
                 apiKey = aiConfig.getReasonerApiKey() != null && !aiConfig.getReasonerApiKey().isEmpty()
                         ? aiConfig.getReasonerApiKey() : aiConfig.getApiKey();
             } else {
-                requestBody.put("model", aiConfig.getModel());
+                model = aiConfig.getModel();
                 apiUrl = aiConfig.getApiUrl();
                 apiKey = aiConfig.getApiKey();
             }
-            
-            requestBody.put("messages", messages);
-            requestBody.put("temperature", temperature);
-            requestBody.put("top_p", topP);
-            requestBody.put("max_tokens", maxTokens);
-            if (presencePenalty != null) {
-                requestBody.put("presence_penalty", presencePenalty);
-            }
-            if (frequencyPenalty != null) {
-                requestBody.put("frequency_penalty", frequencyPenalty);
-            }
 
-            log.info("AI请求: userId={}, conversationId={}, role={}, model={}, webSearch={}, deepThink={}",
-                    userId, conversationId, agentType, 
-                    requestBody.getString("model"),
+            boolean toolsEnabled = chatToolLoop != null && chatToolLoop.isToolsEnabled();
+            log.info("AI请求: userId={}, conversationId={}, role={}, model={}, webSearch={}, deepThink={}, toolsEnabled={}",
+                    userId, conversationId, agentType, model,
                     chatRequest.getEnableWebSearch(),
-                    chatRequest.getEnableDeepThink());
+                    chatRequest.getEnableDeepThink(), toolsEnabled);
 
-            String aiReply = callDeepSeekApi(requestBody.toJSONString(), apiUrl, apiKey);
+            // ===== 阶段5（Q6 默认开启）：工具轮 → 最终生成 =====
+            // 工具路径：先用 LLM 非流式跑工具轮（最多 N 轮，查询健康数据等），把结果回填进消息，
+            // 再从增强后的消息里取出最终自然语言回答；关闭工具时回落原单轮调用。
+            // 两条路径最终都得到 aiReply 文本，下游守卫 / 落库逻辑不变。
+            String aiReply;
+            if (toolsEnabled) {
+                ChatToolLoop.Context toolCtx = new ChatToolLoop.Context(userId, null, false);
+                JSONArray augmented = chatToolLoop.run(messages,
+                        (msgs, tools, c) -> nonStreamChat(msgs, tools, apiUrl, apiKey, model,
+                                temperature, topP, maxTokens, presencePenalty, frequencyPenalty),
+                        toolCtx);
+                aiReply = extractLastAssistantContent(augmented);
+            } else {
+                JSONObject requestBody = new JSONObject();
+                requestBody.put("model", model);
+                requestBody.put("messages", messages);
+                requestBody.put("temperature", temperature);
+                requestBody.put("top_p", topP);
+                requestBody.put("max_tokens", maxTokens);
+                if (presencePenalty != null) {
+                    requestBody.put("presence_penalty", presencePenalty);
+                }
+                if (frequencyPenalty != null) {
+                    requestBody.put("frequency_penalty", frequencyPenalty);
+                }
+                aiReply = callDeepSeekApi(requestBody.toJSONString(), apiUrl, apiKey);
+            }
 
             // ============ SynthesisGuard 输出守卫（三层防幻觉接线） ============
             // 层1 质量门：端水/重复/过短检测 —— 不阻断回答，仅记录监控（质量信号）
@@ -435,26 +455,39 @@ public class AiServiceImpl implements AiService {
             // 构建消息后再保存用户消息到缓存
             chatCacheService.addMessage(conversationId, userRecord);
 
-            JSONObject requestBody = new JSONObject();
-            
             // 根据是否启用深度思考选择模型和API
             String apiUrl;
             String apiKey;
+            String model;
             if (Boolean.TRUE.equals(chatRequest.getEnableDeepThink())) {
                 // 深度思考模式
-                requestBody.put("model", aiConfig.getReasonerModel());
+                model = aiConfig.getReasonerModel();
                 apiUrl = aiConfig.getReasonerApiUrl();
                 apiKey = aiConfig.getReasonerApiKey() != null && !aiConfig.getReasonerApiKey().isEmpty()
                         ? aiConfig.getReasonerApiKey() : aiConfig.getApiKey();
                 // 深度思考需要更长的超时时间
-                log.info("[AI] 启用深度思考模式: model={}", aiConfig.getReasonerModel());
+                log.info("[AI] 启用深度思考模式: model={}", model);
             } else {
                 // 普通模式
-                requestBody.put("model", aiConfig.getModel());
+                model = aiConfig.getModel();
                 apiUrl = aiConfig.getApiUrl();
                 apiKey = aiConfig.getApiKey();
             }
-            
+
+            // ===== 阶段5（Q6 默认开启）：工具轮非流式 → 末轮流式 =====
+            // 先用 LLM 非流式跑工具轮（查询健康数据等），把结果回填进 messages；
+            // 随后在「末流」阶段（下方 stream 调用）用增强后的 messages 生成最终自然语言回答。
+            // 末流请求不再下发 tools，因此不会产生新的工具调用。
+            if (chatToolLoop != null && chatToolLoop.isToolsEnabled()) {
+                ChatToolLoop.Context toolCtx = new ChatToolLoop.Context(userId, null, false);
+                messages = chatToolLoop.run(messages,
+                        (msgs, tools, c) -> nonStreamChat(msgs, tools, apiUrl, apiKey, model,
+                                temperature, topP, maxTokens, presencePenalty, frequencyPenalty),
+                        toolCtx);
+            }
+
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("model", model);
             requestBody.put("messages", messages);
             requestBody.put("temperature", temperature);
             requestBody.put("top_p", topP);
@@ -497,15 +530,24 @@ public class AiServiceImpl implements AiService {
                     int chunkCount = 0;
 
                     while ((line = reader.readLine()) != null) {
-                        if (line.startsWith("data: ")) {
-                            String json = line.substring(6);
-                            if ("[DONE]".equals(json)) break;
+                        if (line.startsWith("data:")) {
+                            String json = line.substring(5).trim();
+                            if (json.isEmpty() || "[DONE]".equals(json)) break;
 
-                            JSONObject chunk = JSON.parseObject(json);
+                            JSONObject chunk;
+                            try {
+                                chunk = JSON.parseObject(json);
+                            } catch (Exception parseEx) {
+                                // 单分片解析失败（截断/控制字符）不得中断整轮，跳过即可
+                                log.warn("[AI] 流式分片 JSON 解析失败，跳过: {}", parseEx.getMessage());
+                                continue;
+                            }
+                            if (chunk == null) continue;
+
                             JSONArray choices = chunk.getJSONArray("choices");
                             if (choices != null && !choices.isEmpty()) {
                                 JSONObject delta = choices.getJSONObject(0).getJSONObject("delta");
-                                if (delta.containsKey("content")) {
+                                if (delta != null && delta.containsKey("content")) {
                                     String content = delta.getString("content");
                                     if (content != null && !content.isEmpty()) {
                                         fullReply.append(content);
@@ -524,8 +566,14 @@ public class AiServiceImpl implements AiService {
                                         }
                                     }
                                 }
+                                // finish_reason 四值处理：stop/length/tool_calls/content_filter 均终止读取
                                 String finishReason = choices.getJSONObject(0).getString("finish_reason");
-                                if ("stop".equals(finishReason)) break;
+                                if (finishReason != null && ("stop".equals(finishReason)
+                                        || "length".equals(finishReason)
+                                        || "tool_calls".equals(finishReason)
+                                        || "content_filter".equals(finishReason))) {
+                                    break;
+                                }
                             }
                         }
                     }
@@ -1286,6 +1334,77 @@ public class AiServiceImpl implements AiService {
                 return content;
             }
             throw new IOException("AI服务返回为空");
+    }
+
+    /**
+     * 阶段5：非流式 LLM 补全（供 {@link ChatToolLoop} 工具轮调用）。
+     *
+     * <p>与 {@link #callDeepSeekApi(String, String, String)} 不同，这里返回<b>完整</b>响应 JSON
+     * （含 {@code choices[0].message.tool_calls}），并把 {@code tools/tool_choice:"auto"} 注入请求体，
+     * 供模型决定是否调用工具。usage 照常落库。</p>
+     */
+    private JSONObject nonStreamChat(JSONArray messages, List<Map<String, Object>> tools,
+                                     String apiUrl, String apiKey, String model,
+                                     Double temperature, Double topP, Integer maxTokens,
+                                     Double presencePenalty, Double frequencyPenalty) throws IOException {
+        JSONObject body = new JSONObject();
+        body.put("model", model);
+        body.put("messages", messages);
+        body.put("temperature", temperature);
+        body.put("top_p", topP);
+        body.put("max_tokens", maxTokens);
+        if (presencePenalty != null) {
+            body.put("presence_penalty", presencePenalty);
+        }
+        if (frequencyPenalty != null) {
+            body.put("frequency_penalty", frequencyPenalty);
+        }
+        if (tools != null && !tools.isEmpty()) {
+            body.put("tools", tools);
+            body.put("tool_choice", "auto");
+        }
+        String resp = llmProviderFactory.getProvider().chat(body.toJSONString(), apiUrl, apiKey);
+        JSONObject json = JSON.parseObject(resp);
+        if (json == null) {
+            throw new IOException("AI服务返回为空");
+        }
+        if (json.containsKey("error")) {
+            throw new IOException("AI服务返回错误: " + json.getJSONObject("error").getString("message"));
+        }
+        if (json.containsKey("usage")) {
+            JSONObject usage = json.getJSONObject("usage");
+            int prompt = usage.getInteger("prompt_tokens") != null ? usage.getInteger("prompt_tokens") : 0;
+            int completion = usage.getInteger("completion_tokens") != null ? usage.getInteger("completion_tokens") : 0;
+            int total = usage.getInteger("total_tokens") != null ? usage.getInteger("total_tokens") : 0;
+            log.info("Token使用: prompt={}, completion={}, total={}", prompt, completion, total);
+            recordUsage(prompt, completion, total, "chat");
+        }
+        return json;
+    }
+
+    /**
+     * 阶段5：从工具轮增强后的消息数组里取出最后的 assistant 自然语言回答。
+     *
+     * <p>工具轮结束后，数组中最后一条 {@code role:"assistant"} 且含非空 {@code content} 的消息
+     * 即最终回答（前面的 assistant 消息可能只带 {@code tool_calls}、content 为 null）。</p>
+     */
+    private String extractLastAssistantContent(JSONArray messages) {
+        if (messages == null) {
+            return null;
+        }
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            JSONObject m = messages.getJSONObject(i);
+            if (m == null) {
+                continue;
+            }
+            if ("assistant".equals(m.getString("role"))) {
+                String content = m.getString("content");
+                if (content != null && !content.isEmpty()) {
+                    return content;
+                }
+            }
+        }
+        return null;
     }
 
     /**

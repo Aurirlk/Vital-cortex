@@ -122,6 +122,23 @@ public class DataAgentConfigHolder {
     /** 沙箱：只读数据源是否已配置（前端展示用，防止管理员误以为已隔离）。 */
     public static final String KEY_SANDBOX_READONLY = "sandbox-readonly-configured";
 
+    // ---- AI 问诊（/ai/chat）工具调用（2026-11-08 阶段5：Q6 默认开启） ----
+
+    /**
+     * AI 问诊链路是否启用工具调用（数据查询等）。
+     *
+     * <p><b>Q6 决策</b>：默认开启（{@code true}），让数据智能体的工具能力在真实产品路径
+     * （{@code /ai/chat}，{@code AiAnalysis.vue} 主入口）上闭环（D1 产品层闭环）。
+     * 保留 {@code false} 作为<b>一键关停回滚</b>：运维/故障时把该项置 {@code false} 即可
+     * 整条工具路径下线，不删代码、不重启（10s TTL 生效）。</p>
+     */
+    public static final String KEY_CHAT_TOOLS_ENABLED = "chat-tools-enabled";
+    /** AI 问诊工具调用单轮最大轮数（fail-closed，防止模型无限要工具）。 */
+    public static final String KEY_CHAT_MAX_TOOL_ROUNDS = "chat-max-tool-rounds";
+
+    /** AI 问诊工具轮默认上限。 */
+    public static final int DEFAULT_CHAT_MAX_TOOL_ROUNDS = 3;
+
     /** 分层后缀列表（供管理端遍历渲染）。 */
     public static final List<String> AUDIENCES = List.of(AUDIENCE_USER, AUDIENCE_DOCTOR);
 
@@ -192,6 +209,10 @@ public class DataAgentConfigHolder {
         SCHEMA.put(KEY_SANDBOX_MAX_BYTES, new String[]{"沙箱：单次查询结果字节上限（防止宽表挤爆 token）", "number"});
         SCHEMA.put(KEY_SANDBOX_GUARD_ENABLED, new String[]{"沙箱：是否启用 SQL 词法守卫（生产环境强烈建议开启）", "boolean"});
         SCHEMA.put(KEY_SANDBOX_READONLY, new String[]{"沙箱：只读数据源是否已配置（只读标记，由程序回写）", "boolean"});
+
+        // ---- AI 问诊（/ai/chat）工具调用（2026-11-08 阶段5） ----
+        SCHEMA.put(KEY_CHAT_TOOLS_ENABLED, new String[]{"AI 问诊(/ai/chat)是否启用工具调用（数据查询等）；默认开启，置 false 可一键关停整条工具路径", "boolean"});
+        SCHEMA.put(KEY_CHAT_MAX_TOOL_ROUNDS, new String[]{"AI 问诊工具调用单轮最大轮数（fail-closed，防止模型无限要工具）", "number"});
     }
 
     // ==================== 按使用者分层的读取（2026-10-07 新增） ====================
@@ -306,6 +327,23 @@ public class DataAgentConfigHolder {
     /** 只读数据源是否已配置（由启动自检回写，供管理端展示）。 */
     public boolean isSandboxReadonlyConfigured() {
         return asBool(KEY_SANDBOX_READONLY, false);
+    }
+
+    // ==================== AI 问诊（/ai/chat）工具调用 ====================
+
+    /**
+     * AI 问诊链路是否启用工具调用。
+     *
+     * <p><b>Q6 默认开启</b>：未配置或解析失败时回落 {@code true}。置 {@code false} 即一键关停
+     * 整条工具路径（{@code ChatToolLoop} 直接跳过工具轮，等价于纯文本问诊）。</p>
+     */
+    public boolean isChatToolsEnabled() {
+        return asBool(KEY_CHAT_TOOLS_ENABLED, true);
+    }
+
+    /** AI 问诊工具调用单轮最大轮数（fail-closed，钳制 1~10）。 */
+    public int getChatMaxToolRounds() {
+        return clamp(asInt(KEY_CHAT_MAX_TOOL_ROUNDS, DEFAULT_CHAT_MAX_TOOL_ROUNDS), 1, 10);
     }
 
     private static int clamp(int v, int min, int max) {
@@ -506,6 +544,10 @@ public class DataAgentConfigHolder {
                 return "true";
             case KEY_SANDBOX_READONLY:
                 return "false";
+            case KEY_CHAT_TOOLS_ENABLED:
+                return "true";
+            case KEY_CHAT_MAX_TOOL_ROUNDS:
+                return String.valueOf(DEFAULT_CHAT_MAX_TOOL_ROUNDS);
             default:
                 // 分层键（含 enabled-user / max-rows-doctor 等）走这里：空串 = 跟随全局
                 return "";
