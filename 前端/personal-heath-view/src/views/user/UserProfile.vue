@@ -200,6 +200,7 @@
 <script>
 import request from "@/utils/request.js";
 import { clearToken } from "@/utils/storage.js";
+import { DEFAULTS, loadSettings as loadUserSettings, saveSettings as saveUserSettings } from "@/utils/userSettings.js";
 import {
   Camera,
   Plus,
@@ -342,7 +343,7 @@ export default {
       saving: false,
       editForm: { userName: "", userEmail: "" },
       pwdForm: { oldPwd: "", newPwd: "", againPwd: "" },
-      settings: { isDarkMode: false },
+      settings: { ...DEFAULTS },
     };
   },
   computed: {
@@ -471,18 +472,11 @@ export default {
       }
     },
     loadSettings() {
-      const s = localStorage.getItem("userSettings");
-      if (s) {
-        try {
-          this.settings = { isDarkMode: JSON.parse(s).isDarkMode || false };
-        } catch (e) {
-          this.settings = { isDarkMode: false };
-        }
-      }
+      this.settings = loadUserSettings();
       this.applyDarkMode();
     },
     toggleDarkMode() {
-      localStorage.setItem("userSettings", JSON.stringify(this.settings));
+      this.settings = saveUserSettings(this.settings);
       this.applyDarkMode();
     },
     applyDarkMode() {

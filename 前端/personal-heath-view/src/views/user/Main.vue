@@ -255,6 +255,7 @@ import UserMenu from "@/components/LevelMenu.vue";
 import ModelBanner from "@/components/ModelBanner.vue";
 import FloatBall from "@/components/FloatBall.vue";
 import { addWsListener, removeWsListener } from "@/utils/ws.js";
+import { loadSettings as loadUserSettings, saveSettings as saveUserSettings } from "@/utils/userSettings.js";
 export default {
   name: "UserMain",
   components: {
@@ -530,20 +531,11 @@ export default {
     },
     //
     loadSettings() {
-      const settings = localStorage.getItem("userSettings");
-      if (settings) {
-        const parsed = JSON.parse(settings);
-        this.settings = {
-          isDarkMode: parsed.isDarkMode || false,
-          showBannerDots: parsed.showBannerDots !== false,
-          autoPlayBanner: parsed.autoPlayBanner !== false,
-          enableNotification: parsed.enableNotification !== false,
-        };
-      }
+      this.settings = loadUserSettings();
       this.applyDarkMode();
     },
     saveSettings() {
-      localStorage.setItem("userSettings", JSON.stringify(this.settings));
+      this.settings = saveUserSettings(this.settings);
       this.applyDarkMode();
     },
     toggleDarkMode() {

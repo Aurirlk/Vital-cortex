@@ -5,6 +5,7 @@
 </template>
 
 <script>
+import { getDarkMode } from "@/utils/userSettings.js";
 export default {
   name: "App",
   created() {
@@ -18,37 +19,16 @@ export default {
   },
   methods: {
     initDarkMode() {
-      const settings = localStorage.getItem("userSettings");
-      if (settings) {
-        let parsed = {};
-        try {
-          parsed = JSON.parse(settings);
-        } catch (e) {
-          console.warn("[App] userSettings 解析失败，已忽略:", e);
-        }
-        if (parsed.isDarkMode) {
-          //
-          const currentPath = this.$route?.path || "";
-          if (currentPath.startsWith("/user")) {
-            document.documentElement.classList.add("dark");
-          }
+      if (getDarkMode()) {
+        const currentPath = this.$route?.path || "";
+        if (currentPath.startsWith("/user")) {
+          document.documentElement.classList.add("dark");
         }
       }
     },
     applyDarkModeForRoute(path) {
-      const settings = localStorage.getItem("userSettings");
-      if (settings) {
-        let parsed = {};
-        try {
-          parsed = JSON.parse(settings);
-        } catch (e) {
-          console.warn("[App] userSettings 解析失败，已忽略:", e);
-        }
-        if (parsed.isDarkMode && path.startsWith("/user")) {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
+      if (getDarkMode() && path.startsWith("/user")) {
+        document.documentElement.classList.add("dark");
       } else {
         document.documentElement.classList.remove("dark");
       }
