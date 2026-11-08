@@ -28,7 +28,17 @@ import org.springframework.web.socket.server.standard.ServerEndpointExporter;
  * {@code RedisTemplate}、{@code Neo4jClient} 都是懒连接，启动期不真正取连接。
  * 这正是启动守护能在<b>任何环境</b>（含 CI 裸机）无条件跑起来的前提。
  */
-@SpringBootTest
+@SpringBootTest(properties = {
+        // ── 以下三项是「测试专用假值」，只为让启动期强校验照常通过，绝不用于生产 ──
+        // 1) CRM API Key：CrmConfig.validateApiKey() 在缺失/弱口令/已泄露值时**故意拒绝启动**。
+        //    这里给一个 ≥24 字符、且不在 LEAKED_API_KEYS 里的假值。
+        "crm.api-key=it-only-crm-api-key-0123456789abcdef",
+        // 2) 嵌入端点：validateEmbeddingConfig() 缺失即拒绝启动；必须非空且不含 deepseek 端点。
+        //    指向不可路由地址，确保测试期间绝不会真的发出外部请求。
+        "crm.embedding.api-url=http://127.0.0.1:9/v1/embeddings",
+        // 3) JWT 密钥：JwtUtil.init() 要求 ≥32 字节且非已泄露值。
+        "jwt.secret=it-only-jwt-secret-0123456789abcdef0123456789abcdef"
+})
 abstract class BaseIntegrationTest {
 
     @MockBean
