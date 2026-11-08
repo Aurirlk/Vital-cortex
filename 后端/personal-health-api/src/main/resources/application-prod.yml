@@ -74,16 +74,22 @@ security:
   actuator:
     allow-private-only: true
 
-# ============================================================
-# 登录防撞库（2026-10-10 新增，实现见 core/auth/LoginAttemptGuard）
-# 与 sentinel.qps.login 的分工：
-#   - Sentinel 那条是**全局** QPS 阀，防「把登录接口打满」，
-#     但它不区分账号，且一人即可吃满配额（真实用户被挡在门外）；
-#   - 下面这组按「账号」与「来源 IP」两个维度记失败次数并临时封禁，
-#     防「把某个账号撞开」。两者互补，都要保留。
-# 键名可用环境变量覆盖，如 SECURITY_LOGIN_MAX_FAILURES_PER_ACCOUNT=3。
-# ============================================================
-security:
+  # ==========================================================
+  # 登录防撞库（2026-10-10 新增，实现见 core/auth/LoginAttemptGuard）
+  # 与 sentinel.qps.login 的分工：
+  #   - Sentinel 那条是**全局** QPS 阀，防「把登录接口打满」，
+  #     但它不区分账号，且一人即可吃满配额（真实用户被挡在门外）；
+  #   - 下面这组按「账号」与「来源 IP」两个维度记失败次数并临时封禁，
+  #     防「把某个账号撞开」。两者互补，都要保留。
+  # 键名可用环境变量覆盖，如 SECURITY_LOGIN_MAX_FAILURES_PER_ACCOUNT=3。
+  #
+  # 🔴 2026-11-08 修复：这段原先另起了一个顶层 `security:` 键，与上面
+  #    actuator 那段构成 **YAML 重复键** —— Spring Boot 2.4+ 的
+  #    OriginTrackedYamlLoader 明确禁止重复键，激活 prod profile 时会直接
+  #    「found duplicate key security」解析失败，应用起不来；
+  #    在宽松解析器下则是后者覆盖前者，等于 actuator 的
+  #    allow-private-only 白写。两种结果都不能接受，故合并为一个 security 块。
+  # ==========================================================
   login:
     # 同一账号允许的连续失败次数（跨 IP 累计），超出后临时封禁
     max-failures-per-account: 5

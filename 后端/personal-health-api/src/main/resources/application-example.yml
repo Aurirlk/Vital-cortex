@@ -75,11 +75,15 @@ security:
     # 置 true 的前提是把 21090 限制为仅 nginx / 内网可达（见 docker-compose.yml）。
     trusted-proxy: false
 
-# Actuator 访问来源限制（2026-10-10 新增，实现见 Interceptor/ActuatorAccessInterceptor）
-# /actuator/** 免鉴权是 Prometheus 抓取所必需的，但 21090 对外发布时
-# 任何人都能读到 JVM / 连接池 / 全量 URI 指标。默认只放行回环与私有网段：
-# Prometheus、nginx 都在容器内网（172.x），容器健康检查打 localhost，均不受影响；
-# 公网直连读指标返回 404。判定只看 TCP 对端地址，不看可伪造的 X-Forwarded-For。
-security:
+  # Actuator 访问来源限制（2026-10-10 新增，实现见 Interceptor/ActuatorAccessInterceptor）
+  # /actuator/** 免鉴权是 Prometheus 抓取所必需的，但 21090 对外发布时
+  # 任何人都能读到 JVM / 连接池 / 全量 URI 指标。默认只放行回环与私有网段：
+  # Prometheus、nginx 都在容器内网（172.x），容器健康检查打 localhost，均不受影响；
+  # 公网直连读指标返回 404。判定只看 TCP 对端地址，不看可伪造的 X-Forwarded-For。
+  #
+  # 🔴 2026-11-08 修复：这段原先是**第二个顶层 `security:`**，与上面的 login 段构成
+  #    YAML 重复键 —— 照本模板复制成 application.yml 后，Spring Boot 2.4+ 会以
+  #    「found duplicate key security」直接拒绝启动（宽松解析器下则后者覆盖前者，
+  #    login 那段白写）。已合并为一个 security 块。
   actuator:
     allow-private-only: true
