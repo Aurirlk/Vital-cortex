@@ -291,7 +291,6 @@ export default {
     //  -
     goToDoctor(key, role) {
       this.showDoctor = false;
-      sessionStorage.setItem("navAssistantRole", key);
       this.$router.push(role.path);
     },
     //  - API

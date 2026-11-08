@@ -61,7 +61,7 @@
             <div class="intent-card" @click="quickAsk('doctor')">
               <el-icon :size="20"><UserFilled /></el-icon>
               <span>找医生</span>
-              <small>智能推荐合适的 AI 医生</small>
+              <small>进入 AI 问诊，选择专科医生</small>
             </div>
             <div class="intent-card" @click="quickAsk('drug')">
               <el-icon :size="20"><FirstAidKit /></el-icon>
@@ -88,16 +88,6 @@
               {{ intentLabel(msg.intent) }}
             </div>
             <div class="msg-content" v-html="safeHtml(msg.content)"></div>
-            <div v-if="msg.doctors" class="doctor-quick">
-              <div
-                v-for="d in msg.doctors"
-                :key="d.key"
-                class="doctor-quick-btn"
-                @click="jumpToDoctor(d.key)"
-              >
-                {{ d.icon }} {{ d.name }}
-              </div>
-            </div>
             <div class="msg-time">{{ msg.time }}</div>
           </div>
         </div>
@@ -149,158 +139,7 @@ export default {
       loading: false,
       currentConvId: null,
       conversations: [],
-      intents: {
-        search: [
-          "症状",
-          "不舒服",
-          "难受",
-          "疼痛",
-          "发烧",
-          "咳嗽",
-          "头痛",
-          "感冒",
-          "查询",
-          "搜索",
-          "查找",
-        ],
-        drug: [
-          "药",
-          "用药",
-          "药品",
-          "吃药",
-          "剂量",
-          "副作用",
-          "禁忌",
-          "服用",
-          "药物",
-          "胶囊",
-        ],
-        doctor: ["医生", "挂号", "门诊", "就诊", "专家", "科室", "预约"],
-        knowledge: [
-          "健康",
-          "养生",
-          "饮食",
-          "运动",
-          "睡眠",
-          "营养",
-          "科普",
-          "保健",
-          "减脂",
-        ],
-      },
-      //
-      doctorKeywords: {
-        doctor: {
-          keywords: [
-            "医生",
-            "门诊",
-            "挂号",
-            "就诊",
-            "专家",
-            "科室",
-            "预约",
-            "看病",
-            "问诊",
-            "诊断",
-            "治疗",
-            "医院",
-            "内科",
-            "外科",
-            "儿科",
-            "妇科",
-          ],
-          name: "AI 医生",
-          icon: "🩺",
-          desc: "提供在线问诊与健康建议",
-        },
-        nutritionist: {
-          keywords: [
-            "营养",
-            "饮食",
-            "减肥",
-            "食谱",
-            "热量",
-            "蛋白",
-            "维生素",
-            "膳食",
-            "营养餐",
-            "控糖",
-            "减脂",
-            "增肌",
-            "均衡",
-            "忌口",
-            "搭配",
-            "卡路里",
-            "碳水",
-          ],
-          name: "AI 营养师",
-          icon: "🥗",
-          desc: "制定个性化营养饮食方案",
-        },
-        psychologist: {
-          keywords: [
-            "心理",
-            "情绪",
-            "焦虑",
-            "抑郁",
-            "压力",
-            "失眠",
-            "烦恼",
-            "疏导",
-            "咨询",
-            "心态",
-            "放松",
-            "孤独",
-            "低落",
-            "紧张",
-            "倾诉",
-            "陪伴",
-            "沟通",
-          ],
-          name: "AI 心理师",
-          icon: "💬",
-          desc: "倾听疏导，陪伴心理健康",
-        },
-        analyst: {
-          keywords: [
-            "报告",
-            "指标",
-            "体检",
-            "数据",
-            "分析",
-            "趋势",
-            "血压",
-            "血糖",
-            "解读",
-            "异常",
-            "健康",
-            "评估",
-            "风险",
-            "化验",
-            "数值",
-            "监测",
-          ],
-          name: "AI 健康分析师",
-          icon: "📊",
-          desc: "解读体检与健康数据",
-        },
-        general_assistant: {
-          keywords: [
-            "健康",
-            "建议",
-            "咨询",
-            "科普",
-            "常识",
-            "生活",
-            "习惯",
-            "提醒",
-            "助手",
-          ],
-          name: "AI 健康助手",
-          icon: "🤖",
-          desc: "解答您的日常健康疑问",
-        },
-      },
+      pendingMode: null,
     };
   },
   created() {
@@ -373,13 +212,18 @@ export default {
 
     // =====  =====
     quickAsk(type) {
+      // 显式动作：四张卡片直接决定请求角色，不再做关键词意图猜测
+      if (type === "doctor") {
+        this.$router.push("/user/appointment");
+        return;
+      }
       const prompts = {
         search: "我最近有些不舒服，想查一下相关健康知识",
-        doctor: "AI",
         drug: "我想咨询一下用药问题",
         knowledge: "我想了解一些健康养生知识",
       };
       this.input = prompts[type] || "";
+      this.pendingMode = type;
       this.send();
     },
     async send() {
@@ -390,17 +234,17 @@ export default {
 
       if (!this.currentConvId) this.newChat();
 
-      const intent = this.recognizeIntent(msg);
+      const mode = this.pendingMode || "knowledge";
+      this.pendingMode = null;
+
       this.messages.push({
         role: "user",
         content: msg,
         time: this.now(),
-        intent,
       });
       const aiMsg = {
         role: "assistant",
         content: "",
-        intent,
         time: this.now(),
       };
       this.messages.push(aiMsg);
@@ -412,43 +256,29 @@ export default {
       if (token) headers["token"] = token;
 
       try {
-        if (intent === "doctor") {
-          const matched = this.matchDoctors(msg);
-          aiMsg.doctors = matched.map((d) => ({
-            key: d.key,
-            name: d.name,
-            icon: d.icon,
-          }));
-          if (matched.length === 1) {
-            aiMsg.content = `<strong>${matched[0].name}</strong><br>${matched[0].desc}<br> `;
-          } else {
-            aiMsg.content = `<strong> ${matched.length} AI</strong><br> `;
+        const body = this.buildRequestBody(msg, mode);
+        if (mode === "knowledge") {
+          // Dify 关键词提取（可选增强，失败不影响主链路）
+          try {
+            const kwRes = await fetch(URL_API + "/ai/keywords/extract", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ message: msg }),
+            });
+            const kwData = await kwRes.json();
+            if (kwData.code === 200 && kwData.data?.length > 0)
+              body.keywords = kwData.data;
+          } catch (e) {
+            console.warn("Dify 关键词提取失败，已忽略:", e);
           }
-        } else {
-          const body = this.buildRequestBody(msg, intent);
-          // Dify
-          if (intent === "knowledge") {
-            try {
-              const kwRes = await fetch(URL_API + "/ai/keywords/extract", {
-                method: "POST",
-                headers,
-                body: JSON.stringify({ message: msg }),
-              });
-              const kwData = await kwRes.json();
-              if (kwData.code === 200 && kwData.data?.length > 0)
-                body.keywords = kwData.data;
-            } catch (e) {
-              console.warn("Dify:", e);
-            }
-          }
-          const res = await fetch(URL_API + "/ai/chat", {
-            method: "POST",
-            headers,
-            body: JSON.stringify(body),
-          });
-          const data = await res.json();
-          aiMsg.content = marked.parse(data.data?.reply || "");
         }
+        const res = await fetch(URL_API + "/ai/chat", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        aiMsg.content = marked.parse(data.data?.reply || "");
       } catch (e) {
         aiMsg.content = "" + e.message;
       } finally {
@@ -457,13 +287,13 @@ export default {
         this.saveCurrentConv();
       }
     },
-    buildRequestBody(msg, intent) {
+    buildRequestBody(msg, mode) {
       const body = { message: msg, enableHealthData: false };
-      if (intent === "search") {
+      if (mode === "search") {
         body.role = "doctor";
         body.enableWebSearch = true;
         body.enableKnowledgeBase = false;
-      } else if (intent === "drug") {
+      } else if (mode === "drug") {
         body.role = "consultant";
         body.enableWebSearch = false;
         body.enableKnowledgeBase = false;
@@ -474,33 +304,6 @@ export default {
       }
       return body;
     },
-    recognizeIntent(msg) {
-      const lower = msg.toLowerCase();
-      const scores = {};
-      for (const [intent, keywords] of Object.entries(this.intents)) {
-        scores[intent] = keywords.filter((k) =>
-          lower.includes(k.toLowerCase())
-        ).length;
-      }
-      const best = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
-      return best[1] > 0 ? best[0] : "knowledge";
-    },
-    matchDoctors(msg) {
-      const lower = msg.toLowerCase();
-      const scored = Object.entries(this.doctorKeywords).map(([key, d]) => {
-        const hits = d.keywords.filter((k) =>
-          lower.includes(k.toLowerCase())
-        ).length;
-        return { key, ...d, score: hits };
-      });
-      const matched = scored
-        .filter((d) => d.score > 0)
-        .sort((a, b) => b.score - a.score);
-      // 3
-      return matched.length > 0
-        ? matched.slice(0, 3)
-        : [scored.find((d) => d.key === "doctor")];
-    },
     intentLabel(intent) {
       return (
         {
@@ -510,10 +313,6 @@ export default {
           knowledge: "健康知识",
         }[intent] || intent
       );
-    },
-    jumpToDoctor(key) {
-      sessionStorage.setItem("navAssistantRole", key);
-      this.$router.push("/user/ai-analysis");
     },
     now() {
       const d = new Date();

@@ -52,14 +52,6 @@
               <el-button @click="changePwdDialog = true">修改密码</el-button>
               <span class="form-tip">定期修改密码可以提高账号安全性</span>
             </el-form-item>
-            <el-form-item label="登录设备管理">
-              <el-button @click="viewLoginDevices">查看登录设备</el-button>
-              <span class="form-tip">管理已登录的设备，可以强制下线</span>
-            </el-form-item>
-            <el-form-item label="账号注销">
-              <el-button type="danger" @click="deactivateAccount">注销账号</el-button>
-              <span class="form-tip">注销后数据将无法恢复，请谨慎操作</span>
-            </el-form-item>
           </el-form>
         </div>
       </el-tab-pane>
@@ -112,10 +104,6 @@
                 <el-option label="所有人可见" value="public" />
                 <el-option label="仅自己可见" value="private" />
               </el-select>
-            </el-form-item>
-            <el-form-item label="数据导出">
-              <el-button @click="exportMyData">导出我的数据</el-button>
-              <span class="form-tip">导出您的所有个人数据</span>
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="savePrivacySettings" :loading="saving">
@@ -410,29 +398,6 @@ export default {
       }
     },
     
-    viewLoginDevices() {
-      this.$message.info("登录设备管理功能开发中");
-    },
-    
-    deactivateAccount() {
-      this.$swal.fire({
-        title: "确认注销账号",
-        text: "注销后所有数据将无法恢复，此操作不可撤销！",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "确认注销",
-        cancelButtonText: "取消",
-        customClass: { confirmButton: "swal2-btn-danger" },
-      }).then((result) => {
-        if (result.isConfirmed) {
-          this.$message.info("账号注销功能开发中");
-        }
-      });
-    },
-    
-    exportMyData() {
-      this.$message.info("数据导出功能开发中");
-    },
   },
 };
 </script>

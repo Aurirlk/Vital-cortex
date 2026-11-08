@@ -155,9 +155,6 @@
           <button class="btn btn--outline" @click="backToList">
             返回列表
           </button>
-          <button class="btn btn--primary" @click="viewAnswers">
-            查看解析
-          </button>
         </div>
       </div>
     </TornPanel>
@@ -341,9 +338,6 @@ export default {
       } catch (e) {
         console.error(e);
       }
-    },
-    viewAnswers() {
-      this.$message.info("题目解析功能开发中");
     },
   },
 };

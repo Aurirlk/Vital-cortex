@@ -39,6 +39,13 @@
       </div>
     </div>
 
+    <div
+      v-if="!loading && doctorList.length === 0"
+      style="padding: 40px; text-align: center; color: #999; font-size: 14px"
+    >
+      {{ configLoadFailed ? "AI 医生配置加载失败，请稍后重试" : "暂无 AI 医生配置" }}
+    </div>
+
     <!--  -->
     <div v-if="selectedDoctor" class="config-editor">
       <div class="config-editor-header">
@@ -198,53 +205,7 @@ export default {
       loading: false,
       selectedDoctor: null,
       currentConfig: {},
-      defaultDoctorList: [
-        {
-          key: "doctor",
-          name: "AI医生",
-          description: "全科医疗咨询，解答症状、用药和就诊建议",
-          icon: "FirstAidKit",
-          temperature: 0.3,
-          topP: 0.5,
-          systemPrompt: "你是一位经验丰富的全科医生，能够根据患者描述的症状提供初步医疗建议、用药指导和就诊建议。严重情况请建议及时就医。",
-        },
-        {
-          key: "nutritionist",
-          name: "营养师",
-          description: "饮食营养、慢病膳食调理与减重建议",
-          icon: "Apple",
-          temperature: 0.5,
-          topP: 0.6,
-          systemPrompt: "你是一位专业营养师，擅长根据用户的健康状况、饮食习惯和目标提供个性化的营养建议、膳食搭配和减重方案。",
-        },
-        {
-          key: "psychologist",
-          name: "心理顾问",
-          description: "情绪疏导、压力管理与心理健康支持",
-          icon: "Sunny",
-          temperature: 0.6,
-          topP: 0.7,
-          systemPrompt: "你是一位温和的心理咨询师，善于倾听和情绪疏导，能够为用户提供压力管理、情绪调节和心理健康方面的支持性建议。",
-        },
-        {
-          key: "analyst",
-          name: "报告解读师",
-          description: "体检报告、检查指标解读与健康趋势分析",
-          icon: "DataAnalysis",
-          temperature: 0.3,
-          topP: 0.5,
-          systemPrompt: "你是一位医学数据解读专家，能够帮助用户理解体检报告、化验指标和健康数据，给出通俗易懂的分析和改善建议。",
-        },
-        {
-          key: "general_assistant",
-          name: "健康助手",
-          description: "通用健康问答与系统功能引导",
-          icon: "Service",
-          temperature: 0.7,
-          topP: 0.8,
-          systemPrompt: "你是智康云健康管理系统的智能助手，能够回答用户关于健康、系统功能、药品和养生方面的常见问题，并引导用户使用系统功能。",
-        },
-      ],
+      configLoadFailed: false,
       editForm: {
         systemPrompt: "",
         temperature: 0.5,
@@ -273,20 +234,23 @@ export default {
   methods: {
     async loadConfigs() {
       this.loading = true;
+      this.configLoadFailed = false;
       try {
         const res = await this.$axios.get("/ai/config/list");
         if (res.data.code === 200 && Array.isArray(res.data.data) && res.data.data.length > 0) {
           this.doctorList = res.data.data;
         } else {
-          // 接口为空或未实现 → 使用本地默认医生，保证页面有内容
-          this.doctorList = JSON.parse(JSON.stringify(this.defaultDoctorList));
-          if (res.data.code !== 200) {
-            console.warn("AI 配置接口返回非 200，使用本地默认医生:", res.data.msg);
+          // 接口返回空：诚实展示空态，不再注入本地伪数据
+          this.doctorList = [];
+          if (res.data && res.data.code !== 200) {
+            this.configLoadFailed = true;
+            console.warn("AI 配置接口返回非 200，展示空态:", res.data.msg);
           }
         }
       } catch (e) {
-        console.error("加载 AI 配置失败, 使用本地默认医生:", e);
-        this.doctorList = JSON.parse(JSON.stringify(this.defaultDoctorList));
+        this.configLoadFailed = true;
+        console.error("加载 AI 配置失败，展示空态:", e);
+        this.doctorList = [];
       } finally {
         this.loading = false;
       }

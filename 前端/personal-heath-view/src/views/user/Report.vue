@@ -70,37 +70,6 @@
         <div class="card-glow"></div>
       </div>
 
-      <div class="report-card card-orange">
-        <div class="card-stripe"></div>
-        <div
-          class="card-icon"
-          style="background: rgba(245, 158, 11, 0.08); color: #f59e0b"
-        >
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-        </div>
-        <div class="card-body">
-          <h3>上传体检报告</h3>
-          <p>上传 PDF 体检报告，AI 自动解析数据</p>
-          <div class="card-foot">
-            <span class="tag tag-orange">PDF</span>
-            <button class="card-btn btn-orange" @click="uploadPdf">
-              上传报告
-            </button>
-          </div>
-        </div>
-        <div class="card-glow"></div>
-      </div>
     </div>
 
     <div class="particles-bg"></div>
@@ -137,9 +106,6 @@ export default {
     },
     viewHealthData() {
       this.$router.push("/user/user-health-model");
-    },
-    uploadPdf() {
-      this.$message.info("PDF 上传功能开发中");
     },
   },
 };

@@ -1053,7 +1053,7 @@
             >
               <el-divider content-position="left">VAD 参数</el-divider>
 
-              <el-form-item label="启用 VAD">
+              <el-form-item label="启用 VAD" v-if="false">
                 <el-switch
                   v-model="voiceConfig.vad.enabled"
                   active-text="开启"
@@ -1061,7 +1061,7 @@
                 />
               </el-form-item>
 
-              <el-form-item label="灵敏度" v-if="voiceConfig.vad.enabled">
+              <el-form-item label="灵敏度" v-if="false">
                 <el-slider
                   v-model="voiceConfig.vad.sensitivity"
                   :min="0.1"
