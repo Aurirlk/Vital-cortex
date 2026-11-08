@@ -214,7 +214,7 @@ B 口径 mysql --default-character-set=utf8mb4 第 1 遍 零 ERROR
 | 11 | 死代码 `AudioManager` / `VADDetector`                                             | P1 | ✅ 已删       | 全项目 0 引用                                                                                                 |
 | 12 | `TTSFactory` 的 `cosyvoice` / `minimax` 为 TODO 占位（选了会静默回退 EdgeTTS）              | P1 | ❌ **仍未实现** | 仍是 TODO 注释                                                                                               |
 | 13 | 4 个重叠工厂类（`LLMFactory` vs `LLMProviderFactory` 等）                               | P2 | ⚠️ **未合并** | 仍并存                                                                                                      |
-| 14 | 敏感词库从未存在（仅 5 个硬编码词）                                                            | P1 | ❌ **仍未实现** | `core/guard/OutputValidator` 仍是 5 词硬编码（报告标注「另立项」）                                                        |
+| 14 | 敏感词库从未存在（原报告按「5 个硬编码词」记）                                                            | P1 | ⚠️ **2026-11-08 结案：正式取消 + 顺带修真 bug** | 词库确认从未存在且**不再建**（全库无表、`src/main` 无引用、`system_config` 无相关配置项）。`core/guard/OutputValidator` 的真实构成是**2 条剂量正则 + 5 个医疗行为关键词**（原报告把两者混成「5 个硬编码词」，口径已订正）；并发现其剂量检测用 `matches(".*p.*")`，`.` 不匹配换行 → **多行回答里剂量全部漏检**，已改预编译 `Pattern` + `find()`，补 `OutputValidatorTest` 9 例 |
 
 **B.《项目现状基线（2026-10-06）》**
 

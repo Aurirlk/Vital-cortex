@@ -52,8 +52,12 @@ Data/
    - `03_align_demo_appointments.sql` 是本地演示数据对齐，**生产勿执行**；
      `09_create_ai_ro_user.sql` 需 DBA 权限 —— 这两支都**不在** `docker-compose.yml` 的挂载清单里
    - 曾在此链上的 `07_sensitive_word.sql` 已于 **2026-10-12 移除**：敏感词功能代码在 main 侧
-     清理（`SensitiveWordMapper` / `ContentAudit*` 已删，改由 `system_config` 存储）、从未落地，
+     清理（`SensitiveWordMapper` / `ContentAudit*` 已删）、从未落地，
      脚本归档至 `90_归档/sensitive_word_未落地_20261012.sql`，不再挂载、不再执行
+   - 🔴 **该能力已于 2026-11-08 正式取消**：全库**没有任何**替代存储 —— 实库 `system_config`
+     中与敏感词/审核相关的配置项为 0 条，`src/main` 里 `SensitiveWord` 命中 0 处。
+     （早期本行曾写「改由 `system_config` 存储」，那是不实表述，已订正。）
+     若日后确需内容审核，请另立项，不要按本句去找"现成实现"
 
 > ✅ **2026-10-07 已修复：本路径原先跑不通（P1），现已端到端验证通过**
 > 复核时在临时库 `ph_verify_tmp` 实跑，发现 6 处缺陷并全部修掉：
@@ -114,7 +118,7 @@ Data/
 | 05 | `05_drop_unused_tables.sql` | 空表清理（当前无可删项，全部注释保留） | ✅ |
 | 06 | `06_merge_message_into_notification.sql` | 消息表双轨合并：`message` → `notification` | ✅ |
 | 07 | `07_mall_product_medical_fields.sql` | `mall_product` 补 5 个医学字段（`generic_name` / `specification` / `manufacturer` / `is_otc` / `medical_category`），并回填历史欠账 `product_type` | ✅ |
-| 07 | ~~`07_sensitive_word.sql`~~ | **已于 2026-10-12 移除**：敏感词表脚本归档至 `90_归档/sensitive_word_未落地_20261012.sql`（功能代码已清理、从未落地，改由 `system_config` 存储）。升级路径上无需执行；若历史环境已跑过，`sensitive_word` 表留着无害（无人读写） | — |
+| 07 | ~~`07_sensitive_word.sql`~~ | **已于 2026-10-12 移除**：敏感词表脚本归档至 `90_归档/sensitive_word_未落地_20261012.sql`（功能代码已清理、从未落地，**2026-11-08 正式取消，无任何替代实现**）。升级路径上无需执行；若历史环境已跑过，`sensitive_word` 表留着无害（无人读写） | — |
 | 08 | `08_user_settings_columns.sql` | `user` 表补 14 个设置列（语言/时区/通知/隐私/AI），设置页据此落库 | ✅ |
 | 09 | `09_create_ai_ro_user.sql` | 🔴 **运维脚本（需 root）**：创建 `ai_ro` 只读账号，供数据智能体的受控 NL2SQL 使用。**不在自动部署链**，需 DBA 手工执行；密码占位符须替换 | — |
 | 10 | `10_agent_architecture.sql` | 多智能体架构 5 张表：`agent_config`（智能体定义）/ `agent_tool_binding`（工具绑定）/ `agent_handoff`（交接规则）/ `agent_run`（运行记录）/ `agent_run_step`（步骤明细） | ✅ |

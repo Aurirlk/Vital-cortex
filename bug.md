@@ -168,6 +168,8 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 8. 三处 SQL 列名对齐：`NewsMapper` 的 `updated_at`、`NotificationMapper` 去 `related_id`、`UserMapper` 的 `u.user_role`。
 9. `MallProductMapper` 价格区间条件与 `queryCount` 补齐。
 10. `AuditManage.vue` 摘除敏感词 Tab（**注意**：这是回避式修复 —— 前端不喊 404 了，但"敏感词"这个能力在计划里仍是缺口）。
+    > **2026-11-08 补记**：该缺口已按「**正式取消**」结案（不建表/不补接口/不补管理页），
+    > 并把三处互相矛盾的文档口径统一到「从未实现」—— 详见 §八。
 11. `UserChatController` 用户侧流式对话落库（**但引入了本文第 3 条的新缺陷，严格说不能算完成态的 fix**）。
 
 ### refactor（不改行为的重构）
@@ -195,7 +197,7 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
    **~~补的时候新发现一处同类缺陷，未修~~（已于 2026-10-20 点头后修完，`bc9c30b`）**：同步链路 `SeaChatWorkflow.processChat()` 原本先存消息（改前 `:108`）再读历史（改前 `:128`），当前问题进提示词两遍；已按「先读后存」改，并顺带把 `/crm/chat/stream` 那处同病灶一起换序。
 2. **补真护栏**：registry→prompt 反向差集测试（P1-8）+ 一个能起上下文的启动类测试（P1-9）。这两条不做，同类问题还会再来。
 3. **口径回写**：跑 `gen_schema_doc.py`，同步 4 处表数；修 `Data/README.md` 的部署步骤；决定 `90_归档` 到底入不入库（P2-10/11/12）。
-4. **产品决策项**（需要你先定方向，不适合直接改代码）：聊天历史正本放哪（P1-7）、知识库受众隔离策略（P1-6）、敏感词是补后端还是正式取消（见 §五 fix 第 10 条）。
+4. **产品决策项**（需要你先定方向，不适合直接改代码）：聊天历史正本放哪（P1-7）、知识库受众隔离策略（P1-6）、~~敏感词是补后端还是正式取消~~（**2026-11-08 已结案：正式取消** —— 见 §五 fix 第 10 条的后续）。
 
 ---
 
@@ -289,13 +291,12 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 去掉复核 → 2 例 `expected: <2> but was: <1>`；两组重叠 1 例）。
 **`e6771eb` 只补了用例、没做反向验证**，写在这里是为了不含糊过去。
 
-`mvn -o -B test` 现值 = **931 例 / 94 个测试类全绿**（2026-10-25 深夜实测；§7 起于 893/91，
-`0787e6f` 的 2 例 auth 验证在其后，2026-10-25 晚的「无慢性病确认」闭环再 +5 例）。
-仍要提醒：本仓 `mvn test`（931 例 / 94 类）全为方法级单测，全绿只证明方法级逻辑；
-**2026-10-25 已补 `@SpringBootTest` 集成测试**（`BaseIntegrationTest` 基类 + `PersonalHealthApplicationIT` 上下文启动
-+ `CoreBeanWiringIT` 校验 MyBatis/Neo4jClient/RedisTemplate 接线，共 4 例），命名 `*IT` 故不参与 `mvn test`、
-由 `mvn verify`（新增 failsafe 插件）执行，需 MySQL+Redis+Neo4j 就绪。本机实测 4 例全绿
-（MySQL 在线即可启动，Neo4jClient/RedisTemplate 为懒加载、启动期不连，故 Redis/Neo4j 离线也能起）。
+`mvn -o -B verify` 现值 = **单测 942 例 / 96 个测试类全绿 + 集成 4 例全绿**（2026-11-08 实测；
+上一个是 931 例 / 94 类，2026-10-25 深夜；2026-11-08 新增 `OutputValidatorTest` 9 例与 `IdentityCleanupGuardTest` 2 例）。
+仍要提醒：`mvn test` 那 942 例全为方法级单测，全绿只证明方法级逻辑，**不证明应用能启动**；
+启动由 4 个 `*IT` 守护（`PersonalHealthApplicationIT` 上下文启动 + `CoreBeanWiringIT` 校验
+MyBatis/Neo4jClient/RedisTemplate 接线），命名 `*IT` 故不参与 `mvn test`、由 `mvn verify`（failsafe 插件）执行。
+**实测不需要 MySQL/Redis/Neo4j**：把数据源指向不存在的端口仍是 4 例全绿（三者均懒连接）。
 `Dashboard.vue` 只做了 `vue-cli-service build` 通过 + 脚本段语法检查，未做浏览器实测。
 
 ### 7.4 §七 收口后仍开着的一条（第 2 条 `0787e6f` 已收口）
@@ -322,3 +323,100 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 2. **被禁用与数据库抖动共用一句提示** —— **已修（`0787e6f`）**：拦截器新增 `UNKNOWN` 分支，
    `LOCKED`→4010、`UNKNOWN`→4011，读不出判定改回「系统繁忙，请稍后重试」，正常用户不再被误告「账号已被禁用」；
    前端接住 4011 不清 token（见 `AuthContextConsistencyTest` 等）。原「共用一句提示」缺陷已消除，本条收口。
+
+---
+
+## 八、2026-11-08 收口：敏感词三头口径 + 启动守护真的进 CI
+
+### 8.1 「敏感词三头不一致」结案：代码三头本来就是「全无」，不一致在**文字声明**
+
+逐头实测（不是看文档）：
+
+| 头 | 实测 | 证据 |
+|---|---|---|
+| 数据库 | **无表** | `information_schema` 查 `personal_health` 下 `%sensitive%` → 0 行；实库 42 表 |
+| 后端 | **0 引用** | `grep -r "sensitive_word\|SensitiveWord\|ContentAudit" src/main` → 0；`mapper/` 下只有 `AuditLogMapper.xml` |
+| 前端 | **只剩注释** | `AuditManage.vue:59-63` 是「2026-10-12 已删除该 Tab」的说明，无 UI、无请求 |
+| SQL | **已归档** | `Data/90_归档/sensitive_word_未落地_20261012.sql`，不在部署链、不被挂载 |
+
+**真正的不一致是文档在撒谎**，三处口径互斥，已全部订正为同一事实：
+
+1. `Data/README.md`（2 处）原写「功能代码已清理，**改由 `system_config` 存储**」→ **不实**：
+   实库 `system_config` 里与敏感词/审核相关的配置项 **0 条**，后端也没有任何代码去读它做过滤。
+   已改为「正式取消，无任何替代实现」，并注明原句为不实表述。
+2. `docs/技术问答.md:201` 原写「内容审核 = **敏感词过滤 + 帖子审核**」→ 两项**都不存在**，已改为明确的「不存在」并说明真实兜底是什么。
+3. `docs/数据资产与AI能力整改方案.md` 第 14 条原写「仅 **5 个硬编码词**」→ 口径不准：`OutputValidator` 实为
+   **2 条剂量正则 + 5 个医疗行为关键词**，且两者分属 `containsSensitiveInfo` 与 `needDisclaimer` 两个不同用途的方法。
+
+**产品决策（结案）：正式取消「敏感词库」**，不建表、不补接口、不补管理页。理由：
+关键词/词表过滤对 LLM 生成内容基本无效（换说法、拆字、跨语言即绕过），而项目已有的
+`OutputValidator`（剂量/免责）+ `signalDetector`（紧急就医）才是真正起作用的结构化护栏；
+为了对齐一句文档去建表写 CRUD，是本末倒置。
+
+### 8.2 顺带修掉 `OutputValidator` 的真 bug：多行回答里的剂量从未被检出
+
+`containsSensitiveInfo` 原用 `output.matches(".*" + p + ".*")`，而 `.` **不匹配换行符** ——
+AI 回答普遍多行，**第二行起的剂量全部漏检**，等于这条合规兜底从未生效。
+
+| 场景 | 修复前 | 修复后 |
+|---|---|---|
+| `"...\n2. 可服用布洛芬 400mg"` | ❌ 漏检 | ✅ 命中 |
+| CRLF 换行（前端/Windows） | ❌ 漏检 | ✅ 命中 |
+| `500 mg`（数字与单位间空格） | ❌ 漏检 | ✅ 命中 |
+| `每次 2 片` / `500 毫克` | ❌ 漏检 | ✅ 命中 |
+| `5 克盐` 等饮食建议 | 不命中 | 不命中（刻意不匹配孤立 `g`/`克`，避免误挂提示） |
+
+改法：预编译 `Pattern[]` + `Matcher.find()`（子串搜索天然跨行，且不再每次调用都编译正则）。
+新增 `core/guard/OutputValidatorTest` 9 例；**先跑旧实现确认 4 例红**（多行/CRLF/空格写法/中文剂量），再改代码转绿。
+
+### 8.3 「931 例全绿」曾是执行顺序的运气 —— 已从系统层消除
+
+CI（run `42436100407`）在 main 上红了，后端那条失败不是业务 bug 而是**测试互相污染**：
+
+```
+LocalThreadHolderTest.unsetShouldReturnNull:41  expected: <null> but was: <3001>
+```
+
+根因：`LocalThreadHolder` 是**进程级 ThreadLocal**，surefire 单 fork、所有测试类共用主线程；
+`CommentUpvoteTest`（15 次 set / 3 次 clear）、`IdorHardeningTest`（12/2）等类设置身份后不保证清场，
+先跑谁就污染后面谁。**更危险的是**：残留身份可能让「越权应被拒绝」的断言因为「当前用户恰好是管理员」而假通过。
+
+修法（系统层，不动任何业务代码）：新增 `IdentityCleanupExtension`，在**每个测试方法前后各清一次身份**，
+通过 `junit-platform.properties`（`extensions.autodetection.enabled=true`）+ `META-INF/services` 自动注册，
+存量 94 个测试类**零改动**即受保护。
+
+反向验证：把自动发现开关改成 `false` 再跑 `IdentityCleanupGuardTest`，两例立刻
+`expected: <null> but was: <3001>` —— 与 CI 那条失败同形；改回 `true` 全绿。
+
+### 8.4 启动守护此前在 CI 里等于没跑
+
+`ci.yml` 的测试步骤是 `mvn test -B`，而 `*IT` 被 surefire **显式排除**，只有 failsafe（`verify` 阶段）才跑 →
+`PersonalHealthApplicationIT` / `CoreBeanWiringIT` 从未在 CI 执行过，「启动守护」形同虚设。
+
+- `ci.yml`：`mvn test -B` → **`mvn verify -B`**（并写明为什么必须是 verify）
+- `BaseIntegrationTest`：去掉 `@ActiveProfiles("local")` —— 该 profile 文件被 `.gitignore` 排除、CI 上不存在，
+  带注解等于本地与 CI 跑两套配置，本地绿不代表 CI 绿。去掉后 profile 由 `application.yml` 决定，有无该文件都能启动。
+
+**已实测「零外部依赖也能起上下文」**：把数据源指向无人监听的端口（模拟 CI 无 MySQL/Redis/Neo4j），
+上下文 16~18 秒启动成功、4 个 IT 全绿 —— 因为 `DataSource`/`RedisTemplate`/`Neo4jClient` 都是懒连接。
+
+### 8.5 顺手清零前端 lint 的 44 个 error（CI 另一半红因）
+
+`Frontend Build` 一直红在 `npm run lint`：**44 errors**。已全部按「真修」处理，不是放水：
+
+| 类别 | 数量 | 处理 |
+|---|---|---|
+| `no-unused-vars` | 22 | 删掉真没用的导入（`md5`/`request`/5 个 icon/`Icons` 命名空间）；回调里没用的形参直接去掉（`handleAvatarSuccess(res, file)` → `(res)`，`$nextTick((_) => …)` → `()`） |
+| `vue/no-unused-components` | 7 | `Promotion`/`Clock`/`Plus`/`InfoFilled` 在模板里是 `:icon="xxx"` **取值**用法（走 `data()`），不是组件标签 → 从 `components` 注册里摘掉，`data()` 保留 |
+| `no-constant-condition` | 2 | 流式读取的 `while (true)` → `for (;;)`（退出条件仍是 `done`） |
+| `vue/multi-word-component-names` | 13 | 在 `package.json` 的 `eslintConfig.rules` 里显式 `off`，见下 |
+
+**关于第 4 类为何是「配置层关闭」而不是逐个改名**：这 13 个是**路由级页面组件**
+（`views/user/Mall.vue`、`Quiz.vue`、`views/login/Login.vue` …），名字与路由/懒加载路径一一对应；
+改名要同步动 `router/index.js`、按需加载 chunk 名与所有 `import`，收益只有「满足一条风格规则」。
+它与 `continue-on-error` 那种「把门拆了假装通过」性质不同：**只有这一条纯命名风格规则被关闭，
+其余 error 全部真修**，且改动后 `eslint src` 的 **error 数为 0**（警告 7958 条，CI 阈值 30000）。
+
+⚠️ 附带发现一处「配了但从来没生效」的 UI：`Evaluations.vue` 的删除确认气泡写了
+`:icon="InfoFilled"`，但 `InfoFilled` 既没注册成组件、也没放进 `data()` → 模板取到 `undefined`，
+**一直回落到 el-popconfirm 的默认图标**。已删掉这个无效绑定（视觉与修复前一致，仍是红色默认图标）。

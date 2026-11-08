@@ -93,6 +93,23 @@
 
 > 平台级里程碑；单次缺陷修复与内部重构不在此列。测试口径均为 Mockito 纯对象测试，详见 [`docs/测试报告.md`](docs/测试报告.md)。
 
+- **2026-11-08 · 测试基础设施补课：启动守护、顺序无关、CI 转绿**
+  - **补齐长期「零 `@SpringBootTest`」缺口**：新增 `PersonalHealthApplicationIT`（整个应用上下文真正启动）
+    与 `CoreBeanWiringIT`（MyBatis / 自定义 `Neo4jClient` / `RedisTemplate` 接线），共 4 例；
+    由 `pom.xml` 新增的 failsafe 插件在 `mvn verify` 执行，不拖慢 `mvn test`。
+  - **启动守护真正进 CI**：`ci.yml` 的测试步骤由 `mvn test` 改为 `mvn verify` —— 此前 `*IT` 被 surefire 排除，
+    启动守护在 CI 里**一行都没跑过**。实测上下文不依赖 MySQL/Redis/Neo4j（三者懒连接），CI 裸机可直接跑。
+  - **消除测试顺序依赖**：`LocalThreadHolder` 是进程级 ThreadLocal，多个测试类设置身份后不清场，
+    导致「全绿」取决于执行顺序（CI 上已实际翻车）。新增 `IdentityCleanupExtension` 在每个测试前后清场，
+    存量测试类零改动即受保护，并加 `IdentityCleanupGuardTest` 反向锁死。
+  - **修 `OutputValidator` 真 bug**：剂量检测原用 `matches(".*p.*")`，`.` 不匹配换行 →
+    多行 AI 回答里第二行起的剂量**全部漏检**，「遵医嘱」提示从未生效。改预编译 `Pattern` + `find()`，补 9 例测试。
+  - **敏感词「三头不一致」结案**：经实库/后端/前端逐一核查，该能力实为**从未实现**；
+    已订正 `Data/README.md`（原称"改由 `system_config` 存储"为不实）、`docs/技术问答.md`（原称"敏感词过滤"存在）等三处口径，
+    正式取消该功能，不建表不补接口。
+  - **前端 lint 44 errors 清零**（此前 CI 一直红在这），CI 前后端首次同时具备通过条件。
+  - 全量 `mvn -o -B verify` = **单测 942 例 / 96 类全绿 + 集成 4 例全绿**（0 失败 / 0 错误 / 0 跳过）。
+
 - **2026-10-20 · 六阶段深化收尾（多 Agent / RAG / 多端 / UI / 看板 / 补强）**
   - 管理端首页改为 Bento 看板（12 列栅格：主模块 8×2 + 两个 4 列侧块 + 6 个指标块），数据全部来自真实接口并带骨架屏。
   - 用户端与管理端顶栏接入通知铃（原来占位组件文案为空、点通知不跳转）；管理端补上通知入口。
