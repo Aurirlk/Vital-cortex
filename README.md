@@ -107,7 +107,11 @@
   - **敏感词「三头不一致」结案**：经实库/后端/前端逐一核查，该能力实为**从未实现**；
     已订正 `Data/README.md`（原称"改由 `system_config` 存储"为不实）、`docs/技术问答.md`（原称"敏感词过滤"存在）等三处口径，
     正式取消该功能，不建表不补接口。
-  - **前端 lint 44 errors 清零**（此前 CI 一直红在这），CI 前后端首次同时具备通过条件。
+  - **前端 lint 44 errors 清零**（此前 CI 一直红在这）。
+  - **CI 首次全绿**（此前连续 10 次失败）：`mvn test`→`mvn verify` 让启动守护真正执行；
+    修 `application-prod.yml` / `application-example.yml` 的 **YAML 重复 `security:` 键**
+    （生产激活 prod 会直接拒绝启动）；镜像 tag 转小写（`github.repository` 含大写被 buildx 拒绝）；
+    未配置部署密钥时 `deploy` 显式告警跳过，不再把「部署未配置」伪装成代码失败。
   - 全量 `mvn -o -B verify` = **单测 942 例 / 96 类全绿 + 集成 4 例全绿**（0 失败 / 0 错误 / 0 跳过）。
 
 - **2026-10-20 · 六阶段深化收尾（多 Agent / RAG / 多端 / UI / 看板 / 补强）**

@@ -420,3 +420,29 @@ LocalThreadHolderTest.unsetShouldReturnNull:41  expected: <null> but was: <3001>
 ⚠️ 附带发现一处「配了但从来没生效」的 UI：`Evaluations.vue` 的删除确认气泡写了
 `:icon="InfoFilled"`，但 `InfoFilled` 既没注册成组件、也没放进 `data()` → 模板取到 `undefined`，
 **一直回落到 el-popconfirm 的默认图标**。已删掉这个无效绑定（视觉与修复前一致，仍是红色默认图标）。
+
+### 8.6 把 CI 从「10 连红」推到首次全绿 —— 顺带挖出 3 个从没被执行过的生产级缺陷
+
+流水线此前**连续 10 次全红**（自 2026-10-15 起），意味着 `docker-build` / `deploy` 从未真正执行过，
+于是下面这些坑一直躺着没人碰。这一轮把它们全部暴露并修掉：
+
+| # | 缺陷 | 为什么一直没暴露 | 后果 |
+|---|---|---|---|
+| 1 | **`application-prod.yml` 有两个顶层 `security:` 键**（`actuator` 一块、`login` 一块） | prod profile 从未被真正启动过 | Spring Boot 2.4+ 禁止重复键 → **生产启动直接解析失败**；宽松解析器下则后者覆盖前者，`security.actuator.allow-private-only` 白写，`/actuator/**` 公网限制形同不存在 |
+| 2 | `application-example.yml` 同一个重复键 | 它只是「复制成 application.yml 用」的模板，没人真复制过 | 照模板配置的开发/新环境**必然起不来** |
+| 3 | CI 镜像 tag 用了 `github.repository` 原值（`Aurirlk/Vital-cortex`，含大写） | `docker-build` 依赖 backend+frontend 两个 job，它们长期红，这步从没跑过 | `invalid tag ... repository name must be lowercase`，镜像永远推不上 GHCR → 部署链断在第一环 |
+
+另外两处流水线本身的问题：
+
+- **`ci.yml` 的测试步骤是 `mvn test`**，而 `*IT` 被 surefire 排除 → 所谓「启动守护」在 CI 里**一行都没跑**。
+  改为 `mvn verify`。
+- **仓库未配置任何 secrets**（`SERVER_HOST` / `SERVER_USER` / `SERVER_SSH_KEY` 全空，也没有 environment），
+  `deploy` 必然失败。新增 `deploy-preflight` 探测：密钥齐全才部署，缺失则 `::warning::` 显式告警跳过
+  （secrets 不能在 job 级 `if` 里直接判断，必须用前置 job 的 `outputs`）。
+
+**结果（run `42438941151`）**：`Backend Build & Test ✅ / Frontend Build ✅ / Docker Build & Push ✅ /
+Deploy Preflight ✅ / Deploy skipped（未配置密钥，已告警）` —— **结论 success，该流水线首次全绿**。
+
+> 一条经验：`mvn test` 全绿 + 前端 lint 全绿 + 构建通过，**都不代表这系统能起来**。
+> 真正把这三件事连起来打通的，是把「启动上下文」变成 CI 的必过关卡，并且让它在**没有本地配置文件**
+> 的环境里也能跑 —— 否则守护的只是开发者的机器。
