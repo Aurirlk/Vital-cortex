@@ -120,6 +120,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 🔴 2026-11-08 修复：镜像 tag 必须小写，而 github.repository 是 "Aurirlk/Vital-cortex"（大写 A）。
+      # buildx 直接报 invalid tag "...:latest": repository name must be lowercase。
+      # 此前因为 frontend lint 常年红，docker-build 从未执行，所以这条一直没暴露。
+      - name: 计算小写镜像名前缀
+        id: image
+        run: echo "name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
       - name: Login to Container Registry
         uses: docker/login-action@v3
         with:
@@ -133,7 +140,7 @@ jobs:
           context: .
           file: Dockerfile.backend
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:latest
+          tags: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}/backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -143,16 +150,43 @@ jobs:
           context: ./前端/personal-heath-view
           file: ./前端/personal-heath-view/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
+          tags: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}/frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # ========== 部署前置检查 ==========
+  # 🔴 2026-11-08 新增：secrets 不能在 job 级 if 里直接判断，故先用一个 job 探测。
+  # 仓库当前 **未配置任何 secrets**（SERVER_HOST / SERVER_USER / SERVER_SSH_KEY 均为空），
+  # 若照常跑 ssh-action 必然失败，且会把「部署未配置」伪装成「代码有问题」——
+  # 整条流水线永远红，真失败就被淹没。这里改为：密钥齐全才部署，否则显式告警跳过。
+  deploy-preflight:
+    name: Deploy Preflight
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: 检查部署密钥是否配置
+        id: check
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          if [ -n "$SERVER_HOST" ] && [ -n "$SERVER_USER" ] && [ -n "$SERVER_SSH_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "部署密钥已配置，将继续部署。"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=部署已跳过::未配置 SERVER_HOST / SERVER_USER / SERVER_SSH_KEY，本次不执行部署。镜像已构建并推送到 GHCR。"
+          fi
 
   # ========== 部署 ==========
   deploy:
     name: Deploy to Server
     runs-on: ubuntu-latest
-    needs: docker-build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [docker-build, deploy-preflight]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.deploy-preflight.outputs.ready == 'true'
     environment: production
     steps:
       - name: Deploy via SSH
