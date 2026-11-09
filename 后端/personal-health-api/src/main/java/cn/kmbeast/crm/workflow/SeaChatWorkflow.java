@@ -124,8 +124,16 @@ public class SeaChatWorkflow {
 
         try {
             ToolContext.setPhoneAndUserId(phoneNumber, userId);
-            // 阶段 2：标注调用方为用户（roleId=2）
-            ToolContext.setIdentity(2, null);
+            // 阶段 2：标注调用方身份（用户端 roleId=2）。
+            // 阶段 6：此前无条件写 (2, null) —— 医生端 /doctor/chat 即便传了
+            // Audience.DOCTOR，身份也会在这里被覆盖成「用户」，DataQueryTool 的
+            // 医生分支（patientId + 接诊授权重查）永远进不去。身份必须与 route()
+            // 使用的 audience 同口径；用户端行为完全不变。
+            if (Audience.DOCTOR.equals(audience)) {
+                ToolContext.setIdentity(3, userId);
+            } else {
+                ToolContext.setIdentity(2, null);
+            }
 
             List<Map<String, String>> userMessages = new ArrayList<>();
 

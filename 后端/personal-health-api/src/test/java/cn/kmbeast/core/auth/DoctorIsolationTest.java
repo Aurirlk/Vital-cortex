@@ -88,6 +88,30 @@ class DoctorIsolationTest {
                 "管理端走 /admin，不应经由医生端；即便管理员也不放行以保持职责单一");
     }
 
+    // ---------------------------------------------------------------- 阶段 6：医生端 ReAct 端点
+
+    @Test
+    @DisplayName("阶段 6：/doctor/chat 与 /doctor/chat/stream 仅医生可访问")
+    void doctorChatEndpointsAreIsolated() {
+        String[] paths = {
+                CTX + "/doctor/chat",
+                CTX + "/doctor/chat/stream",
+        };
+        for (String p : paths) {
+            assertFalse(DoctorIsolation.isAllowed(p, USER), p + " 必须拒绝普通用户");
+            assertFalse(DoctorIsolation.isAllowed(p, ADMIN), p + " 必须拒绝管理员");
+            assertTrue(DoctorIsolation.isAllowed(p, DOCTOR), p + " 必须放行医生");
+        }
+    }
+
+    @Test
+    @DisplayName("阶段 6：身份不可信时 /doctor/chat 一律拒绝（不因否定判断放行）")
+    void doctorChatRejectsUntrustedIdentity() {
+        assertFalse(DoctorIsolation.isAllowed(CTX + "/doctor/chat", null));
+        assertFalse(DoctorIsolation.isAllowed(CTX + "/doctor/chat", 99));
+        assertFalse(DoctorIsolation.isAllowed(CTX + "/doctor/chat", 0));
+    }
+
     // ---------------------------------------------------------------- 用户端
 
     @Test

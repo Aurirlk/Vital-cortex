@@ -92,6 +92,7 @@ export default {
         { name: "工作台", path: "/doctor/home", icon: "HomeFilled" },
         { name: "我的接诊", path: "/doctor/appointments", icon: "Tickets" },
         { name: "数据问答", path: "/doctor/data-qa", icon: "DataAnalysis" },
+        { name: "AI 助手", path: "/doctor/assistant", icon: "ChatDotRound" },
         { name: "我的排班", path: "/doctor/schedules", icon: "Calendar" },
       ],
     };

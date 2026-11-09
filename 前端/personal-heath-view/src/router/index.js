@@ -62,6 +62,14 @@ const routes = [
         component: () => import(`@/views/doctor/DoctorDataQa.vue`),
         meta: { requireAuth: true, role: "医生" },
       },
+      {
+        // 阶段 6：医生端 ReAct 对话入口（/doctor/chat 同步 + /doctor/chat/stream 流式）。
+        // 与「数据问答」并列：那边是十步 NL2SQL 流水线，这边是带工具调用的日常问诊。
+        name: "AI 助手",
+        path: "assistant",
+        component: () => import(`@/views/doctor/DoctorChat.vue`),
+        meta: { requireAuth: true, role: "医生" },
+      },
     ],
   },
   {

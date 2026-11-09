@@ -84,6 +84,16 @@ public class DataAgentPipeline {
     private Nl2SqlLlmClient llm;
 
     /**
+     * 二值准入门禁（阶段 6 / P2-5）。纯判定器、无外部依赖；未装配时回落到静态实例，
+     * 保证不走 Spring 的单测也不会 NPE（与本项目「未装配回落代码默认值」范式一致）。
+     */
+    @Autowired(required = false)
+    private Nl2SqlAdmissionGate admissionGate;
+
+    /** 单测（无 Spring 上下文）用的兜底门禁：无状态，可安全共享。 */
+    private static final Nl2SqlAdmissionGate FALLBACK_GATE = new Nl2SqlAdmissionGate();
+
+    /**
      * NL2SQL 专用只读数据源提供者。bean 恒存在，但未配置
      * {@code crm.ai.nl2sql.read-only.url} 时其 {@link Nl2SqlReadOnlyDataSourceProvider#get()}
      * 返回 {@code null}，此时 {@link #execDataSource()} <b>拒绝执行</b>。
@@ -349,25 +359,71 @@ public class DataAgentPipeline {
         String evidence = buildEvidenceWithMemory(dataOwnerId);
 
         try {
-            // ---- 1. 意图识别 ----
+            // ---- 1. 意图识别 → 二值准入门禁（阶段 6 / P2-5） ----
+            // 改造前只判 classification.contains("闲聊")：模型被注入后吐出任何怪标签、
+            // 超时空串、JSON 解析失败，都会因「不含闲聊」被无条件当成数据分析请求，
+            // 直接进 SQL 生成。现改由 Nl2SqlAdmissionGate 做严格白名单三态判定：
+            //   ENTER → 进十步流水线；BLOCK_CHITCHAT → 闲聊回复；BLOCK_UNSAFE → fail-closed。
+            // 规则先行命中时连下面这次 llm.chat 都不发 —— 全流程仍只有这一次意图调用，未新增。
             long t = started;
             out.emit(AgentStepEvent.running(AgentStep.INTENT));
-            String intentRaw = llm.chat(promptBuilder.buildIntentRecognitionPrompt(
-                    nullToEmpty(req.getMultiTurn()), question), false, "");
-            JSONObject intentJson = parseObject(intentRaw);
-            String classification = intentJson == null ? "" : intentJson.getString("classification");
-            boolean chitchat = classification != null && classification.contains("闲聊");
-            AgentStepEvent intentEv = AgentStepEvent.success(AgentStep.INTENT, elapsed(t),
-                    chitchat ? "判定为闲聊/无关指令" : "判定为数据分析请求");
-            intentEv.withThinking(trim(intentRaw)).withPayload("classification", classification);
+
+            Nl2SqlAdmissionGate gate = gate();
+            Nl2SqlAdmissionGate.Decision ruleDecision = gate.admitByRule(question);
+            Nl2SqlAdmissionGate.Resolution observation;
+            String admissionSource;
+            if (ruleDecision != null) {
+                observation = Nl2SqlAdmissionGate.Resolution.skipped();
+                admissionSource = "RULE";
+            } else {
+                String intentRaw = null;
+                boolean llmFailed = false;
+                try {
+                    // 复用本步骤本来就有的一次 LLM 调用；门禁本身不发起任何调用。
+                    intentRaw = llm.chat(promptBuilder.buildIntentRecognitionPrompt(
+                            nullToEmpty(req.getMultiTurn()), question), false, "");
+                } catch (Exception e) {
+                    llmFailed = true;
+                    log.warn("[DataAgent] 意图识别 LLM 调用失败，门禁 fail-closed: {}", e.getMessage());
+                }
+                observation = llmFailed
+                        ? Nl2SqlAdmissionGate.Resolution.failure()
+                        : Nl2SqlAdmissionGate.Resolution.of(intentRaw);
+                admissionSource = "LLM";
+            }
+            Nl2SqlAdmissionGate.Decision decision = gate.admit(question, observation);
+
+            String classification = observation.classification();
+            String decisionSummary;
+            if (decision == Nl2SqlAdmissionGate.Decision.ENTER) {
+                decisionSummary = "判定为数据分析请求，允许进入流水线";
+            } else if (decision == Nl2SqlAdmissionGate.Decision.BLOCK_CHITCHAT) {
+                decisionSummary = "判定为闲聊/无关指令，不查库";
+            } else {
+                decisionSummary = "意图判定不可信，已拒绝执行（fail-closed）";
+            }
+            AgentStepEvent intentEv = AgentStepEvent.success(AgentStep.INTENT, elapsed(t), decisionSummary);
+            intentEv.withThinking(observation.raw() == null ? "" : trim(observation.raw()))
+                    .withPayload("classification", classification == null ? "" : classification)
+                    .withPayload("decision", decision.name())
+                    .withPayload("admissionSource", admissionSource);
             out.emit(intentEv);
-            if (chitchat) {
-                String reply = intentJson == null ? "" : intentJson.getString("response");
+
+            if (decision == Nl2SqlAdmissionGate.Decision.BLOCK_CHITCHAT) {
+                String reply = observation.chitchatReply();
                 result.setIntent("CHITCHAT");
-                result.setAnswer(reply == null || reply.trim().isEmpty()
-                        ? "这个问题更适合日常咨询，换个和数据相关的问题试试？" : reply.trim());
+                result.setAnswer(reply.isEmpty()
+                        ? "这个问题更适合日常咨询，换个和数据相关的问题试试？" : reply);
                 result.setSessionId(req.getSessionId());
                 return fill(result, success(result, started));
+            }
+            if (decision == Nl2SqlAdmissionGate.Decision.BLOCK_UNSAFE) {
+                // fail-closed：不生成 SQL、不查库、不重试，直接返回明确的可重试说明。
+                out.emit(AgentStepEvent.failed(AgentStep.INTENT, 0L, "意图判定不可信，未执行数据查询"));
+                result.setIntent("BLOCKED");
+                return fill(result, DataAgentQaResult.error(
+                        "无法确认这是一个数据查询请求，出于安全考虑未执行查询。请换一个明确的数据问题重试。",
+                        elapsed(started)));
             }
             result.setIntent("DATA_QUERY");
 
@@ -813,6 +869,11 @@ public class DataAgentPipeline {
 
     private List<String> sanitize(List<String> selected) {
         return schemaService.sanitizeSelectedTables(selected);
+    }
+
+    /** 门禁装配回落：单测不走 Spring 时用共享的无状态实例。 */
+    private Nl2SqlAdmissionGate gate() {
+        return admissionGate != null ? admissionGate : FALLBACK_GATE;
     }
 
     private JSONObject parseObject(String raw) {
