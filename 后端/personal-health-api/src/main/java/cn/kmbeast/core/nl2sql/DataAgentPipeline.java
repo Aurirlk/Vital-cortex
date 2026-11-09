@@ -18,6 +18,7 @@ import jakarta.annotation.Resource;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -195,6 +196,14 @@ public class DataAgentPipeline {
      */
     @Autowired(required = false)
     private cn.kmbeast.core.memory.StructuredMemoryService structuredMemory;
+
+    /**
+     * 阶段 9（P5-1）：NL2SQL 多轮上下文的窗口守卫。
+     * 只做条数/字符上限与位置门禁，<b>不引入任何历史存储</b>
+     * （multiTurn 仍是请求自带的字符串）。未装配时原样透传。
+     */
+    @Autowired(required = false)
+    private cn.kmbeast.core.context.ContextCompressor contextCompressor;
 
     /**
      * 注入 prompt 的偏好段字符上限（NL2SQL 链路）。
@@ -399,7 +408,7 @@ public class DataAgentPipeline {
                 try {
                     // 复用本步骤本来就有的一次 LLM 调用；门禁本身不发起任何调用。
                     intentRaw = llm.chat(promptBuilder.buildIntentRecognitionPrompt(
-                            nullToEmpty(req.getMultiTurn()), question), false, "");
+                            safeMultiTurn(req.getMultiTurn()), question), false, "");
                 } catch (Exception e) {
                     llmFailed = true;
                     log.warn("[DataAgent] 意图识别 LLM 调用失败，门禁 fail-closed: {}", e.getMessage());
@@ -450,7 +459,7 @@ public class DataAgentPipeline {
             t = System.currentTimeMillis();
             out.emit(AgentStepEvent.running(AgentStep.QUERY_ENHANCE));
             JSONObject enhanceJson = parseObject(llm.chat(
-                    promptBuilder.buildQueryEnhancePrompt(nullToEmpty(req.getMultiTurn()), question, ""), false, ""));
+                    promptBuilder.buildQueryEnhancePrompt(safeMultiTurn(req.getMultiTurn()), question, ""), false, ""));
             if (enhanceJson != null && enhanceJson.getString("canonical_query") != null
                     && !enhanceJson.getString("canonical_query").trim().isEmpty()) {
                 canonical = enhanceJson.getString("canonical_query").trim();
@@ -1056,6 +1065,22 @@ public class DataAgentPipeline {
             return null;
         }
         return s.length() <= MAX_THINKING_CHARS ? s : s.substring(0, MAX_THINKING_CHARS) + "\n…（已截断）";
+    }
+
+    /**
+     * 阶段 9：对请求自带的 multiTurn 文本做条数/字符上限与位置门禁。
+     * 按行视为窗口元素，不落库、不引入历史存储；未装配压缩器时原样返回。
+     */
+    private String safeMultiTurn(String multiTurn) {
+        if (multiTurn == null || multiTurn.isEmpty()) {
+            return "";
+        }
+        if (contextCompressor == null) {
+            return multiTurn;
+        }
+        List<String> lines = Arrays.asList(multiTurn.split("\\r?\\n", -1));
+        List<String> guarded = contextCompressor.guardWindow(lines, s -> s);
+        return String.join("\n", guarded);
     }
 
     private static String nullToEmpty(String s) {

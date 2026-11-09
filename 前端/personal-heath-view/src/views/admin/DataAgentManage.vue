@@ -111,35 +111,62 @@
         </el-form>
       </el-tab-pane>
 
-      <!-- ============ 上下文压缩（2026-10-07 新增） ============ -->
+      <!-- ============ 上下文压缩（阶段 9 · P5-1 重写） ============ -->
       <el-tab-pane label="上下文压缩" name="context">
         <el-alert type="info" :closable="false" show-icon class="dam-tip">
-          控制 AI 问诊链路送入 prompt 的历史规模。压缩分三层：<b>条数截断</b>（保留最近 N 轮）
-          → <b>字符预算</b>（超出从最旧整条丢弃）→ <b>滚动摘要</b>（丢弃条数达阈值时用关键词提取生成一条摘要，<b>零 LLM 调用</b>）。
+          <template #title>2026 新方案：精确计数 + 稳定前缀 + 结构化摘要 + 位置门禁</template>
+          三链路（AI 问诊 / ReAct / 医数智查）共用 <code>core/context/ContextCompressor</code>：
+          真实 BPE token 计数（<code>cl100k_base</code>，非 <code>len*0.6</code> 粗估）、
+          system/tools/few-shot 稳定前缀放最前且不参与裁剪、被丢弃历史消毒为结构化 JSON 摘要
+          （整批 fail-closed，杜绝提示词注入）、剂量/结论类关键医疗事实不落在中部衰减区。
+          <b>旧的关键词频次自由文本摘要与 3 策略多选已废弃。</b>
         </el-alert>
+        <el-alert type="success" :closable="false" show-icon class="dam-tip">
+          <template #title>当前实际生效（保存前不显示未生效值）</template>
+          精确 token 预算 <b>{{ ctxEffective ? ctxEffective.maxTokens : "—" }}</b>
+          · 位置感知门禁
+          <b>{{ ctxEffective ? (ctxEffective.positionGateEnabled ? "开启" : "关闭") : "读取中" }}</b>
+          · 历史轮数 <b>{{ ctxEffective ? ctxEffective.rounds : "—" }}</b>
+          · 字符预算 <b>{{ ctxEffective ? ctxEffective.maxChars : "—" }}</b>
+          · 摘要阈值 <b>{{ ctxEffective ? ctxEffective.summaryThreshold : "—" }}</b>
+        </el-alert>
+
+        <h4 class="dam-subtitle">每任务上下文预算（由后端 TaskContextBudget 钳制）</h4>
+        <el-table :data="ctxBudgetRows" size="small" border class="dam-budget-table">
+          <el-table-column prop="task" label="链路" width="180" />
+          <el-table-column prop="factor" label="窗口系数" width="110" />
+          <el-table-column prop="note" label="说明" />
+        </el-table>
+        <p class="dam-hint dam-budget-note">
+          最终上限 = min(配置预算 × 窗口系数, 模型窗口 × 50%)。
+          模型窗口的一半必须留给模型输出与工具结果，管理员配置只能收窄、不能放大。
+        </p>
+
         <el-form label-width="180px" class="dam-form">
-          <el-form-item label="历史轮数上限">
-            <el-input-number v-model="ctxForm.rounds" :min="0" :max="50" />
-            <span class="dam-hint">一轮 = 用户 + 助手两条消息；0 = 不携带历史</span>
+          <el-form-item label="精确 token 预算">
+            <el-input-number v-model="ctxForm.maxTokens" :min="256" :max="32768" :step="256" />
+            <span class="dam-hint">真实 BPE 计数；后端再按每任务系数与窗口 50% 钳制</span>
           </el-form-item>
-          <el-form-item label="历史字符预算">
-            <el-input-number v-model="ctxForm.maxChars" :min="500" :max="100000" :step="500" />
-            <span class="dam-hint">超出时从最旧的消息整条丢弃，不做中间截断</span>
+          <el-form-item label="位置感知门禁">
+            <el-switch v-model="ctxForm.positionGateEnabled" />
+            <span class="dam-hint">开启后中部衰减区的剂量/诊断结论会整条移到窗口尾部</span>
           </el-form-item>
-          <el-form-item label="滚动摘要阈值">
-            <el-input-number v-model="ctxForm.summaryThreshold" :min="0" :max="100" />
-            <span class="dam-hint">被丢弃条数 ≥ 该值时生成一条早期对话摘要；0 = 不摘要</span>
-          </el-form-item>
-          <el-form-item label="压缩效果预览">
-            <div class="dam-preview">
-              <div>实际送入模型的历史：<b>{{ ctxForm.rounds * 2 }}</b> 条以内</div>
-              <div>正文最长约 <b>{{ ctxForm.maxChars }}</b> 字符（超出的最早内容会被丢弃）</div>
-              <div v-if="ctxForm.summaryThreshold > 0">
-                丢弃 ≥ <b>{{ ctxForm.summaryThreshold }}</b> 条时保留一行摘要，保留主题线索
-              </div>
-              <div v-else class="dam-sub">摘要已关闭，更早的对话将完全丢失</div>
-            </div>
-          </el-form-item>
+          <el-collapse class="dam-legacy-collapse">
+            <el-collapse-item title="兼容参数（旧版条数 / 字符 / 摘要阈值）" name="legacy">
+              <el-form-item label="历史轮数上限">
+                <el-input-number v-model="ctxForm.rounds" :min="0" :max="50" />
+                <span class="dam-hint">一轮 = 用户 + 助手两条；0 = 不携带历史</span>
+              </el-form-item>
+              <el-form-item label="历史字符预算">
+                <el-input-number v-model="ctxForm.maxChars" :min="500" :max="100000" :step="500" />
+                <span class="dam-hint">超出时从最旧整条丢弃，不做中间截断</span>
+              </el-form-item>
+              <el-form-item label="结构化摘要阈值">
+                <el-input-number v-model="ctxForm.summaryThreshold" :min="0" :max="100" />
+                <span class="dam-hint">被丢弃条数 ≥ 该值时生成消毒后的 JSON 摘要；0 = 不摘要</span>
+              </el-form-item>
+            </el-collapse-item>
+          </el-collapse>
           <el-form-item>
             <el-button type="primary" :loading="saving" @click="saveContext">保存压缩配置</el-button>
             <el-button @click="loadConfig">重置</el-button>
@@ -150,14 +177,16 @@
       <!-- ============ 长短期记忆（2026-10-07 新增） ============ -->
       <el-tab-pane label="长短期记忆" name="memory">
         <el-alert type="info" :closable="false" show-icon class="dam-tip">
-          「长期记忆」当前落地形态是<b>用户偏好</b>：用户通过
-          <code>/agent/preferences/{userId}</code> 保存的键值对会被注入 system prompt，
-          让回答贴合其习惯（如「素食」「每周三次慢跑」）。
-          偏好落盘在 <code>cache/agent_workspace/memory/</code>，<b>不入数据库</b>。
+          <template #title>阶段 8（D3 改写）：结构化偏好事实，落库、无自由文本</template>
+          用户与医生各在自身表上带 3 个 <code>ai_memory_*</code> 列，事实为 JSON 结构化条目
+          （<code>key / value / kind / confidence / expiresAt</code>），经防投毒校验后才写入。
+          端点 <code>/user/ai-memory</code> 与 <code>/doctor/ai-memory</code> 的身份只取登录态，
+          不接收 userId。<b>旧的「文件 LRU 偏好」「initial_prompt 自由文本」已废弃</b>，
+          prompt 里只注入 200~500 token 的结构化 bullets。
         </el-alert>
         <el-alert type="success" :closable="false" show-icon class="dam-tip">
           <template #title>下面三项已由后端真实消费，保存后会改变实际行为（非展示值）</template>
-          当前实际生效：注入偏好
+          当前实际生效：注入结构化记忆
           <b>{{ memEffective ? (memEffective.enabled ? "开启" : "关闭") : "读取中" }}</b>
           · 偏好段上限 <b>{{ memEffective ? memEffective.maxChars : "—" }}</b> 字符
           · 缓存用户上限 <b>{{ memEffective ? memEffective.maxUsers : "—" }}</b>
@@ -343,7 +372,21 @@ export default {
       form: { enabled: false, reportEnabled: true, maxRows: 200, queryTimeout: 10 },
       // 2026-10-07 新增：分端 / 压缩 / 记忆 / 沙箱
       audienceRows: [],
-      ctxForm: { rounds: 10, maxChars: 4000, summaryThreshold: 0 },
+      ctxForm: {
+        rounds: 10,
+        maxChars: 4000,
+        summaryThreshold: 0,
+        maxTokens: 4096,
+        positionGateEnabled: true,
+      },
+      // 阶段 9：生效值与可编辑表单分离，保存前不把未生效值当成当前状态。
+      ctxEffective: null,
+      ctxBudgetRows: [
+        { task: "AI 问诊 /ai/chat", factor: "100%", note: "默认链路，历史可用窗口最大" },
+        { task: "对话智能体 /user/chat", factor: "80%", note: "ReAct 单轮，system + 工具定义占前缀" },
+        { task: "医数智查 NL2SQL", factor: "60%", note: "prompt 内含 schema 与术语 Evidence" },
+        { task: "报告生成 report", factor: "50%", note: "固定模板长，留给历史的空间最小" },
+      ],
       memForm: { enabled: true, maxChars: 800, maxUsers: 1000 },
       // 阶段 4 接线后这三项是「真生效值」；与可编辑的 memForm 分开，
       // 避免管理员改了表单还没保存时把未生效的数字误读成当前状态。
@@ -388,12 +431,16 @@ export default {
         };
         this.form = { ...this.cfg };
         this.buildAudienceRows(data, eff);
-        this.ctxForm = {
+        this.ctxEffective = {
           rounds: eff.contextRounds != null ? eff.contextRounds : 10,
           maxChars: eff.contextMaxChars != null ? eff.contextMaxChars : 4000,
           summaryThreshold:
             eff.contextSummaryThreshold != null ? eff.contextSummaryThreshold : 0,
+          maxTokens: eff.contextMaxTokens != null ? eff.contextMaxTokens : 4096,
+          positionGateEnabled: eff.contextPositionGateEnabled !== false,
         };
+        // 从生效值回填可编辑表单（保存后 loadConfig 会重新拉一次）
+        this.ctxForm = { ...this.ctxEffective };
         this.memEffective = {
           enabled: eff.memoryEnabled !== false,
           maxChars: eff.memoryMaxChars != null ? eff.memoryMaxChars : 800,
@@ -499,6 +546,8 @@ export default {
         "context-rounds": String(this.ctxForm.rounds),
         "context-max-chars": String(this.ctxForm.maxChars),
         "context-summary-threshold": String(this.ctxForm.summaryThreshold),
+        "context-max-tokens": String(this.ctxForm.maxTokens),
+        "context-position-gate-enabled": String(this.ctxForm.positionGateEnabled),
       }, "上下文压缩配置");
     },
 
@@ -803,5 +852,28 @@ export default {
   text-align: center;
   color: #9aa4b2;
   font-size: 13px;
+}
+/* 阶段 9：预算表 / 兼容参数折叠 */
+.dam-subtitle {
+  margin: 18px 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #303b4d;
+}
+.dam-budget-table {
+  max-width: 860px;
+}
+.dam-budget-note {
+  display: block;
+  margin: 10px 0 4px;
+  max-width: 860px;
+  line-height: 1.7;
+}
+.dam-legacy-collapse {
+  max-width: 860px;
+  margin: 4px 0 18px;
+}
+.dam-legacy-collapse :deep(.el-collapse-item__content) {
+  padding: 12px 16px 2px;
 }
 </style>

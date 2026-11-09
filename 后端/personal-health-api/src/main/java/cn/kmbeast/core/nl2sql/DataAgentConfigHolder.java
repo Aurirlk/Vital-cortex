@@ -97,6 +97,13 @@ public class DataAgentConfigHolder {
     public static final String KEY_CONTEXT_MAX_CHARS = "context-max-chars";
     /** 上下文压缩：超过该条数后，对更早的历史做滚动摘要（压缩为一段话）。 */
     public static final String KEY_CONTEXT_SUMMARY_THRESHOLD = "context-summary-threshold";
+    /**
+     * 阶段 9（P5-1）：历史段的精确 token 预算。由 {@code TaskContextBudget}
+     * 再钳制到「模型窗口 50%」以内，配置值只能收窄、不能放大。
+     */
+    public static final String KEY_CONTEXT_MAX_TOKENS = "context-max-tokens";
+    /** 阶段 9（P5-1）：位置感知 eval 门禁开关（中部衰减区不放剂量/结论）。 */
+    public static final String KEY_CONTEXT_POSITION_GATE_ENABLED = "context-position-gate-enabled";
 
     /**
      * 长短期记忆：是否把用户偏好注入 prompt。
@@ -199,6 +206,8 @@ public class DataAgentConfigHolder {
         SCHEMA.put(KEY_CONTEXT_ROUNDS, new String[]{"上下文压缩：送入 prompt 的历史消息条数上限（0=不携带历史）", "number"});
         SCHEMA.put(KEY_CONTEXT_MAX_CHARS, new String[]{"上下文压缩：历史正文字符总预算（超出从最旧开始截断）", "number"});
         SCHEMA.put(KEY_CONTEXT_SUMMARY_THRESHOLD, new String[]{"上下文压缩：超过该条数后对更早历史做滚动摘要（0=不摘要）", "number"});
+        SCHEMA.put(KEY_CONTEXT_MAX_TOKENS, new String[]{"上下文压缩：历史段精确 token 预算（由程序再钳制到模型窗口 50% 以内）", "number"});
+        SCHEMA.put(KEY_CONTEXT_POSITION_GATE_ENABLED, new String[]{"上下文压缩：位置感知门禁（中部衰减区不放置剂量/结论类关键医疗事实）", "boolean"});
 
         // ---- 长短期记忆 ----
         SCHEMA.put(KEY_MEMORY_ENABLED, new String[]{"长短期记忆：是否把用户偏好注入 prompt", "boolean"});
@@ -289,6 +298,19 @@ public class DataAgentConfigHolder {
     /** 超过该条数后对更早历史做滚动摘要；0 表示不摘要。 */
     public int getContextSummaryThreshold() {
         return clamp(asInt(KEY_CONTEXT_SUMMARY_THRESHOLD, 0), 0, 100);
+    }
+
+    /**
+     * 阶段 9：历史段的精确 token 预算（默认 4096，钳制 256~32768）。
+     * 真正的硬上限由 {@code TaskContextBudget} 再按模型窗口 50% 收窄。
+     */
+    public int getContextMaxTokens() {
+        return clamp(asInt(KEY_CONTEXT_MAX_TOKENS, 4096), 256, 32768);
+    }
+
+    /** 阶段 9：位置感知 eval 门禁是否开启（默认开启）。 */
+    public boolean isContextPositionGateEnabled() {
+        return asBool(KEY_CONTEXT_POSITION_GATE_ENABLED, true);
     }
 
     // ==================== 长短期记忆 ====================
@@ -483,6 +505,8 @@ public class DataAgentConfigHolder {
         effective.put("contextRounds", getContextRounds());
         effective.put("contextMaxChars", getContextMaxChars());
         effective.put("contextSummaryThreshold", getContextSummaryThreshold());
+        effective.put("contextMaxTokens", getContextMaxTokens());
+        effective.put("contextPositionGateEnabled", isContextPositionGateEnabled());
         effective.put("memoryEnabled", isMemoryEnabled());
         effective.put("memoryMaxChars", getMemoryMaxChars());
         effective.put("memoryMaxUsers", getMemoryMaxUsers());
@@ -532,6 +556,10 @@ public class DataAgentConfigHolder {
                 return "4000";
             case KEY_CONTEXT_SUMMARY_THRESHOLD:
                 return "0";
+            case KEY_CONTEXT_MAX_TOKENS:
+                return "4096";
+            case KEY_CONTEXT_POSITION_GATE_ENABLED:
+                return "true";
             case KEY_MEMORY_ENABLED:
                 return "true";
             case KEY_MEMORY_MAX_CHARS:

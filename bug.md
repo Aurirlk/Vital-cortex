@@ -293,9 +293,9 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 去掉复核 → 2 例 `expected: <2> but was: <1>`；两组重叠 1 例）。
 **`e6771eb` 只补了用例、没做反向验证**，写在这里是为了不含糊过去。
 
-`mvn -o -B verify` 现值 = **单测 942 例 / 96 个测试类全绿 + 集成 4 例全绿**（2026-11-08 实测；
-上一个是 931 例 / 94 类，2026-10-25 深夜；2026-11-08 新增 `OutputValidatorTest` 9 例与 `IdentityCleanupGuardTest` 2 例）。
-仍要提醒：`mvn test` 那 942 例全为方法级单测，全绿只证明方法级逻辑，**不证明应用能启动**；
+`mvn -o -B verify` 现值 = **单测 1060 例全绿 + 集成 4 例全绿**（2026-11-09 阶段 9 实测；
+历史轨迹：931 例（2026-10-25）→ 942 例（2026-11-08，新增 `OutputValidatorTest` 9 例与 `IdentityCleanupGuardTest` 2 例）→ 953（阶段 5）→ 970（阶段 6）→ 1021（阶段 8，结构化记忆 +51）→ 1060（阶段 9，上下文压缩 +39））。
+仍要提醒：`mvn test` 那 1060 例全为方法级单测，全绿只证明方法级逻辑，**不证明应用能启动**；
 启动由 4 个 `*IT` 守护（`PersonalHealthApplicationIT` 上下文启动 + `CoreBeanWiringIT` 校验
 MyBatis/Neo4jClient/RedisTemplate 接线），命名 `*IT` 故不参与 `mvn test`、由 `mvn verify`（failsafe 插件）执行。
 **实测不需要 MySQL/Redis/Neo4j**：把数据源指向不存在的端口仍是 4 例全绿（三者均懒连接）。
@@ -486,4 +486,4 @@ Deploy Preflight ✅ / Deploy skipped（未配置密钥，已告警）` —— *
 | 6 | 执行 plan 仍写「基线 462 例 / 46 类」「AI 不跑 mvn」，而 Maven 早已可跑且 `@SpringBootTest` 必须走 Maven；P0/P1/P2 已完成却无状态标注 | 加「执行状态台账」+ 订正 4 条过时约束 |
 
 **当前权威口径（2026-11-09 实测）**：本机实库与部署链终态已对齐 = **47 表 / 567 字段 / 201 字符列**；
-`mvn -o -B verify` = **942 单测 / 96 类 + 4 集成全绿**；`docs/` 19 份 + 根 `README.md` 1 份 = 20 份。
+`mvn -o -B verify` = **1060 单测 + 4 集成全绿**（2026-11-09 阶段 9 实测）；`docs/` 19 份 + 根 `README.md` 1 份 = 20 份。

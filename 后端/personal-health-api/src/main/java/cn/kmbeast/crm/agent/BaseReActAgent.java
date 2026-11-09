@@ -73,6 +73,14 @@ public abstract class BaseReActAgent {
     private cn.kmbeast.core.memory.StructuredMemoryService structuredMemory;
 
     /**
+     * 阶段 9（P5-1）：ReAct 单轮链路的窗口守卫（条数/字符上限 + 位置感知门禁）。
+     * 本期<b>不引入历史存储</b>，只对本次请求自带的消息窗口做裁剪。
+     * required=false：未装配时按原逻辑原样透传，保证存量单测零改动。
+     */
+    @Autowired(required = false)
+    private cn.kmbeast.core.context.ContextCompressor contextCompressor;
+
+    /**
      * Agent 注册表（阶段 1 多 Agent 架构）：提供工具白名单与委派关系。
      *
      * <p>同样 {@code required=false}：单元测试里的子类不走 Spring 装配，硬注入会 NPE。
@@ -763,9 +771,14 @@ public abstract class BaseReActAgent {
         // 2026-10-04：用 enhanceSystemPrompt() 追加角色指令与数据追问指令，
         // 而不是裸的 getSystemPrompt()，让 AgentCoordinator 的角色路由
         // 与 HarnessEngine 的槽位引导真正进入对话流程。
+        // 阶段 9：system 是稳定前缀，放最前且不参与裁剪（prompt caching）
         messages.add(buildMap("role", "system", "content", enhanceSystemPrompt()));
-        if (userMessages != null) {
-            for (Map<String, String> msg : userMessages) {
+        List<Map<String, String>> window = userMessages;
+        if (contextCompressor != null && window != null && !window.isEmpty()) {
+            window = contextCompressor.guardWindow(window, m -> m == null ? null : m.get("content"));
+        }
+        if (window != null) {
+            for (Map<String, String> msg : window) {
                 messages.add(buildMap("role", msg.get("role"), "content", msg.get("content")));
             }
         }

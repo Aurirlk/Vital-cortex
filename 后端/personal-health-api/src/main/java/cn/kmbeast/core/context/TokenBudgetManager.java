@@ -24,7 +24,14 @@ public class TokenBudgetManager {
 
     /**
      * 文本 token 粗估：中文为主场景，1 字符 ≈ 0.6~1.2 token，取 0.6 中值。
+     *
+     * @deprecated 阶段 9（P5-1）：这是 {@code len*0.6} 粗估，误差可达 ±30%，
+     *     <b>不得用于任何预算决策</b>，仅保留作日志/展示用途。
+     *     预算与压缩请用 {@link ExactTokenCounter}（真实 BPE）+
+     *     {@link TaskContextBudget}（≤ 模型窗口 50%）+ {@link ContextCompressor}。
+     *     {@link #assertWithinBudget} 的语义与调用点本次不改，避免行为回归。
      */
+    @Deprecated
     public int estimateTextTokens(String text) {
         if (text == null || text.isEmpty()) {
             return 0;
