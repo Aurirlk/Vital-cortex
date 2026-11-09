@@ -8,12 +8,16 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * AES-256-GCM 加密/解密工具类
  * 用于加密存储敏感信息（API Key、密码等）
  */
 public class AESUtils {
+
+    private static final Logger log = LoggerFactory.getLogger(AESUtils.class);
 
     private static final String ALGORITHM = "AES";
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
@@ -26,6 +30,9 @@ public class AESUtils {
     private static byte[] getSecretKey() {
         String key = System.getenv("AES_SECRET_KEY");
         if (key == null || key.isEmpty()) {
+            // 🔴 阶段10（2026-11-09）：生产环境必须设置 AES_SECRET_KEY，否则加密内容可被逆向。
+            // 这里不 fail-fast（保留开发可用性），仅告警；回填密钥后告警自动消失。
+            log.warn("AES_SECRET_KEY 环境变量未配置，回退到内置默认密钥（仅限开发环境；生产环境必须设置，否则加密内容可被逆向）");
             key = "zhikangyun-aes-256-secret-key-2024"; // 默认密钥（仅开发环境）
         }
         // 确保密钥为32字节（AES-256）

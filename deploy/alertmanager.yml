@@ -12,7 +12,9 @@ route:
 receivers:
   - name: 'zhikangyun-webhook'
     webhook_configs:
-      # TODO(上线前必改)：将 url 替换为实际告警通道（企业微信/钉钉/飞书机器人 Webhook）。
-      # 当前为占位地址，不配置则告警只停留在 Alertmanager/Prometheus 页面，不会外发。
+      # 2026-11-09 阶段 10（E3）：webhook 地址改为从环境变量注入，不再硬编码。
+      # 设置方式：在 .env 中填 ALERT_WEBHOOK_URL（企业微信/钉钉/飞书机器人 Webhook），
+      # 然后执行 ./deploy/gen-alertmanager.sh 生成本文件（会替换下面这个占位默认值）。
+      # 不执行生成脚本时，沿用下面的本地占位地址——告警只停留在 Alertmanager/Prometheus 页面，不会外发。
       - url: 'http://host.docker.internal:9000/hook'
         send_resolved: true

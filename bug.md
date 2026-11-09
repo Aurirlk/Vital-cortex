@@ -441,6 +441,8 @@ LocalThreadHolderTest.unsetShouldReturnNull:41  expected: <null> but was: <3001>
 - **仓库未配置任何 secrets**（`SERVER_HOST` / `SERVER_USER` / `SERVER_SSH_KEY` 全空，也没有 environment），
   `deploy` 必然失败。新增 `deploy-preflight` 探测：密钥齐全才部署，缺失则 `::warning::` 显式告警跳过
   （secrets 不能在 job 级 `if` 里直接判断，必须用前置 job 的 `outputs`）。
+  **secrets 机制、deploy 跳过逻辑、依赖安全门禁、上线前必配变量、告警外发与自动备份**详见
+  [`docs/CI与部署配置说明.md`](./docs/CI与部署配置说明.md)（2026-11-09 阶段 10 新增）。
 
 **结果（run `42438941151`）**：`Backend Build & Test ✅ / Frontend Build ✅ / Docker Build & Push ✅ /
 Deploy Preflight ✅ / Deploy skipped（未配置密钥，已告警）` —— **结论 success，该流水线首次全绿**。

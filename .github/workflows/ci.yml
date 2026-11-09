@@ -65,7 +65,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: 前端/personal-heath-view/package-lock.json
 
@@ -84,6 +84,13 @@ jobs:
       - name: Build
         working-directory: ./前端/personal-heath-view
         run: npm run build
+
+      - name: Audit dependencies (CVE scan, official registry)
+        working-directory: ./前端/personal-heath-view
+        # ENG-02/阶段10 整改：补「无 CVE 扫描、无漏洞台账」缺口。
+        # ⚠️ npmmirror 镜像源不实现 audit 端点（返回 404 NOT_IMPLEMENTED），故显式走官方源。
+        # 仅对生产依赖做 high 及以上漏洞扫描；命中则令流水线失败（fail-closed）。
+        run: npm audit --registry=https://registry.npmjs.org --omit=dev --audit-level=high
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4

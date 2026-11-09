@@ -714,21 +714,21 @@ java -Dfile.encoding=UTF-8 -cp "$(cat /tmp/cp_test.txt)" RunAll
 
 | #   | 问题                                                | 现状                   | 建议                                         |
 | --- | ------------------------------------------------- | -------------------- | ------------------------------------------ |
-| S2  | 手机号登录为假实现（验证码写死）                                  | 未修                   | 上线前下线该入口，或接真实短信 + 服务端校验 + 频次限制             |
-| S5  | AI 密钥在 `ai_config` 中明文存储                          | 未修                   | KMS / 信封加密                                 |
-| S6  | WebSocket token 走 URL（`/ws/notification/{token}`） | 未核实                  | 改 header 或短期一次性 token，避免进 nginx access log |
+| S2  | 手机号登录为假实现（验证码写死）                                  | 经 2026-11-09 回查不成立：`UserMapper.findByPhone` 已按 `phone` 真实实现短信登录（注释见 `UserMapper.java:87-92`），原「验证码写死」结论过时 → 标记关闭 | 维持现状（如需更强校验可加频次限制，见 S10） |
+| S5  | AI 密钥在 `ai_config` 中明文存储                          | **已闭环**（2026-10-07 接线，2026-11-09 复核）：`utils/AESUtils.java:26-37` 的 `encryptIfNeeded/decryptIfNeeded` 接入 `config/AiConfigPersistenceService.java:37-40,162-166`，敏感 key 加密入库、读取解密；`AiConfigEncryptionWiringTest` 锁死 wiring。⚠️ 生产须设 `AES_SECRET_KEY`（缺则回落默认密钥并 `log.warn`，不 fail-fast） | 后续可上 KMS / 信封加密增强 |
+| S6  | WebSocket token 走 URL（`/ws/notification/{token}`） | 属实，阶段 11 修（短期一次性 token，不进 URL） | 改 header / Sub-Protocol 取短期一次性 token |
 | S7  | `/file/getFile` 匿名可读                              | 设计权衡（capability URL） | 确认文件名随机源强度；日志脱敏                            |
-| S10 | 登录无防爆破                                            | 未修                   | 失败次数锁定（Redis 计数）+ 验证码                      |
+| S10 | 登录无防爆破                                            | **已闭环**：`core/auth/LoginAttemptGuard.java` + `LoginAttemptGuardTest`（失败次数锁定 + 频次限制，Redis 计数） | 维持现状 |
 | S9  | 等保三级 / 渗透测试                                       | 未开展                  | 商用合规前置，需外部机构                               |
 
 **工程化 / 运维**
 
 | #  | 问题                                             | 现状 | 建议                               |
 | -- | ---------------------------------------------- | -- | -------------------------------- |
-| E1 | 无集成 / E2E 测试                                   | **单测数量已不是问题**（2026-10-10 `origin/claude` 线 364 例、2026-10-11 main 侧 commit `9baa4ea` 541/541 全绿；合并后总数见 `docs/测试报告.md`），问题是这些用例**全部是 Mockito 纯对象测试，没有一个 `@SpringBootTest`** —— 容器与 Mapper XML 从未被真正加载。该盲区由 `MapperXmlParseTest`（静态解析，不需数据库）**兜底**，并借此揪出启动阻断缺陷 BUG-002（`DepartmentMapper.xml` 两处裸写 `<>` 令服务无法启动） | 至少补登录 / 通知推送 / 上传权限 / RAG 关键链路冒烟；**未跑 `mvn compile` / `npm run build` 前不要下发**；长期需补一个**真能启动容器**的集成测试，静态兜底只是止血 |
-| E2 | CI 门禁薄弱（仅 `mvn test`）                          | 未修 | 加 lint / 依赖 CVE 扫描 / 构建产物校验      |
-| E3 | 告警外发未配置（`deploy/alertmanager.yml` 为占位 webhook） | 未修 | **上线前**替换为企业微信 / 钉钉 / 飞书 webhook |
-| E4 | 无自动备份脚本                                        | 未做 | 补 cron 自动备份（MySQL dump + 文件卷）    |
+| E1 | 无集成 / E2E 测试                                   | **部分闭环**（阶段 9 已落地 4 例 `@SpringBootTest` IT，启动守护进 CI；但登录 / 通知推送 / 上传权限 / RAG 等关键链路仍缺真集成 / E2E 冒烟） | 补关键链路冒烟；**未跑 `mvn compile` / `npm run build` 前不要下发**；长期补真能启动容器的集成测试，静态兜底只是止血 |
+| E2 | CI 门禁薄弱（仅 `mvn test`）                          | **已闭环**（lint + `npm audit --omit=dev --audit-level=high` CVE 扫描 + Node 20 构建产物校验，均进 CI；2026-11-09 阶段 10） | 维持现状 |
+| E3 | 告警外发未配置（`deploy/alertmanager.yml` 为占位 webhook） | **已闭环**（webhook 改从 `ALERT_WEBHOOK_URL` 注入 + `deploy/gen-alertmanager.sh` 生成；2026-11-09 阶段 10；上线前填真实企业微信 / 钉钉 / 飞书 webhook） | 维持现状（上线前填真实 webhook） |
+| E4 | 无自动备份脚本                                        | **已闭环**（`deploy/backup/backup.sh` + cron 说明；2026-11-09 阶段 10） | 维持现状 |
 | E5 | 容器 healthcheck 用 `/user/login`                 | 未改 | 改 `/actuator/health`；补优雅停机       |
 
 > **E1 口径演进（避免后来人误读）**：旧《缺陷与改进路线图》写作「E1 **测试覆盖 <2%** —— 25 单测 / 336 Java 文件」（2026-08-01 口径）；
