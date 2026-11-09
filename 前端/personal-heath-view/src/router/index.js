@@ -316,7 +316,9 @@ const routes = [
       {
         // 数据智能体（受控 NL2SQL）。用户端菜单由 Main.vue 从本 children 自动生成，
         // 加这一条即自动出现在左侧菜单，无需改 Main.vue。
-        name: "数据智能体",
+        // 阶段 7：AI 问诊页与 AI 助手页已内嵌「医数智查」tab，
+        // 本路由作为独立模式保留，菜单文案明确区分。
+        name: "数据查询（独立模式）",
         path: "data-agent",
         icon: "DataAnalysis",
         component: () => import(`@/views/user/DataAgent.vue`),

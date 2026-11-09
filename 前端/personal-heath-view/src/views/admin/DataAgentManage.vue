@@ -155,6 +155,14 @@
           让回答贴合其习惯（如「素食」「每周三次慢跑」）。
           偏好落盘在 <code>cache/agent_workspace/memory/</code>，<b>不入数据库</b>。
         </el-alert>
+        <el-alert type="success" :closable="false" show-icon class="dam-tip">
+          <template #title>下面三项已由后端真实消费，保存后会改变实际行为（非展示值）</template>
+          当前实际生效：注入偏好
+          <b>{{ memEffective ? (memEffective.enabled ? "开启" : "关闭") : "读取中" }}</b>
+          · 偏好段上限 <b>{{ memEffective ? memEffective.maxChars : "—" }}</b> 字符
+          · 缓存用户上限 <b>{{ memEffective ? memEffective.maxUsers : "—" }}</b>
+          （改动表单但未保存时，这里仍显示旧值）
+        </el-alert>
         <el-form label-width="180px" class="dam-form">
           <el-form-item label="注入用户偏好">
             <el-switch v-model="memForm.enabled" />
@@ -337,6 +345,9 @@ export default {
       audienceRows: [],
       ctxForm: { rounds: 10, maxChars: 4000, summaryThreshold: 0 },
       memForm: { enabled: true, maxChars: 800, maxUsers: 1000 },
+      // 阶段 4 接线后这三项是「真生效值」；与可编辑的 memForm 分开，
+      // 避免管理员改了表单还没保存时把未生效的数字误读成当前状态。
+      memEffective: null,
       sandboxForm: { maxBytes: 524288, guardEnabled: true, readonly: false },
       memStats: null,
       keywords: [],
@@ -383,11 +394,12 @@ export default {
           summaryThreshold:
             eff.contextSummaryThreshold != null ? eff.contextSummaryThreshold : 0,
         };
-        this.memForm = {
+        this.memEffective = {
           enabled: eff.memoryEnabled !== false,
           maxChars: eff.memoryMaxChars != null ? eff.memoryMaxChars : 800,
           maxUsers: eff.memoryMaxUsers != null ? eff.memoryMaxUsers : 1000,
         };
+        this.memForm = { ...this.memEffective };
         this.sandboxForm = {
           maxBytes: eff.sandboxMaxBytes != null ? eff.sandboxMaxBytes : 524288,
           guardEnabled: eff.sandboxGuardEnabled !== false,

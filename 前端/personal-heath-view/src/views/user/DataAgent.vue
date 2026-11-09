@@ -1,8 +1,10 @@
 <template>
   <div class="uda">
     <!-- 顶部：提问 + 开关 -->
-    <div class="uda-bar">
-      <div class="uda-bar__row">
+    <div class="uda-bar" :class="{ 'uda-bar--embedded': embedded }">
+      <!-- embedded（被 AiAnalysis 三 tab 内嵌）时隐藏「独立模式状态区」：
+           会话编号 / 新会话 / 历史会话由外层页面管理，内嵌页只保留提问与执行控件。 -->
+      <div v-if="!embedded" class="uda-bar__row">
         <span class="uda-bar__label">当前会话</span>
         <el-tag v-if="sessionId" type="success" effect="plain" size="small">
           #{{ sessionId }} · 可继续追问
@@ -43,6 +45,21 @@
           placeholder="用自然语言查询你的健康数据，例如：我最近 3 个月的血压趋势如何？"
           @keydown.enter.exact.prevent="ask"
         />
+      </div>
+
+      <!-- 内嵌模式专用操作行：状态区隐藏后，执行入口必须仍然可用 -->
+      <div v-if="embedded" class="uda-bar__row uda-bar__row--actions">
+        <el-switch v-model="enableReport" active-text="生成分析报告" inline-prompt />
+        <el-button
+          type="primary"
+          :icon="Promotion"
+          :loading="running"
+          :disabled="!question.trim()"
+          @click="ask"
+        >
+          {{ running ? "分析中…" : "开始分析" }}
+        </el-button>
+        <el-button v-if="running" @click="abort">中断</el-button>
       </div>
 
       <div v-if="presets.length" class="uda-bar__row">
@@ -95,6 +112,16 @@ export default {
   name: "DataAgent",
   // Promotion / Clock / Plus 只在模板里以 :icon="xxx" 取值使用（见 data()），不是组件标签
   components: { AgentWorkflow, AgentResult, AgentHistoryDialog },
+  /**
+   * 阶段 7（P3）：true = 被「AI 问诊」页的三个 tab 内嵌使用。
+   * 独立路由 /user/data-agent 仍以 false 渲染完整状态区（会话编号 / 新会话 / 历史会话）。
+   */
+  props: {
+    embedded: {
+      type: Boolean,
+      default: false,
+    },
+  },
   data() {
     return {
       Promotion,
@@ -249,6 +276,14 @@ export default {
 }
 .uda-bar__row--input {
   display: block;
+}
+/* 内嵌进 tab 时收紧留白，避免与外层卡片叠出双重边框感 */
+.uda-bar--embedded {
+  padding: 14px 16px;
+  border-color: #edf1f7;
+}
+.uda-bar__row--actions {
+  justify-content: flex-end;
 }
 .uda-bar__label {
   font-size: 13px;

@@ -10,7 +10,12 @@
       >
     </div>
 
-    <el-row :gutter="16">
+    <!-- 阶段 7（P3 产品形态）：三个入口收敛到同一页。
+         「AI 问诊」内部完全是原来的六 persona 问诊区，逻辑一行未动；
+         另两个 tab 分别内嵌数据智能体（embedded）与对话记录。 -->
+    <el-tabs v-model="activeTab" class="ai-tabs">
+      <el-tab-pane label="AI 问诊" name="chat">
+        <el-row :gutter="16">
       <!--  +  -->
       <el-col :span="5">
         <div class="role-panel">
@@ -475,7 +480,49 @@
           </div>
         </div>
       </el-col>
-    </el-row>
+        </el-row>
+      </el-tab-pane>
+
+      <el-tab-pane label="医数智查" name="data">
+        <!-- v-if 保证只在切到本 tab 时才挂载：不要在页面加载时就拉数据智能体的
+             预设问题/配置，也不会让两个 tab 的请求互相干扰。 -->
+        <data-agent v-if="activeTab === 'data'" embedded />
+      </el-tab-pane>
+
+      <el-tab-pane label="对话记录" name="history">
+        <div class="tab-history">
+          <div class="tab-history__bar">
+            <el-input
+              v-model="historySearchKey"
+              placeholder="搜索历史对话"
+              clearable
+              prefix-icon="Search"
+            />
+            <el-button type="primary" @click="newConversation">
+              新建对话
+            </el-button>
+          </div>
+          <div v-if="filteredConversations.length === 0" class="tab-history__empty">
+            {{ historySearchKey ? "未找到匹配对话" : "暂无历史对话" }}
+          </div>
+          <div
+            v-for="conv in filteredConversations"
+            :key="conv.id"
+            class="tab-history__item"
+            :class="{ 'is-active': currentConversationId === conv.id }"
+            @click="loadConversation(conv); activeTab = 'chat'"
+          >
+            <div class="tab-history__title">{{ conv.title }}</div>
+            <div class="tab-history__meta">
+              {{ conv.messageCount }} 条消息 · {{ formatConvTime(conv.lastMessageTime) }}
+            </div>
+            <el-button type="text" size="small" @click.stop="deleteConversation(conv.id)">
+              删除
+            </el-button>
+          </div>
+        </div>
+      </el-tab-pane>
+    </el-tabs>
 
     <!--  历史对话弹窗 -->
     <el-dialog v-model="showHistoryDialog" title="历史对话" width="600px">
@@ -545,6 +592,7 @@ import { sanitizeHtml } from "@/utils/sanitize.js";
 import { URL_API } from "@/utils/request.js";
 import { marked } from "marked";
 import PhotoDrawer from "@/components/effects/PhotoDrawer.vue";
+import DataAgent from "@/views/user/DataAgent.vue";
 
 //  marked
 marked.setOptions({
@@ -554,9 +602,11 @@ marked.setOptions({
 
 export default {
   name: "UserAiAnalysis",
-  components: { PhotoDrawer },
+  components: { PhotoDrawer, DataAgent },
   data() {
     return {
+      // 阶段 7：三 tab 当前项；六 persona 的 currentRole 及切换逻辑完全未动
+      activeTab: "chat",
       currentRole: "consultant",
       inputMessage: "",
       messages: [],
@@ -2401,5 +2451,59 @@ export default {
     opacity: 1;
     transform: translateY(-4px);
   }
+}
+
+/* 阶段 7：三 tab 容器与对话记录 tab */
+.ai-tabs {
+  margin-top: 4px;
+}
+.tab-history {
+  background: #fff;
+  border: 1px solid #e6ecf5;
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.tab-history__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.tab-history__empty {
+  padding: 40px 0;
+  text-align: center;
+  color: #9099a8;
+  font-size: 13px;
+}
+.tab-history__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.tab-history__item:hover {
+  border-color: #0050cb;
+}
+.tab-history__item.is-active {
+  background: #f3f7ff;
+  border-color: #0050cb;
+}
+.tab-history__title {
+  flex: 1;
+  font-size: 14px;
+  color: #243247;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tab-history__meta {
+  font-size: 12px;
+  color: #8a95a5;
+  white-space: nowrap;
 }
 </style>

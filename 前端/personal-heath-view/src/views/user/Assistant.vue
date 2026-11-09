@@ -43,10 +43,28 @@
         <span class="header-title">AI 健康助手</span>
         <span class="header-desc"> · 您的专属健康顾问</span>
         <div class="header-mode">
-          <button class="mode-btn" @click="goDataAgent">数据智能体 →</button>
+          <!-- 阶段 7（P3）：AI 问诊 / 医数智查 并列 tab，医数智查内嵌复用同一份
+               DataAgent（embedded）；「独立模式」仍跳 /user/data-agent，
+               三种入口共用一套实现，不会出现两份漂移的逻辑。 -->
+          <button
+            class="mode-btn"
+            :class="{ active: activeMode === 'chat' }"
+            @click="activeMode = 'chat'"
+          >
+            AI 问诊
+          </button>
+          <button
+            class="mode-btn"
+            :class="{ active: activeMode === 'data' }"
+            @click="activeMode = 'data'"
+          >
+            医数智查
+          </button>
+          <button class="mode-btn mode-btn--link" @click="goDataAgent">独立模式 ↗</button>
         </div>
       </div>
 
+      <template v-if="activeMode === 'chat'">
       <div class="chat-messages" ref="chatMessages">
         <div v-if="messages.length === 0" class="chat-empty">
           <p class="welcome-text">
@@ -116,6 +134,11 @@
           </template>
         </el-input>
       </div>
+      </template>
+
+      <div v-else class="chat-data">
+        <data-agent embedded />
+      </div>
 
     </div>
   </div>
@@ -126,14 +149,18 @@ import { getToken } from "@/utils/storage.js";
 import { sanitizeHtml } from "@/utils/sanitize.js";
 import { URL_API } from "@/utils/request.js";
 import { marked } from "marked";
+import DataAgent from "@/views/user/DataAgent.vue";
 marked.setOptions({ breaks: true, gfm: true });
 
 const STORAGE_KEY = "assistant_conversations";
 
 export default {
   name: "UserAssistant",
+  components: { DataAgent },
   data() {
     return {
+      // 阶段 7：chat = AI 问诊，data = 内嵌医数智查
+      activeMode: "chat",
       input: "",
       messages: [],
       loading: false,
@@ -146,7 +173,11 @@ export default {
     this.loadConversations();
   },
   methods: {
-    /** 数据智能体已独立成页（/user/data-agent），此处只做跳转，避免两份实现漂移。 */
+    /**
+     * 阶段 7：「独立模式」入口。
+     * 顶部「医数智查」tab 已在同一页内嵌复用 DataAgent（embedded），
+     * 这里保留跳 /user/data-agent 的独立页入口；两者共用同一份组件实现，不会漂移。
+     */
     goDataAgent() {
       this.$router.push("/user/data-agent");
     },
@@ -623,6 +654,20 @@ export default {
   color: #1b6ef3;
   font-weight: 600;
   box-shadow: 0 1px 4px rgba(27, 110, 243, 0.16);
+}
+.mode-btn--link {
+  border-left: 1px solid #dfe6f0;
+  border-radius: 0 7px 7px 0;
+  font-size: 12px;
+  color: #8a95a5;
+}
+/* 内嵌的医数智查：占满聊天面板剩余高度，内部自带滚动 */
+.chat-data {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+  background: #f8fafd;
 }
 
 @media (max-width: 1100px) {
