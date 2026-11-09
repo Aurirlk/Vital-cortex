@@ -107,6 +107,10 @@
             <if test="rating != null">rating = #{rating},</if>
             <if test="sortOrder != null">sort_order = #{sortOrder},</if>
             <if test="status != null">status = #{status},</if>
+            <!-- 阶段 8：结构化记忆三列必须由 <if> 保护，改医生资料时不得误清空 -->
+            <if test="aiMemoryFacts != null">ai_memory_facts = #{aiMemoryFacts},</if>
+            <if test="aiMemoryEnabled != null">ai_memory_enabled = #{aiMemoryEnabled},</if>
+            <if test="aiMemoryOptOut != null">ai_memory_opt_out = #{aiMemoryOptOut},</if>
             <if test="departmentId != null">update_time = NOW(),</if>
         </set>
         WHERE id = #{id}

@@ -20,7 +20,7 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 | P1-5 白名单保存失败即权限放大 | **已修（`ad0ff33`）** —— 先整体校验再删再插，另加 `AgentAdminToolBindingTest` 5 条用例锁死「校验失败一行都不许动」 |
 | P1-8 工具口径一致性护栏 | **半修** —— 测试侧 `ToolCatalog` 已改真类路径扫描；生产侧 `ReactPromptLoader.java:257-261` 仍只算 prompt→registry，反向差集没人查，且只 `log.warn` |
 | P2-10 README 指向已删脚本 | **已修（2026-10-25）** —— `Data/README.md` 部署顺序（§二·场景A/B）与场景B表已将 `07_sensitive_word.sql` 改为「~~已移除~~」并注明归档至 `90_归档/sensitive_word_未落地_20261012.sql`；`docker-compose.yml:46-48` 亦注明不予挂载。原引用的 :47,49,102 行现均为「已移除/已归档」表述，无死指令 |
-| P2-12 表数口径 | ⚠️ **2026-10-25 只统一了叙述、未真正闭环**：当时把 `README.md` / `项目现状基线.md` / `Data/README.md` 写成 47 表 / 561 字段 / 196 字符列，但**权威结构基线仍是 35 表 / 405 字段快照**，`gen_schema_doc.py` 一直没跑（§四 第 12 条因此长期挂着）。**2026-11-08 才真正闭环**：修生成脚本 → 补跑 `08_user_settings_columns.sql` → 重导出为 42 表 / 504 字段 / 176 字符列（本机实库），部署链终态仍为 47 / 561 / 196，两个口径已分别标清 |
+| P2-12 表数口径 | ⚠️ **2026-10-25 只统一了叙述、未真正闭环**：当时把 `README.md` / `项目现状基线.md` / `Data/README.md` 写成 47 表 / 561 字段 / 196 字符列，但**权威结构基线仍是 35 表 / 405 字段快照**，`gen_schema_doc.py` 一直没跑（§四 第 12 条因此长期挂着）。**2026-11-08 才真正闭环**：修生成脚本 → 补跑 `08_user_settings_columns.sql` → 重导出为 42 表 / 504 字段 / 176 字符列（本机实库），部署链终态仍为 47 / 561 / 196，两个口径已分别标清。**2026-11-09 再更新**：阶段 1 本机补齐 5 张 `agent_*` 表、阶段 8 加 6 个 `ai_memory_*` 列后两条链路对齐为 47 / 567 / 201，全仓「当前态」数字已同步 |
 | P2-18 死代码三处 | **已修** —— `NotificationBell.vue` 已挂进两端顶栏；`utils/permission.js` 与 `directives.js` 按"明确不做"删除 |
 | P1 里的 NL2SQL 只读回落（原取证见 `项目调查报告-2026-10-12.md`，该一次性快照已于 2026-11-08 删除，结论并入本文 §八） | **已修，且是行为变更** —— 缺只读源时直接拒绝执行。因 `09_create_ai_ro_user.sql` 按决策不进部署链，新环境不手工建 `ai_ro` 就等于数据智能体不可用 |
 
@@ -336,7 +336,7 @@ MyBatis/Neo4jClient/RedisTemplate 接线），命名 `*IT` 故不参与 `mvn tes
 
 | 头 | 实测 | 证据 |
 |---|---|---|
-| 数据库 | **无表** | `information_schema` 查 `personal_health` 下 `%sensitive%` → 0 行；实库 42 表 |
+| 数据库 | **无表** | `information_schema` 查 `personal_health` 下 `%sensitive%` → 0 行；实库 47 表 |
 | 后端 | **0 引用** | `grep -r "sensitive_word\|SensitiveWord\|ContentAudit" src/main` → 0；`mapper/` 下只有 `AuditLogMapper.xml` |
 | 前端 | **只剩注释** | `AuditManage.vue:59-63` 是「2026-10-12 已删除该 Tab」的说明，无 UI、无请求 |
 | SQL | **已归档** | `Data/90_归档/sensitive_word_未落地_20261012.sql`，不在部署链、不被挂载 |
@@ -485,5 +485,5 @@ Deploy Preflight ✅ / Deploy skipped（未配置密钥，已告警）` —— *
 | 5 | `docs/调研与代码审查报告-20261003.md` | **特意保留**：整改方案 §198-200 引用它逐条回查取证，删了会断验收链 |
 | 6 | 执行 plan 仍写「基线 462 例 / 46 类」「AI 不跑 mvn」，而 Maven 早已可跑且 `@SpringBootTest` 必须走 Maven；P0/P1/P2 已完成却无状态标注 | 加「执行状态台账」+ 订正 4 条过时约束 |
 
-**当前权威口径**：本机实库 **42 表 / 504 字段 / 176 字符列**；部署链终态 **47 表 / 561 字段 / 196 字符列**（多 5 张 `agent_*` 表）；
+**当前权威口径（2026-11-09 实测）**：本机实库与部署链终态已对齐 = **47 表 / 567 字段 / 201 字符列**；
 `mvn -o -B verify` = **942 单测 / 96 类 + 4 集成全绿**；`docs/` 19 份 + 根 `README.md` 1 份 = 20 份。

@@ -40,6 +40,10 @@ CREATE TABLE IF NOT EXISTS `hospital_doctor` (
   `status` TINYINT(1) DEFAULT 1 COMMENT '状态(0:停用;1:启用)',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- 阶段 8 / D3：医生端结构化 AI 记忆（迁移脚本 12_user_ai_memory_columns.sql 同口径）
+  `ai_memory_facts` JSON NULL COMMENT '结构化AI记忆事实数组(JSON)',
+  `ai_memory_enabled` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否允许AI记忆注入prompt(0关/1开)',
+  `ai_memory_opt_out` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否退出AI记忆抽取(0否/1是)',
   PRIMARY KEY (`id`),
   INDEX `idx_department_id` (`department_id`),
   INDEX `idx_user_id` (`user_id`),

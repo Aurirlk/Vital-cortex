@@ -29,6 +29,10 @@ CREATE TABLE IF NOT EXISTS `user` (
   `is_vip` TINYINT(1) DEFAULT 0 COMMENT 'VIP(0:否;1:是)',
   `vip_expire_time` DATETIME DEFAULT NULL COMMENT 'VIP到期时间(NULL=永久)',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  -- 阶段 8 / D3：结构化 AI 记忆（迁移脚本 12_user_ai_memory_columns.sql 同口径）
+  `ai_memory_facts` JSON NULL COMMENT '结构化AI记忆事实数组(JSON)',
+  `ai_memory_enabled` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否允许AI记忆注入prompt(0关/1开)',
+  `ai_memory_opt_out` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否退出AI记忆抽取(0否/1是)',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_account` (`user_account`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

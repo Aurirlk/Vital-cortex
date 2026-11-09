@@ -67,6 +67,10 @@
             <if test="userRole != null">
                 user_role = #{userRole},
             </if>
+            <!-- 阶段 8：结构化记忆三列必须由 <if> 保护，改资料/改设置时不得误清空 -->
+            <if test="aiMemoryFacts != null">ai_memory_facts = #{aiMemoryFacts},</if>
+            <if test="aiMemoryEnabled != null">ai_memory_enabled = #{aiMemoryEnabled},</if>
+            <if test="aiMemoryOptOut != null">ai_memory_opt_out = #{aiMemoryOptOut},</if>
         </set>
         WHERE id = #{id}
 
@@ -202,6 +206,10 @@
         <result column="ai_enable_web_search" property="aiEnableWebSearch"/>
         <result column="ai_enable_knowledge_base" property="aiEnableKnowledgeBase"/>
         <result column="ai_context_rounds" property="aiContextRounds"/>
+        <!-- 结构化 AI 记忆（阶段 8，见 12_user_ai_memory_columns.sql） -->
+        <result column="ai_memory_facts" property="aiMemoryFacts"/>
+        <result column="ai_memory_enabled" property="aiMemoryEnabled"/>
+        <result column="ai_memory_opt_out" property="aiMemoryOptOut"/>
     </resultMap>
 
     <!-- 根据用户ID获取用户信息 -->
@@ -234,6 +242,10 @@
             <if test="aiEnableWebSearch != null">ai_enable_web_search = #{aiEnableWebSearch},</if>
             <if test="aiEnableKnowledgeBase != null">ai_enable_knowledge_base = #{aiEnableKnowledgeBase},</if>
             <if test="aiContextRounds != null">ai_context_rounds = #{aiContextRounds},</if>
+            <!-- 阶段 8：记忆三列走 <if> 保护，设置页只提交设置项时不会清空记忆 -->
+            <if test="aiMemoryFacts != null">ai_memory_facts = #{aiMemoryFacts},</if>
+            <if test="aiMemoryEnabled != null">ai_memory_enabled = #{aiMemoryEnabled},</if>
+            <if test="aiMemoryOptOut != null">ai_memory_opt_out = #{aiMemoryOptOut},</if>
         </set>
         WHERE id = #{id}
     </update>

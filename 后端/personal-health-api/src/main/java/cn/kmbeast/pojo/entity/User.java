@@ -156,4 +156,23 @@ public class User {
 
     /** 保留上下文轮数（1~20） */
     private Integer aiContextRounds;
+
+    // ================================================================
+    // 结构化 AI 记忆（阶段 8 / D3 改写，2026-11-09）
+    //
+    // 不建新表：事实 JSON 数组直接存在 user.ai_memory_facts。
+    // ⚠️ 与「设置项」语义不同：这三个字段由 core/memory/StructuredMemoryService
+    // 通过 JdbcTemplate 读写，UserMapper 的 update/updateSettings 一律用
+    // <if test="xxx != null"> 保护，避免改昵称/改设置时把记忆清空。
+    // 建表/迁移见 Data/02_迁移脚本/12_user_ai_memory_columns.sql。
+    // ================================================================
+
+    /** 结构化记忆事实（JSON 数组字符串，NULL 表示尚无记忆） */
+    private String aiMemoryFacts;
+
+    /** 是否允许把记忆注入 prompt：1 允许 / 0 关闭 */
+    private Boolean aiMemoryEnabled;
+
+    /** 用户是否拒绝自动抽取：1 拒绝 / 0 允许 */
+    private Boolean aiMemoryOptOut;
 }

@@ -54,6 +54,9 @@ services:
       # 但漏挂会让全新部署的「智能体平台 / 知识库管理」页面永远是空的。
       - ./Data/02_迁移脚本/10_agent_architecture.sql:/docker-entrypoint-initdb.d/15-migrate-10-agent.sql
       - ./Data/02_迁移脚本/11_knowledge_base.sql:/docker-entrypoint-initdb.d/16-migrate-11-knowledge-base.sql
+      # 17 必挂：阶段 8 的结构化 AI 记忆三列（user 与 hospital_doctor 各 3 列）。
+      # 脚本幂等；漏挂会让全新部署的「我的记忆」读写抛 Unknown column。
+      - ./Data/02_迁移脚本/12_user_ai_memory_columns.sql:/docker-entrypoint-initdb.d/17-migrate-12-ai-memory.sql
       # 注 1：Data/01_建库建表/rbac_schema.sql 已于 2026-10-07 移入 Data/90_归档/（建 4 张本项目未使用的表），故不挂载。
       # 注 2：02_迁移脚本/09_create_ai_ro_user.sql 是需 DBA 权限的运维脚本，不在自动部署链中。
     networks:

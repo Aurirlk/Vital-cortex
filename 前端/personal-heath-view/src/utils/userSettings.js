@@ -41,3 +41,25 @@ export function saveSettings(patch) {
 export function getDarkMode() {
   return !!loadSettings().isDarkMode;
 }
+
+// 深色模式的唯一 DOM 出口（阶段 8 收敛）：整站只允许通过
+// document.documentElement.classList 的 "dark" 类控制主题。
+// 禁止再出现第二种机制（data-theme / body class / 内联变量整写等），
+// 否则 App.vue 的路由 watcher 与各页面的设置开关会互相覆盖。
+export function applyDarkMode(settings) {
+  const on = !!(settings || loadSettings()).isDarkMode;
+  if (on) {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+  return on;
+}
+
+// 路由级应用：用户端按用户设置生效，其余端（管理端/医生端）一律不加深色类。
+export function applyDarkModeForRoute(path) {
+  return applyDarkMode({
+    ...loadSettings(),
+    isDarkMode: getDarkMode() && String(path || "").startsWith("/user"),
+  });
+}

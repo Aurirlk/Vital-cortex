@@ -200,7 +200,7 @@
 <script>
 import request from "@/utils/request.js";
 import { clearToken } from "@/utils/storage.js";
-import { DEFAULTS, loadSettings as loadUserSettings, saveSettings as saveUserSettings } from "@/utils/userSettings.js";
+import { DEFAULTS, loadSettings as loadUserSettings, saveSettings as saveUserSettings, applyDarkMode as applyTheme } from "@/utils/userSettings.js";
 import {
   Camera,
   Plus,
@@ -480,11 +480,8 @@ export default {
       this.applyDarkMode();
     },
     applyDarkMode() {
-      if (this.settings.isDarkMode) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
+      // 阶段 8：与 App.vue / Main.vue / AiSettingsDrawer 共用唯一 DOM 出口
+      applyTheme(this.settings);
     },
     navigateTo(path) {
       this.$router.push(path);

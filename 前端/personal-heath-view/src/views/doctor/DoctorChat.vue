@@ -16,6 +16,7 @@
         <el-button size="small" :icon="Delete" :disabled="!messages.length" @click="newSession">
           新会话
         </el-button>
+        <el-button size="small" @click="openMemory">AI 记忆</el-button>
       </div>
     </div>
 
@@ -157,13 +158,21 @@
         </div>
       </aside>
     </div>
+    <!-- 阶段 8：医生端结构化记忆（独立命名空间，带 doctor-token） -->
+    <ai-settings-drawer
+      ref="memoryDrawer"
+      endpoint="/doctor/ai-memory"
+      :http="doctorRequest"
+      title="医生端 AI 记忆"
+    />
   </div>
 </template>
 
 <script>
 import { ChatDotRound, Delete, Promotion } from "@element-plus/icons-vue";
-import { URL_API } from "@/utils/doctorRequest.js";
+import doctorRequest, { URL_API } from "@/utils/doctorRequest.js";
 import { getDoctorToken } from "@/utils/doctorAuth.js";
+import AiSettingsDrawer from "@/components/AiSettingsDrawer.vue";
 
 /**
  * 解析一帧 SSE（event: + 多行 data:）。
@@ -206,8 +215,10 @@ function clock() {
 
 export default {
   name: "DoctorChat",
+  components: { AiSettingsDrawer },
   data() {
     return {
+      doctorRequest,
       ChatDotRound,
       Delete,
       Promotion,
@@ -229,6 +240,9 @@ export default {
     };
   },
   methods: {
+    openMemory() {
+      if (this.$refs.memoryDrawer) this.$refs.memoryDrawer.open();
+    },
     usePreset(text) {
       this.question = text;
     },

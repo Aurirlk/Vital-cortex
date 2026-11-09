@@ -187,6 +187,16 @@ public class DataAgentPipeline {
     private cn.kmbeast.core.agent.AgentMemoryService memoryService;
 
     /**
+     * 阶段 8（D3 改写）：结构化记忆是唯一用户可见记忆源。
+     *
+     * <p>装配后 {@link #safeMemory(Long)} 完全委托本服务；旧的文件 LRU 只在
+     * 未装配时作降级。NL2SQL 的 dataOwnerId 恒为「数据归属主体」（患者，
+     * 医生端也是已授权的患者 id），故命名空间固定为 USER。</p>
+     */
+    @Autowired(required = false)
+    private cn.kmbeast.core.memory.StructuredMemoryService structuredMemory;
+
+    /**
      * 注入 prompt 的偏好段字符上限（NL2SQL 链路）。
      *
      * <p>2026-11-08（阶段 4）：此前是 {@code static final 400}，管理员配的
@@ -214,6 +224,14 @@ public class DataAgentPipeline {
             if (dataOwnerId == null) {
                 return "";
             }
+            // 阶段 8（D3 改写）：生产链路完全委托结构化记忆，只输出结构化 bullets，
+            // 硬 200~500 token 预算；dataOwnerId 是数据归属主体（患者），命名空间恒为 USER。
+            if (structuredMemory != null) {
+                return structuredMemory.renderForPrompt(
+                        cn.kmbeast.core.memory.StructuredMemoryService.Namespace.USER,
+                        dataOwnerId.intValue(), memoryMaxChars());
+            }
+            // 降级路径：仅在未装配结构化记忆服务时生效，正式运行环境不会走到。
             cn.kmbeast.core.agent.AgentMemoryService svc = this.memoryService;
             if (svc == null) {
                 return "";

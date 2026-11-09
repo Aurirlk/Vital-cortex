@@ -63,6 +63,16 @@ public abstract class BaseReActAgent {
     private cn.kmbeast.core.nl2sql.DataAgentConfigHolder configHolder;
 
     /**
+     * 阶段 8（D3 改写）：结构化记忆是<b>唯一</b>的用户可见记忆源。
+     *
+     * <p>{@code AgentMemoryService} 的文件 LRU 保留作会话内槽位回填，不再注入 prompt：
+     * 它的 value 是任意自由文本，拼进 system prompt 就是持久化提示词注入面。
+     * 装配本字段后 {@link #buildMemorySection()} 完全委托本服务，旧服务调用次数为 0。</p>
+     */
+    @Autowired(required = false)
+    private cn.kmbeast.core.memory.StructuredMemoryService structuredMemory;
+
+    /**
      * Agent 注册表（阶段 1 多 Agent 架构）：提供工具白名单与委派关系。
      *
      * <p>同样 {@code required=false}：单元测试里的子类不走 Spring 装配，硬注入会 NPE。
@@ -433,20 +443,24 @@ public abstract class BaseReActAgent {
     }
 
     /**
-     * 把用户偏好拼成 system prompt 的一段。
+     * 生成可追加到 system prompt 的记忆段。
      *
-     * <p><b>2026-10-07 新增</b>。此前 {@code AgentMemoryService} 只被 REST 层调用，
-     * 偏好永远进不了 prompt —— 这段代码把它接进来。</p>
+     * <p><b>阶段 8（D3 改写）</b>：装配 {@link cn.kmbeast.core.memory.StructuredMemoryService}
+     * 后完全委托它 —— 只输出 {@code - key: value} 结构化 bullets，硬 200~500 token 预算，
+     * 绝不把自由文本拼进 system prompt。这是<b>生产链路</b>。</p>
      *
      * <p>安全约束（任一不满足即返回 {@code null}，不注入任何内容）：</p>
      * <ol>
-     *   <li>{@code memoryService} 未注入（单测场景）→ 跳过</li>
-     *   <li>当前用户 id 取不到（未登录 / 跨线程身份丢失）→ 跳过，<b>绝不跨用户读偏好</b></li>
-     *   <li>偏好为空 → 跳过</li>
-     *   <li>组装后超过 {@link #memoryMaxChars()} 上限 → <b>保留最新若干条</b>并标注已省略</li>
+     *   <li>总开关关闭 → 连库都不读</li>
+     *   <li>当前身份 id 取不到（未登录 / 跨线程身份丢失）→ 跳过，<b>绝不跨用户读记忆</b></li>
+     *   <li>结构化事实为空 / 用户关闭注入 / 读失败 → 跳过</li>
      * </ol>
      *
-     * @return 可直接追加到 system prompt 的文本（含前后换行），或 {@code null} 表示无需注入
+     * <p>末尾的旧实现是<b>降级路径</b>：仅在未装配结构化记忆服务时（纯单测、极端降级）
+     * 生效，用于保持存量测试与旧行为可回退；正式运行环境不会走到。
+     * 不得在这条路径上新增任何把自由文本写进 system prompt 的能力。</p>
+     *
+     * @return 可直接追加到 system prompt 的文本，或 {@code null} 表示无需注入
      */
     protected String buildMemorySection() {
         try {
@@ -454,6 +468,21 @@ public abstract class BaseReActAgent {
             if (configHolder != null && !configHolder.isMemoryEnabled()) {
                 return null;
             }
+            // 阶段 8：结构化记忆委托（生产链路）
+            if (structuredMemory != null) {
+                Integer ownerId = cn.kmbeast.context.LocalThreadHolder.getUserId();
+                if (ownerId == null) {
+                    return null;
+                }
+                Integer roleId = cn.kmbeast.context.LocalThreadHolder.getRoleId();
+                cn.kmbeast.core.memory.StructuredMemoryService.Namespace ns =
+                        (roleId != null && roleId == 3)
+                                ? cn.kmbeast.core.memory.StructuredMemoryService.Namespace.DOCTOR
+                                : cn.kmbeast.core.memory.StructuredMemoryService.Namespace.USER;
+                String section = structuredMemory.renderForPrompt(ns, ownerId, memoryMaxChars());
+                return section == null || section.isEmpty() ? null : section;
+            }
+            // 降级路径（未装配结构化服务时）
             if (memoryService == null) {
                 return null;
             }

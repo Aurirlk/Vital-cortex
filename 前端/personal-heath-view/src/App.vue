@@ -5,33 +5,16 @@
 </template>
 
 <script>
-import { getDarkMode } from "@/utils/userSettings.js";
+import { applyDarkModeForRoute } from "@/utils/userSettings.js";
 export default {
   name: "App",
   created() {
-    this.initDarkMode();
+    // 阶段 8：主题 DOM 操作统一收敛到 utils/userSettings.js 的唯一出口
+    applyDarkModeForRoute(this.$route?.path || "");
   },
   watch: {
     $route(to) {
-      //
-      this.applyDarkModeForRoute(to.path);
-    },
-  },
-  methods: {
-    initDarkMode() {
-      if (getDarkMode()) {
-        const currentPath = this.$route?.path || "";
-        if (currentPath.startsWith("/user")) {
-          document.documentElement.classList.add("dark");
-        }
-      }
-    },
-    applyDarkModeForRoute(path) {
-      if (getDarkMode() && path.startsWith("/user")) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
+      applyDarkModeForRoute(to.path);
     },
   },
 };

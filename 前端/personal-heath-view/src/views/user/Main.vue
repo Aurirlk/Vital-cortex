@@ -168,83 +168,8 @@
         </el-row>
       </div>
     </el-dialog>
-    <!-- 设置弹窗 -->
-    <el-dialog v-model="settingsDialog" width="40%" :show-close="true">
-      <template #title>
-        <div>
-          <p
-            style="
-              color: #fff;
-              margin: 0;
-              padding: 20px;
-              font-size: 18px;
-              font-weight: 600;
-            "
-          >
-            偏好设置
-          </p>
-        </div>
-      </template>
-      <div style="padding: 20px">
-        <div class="settings-section">
-          <h3>显示设置</h3>
-          <div class="setting-item">
-            <div class="setting-info">
-              <el-icon><Moon /></el-icon>
-              <span>深色模式</span>
-            </div>
-            <el-switch
-              v-model="settings.isDarkMode"
-              @change="toggleDarkMode"
-              active-text="开启"
-              inactive-text="关闭"
-            />
-          </div>
-        </div>
-        <div class="settings-section">
-          <h3>首页 Banner</h3>
-          <div class="setting-item">
-            <div class="setting-info">
-              <el-icon><View /></el-icon>
-              <span>显示指示点</span>
-            </div>
-            <el-switch
-              v-model="settings.showBannerDots"
-              @change="saveSettings"
-              active-text="显示"
-              inactive-text="隐藏"
-            />
-          </div>
-          <div class="setting-item">
-            <div class="setting-info">
-              <el-icon><Timer /></el-icon>
-              <span>自动轮播</span>
-            </div>
-            <el-switch
-              v-model="settings.autoPlayBanner"
-              @change="saveSettings"
-              active-text="开启"
-              inactive-text="关闭"
-            />
-          </div>
-        </div>
-        <div class="settings-section">
-          <h3>消息通知</h3>
-          <div class="setting-item">
-            <div class="setting-info">
-              <el-icon><Bell /></el-icon>
-              <span>启用通知</span>
-            </div>
-            <el-switch
-              v-model="settings.enableNotification"
-              @change="saveSettings"
-              active-text="开启"
-              inactive-text="关闭"
-            />
-          </div>
-        </div>
-      </div>
-    </el-dialog>
+    <!-- 阶段 8：设置统一出口（结构化 AI 记忆 + 本地显示项），取代原偏好设置弹窗 -->
+    <ai-settings-drawer ref="aiDrawer" />
   </div>
 </template>
 <script>
@@ -255,13 +180,15 @@ import UserMenu from "@/components/LevelMenu.vue";
 import ModelBanner from "@/components/ModelBanner.vue";
 import FloatBall from "@/components/FloatBall.vue";
 import { addWsListener, removeWsListener } from "@/utils/ws.js";
-import { loadSettings as loadUserSettings, saveSettings as saveUserSettings } from "@/utils/userSettings.js";
+import AiSettingsDrawer from "@/components/AiSettingsDrawer.vue";
+import { applyDarkModeForRoute } from "@/utils/userSettings.js";
 export default {
   name: "UserMain",
   components: {
     UserMenu,
     ModelBanner,
     FloatBall,
+    AiSettingsDrawer,
   },
   data() {
     return {
@@ -278,19 +205,13 @@ export default {
       selecedHealthModelIndex: 0,
       dietDialog: false,
       healthModelConfigDialog: false,
-      settingsDialog: false,
-      settings: {
-        isDarkMode: false,
-        showBannerDots: true,
-        autoPlayBanner: true,
-        enableNotification: true,
-      },
     };
   },
   created() {
     console.log("[Main.vue] created, route:", this.$route.path);
     this.tokenCheckLoad();
-    this.loadSettings();
+    // 主题 DOM 操作统一走 userSettings.js 的 classList.dark 唯一出口
+    applyDarkModeForRoute(this.$route.path);
     this.loadUnreadCount();
     // WS 推来新通知时把角标 +1，不必轮询 notification/unread
     addWsListener("notification", this.onNotification);
@@ -405,9 +326,9 @@ export default {
       else if (event === "healthDataRecord") {
         this.$router.push("/record");
       }
-      // 设置
+      // 设置：单一出口，打开结构化记忆 + 显示项抽屉
       else if (event === "settings") {
-        this.settingsDialog = true;
+        if (this.$refs.aiDrawer) this.$refs.aiDrawer.open();
       }
     },
     removeFood(food) {
@@ -527,26 +448,6 @@ export default {
         // 清除 Token
         clearToken();
         this.$router.push("/login");
-      }
-    },
-    //
-    loadSettings() {
-      this.settings = loadUserSettings();
-      this.applyDarkMode();
-    },
-    saveSettings() {
-      this.settings = saveUserSettings(this.settings);
-      this.applyDarkMode();
-    },
-    toggleDarkMode() {
-      this.saveSettings();
-    },
-    applyDarkMode() {
-      //  CSS  body
-      if (this.settings.isDarkMode) {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
       }
     },
     // Token

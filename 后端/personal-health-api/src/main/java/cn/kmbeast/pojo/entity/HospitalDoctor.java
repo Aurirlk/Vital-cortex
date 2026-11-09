@@ -147,6 +147,21 @@ public class HospitalDoctor {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updateTime;
 
+    // ================================================================
+    // 结构化 AI 记忆（阶段 8 / D3 改写，2026-11-09）
+    // doctor 与 user 是两套互不相交的 id 命名空间，不需要额外建表。
+    // 迁移见 Data/02_迁移脚本/12_user_ai_memory_columns.sql。
+    // ================================================================
+
+    /** 结构化记忆事实（JSON 数组字符串） */
+    private String aiMemoryFacts;
+
+    /** 是否允许把记忆注入 prompt */
+    private Boolean aiMemoryEnabled;
+
+    /** 是否拒绝自动抽取 */
+    private Boolean aiMemoryOptOut;
+
     /** 是否处于可登录状态：启用且已设置密码 */
     public boolean isLoginable() {
         return status != null && status == 1;
