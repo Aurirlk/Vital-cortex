@@ -419,7 +419,7 @@ B 口径 mysql --default-character-set=utf8mb4 第 1 遍 零 ERROR
 
 > **✅ 已于 2026-10-07 实施完成**，进度与实测数据见本文顶部「执行进度」。
 >
-> 落地位置（全部在 `后端/personal-health-api/src/main/java/cn/kmbeast/core/graph/`）：
+> 落地位置（全部在 `personal-health-api/src/main/java/cn/kmbeast/core/graph/`）：
 >
 > | 文件                                                               | 职责                                  |
 > | ---------------------------------------------------------------- | ----------------------------------- |
@@ -652,7 +652,7 @@ public boolean isHighConfidenceDataIntent() {  // HEALTH_RECORDS|GRAPH 且 HIGH
 **2. 离线规模核算**（不启动 Spring，只读 MySQL）：
 
 ```bash
-cd 后端/personal-health-api && python tools/graph_dryrun.py
+cd personal-health-api && python tools/graph_dryrun.py
 # → 节点 248 / 边 485，并列出两线药品不一致清单
 ```
 
@@ -679,7 +679,7 @@ bash neo4j_import.sh http://localhost:21090/api/personal-health/v1.0 <账号> <�
 AI 侧回归：
 
 ```bash
-cd /d/Program/智康云-健康管理系统/后端/personal-health-api
+cd /d/Program/智康云-健康管理系统/personal-health-api
 find src/main/java -name "*.java" > /tmp/srcs.txt
 javac -encoding UTF-8 -nowarn -cp "$(cat /tmp/cp_main.txt)" -d target/classes @/tmp/srcs.txt
 find src/test/java -name "*.java" > /tmp/tsrcs.txt

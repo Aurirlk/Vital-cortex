@@ -31,11 +31,11 @@ jobs:
           cache: maven
 
       - name: Build with Maven
-        working-directory: ./后端/personal-health-api
+        working-directory: ./personal-health-api
         run: mvn clean compile -B
 
       - name: Run tests (unit + Spring context startup guard)
-        working-directory: ./后端/personal-health-api
+        working-directory: ./personal-health-api
         # ⚠️ 必须是 verify，不能是 test（2026-11-08 修正）：
         # 单元测试走 surefire，而 *IT 后缀的 @SpringBootTest 启动守护被 surefire
         # 显式排除（见 pom.xml），只有 failsafe 在 verify 阶段才执行。
@@ -44,14 +44,14 @@ jobs:
         run: mvn verify -B
 
       - name: Package JAR
-        working-directory: ./后端/personal-health-api
+        working-directory: ./personal-health-api
         run: mvn package -DskipTests -B
 
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-jar
-          path: 后端/personal-health-api/target/*.jar
+          path: personal-health-api/target/*.jar
           retention-days: 7
 
   # ========== 前端构建 ==========
@@ -67,14 +67,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: 前端/personal-heath-view/package-lock.json
+          cache-dependency-path: personal-heath-view/package-lock.json
 
       - name: Install dependencies
-        working-directory: ./前端/personal-heath-view
+        working-directory: ./personal-heath-view
         run: npm ci --registry=https://registry.npmmirror.com
 
       - name: Lint
-        working-directory: ./前端/personal-heath-view
+        working-directory: ./personal-heath-view
         # ENG-05 整改：原 continue-on-error 让 lint 永远"假通过"，已移除。
         # 2026-11-13 修复连续 6 次 CI 失败（阶段 6~10 + 文档对齐提交）：vue-cli-service lint
         # 未带文件参数时会默认推断 src + tests，而 tests/ 只有 .mjs（node --test 用），
@@ -84,11 +84,11 @@ jobs:
         run: npm run lint -- --fix --max-warnings 30000
 
       - name: Build
-        working-directory: ./前端/personal-heath-view
+        working-directory: ./personal-heath-view
         run: npm run build
 
       - name: Audit dependencies (CVE scan, official registry)
-        working-directory: ./前端/personal-heath-view
+        working-directory: ./personal-heath-view
         # ENG-02/阶段10 整改：补「无 CVE 扫描、无漏洞台账」缺口。
         # ⚠️ npmmirror 镜像源不实现 audit 端点（返回 404 NOT_IMPLEMENTED），故显式走官方源。
         # 仅对生产依赖做 high 及以上漏洞扫描；命中则令流水线失败（fail-closed）。
@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
-          path: 前端/personal-heath-view/dist/
+          path: personal-heath-view/dist/
           retention-days: 7
 
   # ========== Docker 构建 ==========
@@ -118,13 +118,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-jar
-          path: 后端/personal-health-api/target/
+          path: personal-health-api/target/
 
       - name: Download frontend artifact
         uses: actions/download-artifact@v4
         with:
           name: frontend-dist
-          path: 前端/personal-heath-view/dist/
+          path: personal-heath-view/dist/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -156,8 +156,8 @@ jobs:
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
-          context: ./前端/personal-heath-view
-          file: ./前端/personal-heath-view/Dockerfile
+          context: ./personal-heath-view
+          file: ./personal-heath-view/Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}/frontend:latest
           cache-from: type=gha

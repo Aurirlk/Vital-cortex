@@ -6,12 +6,12 @@
 FROM maven:3.8-openjdk-17 AS builder
 WORKDIR /app
 # 2026-10-10 修复：构建上下文是<b>仓库根目录</b>（docker-compose context: . / CI context: .），
-# 而后端源码位于 后端/personal-health-api/。原 `COPY pom.xml .` / `COPY src ./src`
+# 而后端源码位于 personal-health-api/。原 `COPY pom.xml .` / `COPY src ./src`
 # 在根目录下根本不存在这两个路径，Docker 构建必然在第一步就失败
 # （`docker compose up --build` 与 CI 的 docker-build 全部失败）。
-COPY 后端/personal-health-api/pom.xml .
+COPY personal-health-api/pom.xml .
 RUN mvn dependency:go-offline -B
-COPY 后端/personal-health-api/src ./src
+COPY personal-health-api/src ./src
 RUN mvn package -DskipTests -B
 
 # 阶段2: 运行

@@ -8,7 +8,7 @@
   1) `<script>` 里 JS 语法错误（提取为 .mjs 后交给 `node --check`）；
   2) `<template>` 标签不配平 / 未闭合（栈式校验）。
 
-用法（在 前端/personal-heath-view 目录下）：
+用法（在 personal-heath-view 目录下）：
     python selfcheck.py
 
 退出码：0=全部通过；1=存在失败项。

@@ -150,7 +150,7 @@ services:
   # 前端服务
   frontend:
     build:
-      context: ./前端/personal-heath-view
+      context: ./personal-heath-view
       dockerfile: Dockerfile
     container_name: zhikangyun-frontend
     restart: unless-stopped

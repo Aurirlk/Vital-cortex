@@ -12,11 +12,11 @@ Thumbs.db
 *.iml
 
 # 后端
-后端/personal-health-api/target/
+personal-health-api/target/
 
 # 前端
-前端/personal-heath-view/node_modules/
-前端/personal-heath-view/dist/
+personal-heath-view/node_modules/
+personal-heath-view/dist/
 
 # 环境文件
 .env

@@ -1,7 +1,7 @@
 # RAG 检索增强子系统
 
 > 版本：v5.1（2026-07-31）
-> 代码位置：`后端/personal-health-api/src/main/java/cn/kmbeast/crm/rag/`、`.../crm/vectordb/`、`.../service/impl/RAGEvaluationServiceImpl.java`
+> 代码位置：`personal-health-api/src/main/java/cn/kmbeast/crm/rag/`、`.../crm/vectordb/`、`.../service/impl/RAGEvaluationServiceImpl.java`
 > 配套文档：AI 智能体架构见 [`智能体架构.md`](./智能体架构.md)
 
 ---

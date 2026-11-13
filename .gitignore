@@ -97,11 +97,11 @@ Data/90_归档/
 # Redis 持久化文件（运行时生成，体积大且含运行时状态）
 dump.rdb
 # 前端构建产物（构建输出不入库，由 CI/本地构建产生；清理时直接删除，不留备份目录）
-前端/personal-heath-view/dist/
+personal-heath-view/dist/
 # Python 缓存
 __pycache__/
 *.pyc
 
 # ---- 2026-10-07 补充 ----
-# 前端静态自检的临时提取目录（前端/personal-heath-view/selfcheck.py 运行时生成）
-前端/personal-heath-view/.selfcheck/
+# 前端静态自检的临时提取目录（personal-heath-view/selfcheck.py 运行时生成）
+personal-heath-view/.selfcheck/

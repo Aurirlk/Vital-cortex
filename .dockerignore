@@ -12,14 +12,14 @@ Thumbs.db
 *.iml
 
 # 后端
-后端/personal-health-api/target/
-后端/personal-health-api/.mvn/
-后端/personal-health-api/*.log
+personal-health-api/target/
+personal-health-api/.mvn/
+personal-health-api/*.log
 
 # 前端
-前端/personal-heath-view/node_modules/
-前端/personal-heath-view/dist/
-前端/personal-heath-view/*.log
+personal-heath-view/node_modules/
+personal-heath-view/dist/
+personal-heath-view/*.log
 
 # 环境文件
 .env

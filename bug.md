@@ -277,7 +277,7 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 | 健康偏好读不出来时，下一次保存会把盘上既有的内容当成「本来就是空的」覆盖掉 | `core/workspace/AgentWorkspace.java:41-49/75-85` → `core/agent/AgentMemoryService.java` | 按你选的**分三种情况报**：`ReadStatus{FOUND,MISSING,IO_FAILED,PARSE_FAILED}` + `ReadOutcome`，人话分别是「文件不存在 / 磁盘读取失败 / 文件内容无法解析」；只有 `MISSING` 才当空档案起步，`IO_FAILED`/`PARSE_FAILED` 时两个 save 都**放弃本次保存**并 warn，接口如实报错；`e6771eb` |
 | AI 问了身高体重年龄，下一轮又问一遍 —— 采集到的槽位只进内存对象，没进 Agent 记忆 | `core/agent/AgentMemoryService.java:133`（`saveUserPreferences` 生产零调用）→ `core/harness/HarnessEngine.java:persistSlots` | 按你选的**接上去**：只把真正写进档案的槽位（`applied`）以 `profile.*` 镜像进 Agent 记忆 —— 全量镜像会把被否掉的口误（如 175 覆盖已确认的 180）写进去，而记忆是覆盖写的；镜像失败只 warn，不影响本轮回答（档案已落库）；`bc0a152` |
 | token 过期后停在原页面看到「请先登录」而不跳登录；越权访问也回 200，前端按 401 的拦截器不触发 | `aop/ProtectorAspect.java:44/49/59/71`（五处拒绝点全部 `ApiResult.error` + HTTP 200） | 按你选的**统一 401**，并把两类问题分开：身份类（无 token/过期/解不开/role 读不出）→ 真 401，前端照旧清 token 跳登录；**越权类（role 不符）→ 403**，绝不清 token（清了等于把管理员踢成登出）；新增 `reject()` 统一写状态码，注解读不出时按未认证拒绝并 warn（不再静默放行）；`a37f4d6` |
-| 同上，前端侧：403 落到通用分支会弹「请求失败」并可能洗掉登录态 | `前端/personal-heath-view/src/utils/request.js`（响应拦截器） | 补 403 分支：只 `ElMessage.warning(msg \|\| "无权访问该功能")`，不动 token、不跳转；`a37f4d6` |
+| 同上，前端侧：403 落到通用分支会弹「请求失败」并可能洗掉登录态 | `personal-heath-view/src/utils/request.js`（响应拦截器） | 补 403 分支：只 `ElMessage.warning(msg \|\| "无权访问该功能")`，不动 token、不跳转；`a37f4d6` |
 | 管理员看板只有四个存量计数，`/dashboard/stats` 这个接口在前端找不到任何调用点，谁都能读 | `controller/DashboardController.java:25-26`（只有 `@Protector`）、`mapper/AppointmentMapper.countByStatus()`（写好但没人调） | 按你选的**给管理员看板加功能**：接口收归 `@Protector(role="管理员")`，返回体补 `appointment.total/pending`（顺带给那个死方法一个调用方）；`views/admin/Dashboard.vue` 最近预约卡片表头显示「待确认 N 单」，取不到数就不渲染；`4efa874` |
 
 守卫测试（新增 25 例 / 2 个测试类）：`NotificationPreferenceServiceImplTest` 改 1 例断言 + 新增 1 例、
@@ -505,5 +505,5 @@ Deploy Preflight ✅ / Deploy skipped（未配置密钥，已告警）` —— *
 | 4 | **Q5 六项重型项** | 已在 `数据资产与AI能力整改方案.md` §B-2 逐条登记为上线阻塞项（动作 / 责任方 / 前置条件），**未写成已完成** |
 | 5 | 门禁是否放宽 | ❌ **没有**：`mvn verify -B`、`--max-warnings 30000`、`npm audit --omit=dev --audit-level=high`、`npm ci` 四条阈值全程未改；未加 `continue-on-error`、未删测试、未跳过 IT。修的是 lint 命令的文件参数，不是门槛 |
 
-**实测门禁**：`mvn -o -B verify` = `BUILD SUCCESS`（单测 1085 / 118 类 + IT 4 例，0 失败 0 错误）；前端 `node --input-type=module --check` 三个改动 JS 全过；`python 前端/personal-heath-view/selfcheck.py` = `checked .vue = 79, .js = 19 | failed = 0`；`npm ci --dry-run --offline` exit 0（无 EUSAGE）。
+**实测门禁**：`mvn -o -B verify` = `BUILD SUCCESS`（单测 1085 / 118 类 + IT 4 例，0 失败 0 错误）；前端 `node --input-type=module --check` 三个改动 JS 全过；`python personal-heath-view/selfcheck.py` = `checked .vue = 79, .js = 19 | failed = 0`；`npm ci --dry-run --offline` exit 0（无 EUSAGE）。
 新增 21 例单测均做**反向验证**：把票据/refresh 的原子删除改成不删，对应重放用例 2/2、1/1 真红，还原后全绿。

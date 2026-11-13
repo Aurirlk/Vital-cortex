@@ -6,7 +6,7 @@
 #    阶段 0-B 交付内容见 docs/数据资产与AI能力整改方案.md → 阶段 0-B
 #
 # 实现位置：
-#   后端/personal-health-api/src/main/java/cn/kmbeast/core/graph/
+#   personal-health-api/src/main/java/cn/kmbeast/core/graph/
 #     GraphImportController.java  POST /graph/import | /import/drugs | /import/articles | /import/all
 #                                 GET  /graph/stats | /graph/health
 #                                 POST /graph/clear

@@ -372,7 +372,7 @@
 | 日志 | `TraceIdFilter` 注入 MDC `traceId`/`userId`，logback 滚动归档，异常不回传前端 |
 | 单元测试 | 用例规模按时点分别为：我方 2026-10-07 基线 **405 个用例 / 38 个测试类全绿**（含 SqlGuard、NL2SQL 双守卫、数据智能体流水线），2026-10-11 P0-P2 合入后达 **541/541**；通知线 2026-10-10~12 自报 **364 例 `mvn -o test` 全绿**并另增一批后端测试。**2026-10-12 两条线合并后实测 `mvn -o -B test`：684 例 / 69 个测试类全绿**；**2026-10-15 合并 + claude 增强后实测 `mvn -o -B test`：859 例 / 86 个测试类全绿**（新增 RAG 知识库子系统与多智能体编排框架，均已编入并跑过）；**2026-10-20 补修 4 处链路缺陷后实测：864 例 / 87 个测试类全绿**（新增工具白名单 fail-safe 守卫 5 例）；**同日再补 P1-3 的同类缺陷（同步链路与 /crm 流式先存后读）后实测：867 例 / 88 个测试类全绿**（新增对话上下文顺序守卫 3 例，做过反向验证）；**2026-10-24 二轮代码级扫描再修 6 处（SQLite 降级方向、会话单条删除漏清磁盘副本、偏好写盘假成功、WebSocket 同连接并发发送、流式空参数返回 0 字节 SSE、工具清单反向差集）后实测：879 例 / 90 个测试类全绿**（新增 12 例，其中 4 例做过反向验证）；**同日按点头方向补修台账 §7.2 的第 1、3 条（账号状态查不出即拒绝、NL2SQL 语义校验不再虚报通过）后实测：893 例 / 91 个测试类全绿**（新增 14 例，其中 8 例做过反向验证）；**2026-10-24~25 把 §7.2 剩下 5 条与第 3 条的二次升级全部落地（通知开关读不到即不发、读盘区分「不存在/读失败/内容写坏」并拒绝据此覆盖、采集槽位回填进 Agent 记忆、鉴权失败回真实 401/越权 403、`/dashboard/stats` 收归管理员并新增「待确认预约」、语义校验改成一遍不中即追问且重生成后重新核对）后实测：918 例 / 93 个测试类全绿**（新增 25 例 / 2 类，其中 18 例逐条做过反向验证，取证记录见各提交说明与 `bug.md` §7.3）（以上带日期的数字均为 Mockito 单测的**历史轨迹**）。**2026-11-13 当前态：`mvn -o -B verify` = 1085 例单测 / 118 类 + 4 例 `*IT` 真实启动集成测试，全绿**（阶段 11 新增 S6/A1 共 21 例，均做反向验证）；🔴 `*IT` 由 failsafe 在 `verify` 阶段执行、surefire 已排除，写 `mvn test` 等于启动守护一行没跑。详见 [`docs/测试报告.md`](docs/测试报告.md) §7，另见「部署指南 · 测试」 |
 
-> 测试位于 `后端/personal-health-api`；**主体仍是 Mockito 纯对象测试**，但 🔴 **2026-11-08 起已补 4 个 `@SpringBootTest` 集成用例**（`PersonalHealthApplicationIT` / `CoreBeanWiringIT`，基类 `BaseIntegrationTest` 用 `@ActiveProfiles("prod")` 走真配置）。这两个 `*IT` 类**被 surefire 排除、只由 failsafe 在 `mvn verify` 执行** —— 务必用 `mvn -o -B verify` 而非 `mvn test`，否则启动守护一行都不会跑。`Nl2SqlReadOnlyDataSourceWiringTest` 用 `ApplicationContextRunner` 拉最小上下文；Mapper XML 由 `MapperXmlParseTest` + `MapperTableConsistencyTest`（表级 + 列级）静态兜底。
+> 测试位于 `personal-health-api`；**主体仍是 Mockito 纯对象测试**，但 🔴 **2026-11-08 起已补 4 个 `@SpringBootTest` 集成用例**（`PersonalHealthApplicationIT` / `CoreBeanWiringIT`，基类 `BaseIntegrationTest` 用 `@ActiveProfiles("prod")` 走真配置）。这两个 `*IT` 类**被 surefire 排除、只由 failsafe 在 `mvn verify` 执行** —— 务必用 `mvn -o -B verify` 而非 `mvn test`，否则启动守护一行都不会跑。`Nl2SqlReadOnlyDataSourceWiringTest` 用 `ApplicationContextRunner` 拉最小上下文；Mapper XML 由 `MapperXmlParseTest` + `MapperTableConsistencyTest`（表级 + 列级）静态兜底。
 
 **合规提醒**：平台涉及个人健康信息（敏感个人信息），正式商用前建议完成**等保三级测评**与个人信息保护影响评估，并对第三方 AI 厂商的数据出境做合规确认。
 
@@ -641,8 +641,8 @@ source Data/02_迁移脚本/11_knowledge_base.sql;
 
 ```bash
 # 复制配置模板（application.yml 已被 gitignore，不会误提交真实密钥）
-cp 后端/personal-health-api/src/main/resources/application-example.yml \
-   后端/personal-health-api/src/main/resources/application.yml
+cp personal-health-api/src/main/resources/application-example.yml \
+   personal-health-api/src/main/resources/application.yml
 
 export JWT_SECRET=$(openssl rand -hex 48)      # JWT 签名密钥（≥32 字节，启动强校验）
 export CRM_API_KEY=$(openssl rand -hex 32)     # CRM 机器接口密钥（≥24 字符）
@@ -655,14 +655,14 @@ export EMBEDDING_API_KEY=sk-xxx                # 嵌入服务密钥（硅基流�
 ### 3. 启动后端
 
 ```bash
-cd 后端/personal-health-api
+cd personal-health-api
 mvn spring-boot:run
 ```
 
 ### 4. 启动前端
 
 ```bash
-cd 前端/personal-heath-view
+cd personal-heath-view
 npm install
 npm run dev
 ```
@@ -705,13 +705,13 @@ curl -f http://localhost:21090/api/personal-health/v1.0/actuator/health
 
 ```bash
 # 后端
-cd 后端/personal-health-api
+cd personal-health-api
 mvn package -DskipTests
 export JWT_SECRET=... CRM_API_KEY=... DB_PASS=...
 java -jar target/*.jar
 
 # 前端
-cd 前端/personal-heath-view
+cd personal-heath-view
 npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 ```
 
@@ -744,7 +744,7 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 #   当前规模：1060 个单测用例 + 4 个集成用例，全量通过（2026-11-09 阶段 9 实测 mvn -o -B verify）
 
 # 前端：静态自检（模板标签栈式配平 + <script> 交 node --check）
-python 前端/personal-heath-view/selfcheck.py
+python personal-heath-view/selfcheck.py
 ```
 
 ---
@@ -1010,10 +1010,10 @@ python 前端/personal-heath-view/selfcheck.py
 
 ```
 VitalCortex/
-├── 前端/personal-heath-view/        # Vue 3 + Element Plus
+├── personal-heath-view/        # Vue 3 + Element Plus
 │   └── src/views/                    # 页面（AI分析/助手/健康数据/药品等）
 │
-├── 后端/personal-health-api/        # Spring Boot 3.5.16 + Java 17
+├── personal-health-api/        # Spring Boot 3.5.16 + Java 17
 │   └── src/main/java/cn/kmbeast/
 │       ├── controller/               # REST 接口
 │       ├── service/impl/             # 业务实现（AiServiceImpl 等）

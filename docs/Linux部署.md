@@ -68,8 +68,8 @@ systemctl enable nginx
 mkdir -p /opt/zhikangyun
 
 # 上传文件（使用 scp 或 FTP）
-scp -r 后端/personal-health-api root@server:/opt/zhikangyun/backend
-scp -r 前端/personal-heath-view/dist root@server:/opt/zhikangyun/frontend
+scp -r personal-health-api root@server:/opt/zhikangyun/backend
+scp -r personal-heath-view/dist root@server:/opt/zhikangyun/frontend
 scp -r Data root@server:/opt/zhikangyun/data-scripts
 ```
 

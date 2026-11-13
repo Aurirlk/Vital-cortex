@@ -50,13 +50,13 @@
 
 ```yaml
 - name: Audit dependencies (CVE scan, official registry)
-  working-directory: ./前端/personal-heath-view
+  working-directory: ./personal-heath-view
   run: npm audit --registry=https://registry.npmjs.org --omit=dev --audit-level=high
 ```
 
 - **为什么走官方源**：`npm ci` 用 `registry.npmmirror.com`（国内快），但 npmmirror **不实现 audit 端点**（返回 `404 NOT_IMPLEMENTED`）。故 audit 显式走 `registry.npmjs.org`。
 - **fail-closed**：仅对**生产依赖**做 `high` 及以上漏洞扫描；命中则流水线失败，逼出修复。
-- **配套修复**：`前端/personal-heath-view/package-lock.json` 已订正 `dompurify 3.4.17` / `proxy-addr 2.0.8` / `shell-quote 1.12.0` / `follow-redirects 1.16.3` / `vue 3.5.45` 等，确保无 high 漏洞。改 lock 后必须 `npm ci` 验证（严格一致，否则 `EUSAGE`）。
+- **配套修复**：`personal-heath-view/package-lock.json` 已订正 `dompurify 3.4.17` / `proxy-addr 2.0.8` / `shell-quote 1.12.0` / `follow-redirects 1.16.3` / `vue 3.5.45` 等，确保无 high 漏洞。改 lock 后必须 `npm ci` 验证（严格一致，否则 `EUSAGE`）。
 
 Node 版本由 `setup-node` 的 `node-version: '20'`（此前为 18）控制；`npm run build` 需 Node 20.19+。
 
