@@ -75,10 +75,12 @@ jobs:
 
       - name: Lint
         working-directory: ./前端/personal-heath-view
-        # ENG-05 整改：原 continue-on-error 让 lint 永远"假通过"。
-        # 当前代码库从未 lint 过（44 errors / 23102 warnings，多为 CRLF 与 prettier 格式问题），
-        # 直接阻塞流水线会让 CI 完全不可用。折中：先 --fix 自动修复，
-        # 剩余 error 超出阈值则失败——后续逐步清零后收紧为 --max-warnings 0。
+        # ENG-05 整改：原 continue-on-error 让 lint 永远"假通过"，已移除。
+        # 2026-11-13 修复连续 6 次 CI 失败（阶段 6~10 + 文档对齐提交）：vue-cli-service lint
+        # 未带文件参数时会默认推断 src + tests，而 tests/ 只有 .mjs（node --test 用），
+        # eslint 默认扩展名不认 .mjs → 抛 "No files matching 'tests' were found" 直接 exit 1。
+        # 现由 package.json 的 lint 脚本显式指定 src（与本地门禁 G3 `npx eslint src` 对齐）。
+        # 阈值 30000 为渐进收敛口径，实测 warning 数当次以 CI 输出为准，后续收紧。
         run: npm run lint -- --fix --max-warnings 30000
 
       - name: Build
