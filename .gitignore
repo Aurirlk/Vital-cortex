@@ -92,7 +92,6 @@ target_bak*
 # 都可能被误提交。需要时从磁盘取用即可，不必进仓库。
 # 注意：已在库中的文件必须 git rm --cached 才会停止跟踪（.gitignore 对已跟踪文件无效）。
 Data/90_归档/
-后端/personal-health-api/patch_secrets.py
 
 # ---- 2026-10-05 补充：运行时产物与旧构建，不应进仓库 ----
 # Redis 持久化文件（运行时生成，体积大且含运行时状态）
