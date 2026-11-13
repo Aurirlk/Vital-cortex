@@ -160,9 +160,13 @@ public class UserServiceImpl implements UserService {
         // 后续锁定/登出/改密再次递增，旧 token 立即失效。
         int ver = authSessionManager.nextVersion(user.getId());
         String token = jwtUtil.toToken(user.getId(), user.getUserRole(), ver);
+        // 阶段 11 · A1：登录时一并签发 refresh token。Redis 不可用时返回 null，
+        // 登录主流程不受影响，只是退化为「access token 到期后重新登录」的旧行为。
+        String refreshToken = authSessionManager.issueRefreshToken(user.getId(), user.getUserRole(), ver);
         Map<String, Object> map = new HashMap<>();
         map.put("token", token);
         map.put("role", user.getUserRole());
+        map.put("refreshToken", refreshToken);
         return ApiResult.success("登录成功", map);
     }
 

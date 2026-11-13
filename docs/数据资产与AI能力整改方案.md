@@ -716,7 +716,7 @@ java -Dfile.encoding=UTF-8 -cp "$(cat /tmp/cp_test.txt)" RunAll
 | --- | ------------------------------------------------- | -------------------- | ------------------------------------------ |
 | S2  | 手机号登录为假实现（验证码写死）                                  | 经 2026-11-09 回查不成立：`UserMapper.findByPhone` 已按 `phone` 真实实现短信登录（注释见 `UserMapper.java:87-92`），原「验证码写死」结论过时 → 标记关闭 | 维持现状（如需更强校验可加频次限制，见 S10） |
 | S5  | AI 密钥在 `ai_config` 中明文存储                          | **已闭环**（2026-10-07 接线，2026-11-09 复核；2026-11-12 订正行号引用）：`utils/AESUtils.java:130-135`（encryptIfNeeded）/`:144-154`（decryptIfNeeded）接入 `config/AiConfigPersistenceService.java:37-40,162-166`，敏感 key 加密入库、读取解密（历史明文读出后就地回写密文 `:113-119`）；`AiConfigEncryptionWiringTest` 锁死 wiring。⚠️ 生产须设 `AES_SECRET_KEY`（缺则回落默认密钥并 `log.warn`，不 fail-fast；回落逻辑 `AESUtils.java:26-43`） | 后续可上 KMS / 信封加密增强 |
-| S6  | WebSocket token 走 URL（`/ws/notification/{token}`） | 属实，阶段 11 修（短期一次性 token，不进 URL） | 改 header / Sub-Protocol 取短期一次性 token |
+| S6  | WebSocket token 走 URL（`/ws/notification/{token}`） | **已闭环（2026-11-13 阶段 11）**：端点改为 `@ServerEndpoint("/ws/notification")`，URL 不再含任何凭证；新增 `core/auth/WsTicketRegistry`（256 位随机票据 / 30s TTL / `remove` 原子一次性消费）与 `websocket/WebSocketTicketConfigurator`（握手阶段从 `X-WS-Ticket` Header 或 `Sec-WebSocket-Protocol: ws-ticket.*` 取票，身份写 `EndpointConfig#getUserProperties()`，任何失败 fail-closed）；签发端点 `controller/WsTicketController#GET /ws/ticket` 需登录且身份只取 `LocalThreadHolder`；前端 `utils/ws.js` 每次建连/重连先取票再建连。测试 `WsTicketRegistryTest` + `WebSocketTicketConfiguratorTest`（含反向验证探针真红→还原）。⚠️ 票据为**单实例 JVM 内存态**，与 compose 单 backend 形态一致 | 横向扩容到多 backend 时须换 Redis `GETDEL` 等共享存储 |
 | S7  | `/file/getFile` 匿名可读                              | 设计权衡（capability URL） | 确认文件名随机源强度；日志脱敏                            |
 | S10 | 登录无防爆破                                            | **已闭环**：`core/auth/LoginAttemptGuard.java` + `LoginAttemptGuardTest`（失败次数锁定 + 频次限制，Redis 计数） | 维持现状 |
 | S9  | 等保三级 / 渗透测试                                       | 未开展                  | 商用合规前置，需外部机构                               |
@@ -743,7 +743,7 @@ java -Dfile.encoding=UTF-8 -cp "$(cat /tmp/cp_test.txt)" RunAll
 
 | #  | 方向                                         | 状态                                     |
 | -- | ------------------------------------------ | -------------------------------------- |
-| A1 | 鉴权模型重构（会话版本号 / refresh token / 账号状态校验一体设计） | 会话版本号 + 账号状态校验**已落地**；refresh token 未做 |
+| A1 | 鉴权模型重构（会话版本号 / refresh token / 账号状态校验一体设计） | **已闭环（2026-11-13 阶段 11）**：会话版本号与账号状态校验早前已落地；refresh token 本阶段补齐 —— `core/auth/AuthSessionManager#issueRefreshToken / rotateRefreshToken / revokeRefreshToken`（Redis `getAndDelete` 原子轮换防重放、载荷带 `ver` 与既有会话版本共存、账号锁定拒刷新、Redis 故障 fail-closed、登录主流程不因签发失败中断）；`controller/AuthRefreshController#POST /auth/refresh` 匿名可达，**JWT 白名单两处同步**；`UserServiceImpl#login` 一并签发；前端 `utils/storage.js` + `utils/request.js`（401 静默续期并重放，并发只刷一次，4010/4011/403 语义不变）+ `views/login/Login.vue` 保存。测试 `AuthSessionRefreshTest`（含反向验证探针真红→还原） | 维持现状 |
 | A4 | 向量库选型（pgvector vs Milvus）                  | 待做（承接「本地文件全量扫描」限制）                     |
 | A5 | 多租户（主业务健康数据为单租户模型）                         | 未做；CRM 已有租户隔离                          |
 | A6 | 审计日志体系（等保要求）                               | `audit_log` 表已存在并被数据智能体写入；体系化未做        |
@@ -752,6 +752,22 @@ java -Dfile.encoding=UTF-8 -cp "$(cat /tmp/cp_test.txt)" RunAll
 
 > 已闭环：S3 接口限流（Sentinel 登录 10QPS / AI 5QPS / 上传 20QPS）、S8 Spring Boot 3 迁移、F2 图片进上下文、F3 向量库规模（规划中）、F4 GraphRAG（**判定已修正**：图谱数据已构建 248 节点 / 485 边）、F6 登出服务端感知（会话版本号）。  
 > F5（全站约 40 页硬编码色值收敛为品牌蓝 `#0050cb`）仍为**待排期**项。
+
+### B-2. 上线阻塞项登记（Q5，2026-11-13 阶段 11 逐条登记）
+
+> 用户决策 Q5：以下 6 项重型项**本期不实现**，登记为「上线阻塞项」，**明确不写已完成**。
+> 责任方与前置条件按项目现状填写；实现另立一期，不在阶段 11–16 的交付范围内。
+
+| # | 方向 | 当前状态（实测） | 具体动作 | 责任方 | 前置条件 |
+| -- | -- | -- | -- | -- | -- |
+| S9 | 等保三级 / 渗透测试 | 未开展；项目仅本地开发、从未部署服务器（2026-11-12 用户结案） | 定级备案 → 委托有资质机构做等保三级测评与渗透测试 → 按报告整改并复测 | 合规 / 外部测评机构 | 生产环境部署完成、预算与机构合同、E6 压测基线 |
+| A8 | 密钥托管（KMS / Vault / 信封加密） | 未做（与 S5 同源）；现为 `AES_SECRET_KEY` / `JWT_SECRET` 环境变量 | 选型并接入 KMS，把静态密钥改为信封加密 + 定期轮换，补密钥吊销演练 | 后端 / 运维 | S5 AES-GCM 已落地（✅）；KMS 实例、轮换策略、回滚演练 |
+| A5 | 多租户（主业务健康数据为单租户模型） | 未做；仅 CRM 侧已有租户隔离 | 评估 47 表的 tenant 维度 → DDL-first 加列与索引 → 全链路租户过滤 + 越权回归测试 | 后端 / DBA | 隔离口径拍板、数据迁移演练、`MapperTableConsistencyTest` 同步 |
+| A7 | 异步化（短信 / 通知 / 报表无 MQ） | 未做；链路均为同步调用 | 引入 MQ 解耦三类任务，补幂等、失败重试、死信与监控告警 | 后端 / 运维 | broker 部署、幂等键设计、现有同步链路全量回归 |
+| A6 | 审计日志体系（等保要求） | `audit_log` 表已存在且被数据智能体写入；**体系化未做** | 统一审计切面覆盖敏感操作、定义留存周期与防篡改、补查询与导出端点 | 后端 / 合规 | S9 明确合规要求、审计字段规范、留存容量评估 |
+| A4 | 向量库选型（pgvector vs Milvus） | 待做；当前为本地文件全量扫描，有规模上限 | 选型 → 同数据集压测召回/延迟 → 迁移索引与写入链路 → 灰度切流 | AI / 后端 | 数据量与 QPS 评估、部署资源、E6 压测基线 |
+
+> 阶段 16 只做「调研 + POC + 立项」，**实现不在本轮**；结案时须逐条附证据，禁止把登记动作写成「已完成」。
 
 ### C. 数据模型改造的关键结论（并入自《数据模型重构与项目扩展方案》）
 

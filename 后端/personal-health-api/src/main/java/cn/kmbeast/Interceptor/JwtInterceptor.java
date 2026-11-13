@@ -61,9 +61,13 @@ public class JwtInterceptor implements HandlerInterceptor {
         //
         // 2026-10-04 补：/doctor/login 与 /doctor/reset-password 同样必须匿名可达 ——
         // 医生端是独立登录入口（不复用 /user/login），此前漏加导致医生根本无法登录。
+        // 2026-11-13 阶段 11 · A1：refresh token 轮换端点必须匿名可达 ——
+        // 调用它的场景正是 access token 已过期，再要求带有效 JWT 就自相矛盾。
+        // ⚠️ 与 InterceptorConfig.excludePathPatterns 两处必须同步。
         if (requestURI.endsWith("/user/login")
                 || requestURI.endsWith("/user/register")
                 || requestURI.endsWith("/doctor/login")
+                || requestURI.endsWith("/auth/refresh")
                 || requestURI.endsWith("/file/getFile")
                 || requestURI.endsWith("/error")) {
             return true;

@@ -60,6 +60,11 @@ public class InterceptorConfig implements WebMvcConfigurer {
                         API + "/user/register",
                         "/user/login",
                         "/user/register",
+                        // 2026-11-13 阶段 11 · A1：refresh token 轮换端点匿名可达
+                        // （access token 过期时才能调用）。⚠️ 必须与 JwtInterceptor.preHandle
+                        // 的代码侧白名单同步，漏一处端点仍会被 401 拦住。
+                        API + "/auth/refresh",
+                        "/auth/refresh",
                         // 2026-10-07 审计补齐：医生端是独立登录入口（不复用 /user/login），
                         // 此前只写在 JwtInterceptor 内部，白名单分散两处、配置上看不到
                         API + "/doctor/login",

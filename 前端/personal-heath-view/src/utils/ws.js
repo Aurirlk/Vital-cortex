@@ -1,10 +1,15 @@
 import { getToken } from "./storage";
-import { URL_API } from "./request";
+import request, { URL_API } from "./request";
 
 /**
  * WebSocket 客户端
  *
- * 负责与后端 /ws/notification/{token} 保持长连接，用于接收站内消息通知。
+ * 负责与后端 /ws/notification 保持长连接，用于接收站内消息通知。
+ *
+ * S6 整改（阶段 11）：JWT 不再出现在 URL 里。每次建连前先调 GET /ws/ticket
+ * 换取一枚 30 秒有效、一次性消费的票据，通过 Sec-WebSocket-Protocol 传给握手
+ * （浏览器 WebSocket API 不允许自定义 Header，这是浏览器侧唯一可行的通道）；
+ * 每次重连都重新取票，票据无法复用。
  *
  * 关键设计（修复"连接反复断开重连"问题）：
  * 1. 防重入必须覆盖 CONNECTING 状态。原实现只判断 OPEN，若在连接建立过程中再次调用
@@ -22,6 +27,8 @@ let reconnectTimer = null;
 let heartbeatTimer = null;
 let reconnectDelay = 5000;
 let visibilityBound = false;
+/** 是否正在异步取票：覆盖 await 窗口，防止并发调用重复取票/重复建连。 */
+let connecting = false;
 const listeners = new Map();
 
 /** 心跳发送间隔。需小于服务端（Tomcat）默认 60s 的空闲超时。 */
@@ -30,20 +37,46 @@ const HEARTBEAT_INTERVAL = 25000;
 /**
  * 建立 WebSocket 连接（幂等）
  */
-export function connectWs() {
+export async function connectWs() {
   const token = getToken();
   if (!token) return;
 
-  // 防重入：CONNECTING 与 OPEN 都要拦截，否则会重复建连接
+  // 防重入：CONNECTING 与 OPEN 都要拦截，否则会重复建连接；
+  // connecting 还要覆盖「正在异步取票」这段窗口，否则并发调用会重复取票/建连。
+  if (
+    connecting ||
+    (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING))
+  ) {
+    return;
+  }
+
+  connecting = true;
+  let ticket = null;
+  try {
+    const res = await request.get("/ws/ticket");
+    ticket = res && res.data && res.data.data ? res.data.data.ticket : null;
+  } catch (e) {
+    console.error("[WebSocket] 获取一次性票据失败:", e);
+  } finally {
+    connecting = false;
+  }
+
+  if (!ticket) {
+    scheduleReconnect();
+    return;
+  }
+
+  // await 期间可能已有其它调用建立了连接，二次检查避免把它顶掉
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
     return;
   }
 
   // ENG-07 整改：从 URL_API 推导 WS 地址，支持 VUE_APP_WS_BASE 覆盖。
   // 原硬编码 ws://localhost:21091 在生产环境（https 域名 + 反代）必然失败。
+  // S6：URL 不含任何凭证；票据只走 sub-protocol，不进 URL / 日志。
   const wsBase = process.env.VUE_APP_WS_BASE || deriveWsBase();
-  const wsUrl = `${wsBase}/ws/notification/${token}`;
-  ws = new WebSocket(wsUrl);
+  const wsUrl = `${wsBase}/ws/notification`;
+  ws = new WebSocket(wsUrl, [`ws-ticket.${ticket}`]);
 
   ws.onopen = () => {
     console.log("[WebSocket] 连接已建立");

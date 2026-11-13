@@ -262,7 +262,7 @@
 <script>
 const DELAY_TIME = 1300;
 import request from "@/utils/request.js";
-import { setToken } from "@/utils/storage.js";
+import { setToken, setRefreshToken } from "@/utils/storage.js";
 import { connectWs } from "@/utils/ws.js";
 import BrandLogo from "@/components/BrandLogo.vue";
 import BrandDecoration from "@/components/BrandDecoration.vue";
@@ -322,6 +322,8 @@ export default {
           return;
         }
         setToken(data.data.token);
+        // 阶段 11 · A1：保存 refresh token；后端 Redis 不可用时为 null，此时不存即可
+        setRefreshToken(data.data.refreshToken);
         connectWs();
         const { role } = data.data;
         await this.$router.push(

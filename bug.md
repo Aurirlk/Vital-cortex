@@ -293,9 +293,9 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 去掉复核 → 2 例 `expected: <2> but was: <1>`；两组重叠 1 例）。
 **`e6771eb` 只补了用例、没做反向验证**，写在这里是为了不含糊过去。
 
-`mvn -o -B verify` 现值 = **单测 1060 例全绿 + 集成 4 例全绿**（2026-11-09 阶段 9 实测；
-历史轨迹：931 例（2026-10-25）→ 942 例（2026-11-08，新增 `OutputValidatorTest` 9 例与 `IdentityCleanupGuardTest` 2 例）→ 953（阶段 5）→ 970（阶段 6）→ 1021（阶段 8，结构化记忆 +51）→ 1060（阶段 9，上下文压缩 +39））。
-仍要提醒：`mvn test` 那 1060 例全为方法级单测，全绿只证明方法级逻辑，**不证明应用能启动**；
+`mvn -o -B verify` 现值 = **单测 1085 例 / 118 类全绿 + 集成 4 例全绿**（2026-11-13 阶段 11 实测；
+历史轨迹：931 例（2026-10-25）→ 942 例（2026-11-08，新增 `OutputValidatorTest` 9 例与 `IdentityCleanupGuardTest` 2 例）→ 953（阶段 5）→ 970（阶段 6）→ 1021（阶段 8，结构化记忆 +51）→ 1060（阶段 9，上下文压缩 +39）→ 1085（阶段 11，S6/A1 +21））。
+仍要提醒：`mvn test` 那 1085 例全为方法级单测，全绿只证明方法级逻辑，**不证明应用能启动**；
 启动由 4 个 `*IT` 守护（`PersonalHealthApplicationIT` 上下文启动 + `CoreBeanWiringIT` 校验
 MyBatis/Neo4jClient/RedisTemplate 接线），命名 `*IT` 故不参与 `mvn test`、由 `mvn verify`（failsafe 插件）执行。
 **实测不需要 MySQL/Redis/Neo4j**：把数据源指向不存在的端口仍是 4 例全绿（三者均懒连接）。
@@ -487,5 +487,23 @@ Deploy Preflight ✅ / Deploy skipped（未配置密钥，已告警）` —— *
 | 5 | `docs/调研与代码审查报告-20261003.md` | **特意保留**：整改方案 §198-200 引用它逐条回查取证，删了会断验收链 |
 | 6 | 执行 plan 仍写「基线 462 例 / 46 类」「AI 不跑 mvn」，而 Maven 早已可跑且 `@SpringBootTest` 必须走 Maven；P0/P1/P2 已完成却无状态标注 | 加「执行状态台账」+ 订正 4 条过时约束 |
 
-**当前权威口径（2026-11-09 实测）**：本机实库与部署链终态已对齐 = **47 表 / 567 字段 / 201 字符列**；
-`mvn -o -B verify` = **1060 单测 + 4 集成全绿**（2026-11-09 阶段 9 实测）；`docs/` 20 份 + 根 `README.md` 1 份 = 21 份（2026-11-12 订正：原写 19 份，未含阶段 10 新增的 `CI与部署配置说明.md`）。
+**当前权威口径（2026-11-13 实测）**：本机实库与部署链终态已对齐 = **47 表 / 567 字段 / 201 字符列**；
+`mvn -o -B verify` = **1085 单测 / 118 类 + 4 集成全绿**（2026-11-13 阶段 11 实测，含 S6/A1 新增 21 例）；`docs/` 20 份 + 根 `README.md` 1 份 = 21 份（2026-11-12 订正：原写 19 份，未含阶段 10 新增的 `CI与部署配置说明.md`）。
+
+---
+
+## 九、阶段 11 收尾台账（2026-11-13）
+
+> 用户指令「11 先做，顺便看看 CI 为什么一直红，**注意不要为了通过门禁跑去放宽门禁要求**」。
+> 本节所有「已完成」均附实测证据；门禁阈值一律保持原样。
+
+| # | 事项 | 处置与证据 |
+| -- | -- | -- |
+| 1 | **CI 连续 7 次全红**（阶段 5→10 + 文档对齐提交；11-08「首次全绿」之后） | 根因**唯一**：`vue-cli-service lint --fix --max-warnings 30000` 未带文件参数 → 默认推断 `src + tests`，而 `tests/` 只有 `userSettings.test.mjs`，eslint 默认扩展名不认 `.mjs` → `Error: No files matching 'tests' were found` → Frontend Build·Lint exit 1。Backend Build & Test / Deploy Preflight 一直 success。修复 `e2a9d58`：`package.json` 的 lint 脚本显式写 `src`（依据 `@vue/cli-plugin-eslint/lint.js` 的 `files = args._.length ? args._ : defaultFilesToLint`），CI 命令与阈值**未改** |
+| 2 | **S6 WebSocket token 走 URL** | 已闭环：端点改 `/ws/notification`（URL 无凭证）；一次性票据注册中心 + 握手 Configurator + 签发端点 + 前端每次建连取票，详见 `数据资产与AI能力整改方案.md` §B S6 行 |
+| 3 | **A1 refresh token** | 已闭环：Redis `getAndDelete` 原子轮换、会话版本共存、白名单两处同步、前端 401 静默续期重放，详见 §B A1 行 |
+| 4 | **Q5 六项重型项** | 已在 `数据资产与AI能力整改方案.md` §B-2 逐条登记为上线阻塞项（动作 / 责任方 / 前置条件），**未写成已完成** |
+| 5 | 门禁是否放宽 | ❌ **没有**：`mvn verify -B`、`--max-warnings 30000`、`npm audit --omit=dev --audit-level=high`、`npm ci` 四条阈值全程未改；未加 `continue-on-error`、未删测试、未跳过 IT。修的是 lint 命令的文件参数，不是门槛 |
+
+**实测门禁**：`mvn -o -B verify` = `BUILD SUCCESS`（单测 1085 / 118 类 + IT 4 例，0 失败 0 错误）；前端 `node --input-type=module --check` 三个改动 JS 全过；`python 前端/personal-heath-view/selfcheck.py` = `checked .vue = 79, .js = 19 | failed = 0`；`npm ci --dry-run --offline` exit 0（无 EUSAGE）。
+新增 21 例单测均做**反向验证**：把票据/refresh 的原子删除改成不删，对应重放用例 2/2、1/1 真红，还原后全绿。

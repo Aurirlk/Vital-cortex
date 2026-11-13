@@ -2,13 +2,19 @@ package cn.kmbeast.core.auth;
 
 import cn.kmbeast.mapper.UserMapper;
 import cn.kmbeast.pojo.entity.User;
+import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.Resource;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Base64;
 
 /**
  * 登录态与会话管理（roadmap §1.3 实现，设计见 docs/defect-roadmap.md §1.3）。
@@ -34,6 +40,12 @@ public class AuthSessionManager {
     private static final String KEY_VIP = "auth:user:%d:vip";
     private static final Duration STATE_TTL = Duration.ofSeconds(60);
     private static final Duration VIP_TTL = Duration.ofSeconds(60);
+
+    /** refresh token 存储键前缀，后面拼 token 的 SHA-256（Redis 里不落明文凭证）。 */
+    private static final String KEY_REFRESH = "auth:refresh:";
+    private static final Duration REFRESH_TTL = Duration.ofDays(7);
+    private static final int REFRESH_TOKEN_BYTES = 32;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
@@ -199,6 +211,134 @@ public class AuthSessionManager {
             log.warn("[Auth] 查库判定 VIP 失败，按非 VIP 处理: userId={}", userId);
             return false;
         }
+    }
+
+    // ==================== refresh token（阶段 11 · A1） ====================
+
+    /**
+     * 签发 refresh token（登录成功后调用），TTL 7 天。
+     *
+     * <p>Redis 里只存 token 的 SHA-256 作键，不存明文；值携带签发时的 {@code ver}，
+     * 用于轮换时与当前会话版本比对。<b>Redis 不可用返回 null</b>：登录主流程不因此中断
+     * （退化为「无 refresh，access token 到期后重新登录」的旧行为），但绝不在存储不可用时
+     * 签出一个无法撤销的本地凭证。
+     */
+    public String issueRefreshToken(Integer userId, Integer roleId, Integer ver) {
+        if (userId == null) {
+            return null;
+        }
+        String token = newRefreshToken();
+        JSONObject payload = new JSONObject();
+        payload.put("u", userId);
+        payload.put("r", roleId);
+        payload.put("v", ver == null ? 0 : ver);
+        try {
+            stringRedisTemplate.opsForValue().set(refreshKey(token), payload.toJSONString(), REFRESH_TTL);
+            return token;
+        } catch (Exception e) {
+            log.warn("[Auth] 签发 refresh token 失败，本次登录不带 refresh token: userId={}", userId);
+            return null;
+        }
+    }
+
+    /**
+     * 轮换 refresh token（{@code POST /auth/refresh} 调用）。
+     *
+     * <p>四道检查，任一不过即返回 null（fail-closed）：
+     * <ol>
+     *   <li><b>原子取删</b> {@code getAndDelete}：同一枚 token 最多成功一次，
+     *       重放 / 并发双刷新只有一个能赢；这是「防重放」的唯一执行点。</li>
+     *   <li>载荷完整（u/r/v 均非空）。</li>
+     *   <li><b>与既有会话版本号共存</b>：登出 / 改密 / 重新登录都会 {@link #nextVersion}，
+     *       ver 不匹配说明会话已作废，旧 refresh 立即失效——无需额外黑名单。</li>
+     *   <li>账号未被锁定（被停用账号不能靠 refresh 续命）。</li>
+     * </ol>
+     * 通过后签发一枚新的 refresh token 返回；旧 token 已被删除，不可再用。
+     * Redis 异常一律按「刷新失败」处理，不降级放行。
+     */
+    public RefreshIdentity rotateRefreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return null;
+        }
+        final String key;
+        try {
+            key = refreshKey(refreshToken);
+        } catch (IllegalStateException e) {
+            return null;
+        }
+        String raw;
+        try {
+            raw = stringRedisTemplate.opsForValue().getAndDelete(key);
+        } catch (Exception e) {
+            log.warn("[Auth] refresh token 存储不可用，按失效处理（fail-closed）");
+            return null;
+        }
+        if (raw == null) {
+            // 不存在 / 已消费（重放） / 已过期，统一拒绝且不区分原因，避免枚举信号
+            log.warn("[Auth] refresh token 无效或已被使用，拒绝刷新");
+            return null;
+        }
+        final Integer userId;
+        final Integer roleId;
+        final Integer ver;
+        try {
+            JSONObject payload = JSONObject.parseObject(raw);
+            userId = payload.getInteger("u");
+            roleId = payload.getInteger("r");
+            ver = payload.getInteger("v");
+        } catch (Exception e) {
+            log.warn("[Auth] refresh token 载荷损坏，拒绝刷新");
+            return null;
+        }
+        if (userId == null || roleId == null || ver == null) {
+            return null;
+        }
+        Integer currentVer = getVersion(userId);
+        if (currentVer != null && !currentVer.equals(ver)) {
+            log.warn("[Auth] refresh token 会话版本不匹配（已登出/改密/重新登录），拒绝刷新: userId={}", userId);
+            return null;
+        }
+        if (isAccountLocked(userId)) {
+            log.warn("[Auth] 账号已锁定，拒绝刷新: userId={}", userId);
+            return null;
+        }
+        String next = issueRefreshToken(userId, roleId, ver);
+        if (next == null) {
+            return null;
+        }
+        return new RefreshIdentity(userId, roleId, ver, next);
+    }
+
+    /** 显式撤销单枚 refresh token（登出时可配合 {@link #nextVersion} 把所有会话一并作废）。 */
+    public void revokeRefreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+        try {
+            stringRedisTemplate.delete(refreshKey(refreshToken));
+        } catch (Exception e) {
+            log.warn("[Auth] 撤销 refresh token 失败: {}", e.getMessage());
+        }
+    }
+
+    private String newRefreshToken() {
+        byte[] buf = new byte[REFRESH_TOKEN_BYTES];
+        SECURE_RANDOM.nextBytes(buf);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(buf);
+    }
+
+    private String refreshKey(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return KEY_REFRESH + Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 不可用", e);
+        }
+    }
+
+    /** 轮换成功后交给控制器签新 access token 的身份信息（ver 保持不变，避免顶掉其它设备）。 */
+    public record RefreshIdentity(Integer userId, Integer roleId, Integer ver, String refreshToken) {
     }
 
     private String key(String pattern, Integer userId) {

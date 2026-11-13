@@ -1,32 +1,44 @@
 package cn.kmbeast.websocket;
 
-import cn.kmbeast.utils.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import jakarta.websocket.*;
-import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
-@ServerEndpoint("/ws/notification/{token}")
+@ServerEndpoint(value = "/ws/notification", configurator = WebSocketTicketConfigurator.class)
 public class WebSocketServer {
 
     private static final ConcurrentHashMap<String, Session> SESSIONS = new ConcurrentHashMap<>();
     private String userId;
 
+    /**
+     * 阶段 11 · S6 整改：<b>URL 里不再有任何凭证</b>。
+     *
+     * <p>原实现 {@code /ws/notification/{token}} 把 7 天有效的 JWT 拼进 URL，
+     * 会落进浏览器历史、反代 access log、Referer 与监控采样；任何拿到 URL 的人都能冒充该用户
+     * 建立长连接。现改由 {@link WebSocketTicketConfigurator} 在握手阶段消费一次性票据
+     * （30s / 一次 / 走 Sec-WebSocket-Protocol），把身份写进
+     * {@code EndpointConfig#getUserProperties()}，本方法只认这份服务端换出的身份，
+     * 绝不接受客户端自报的 userId。校验失败一律关闭连接（fail-closed）。
+     */
     @OnOpen
-    public void onOpen(Session session, @PathParam("token") String token) {
+    public void onOpen(Session session, EndpointConfig config) {
         try {
-            // SEC-01 整改：统一走 JwtUtil（外部注入密钥），并取 claim "id" 而非 subject。
-            // 原实现取 getSubject()，而签发端 subject 恒为固定字符串"用户认证"，
-            // 导致所有在线用户共用同一个 SESSIONS key、互相顶掉连接并串收消息。
-            Integer uid = JwtUtil.getInstance().getUserId(token);
-            if (uid == null) {
-                log.warn("WebSocket 认证失败：token 无效或已过期");
+            Object uidRaw = config == null ? null
+                    : config.getUserProperties().get(WebSocketTicketConfigurator.PROP_USER_ID);
+            if (!(uidRaw instanceof Integer)) {
+                log.warn("WebSocket 握手未通过一次性票据校验，拒绝连接");
+                closeQuietly(session);
+                return;
+            }
+            Integer uid = (Integer) uidRaw;
+            if (uid <= 0) {
+                log.warn("WebSocket 票据换出的身份非法，拒绝连接");
                 closeQuietly(session);
                 return;
             }
