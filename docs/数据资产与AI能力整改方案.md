@@ -715,11 +715,12 @@ java -Dfile.encoding=UTF-8 -cp "$(cat /tmp/cp_test.txt)" RunAll
 | #   | 问题                                                | 现状                   | 建议                                         |
 | --- | ------------------------------------------------- | -------------------- | ------------------------------------------ |
 | S2  | 手机号登录为假实现（验证码写死）                                  | 经 2026-11-09 回查不成立：`UserMapper.findByPhone` 已按 `phone` 真实实现短信登录（注释见 `UserMapper.java:87-92`），原「验证码写死」结论过时 → 标记关闭 | 维持现状（如需更强校验可加频次限制，见 S10） |
-| S5  | AI 密钥在 `ai_config` 中明文存储                          | **已闭环**（2026-10-07 接线，2026-11-09 复核）：`utils/AESUtils.java:26-37` 的 `encryptIfNeeded/decryptIfNeeded` 接入 `config/AiConfigPersistenceService.java:37-40,162-166`，敏感 key 加密入库、读取解密；`AiConfigEncryptionWiringTest` 锁死 wiring。⚠️ 生产须设 `AES_SECRET_KEY`（缺则回落默认密钥并 `log.warn`，不 fail-fast） | 后续可上 KMS / 信封加密增强 |
+| S5  | AI 密钥在 `ai_config` 中明文存储                          | **已闭环**（2026-10-07 接线，2026-11-09 复核；2026-11-12 订正行号引用）：`utils/AESUtils.java:130-135`（encryptIfNeeded）/`:144-154`（decryptIfNeeded）接入 `config/AiConfigPersistenceService.java:37-40,162-166`，敏感 key 加密入库、读取解密（历史明文读出后就地回写密文 `:113-119`）；`AiConfigEncryptionWiringTest` 锁死 wiring。⚠️ 生产须设 `AES_SECRET_KEY`（缺则回落默认密钥并 `log.warn`，不 fail-fast；回落逻辑 `AESUtils.java:26-43`） | 后续可上 KMS / 信封加密增强 |
 | S6  | WebSocket token 走 URL（`/ws/notification/{token}`） | 属实，阶段 11 修（短期一次性 token，不进 URL） | 改 header / Sub-Protocol 取短期一次性 token |
 | S7  | `/file/getFile` 匿名可读                              | 设计权衡（capability URL） | 确认文件名随机源强度；日志脱敏                            |
 | S10 | 登录无防爆破                                            | **已闭环**：`core/auth/LoginAttemptGuard.java` + `LoginAttemptGuardTest`（失败次数锁定 + 频次限制，Redis 计数） | 维持现状 |
 | S9  | 等保三级 / 渗透测试                                       | 未开展                  | 商用合规前置，需外部机构                               |
+| S11 | 用户端可搜到医生端专属知识库（bug.md §三 P1-6，2026-11-12 对齐审计时补登记，原文台账漏收） | **未修**：`crm/agent/tool/SearchKbTool.java:77-81,110-114`（audience/kb_ids 由模型自填、userId=null）→ `crm/rag/KbSearchService.java:357-363`（显式 kbIds 走 `listByIds`）→ `mapper/KnowledgeBaseMapper.xml:122-128`（listByIds 无 audience 条件） | 前端按登录身份强制传受众/归属过滤，模型不自填 kb_ids |
 
 **工程化 / 运维**
 
@@ -729,7 +730,8 @@ java -Dfile.encoding=UTF-8 -cp "$(cat /tmp/cp_test.txt)" RunAll
 | E2 | CI 门禁薄弱（仅 `mvn test`）                          | **已闭环**（lint + `npm audit --omit=dev --audit-level=high` CVE 扫描 + Node 20 构建产物校验，均进 CI；2026-11-09 阶段 10） | 维持现状 |
 | E3 | 告警外发未配置（`deploy/alertmanager.yml` 为占位 webhook） | **已闭环**（webhook 改从 `ALERT_WEBHOOK_URL` 注入 + `deploy/gen-alertmanager.sh` 生成；2026-11-09 阶段 10；上线前填真实企业微信 / 钉钉 / 飞书 webhook） | 维持现状（上线前填真实 webhook） |
 | E4 | 无自动备份脚本                                        | **已闭环**（`deploy/backup/backup.sh` + cron 说明；2026-11-09 阶段 10） | 维持现状 |
-| E5 | 容器 healthcheck 用 `/user/login`                 | 未改 | 改 `/actuator/health`；补优雅停机       |
+| E5 | 容器 healthcheck 用 `/user/login`                 | **半收口**（2026-11-12 复核订正，原「未改」过时）：镜像层 `Dockerfile.backend:42-47` 已于 2026-10-10（ENG-04）改为探 `/actuator/health`（原 `/user/login` 为 POST 接口 GET 探测恒 405）；**compose 层 backend 服务仍无 healthcheck**；优雅停机未做（全仓无 `server.shutdown` / `stop_grace_period` / `STOPSIGNAL`） | compose 补 backend healthcheck；补优雅停机       |
+| E6 | 无性能压测基线（压测报告从未产出；**2026-11-12 与用户确认**：项目仅本地开发、未部署过服务器） | 未开展 | 上线前 JMeter/Gatling 压常规接口 + AI 链路（含 Sentinel 限流/熔断验证），报告落 `docs/` |
 
 > **E1 口径演进（避免后来人误读）**：旧《缺陷与改进路线图》写作「E1 **测试覆盖 <2%** —— 25 单测 / 336 Java 文件」（2026-08-01 口径）；
 > 2026-10-07 该文档删除、待排期项并入本 §B 时**未带入 E1 行**（其「<2% / 25 单测」的量级口径当时已被 405 例的现实作废，只剩「无集成/E2E」这半句仍然成立）。

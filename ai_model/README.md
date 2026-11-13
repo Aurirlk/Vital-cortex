@@ -32,7 +32,7 @@
 > huggingface-cli download Weikaijie/HealthPulse-Qwen2.5-7B --local-dir ./merged_model
 > ```
 
-**配套数据集**（华佗医疗问答，9,344 条）：[魔搭](https://www.modelscope.cn/datasets/Aulink/Zhikangyun-Huatuo) / [Hugging Face](https://huggingface.co/datasets/Weikaijie/Zhikangyun-Huatuo)
+**配套数据集**（华佗医疗问答，9,344 条 = 划分集 9,000 + 生成数据 344，划分见 `微调步骤.md` §2.4）：[魔搭](https://www.modelscope.cn/datasets/Aulink/Zhikangyun-Huatuo) / [Hugging Face](https://huggingface.co/datasets/Weikaijie/Zhikangyun-Huatuo)
 
 ## 本地部署（vLLM）
 

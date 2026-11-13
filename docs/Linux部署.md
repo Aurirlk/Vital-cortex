@@ -7,10 +7,10 @@
 | 软件 | 版本要求 | 说明 |
 |------|----------|------|
 | CentOS/Ubuntu | 7+ / 18+ | 操作系统 |
-| JDK | 17（编译 target 兼容 1.8） | Java 运行环境 |
+| JDK | 17 | Java 运行环境 |
 | MySQL | 5.7+ / 8.x | 数据库 |
 | Nginx | 1.18+ | 反向代理 |
-| Node.js | 16+ | 前端构建（可选） |
+| Node.js | 20.19+（`npm run build` 要求，CI 用 Node 20） | 前端构建（可选） |
 | Docker（可选） | 20.10+ | 容器化部署 |
 
 ## 2. 环境搭建
@@ -70,15 +70,15 @@ mkdir -p /opt/zhikangyun
 # 上传文件（使用 scp 或 FTP）
 scp -r 后端/personal-health-api root@server:/opt/zhikangyun/backend
 scp -r 前端/personal-heath-view/dist root@server:/opt/zhikangyun/frontend
-scp -r Data/sql root@server:/opt/zhikangyun/sql
+scp -r Data root@server:/opt/zhikangyun/data-scripts
 ```
 
 ### 3.2 初始化数据库
 ```bash
-mysql -u root -p personal_health < /opt/zhikangyun/sql/deploy/init_database.sql
-mysql -u root -p personal_health < /opt/zhikangyun/sql/forum_schema.sql
-mysql -u root -p personal_health < /opt/zhikangyun/sql/appointment_schema.sql
-mysql -u root -p personal_health < /opt/zhikangyun/sql/extra_modules_schema.sql
+# 脚本已分层（旧 Data/sql/ 目录在 2026-10 分层重构后废止）：
+#   01_建库建表（7 支）→ 02_迁移脚本（按 compose 挂载顺序，勿盲目通配）→ 03_数据脚本
+# 权威清单与执行顺序以 docker-compose.yml 的 db 服务挂载列表 + Data/README.md 为准
+for f in /opt/zhikangyun/data-scripts/01_建库建表/*.sql; do mysql -u root -p personal_health < "$f"; done
 ```
 
 ### 3.3 配置后端（密钥必须外部注入）
@@ -91,7 +91,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/personal_health?characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
     username: root
-    password: ${DB_PASSWORD}
+    password: ${DB_PASS}
 
 # JWT / CRM / AI 密钥
 jwt:
@@ -101,10 +101,11 @@ crm:
   api-key: ${CRM_API_KEY}        # 未配置则 /crm/** 全部拒绝（fail-closed）
 ai:
   provider: ${AI_PROVIDER:deepseek}
-  api-key: ${AI_API_KEY}
+  chat:
+    api-key: ${AI_CHAT_API_KEY}  # 注意是 ai.chat.api-key（AI_API_KEY 不生效，见 docker-compose.yml 注释）
 ```
 
-> 生产环境务必通过环境变量注入 `JWT_SECRET` / `DB_PASSWORD` / `CRM_API_KEY` / `AI_API_KEY`，
+> 生产环境务必通过环境变量注入 `JWT_SECRET` / `DB_PASS` / `CRM_API_KEY` / `AI_CHAT_API_KEY`，
 > 严禁写入明文到仓库或镜像层。
 
 ### 3.4 启动后端
@@ -121,7 +122,7 @@ nohup mvn spring-boot:run > app.log 2>&1 &
 tail -f app.log
 
 # 验证启动
-curl http://localhost:21090/api/personal-health/v1.0/user/login
+curl -f http://localhost:21090/api/personal-health/v1.0/actuator/health
 ```
 
 ### 3.5 配置 Nginx
@@ -174,18 +175,18 @@ docker build -f Dockerfile.backend -t zhikangyun-backend:latest .
 
 # 2. 通过环境变量注入密钥（切勿写在 compose 文件明文）
 export JWT_SECRET="<64位随机字符串>"
-export DB_PASSWORD="<你的密码>"
+export DB_PASS="<你的密码>"
 export CRM_API_KEY="<你的密钥>"
-export AI_API_KEY="<你的密钥>"
+export AI_CHAT_API_KEY="<你的密钥>"
 
 # 3. 启动（后端 + 前端 + MySQL + Nginx）
 docker compose up -d
 
 # 4. 健康检查
-curl http://localhost:21090/api/personal-health/v1.0/crm/health   # 返回 UP
+curl -f http://localhost:21090/api/personal-health/v1.0/actuator/health   # 返回 UP（镜像 HEALTHCHECK 同款探针；/crm/health 可作人工辅助验证）
 ```
 
-> 镜像内已配置 `/crm/health` 作为容器存活探针；`JWT_SECRET`/`CRM_API_KEY` 缺失时容器将**启动失败**（fail-closed），符合安全基线。
+> 镜像 HEALTHCHECK 已配置 `/actuator/health` 作为容器存活探针（2026-10-10 ENG-04 起，原 `/user/login` 为 POST 接口探测恒 405）；`JWT_SECRET`/`CRM_API_KEY` 缺失时容器将**启动失败**（fail-closed），符合安全基线。
 
 ### 3.7 可选：本地微调模型（vLLM）
 
@@ -194,9 +195,8 @@ curl http://localhost:21090/api/personal-health/v1.0/crm/health   # 返回 UP
 ```bash
 # 启动 vLLM OpenAI 兼容服务（默认端口 8000）
 python dir/server.py        # 见 dir/merged_model/.../README.md 模型卡
-# 后端切换 provider
+# 后端切换 provider（本地 provider 地址已内置在 AiConfig 的 PROVIDERS 注册表，无需额外 base-url 变量）
 export AI_PROVIDER=zhikangyun-local
-export AI_API_BASE=http://localhost:8000/v1
 ```
 
 > 该模型权重不纳入 Git（见根目录 `.gitignore`），通过模型卡公开发布平台获取。
@@ -228,9 +228,9 @@ User=root
 WorkingDirectory=/opt/zhikangyun/backend
 # 密钥通过 Environment 注入，勿写入 jar 或配置文件
 Environment=JWT_SECRET=__REPLACE_ME_64CHAR_RANDOM__
-Environment=DB_PASSWORD=your_password
+Environment=DB_PASS=your_password
 Environment=CRM_API_KEY=__REPLACE_ME__
-Environment=AI_API_KEY=__REPLACE_ME__
+Environment=AI_CHAT_API_KEY=__REPLACE_ME__
 Environment=AI_PROVIDER=deepseek
 ExecStart=/usr/bin/java -jar target/personal-health-api.jar
 SuccessExitStatus=143
@@ -314,6 +314,8 @@ echo '/swapfile none swap sw 0 0' >> /etc/fstab
 ```
 
 ## 8. 备份策略
+
+> 推荐直接使用仓库自带的自动备份脚本 `deploy/backup/backup.sh`（MySQL dump + `backend_data` 卷打包 + 7 天清理，cron 每日 03:07，见 `docs/CI与部署配置说明.md` §6）；以下为裸机手工备份的最小实现。
 
 ### 8.1 数据库备份
 ```bash

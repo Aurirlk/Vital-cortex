@@ -49,7 +49,7 @@
 | 组件 | 位置 | 说明 |
 |------|------|------|
 | `LocalVectorStoreImpl` | `crm/vectordb` | 本地文件向量库、余弦相似度、读写锁、compact 截断修复 |
-| `EmbeddingService` | `crm/vectordb` | LRU 缓存 + 批量顺序；配置 `EMBEDDING_API_URL`（必填）、`EMBEDDING_MODEL`（默认 text-embedding-3-small） |
+| `EmbeddingService` | `crm/vectordb` | LRU 缓存 + 批量顺序；配置 `EMBEDDING_API_URL`（必填）、`EMBEDDING_MODEL`（默认 text-embedding-3-small；**本项目生产部署为硅基流动 bge-m3**，见根 README 配置说明） |
 
 ---
 

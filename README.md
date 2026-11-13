@@ -22,9 +22,9 @@
 | 能力 | 说明 |
 | --- | --- |
 | **Multi-Agent 健康问诊** | 医生/营养师/药师等角色协调器 + ReAct Agent（OpenAI function calling），工具轨迹落库，可观测可回放 |
-| **双路 RAG 检索** | 向量语义（bge-m3）× Neo4j 知识图谱双路召回 + RRF 融合，回答带 `[ID]` 引用溯源 + RAGAS 评测 |
+| **双路 RAG 检索** | 向量语义（部署 bge-m3）× MySQL LIKE 关键词双路召回 + RRF 融合，知识图谱（GraphRAG）独立上下文并行注入，回答带 `[ID]` 引用溯源 + RAGAS 口径评测 |
 | **三层防幻觉** | `SynthesisGuard` 质量门（端水/重复检测）+ `OutputValidator` 合规门（剂量敏感/免责声明）+ `SignalDetector` 安全门（紧急就医提示） |
-| **多模态交互** | 图片进上下文（VIP 512K / 普通 128K 分级窗口 + 预算管理）；语音 ASR/TTS Provider 化（设计就绪） |
+| **多模态交互** | 图片进上下文（VIP 512K / 普通 128K 分级窗口 + 预算管理）；语音 ASR/TTS **已落地**（Whisper / FunASR(DashScope Paraformer) / EdgeTTS 三 Provider 化，管理端热切换，浏览器 Web Speech 兜底） |
 | **企业级安全** | 会话版本号（锁定/登出/改密即旧 Token 失效）、JWT 外部注入、fail-closed 接口、SqlGuard 防注入、Sentinel 限流熔断 |
 | **全链路可观测** | MDC traceId/userId 日志关联 + Prometheus/Grafana 指标看板 + Loki 日志聚合 + Alertmanager 告警 |
 | **多厂商 AI 接入** | DeepSeek/通义/Kimi/GLM/豆包/MiniMax 等 12 家，Provider 工厂 + 熔断 + 自动重试，管理员界面热切换 |
@@ -70,7 +70,7 @@
 | **数据资产与 AI 能力整改方案** | `docs/数据资产与AI能力整改方案.md` | 能力建设与缺陷整改记录；**附录 §B** 承接原《缺陷与改进路线图》的待排期清单（S/F/E/A 编号） |
 | **RAG 检索增强** | `docs/RAG子系统.md` | **v5.1 新增** ingestion 管线 / 混合检索 / RAGAS |
 | **安全加固设计** | `docs/安全加固设计.md` | **v5.1 新增** JWT / CRM Key / SqlGuard / XSS / 脱敏 |
-| **多模态能力设计** | `docs/多模态设计.md` | **v5.2 新增** 图片进上下文 + 语音 ASR/TTS Provider 化详细设计 |
+| **多模态能力设计** | `docs/多模态设计.md` | **v5.2 设计** 图片进上下文 + 语音 ASR/TTS；语音**已落地**（文档头部附「落地与设计差异」订正） |
 | **通知系统** | `docs/通知系统.md` | **2026-10-10 新增** 用户通知开关接线、9 个触发点、去重键、就诊前一天定时任务 |
 | 后端开发 | `docs/后端开发.md` | 接口设计、核心代码、架构说明 |
 | 前端开发 | `docs/前端开发.md` | 页面设计、组件说明、路由设计 |
@@ -80,6 +80,8 @@
 | 测试报告 | `docs/测试报告.md` | 测试环境、用例清单、回归范围（用例数按时点分别记录，**合并后总数以本文档为准**） |
 | Linux 部署 | `docs/Linux部署.md` | 环境搭建、部署命令、常见问题 |
 | 开发指南 | `docs/开发指南.md` | 编码规范与防坑指南 |
+| 技术问答 | `docs/技术问答.md` | 开发过程中的技术决策问答（含 GraphRAG/评测/升级要点） |
+| CI 与部署配置说明 | `docs/CI与部署配置说明.md` | **2026-11-09 阶段 10 新增**：CI 工作流、密钥管理、告警外发与备份脚本 |
 | ~~用户交付手册~~ | `DELIVERY.md`（已删除） | 2026-10-11 起「部署指南 / 配置说明 / 使用指南 / 故障排查」4 章并入本 README，其余章节与 README 重复故丢弃 |
 
 > 本表**不再列出** `docs/项目状态.md` 与 `docs/缺陷与改进路线图.md`：两份旧文档已于 2026-10-07 的文档重构中删除，
@@ -181,15 +183,17 @@
 
 - **AI 健康分析** — 6 种 AI 角色（健康助手、全科医生、营养师、心理咨询师、报告分析师、全能助手），支持 Markdown 渲染、联网搜索、深度思考、知识库 RAG、健康数据读取
 
-- **网站小助手** — 独立对话页面，内置意图识别（病情查询/医生推荐/药品介绍/健康知识），自动分流
+- **网站小助手** — 独立对话页面 + 全局悬浮面板双形态，LLM 意图分类 6 类（健康指标查询/医学关系查询/药品咨询/健康科普/数据分析请求/闲聊），软路由引导分流
 
-- **药品订阅** — 浏览药品信息（价格、说明、分类），订阅关注的药品
+- **健康商城** — 药品/商品浏览与下单（`mall_product` / `mall_order`），药品信息经商城按类型浏览；早期「药品订阅」UI 已下线（后端 `/drug/subscribe*` 端点保留）
 
 - **健康报告** — 一键生成 PDF 健康报告，包含图表和 AI 建议
 
 - **深色模式** — 支持深色/浅色主题切换
 
 - **消息中心** — 系统通知与提醒
+
+- **更多业务页** — 预约挂号、健康测评、随访管理、个人中心、设置（完整页面清单见 [`docs/功能文档.md`](docs/功能文档.md)）
 
 ### 管理后台
 
@@ -205,8 +209,9 @@
 
 - **联网搜索配置** — 独立配置搜索引擎（博查AI、Tavily、DuckDuckGo等）
 
-- **资讯管理** — 健康文章 CRUD（富文本编辑器），支持轮播图和置顶
-
+- **数据智能体管理** — 受控 NL2SQL 能力开关、预设问题与指标字典维护
+- **智能体平台管理** — 智能体配置与工具白名单
+- **知识库管理** — RAG 知识库条目与受众管理
 - **药品管理** — 药品信息 CRUD，支持 JSON 批量导入
 
 - **健康数据管理** — 查看和管理用户健康记录，支持 JSON 导入导出
@@ -215,14 +220,21 @@
 
 ### AI 工具增强
 
-| 工具                 | 数据来源                            | 说明              |
+> 11 个工具由类路径扫描自动注册（`ToolRegistry`），与 `system.txt` 的一致性由测试锁死；各智能体按白名单子集启用（默认 6~8 个）。
+
+| 工具                     | 数据来源                            | 说明              |
 | ------------------ | ------------------------------- | --------------- |
 | `search_drug`      | `ai_data/drugs.json`            | 药品搜索，返回名称/价格/厂商 |
 | `get_health_data`  | MySQL `user_health` 表（按指标字典白名单查询，LLM 不产 SQL） | 用户健康指标查询 |
+| `query_health_records` | MySQL（12 指标枚举白名单）          | 结构化健康记录查询       |
+| `query_health_data`    | MySQL 只读源（NL2SQL）           | 统计/趋势/对比型数据分析   |
 | `search_knowledge` | 向量数据库 + MySQL                   | 知识库语义检索         |
+| `search_knowledge_base` | RAG 知识库（受众过滤）              | 知识库条目检索         |
+| `query_knowledge_graph` | Neo4j 知识图谱                 | 医学实体关系查询（limit≤50 / depth≤2 / 2s 超时） |
 | `web_search`       | 博查/Tavily/DuckDuckGo            | 联网搜索最新信息        |
 | `get_chat_history` | SQLite                          | 查询聊天历史          |
 | `execute_sql`      | SQLite                          | 只读 SQL 查询       |
+| `call_agent`       | 智能体注册表                          | 子智能体编排调用        |
 
 ---
 
@@ -239,14 +251,16 @@
 
 5. SQL 查询执行（execute_sql 工具）
 
-内置意图识别引擎，根据用户输入自动分流：
+意图由 LLM 分类（`ai-prompts/intent-classification.txt`，6 标签），`IntentRouter` 把意图倾向作为软引导追加进 system prompt（不强转工具）：
 
-| 用户输入        | 识别意图 | 处理方式         |
+| 用户输入示例 | 识别意图 | 处理方式 |
 | ----------- | ---- | ------------ |
-| "我发烧咳嗽怎么办？" | 病情查询 | 联网搜索         |
-| "推荐合适的医生"   | 医生推荐 | 关键词匹配 → 快捷跳转 |
-| "布洛芬价格多少"   | 药品介绍 | 调用药品数据库      |
-| "高血压怎么调理"   | 健康知识 | AI + 知识库 RAG |
+| "最近血压怎么样"   | 健康指标查询 | `query_health_records` |
+| "最近 30 天血压趋势" | 数据分析请求 | `query_health_data`（NL2SQL） |
+| "布洛芬和阿司匹林能一起吃吗" | 医学关系查询 | `query_knowledge_graph` |
+| "布洛芬价格多少"   | 药品咨询 | `search_drug` |
+| "高血压怎么调理"   | 健康科普 | AI + 知识库 RAG |
+| 其他（闲聊/无法归类） | 闲聊或无关指令 | 常规对话 |
 
 - **ReAct Agent** — 工具增强推理，支持 5 轮自主决策
 
@@ -369,14 +383,17 @@
 ![双路 RAG 检索与知识图谱](docs/assets/03-rag-knowledge-graph.png)
 
 ```
-用户提问 → 向量语义召回（bge-m3）+ Neo4j 图谱召回（实体关系）+ MySQL LIKE 召回
+用户提问 → 向量语义召回（部署 bge-m3）+ MySQL LIKE 关键词召回
                     ↓
               RRF 融合排序 → Top-K 上下文
                     ↓
-      注入 AI 上下文（文章引用溯源 + 图谱实体关系）→ 基于知识生成回答
+      注入 AI 上下文（文章引用溯源）→ 基于知识生成回答
+      ────────────────────────────────────
+      并行：Neo4j 图谱检索（实体关系）→ 以「知识图谱参考（GraphRAG）」
+      独立上下文块注入（不参与 RRF 融合）
 ```
 
-> 图谱路未配置/未启动 Neo4j 时自动降级为纯向量 + LIKE，不抛错（`GraphRAG.isConnected()` 兜底）。
+> 图谱未配置/未启动 Neo4j 时自动降级为纯向量 + LIKE，不抛错（`GraphRAG.isConnected()` 兜底）。
 
 ---
 
@@ -385,7 +402,7 @@
 ```
 对话历史 → MySQL（主存储）+ chat_history/{userId}/conversation_{id}.json（本地副本）
 AI调用数据 → MySQL → 导出JSON → AI工具读取
-AI配置 → MySQL（明文存储，管理员后台管理）
+AI配置 → MySQL（敏感 key 经 AES-256-GCM 加密存储，管理员后台管理）
 语音对话历史 → chat_cache/history_speak/{年}/{月}/{日}/（Web Speech 降级路径）
 ```
 
@@ -512,7 +529,7 @@ AI配置 → MySQL（明文存储，管理员后台管理）
 
 ### 效果与双轨制
 
-- **优势**：安全性、医学准确性比云端最新国产模型**高约 10%**（领域知识更聚焦）
+- **优势**：安全性、医学准确性相对通用基线**高约 10%**（领域知识更聚焦；自评口径，评测明细见 `ai_model/`）
 - **短板**（如实记录）：完整性、清晰度**低 10%-20%**（基座较老）；华佗数据为 3 年前，**前沿医学问题弱于最新模型**
 - **双轨制**：用户咨询时可自主选择「平台大模型（表达好/知识新，如 DeepSeek）」或「微调模型（医学严谨/安全性高）」，各取所长
 
@@ -552,7 +569,7 @@ AI配置 → MySQL（明文存储，管理员后台管理）
 | --- | --- |
 | Spring Boot 2 → 3 升级，javax→jakarta 全量迁移、隐藏坑多 | OpenRewrite 自动化迁移；修复 `spring.data.redis` 前缀、SQLite + HikariCP 6 `setReadOnly` 冲突（移除 JDBC 只读标志） |
 | 通用模型医学不严谨、安全性不足 | 华佗数据 PySpark 清洗 + Dify + GPT-4o-mini 多维打分（≥6.0 保留 90%-95%）；LoRA 微调 Qwen2.5-7B，5 维 NLU 评测，医学准确性/安全性提升约 10% |
-| RAG 回答"凭感觉"、无出处、易幻觉 | 向量 × 图谱 × 关键词三路召回 + RRF 融合 + `[ID]` 引用溯源 + SynthesisGuard 三层防幻觉门 + RAGAS 真实评测 |
+| RAG 回答"凭感觉"、无出处、易幻觉 | 向量 × 关键词双路 RRF 融合 + 图谱上下文并行注入 + `[ID]` 引用溯源 + SynthesisGuard 三层防幻觉门 + RAGAS 口径真实评测（词面覆盖启发式，LLM-as-judge 待接入） |
 | 个人项目资源有限，本地训不动 7B | 华为云 A800 租借单卡训练；LoRA 低秩适配（rank=8）显存/成本低一个量级；权重双平台发布（魔搭 + HF） |
 | 12 家厂商 API 形态各异，切换成本高 | LLM Provider 工厂 + 轻量熔断器（429/5xx 重试与快速失败），管理员后台热切换 |
 | 健康数据出境与注入风险 | PII 脱敏（剔除姓名/手机号）+ DOMPurify XSS 净化 + SqlGuard 只读 SQL 守卫 + 租户隔离 |
@@ -569,10 +586,10 @@ AI配置 → MySQL（明文存储，管理员后台管理）
 
 - JDK 17（构建/运行目标，pom `source/target=17`）
 - Maven 3.6+
-- Node.js 18+（本项目在 Node 22 上验证）
+- Node.js 20.19+（`npm run build` 要求；CI 用 Node 20，本项目也在 Node 22 上验证）
 - MySQL 8.x（主库，HikariCP 连接池；本项目在 MySQL 9.7 验证）
 - Redis 6+（缓存 + 会话版本号，必需）
-- Neo4j（可选，GraphRAG 双路召回；未启动时自动降级为纯向量检索）
+- Neo4j（可选，图谱上下文注入；未启动时自动降级为纯向量检索）
 - Docker（可选，一键起监控告警栈：Prometheus/Grafana/Loki/Alertmanager，见本文档「部署指南 · 监控、告警与日志」）
 
 ### 1. 数据库初始化
@@ -667,21 +684,21 @@ npm run dev
 前置：Docker + Docker Compose；准备 `.env` 文件（见「配置说明」）。
 
 ```bash
-# 1. 准备环境变量（务必设置，缺任一密钥服务会拒绝启动）
+# 1. 准备环境变量（务必设置；JWT_SECRET / CRM_API_KEY / EMBEDDING_API_URL 缺失后端拒绝启动）
 cat > .env << 'EOF'
 DB_ROOT_PASSWORD=你的MySQL密码
 JWT_SECRET=至少32字节随机字符串（openssl rand -base64 48）
 CRM_API_KEY=至少24字符随机字符串（openssl rand -hex 32）
-EMBEDDING_API_URL=嵌入服务地址（可选，RAG 向量检索用）
-AI_API_KEY=DeepSeek等厂商密钥
+EMBEDDING_API_URL=嵌入服务地址（RAG 向量检索用，缺失后端拒绝启动）
+AI_CHAT_API_KEY=DeepSeek等厂商密钥
 GRAFANA_ADMIN_PASSWORD=Grafana管理员密码（≥8位强密码，监控看板登录用）
 EOF
 
 # 2. 启动
 docker compose up -d --build
 
-# 3. 验证（存活探测）
-curl http://localhost:21090/api/personal-health/v1.0/user/login
+# 3. 验证（存活探测；/user/login 是 POST 接口，GET 探测恒 405，不要用它）
+curl -f http://localhost:21090/api/personal-health/v1.0/actuator/health
 ```
 
 ### 2. 裸机部署
@@ -702,7 +719,7 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 
 - **镜像/进程以非 root 运行**（后端镜像已内置 appuser）
 - **数据卷持久化**：`backend_data`（上传文件）、`mysql_data`、`redis_data`、`grafana_data` / `loki_data`（监控数据）
-- **备份清单**：MySQL 全库（`mysqldump`，或用 Navicat 生成 `.nbak`）；恢复与全新部署脚本见 [`Data/README.md`](Data/README.md)
+- **备份清单**：MySQL 全库（`mysqldump`，或用 Navicat 生成 `.nbak`）+ 上传文件卷；自动备份脚本 `deploy/backup/backup.sh`（每日 03:07 cron，MySQL dump + `backend_data` 卷打包 + 7 天清理）；恢复与全新部署脚本见 [`Data/README.md`](Data/README.md)
 - **前端端口**：生产由 Nginx 托管（80），开发环境 Vite 跑在 **21091**，反向代理需把 `/api` 转发到后端 21090、WebSocket `/ws` 转发到前端
 
 ### 4. 监控、告警与日志采集（随 compose 默认启用）
@@ -716,14 +733,14 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 
 - **指标看板**：Grafana 已预置数据源（Prometheus/Loki）与「Spring Boot 应用概览（智康云）」看板（JVM 堆 / CPU / HTTP QPS / 5xx / 线程 / 启动时长），打开即用。
 - **告警规则**（`deploy/prometheus-alerts.yml`，5 条）：后端实例离线（critical）、HTTP 5xx 速率过高、进程 CPU >85%、JVM 堆 >85%、监控目标离线。触发后在 Prometheus「Alerts」页可见，并推送 Alertmanager。
-- **告警外发（上线前必改）**：编辑 `deploy/alertmanager.yml`，把 `url` 换成企业微信 / 钉钉 / 飞书机器人 Webhook，然后 `docker compose restart alertmanager`。**未替换前告警只在 Alertmanager 页面停留，不会外发**。
+- **告警外发（上线前必改）**：在 `.env` 填 `ALERT_WEBHOOK_URL`（企业微信 / 钉钉 / 飞书机器人 Webhook）→ 执行 `./deploy/gen-alertmanager.sh`（从模板 `deploy/alertmanager.yml.tpl` 生成）→ `docker compose restart alertmanager`。**不要手动编辑生成物 `alertmanager.yml`**；未配置前告警只在 Alertmanager 页面停留，不会外发。
 - **日志查询**：Grafana → 左侧 Explore → 数据源选 Loki，按 `service="backend"` 过滤；日志带 `traceId` / `userId`，可与错误响应中的「追踪ID」关联排查。
 - **关闭监控栈**：删除 `docker-compose.yml` 中 grafana / alertmanager / loki / promtail 四个服务块及其数据卷声明即可（不影响业务）。
 
 ### 5. 测试
 
 ```bash
-# 后端：javac + 自写 RunAll（本项目不用 mvn 跑测试，见 docs/开发指南.md）
+# 后端：mvn verify（surefire 跑单测，failsafe 跑 @SpringBootTest 集成用例，见 docs/测试报告.md §2.1）
 #   当前规模：1060 个单测用例 + 4 个集成用例，全量通过（2026-11-09 阶段 9 实测 mvn -o -B verify）
 
 # 前端：静态自检（模板标签栈式配平 + <script> 交 node --check）
@@ -751,7 +768,7 @@ python 前端/personal-heath-view/selfcheck.py
 | 配置项 | 环境变量 / 键 | 默认值 |
 |--------|-------------|--------|
 | AI 厂商 | `AI_PROVIDER` | deepseek（可选 `zhikangyun-local` 切本地 vLLM 微调模型，地址 `http://localhost:8000/v1`） |
-| AI 密钥 | `AI_API_KEY` | 空（也可在管理员后台配置，持久化到 MySQL） |
+| AI 密钥 | `AI_CHAT_API_KEY` | 空（也可在管理员后台配置，持久化到 MySQL；`AI_API_KEY` 为兼容别名，compose 已做映射） |
 | 文件存储根 | `FILE_STORAGE_ROOT` | `/app/data`（容器） |
 | 对外文件 URL | `my-server.public-base-url` | localhost（**生产必须改为域名**） |
 | 嵌入模型 | `EMBEDDING_MODEL` | text-embedding-3-small（本项目用 bge-m3） |
@@ -799,7 +816,7 @@ python 前端/personal-heath-view/selfcheck.py
 ### 5. 语音
 
 - **输入**：输入框右侧麦克风按钮，按住说话松开识别（Chrome / Edge；Safari / Firefox 提示降级）
-- **朗读**：AI 回答支持语音朗读（浏览器内置 Web Speech API，不占用服务器资源）
+- **朗读**：AI 回答支持语音朗读（默认走服务端 `/voice/tts`，EdgeTTS 合成 mp3，音质优于浏览器原生；服务端未配置或失败时降级浏览器 Web Speech API）
 
 ---
 
@@ -813,7 +830,7 @@ python 前端/personal-heath-view/selfcheck.py
 | AI 无响应 | 检查 `ai_config` 表 API Key 与上游厂商余额；后端日志 `logs/error.log` |
 | 图片/文件上传失败 | 检查登录态、文件类型（扩展名 + 内容须一致）、存储目录可写 |
 | 上传文件 404 | 容器重启后存储卷未挂载（检查 `FILE_STORAGE_ROOT` 指向持久卷） |
-| 语音按钮无反应 | 浏览器须为 Chrome / Edge，且页面须为 HTTPS 或 localhost |
+| 语音按钮无反应 | 浏览器须为 Chrome / Edge，且页面须为 HTTPS 或 localhost（`getUserMedia` 限制）；服务端识别/合成配置在管理端「系统配置 → 语音」，排查 `/voice/config` 返回值 |
 | 药品搜索无结果 | 检查 `ai_data/drugs.json` 是否存在且有数据，或调用 `POST /data-export/drugs` 重新导出 |
 | 页面空白 | 后端是否启动（21090）；前端 API 地址是否正确（`utils/request.js`）；浏览器控制台报错 |
 | `Port 21090 in use` | 残留 java 进程，`netstat -ano \| grep :21090` 后 taskkill |
@@ -969,7 +986,7 @@ python 前端/personal-heath-view/selfcheck.py
 | ------------ | ------------ | --------------------- |
 | id           | INT, 主键      | 配置ID                  |
 | config_key   | VARCHAR(100) | 配置键（如 api_key, model） |
-| config_value | TEXT         | 配置值（API Key 明文存储，生产建议信封加密） |
+| config_value | TEXT         | 配置值（敏感 key 经 AES-256-GCM 加密存储；缺省密钥回落内置默认并告警，生产须设 `AES_SECRET_KEY`） |
 | description  | VARCHAR(255) | 配置描述                  |
 | create_time / update_time | DATETIME | 创建 / 更新时间      |
 
@@ -1203,9 +1220,9 @@ VitalCortex/
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        前端 (Vue 3)                         │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │ 用户端   │  │ 管理端   │  │ 商家端   │  │ 医生端   │  │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
+│  │ 用户端   │  │ 管理端   │  │ 医生端   │                 │
+│  └──────────┘  └──────────┘  └──────────┘                 │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -1247,9 +1264,9 @@ VitalCortex/
 
 ## 编译状态
 
-- 后端编译：**BUILD SUCCESS**（Spring Boot 3.5.16 + Java 17，**467 个 Java 源文件**；`javac -encoding UTF-8` 零 error）
+- 后端编译：**BUILD SUCCESS**（Spring Boot 3.5.16 + Java 17，**483 个 Java 源文件**（2026-11-12 实测）；`javac -encoding UTF-8` 零 error）
 - 后端测试：**1060 个单测用例 + 4 个真实启动集成用例全部通过**（2026-11-09 阶段 9 实测 `mvn -o -B verify`；CI 全绿）
-- 前端：**76 个 `.vue` + 18 个 `.js`**，`npm run build` exit 0（2026-10-20 实测，约 40s）
+- 前端：**79 个 `.vue` + 19 个 `.js`**（2026-11-12 实测），`npm run build` exit 0（2026-10-20 实测约 40s）
 - 无编码损坏
 
 ---
@@ -1289,12 +1306,13 @@ VitalCortex/
 | **Spring Boot 3 迁移** | ✅ 已完成（v5.3：3.5.16 + Java 17，OpenRewrite javax→jakarta 全量）；遗留迁移瑕疵已修复（`spring.data.redis` 前缀、`logging.file.path`、SQLite + HikariCP 兼容） | — |
 | **等保三级测评** | 未开展 | 需授权测评机构；系统涉及敏感健康信息，**商用前必须完成** |
 | **渗透测试** | 未开展 | 建议上线前由第三方执行（OWASP Top10 + 越权专项） |
-| **API Key 存储** | 环境变量注入；管理端配置项数据库内明文 | 改造为 KMS / 信封加密 |
+| **性能压测** | 未开展（**2026-11-12 确认**：项目仅本地开发验证，未部署过生产服务器，无 p99/QPS 数据，压测报告从未产出） | 上线前用 JMeter/Gatling 跑一轮常规接口 + AI 链路（含 Sentinel 限流/熔断表现），报告落 `docs/` |
+| **API Key 存储** | ✅ 已 AES-256-GCM 加密入库（`AESUtils` + `AiConfigPersistenceService`，wiring 有测试锁死）；环境变量注入 | 增强：KMS / 信封加密（缺省密钥回落内置默认，生产必须设 `AES_SECRET_KEY`） |
 | **God Class 拆分** | `AiServiceImpl` 职责过载 | 已抽离 Provider 层；后续按「会话/检索/评测/用量」拆 4 服务 |
-| **意图识别** | 词表已外部化，仍为关键词匹配 | 升级路径：embedding 分类或 LLM router（词表可先用） |
-| **服务端 ASR / TTS** | 未实现（语音走浏览器原生 Web Speech API）；Provider 化设计已定稿 | 医疗级识别 / 电话通道需接入服务端，见 `docs/多模态设计.md` |
+| **意图识别** | ✅ 已升级 LLM 分类（`intent-classification.txt` 6 标签）+ `IntentRouter` 软路由引导 | 可选增强：专项微调分类器 / 置信度兜底策略 |
+| **服务端 ASR / TTS** | ✅ 已落地（`/voice/asr` `/voice/tts`；Whisper / FunASR(DashScope) / EdgeTTS 三 Provider，`config/voice-config.json` + 管理端热切换；浏览器 Web Speech 兜底） | 医疗级识别 / 电话通道接入；语音模块暂未纳入单测 |
 | **向量库容量** | 本地文件实现，全量扫描 | 数据量 >10 万块时迁移 pgvector / Milvus + HNSW |
-| **知识图谱** | 已构建图谱数据（248 节点 / 485 边）并接入双路召回；Neo4j 长停时自动降级为本地三元组库 | 继续扩充疾病-症状-药物三元组覆盖 |
+| **知识图谱** | 已构建图谱数据（248 节点 / 485 边）并以独立上下文块接入主链路（不参与 RRF 融合）；Neo4j 长停时自动降级为本地三元组库 | 继续扩充疾病-症状-药物三元组覆盖 |
 
 ---
 
