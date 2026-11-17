@@ -1,11 +1,27 @@
 # VitalCortex — AI-Native 个人健康智能体平台
 
 > 从 0 到 1 落地的 AI 应用工程实践：Multi-Agent 健康问诊 × 双路 RAG 检索 × 多模态交互 × 企业级安全加固。
-> 让健康数据会说话，让 AI 医生常在身边。
+> 让健康数据会说话。**本平台是健康信息与分诊辅助工具，不提供诊断，也不保证 AI 判断正确**——能力边界见下一节。
 
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.16-brightgreen) ![Java](https://img.shields.io/badge/Java-17-orange) ![Vue](https://img.shields.io/badge/Vue-3-42b883) ![Docker](https://img.shields.io/badge/Docker-compose-2496ed) ![License](https://img.shields.io/badge/License-MIT-blue)
 
-基于 **Spring Boot 3.5 + Java 17 + Vue 3** 构建的 AI 健康平台：AI 智能问诊、**受控 NL2SQL 数据智能体**（自然语言查自己的数据 → 出报告）、知识库双路 RAG 检索、健康数据追踪、体检报告解读、预约挂号、健康商城与社区。支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理，并由覆盖 **1060 个单测用例 + 4 个真实启动集成用例**的测试套件守住回归（2026-11-09 阶段 9 `mvn -o -B verify` 实测，CI 全绿）。
+基于 **Spring Boot 3.5 + Java 17 + Vue 3** 构建的 AI 健康平台：AI 智能问诊、**受控 NL2SQL 数据智能体**（自然语言查自己的数据 → 出报告）、知识库双路 RAG 检索、健康数据追踪、体检报告解读、预约挂号、健康商城与社区。支持 12 个国内 AI 厂商，通过 ReAct Agent 实现工具增强推理。**当前实测基线见「当前基线与最近里程碑」，能力边界见上一节。**
+
+## 先读这一段：产品定位与能力边界
+
+> 这一节写的是**系统做不到什么**。README 其余章节描述实现，读之前先看这里，避免把「有这个模块」误解成「有这个能力保证」。
+
+| 容易被误读的宣称 | 代码里的真实情况 |
+|---|---|
+| 「三层防幻觉门」 | `SynthesisGuard` 查重复句/端水话术，`OutputValidator` 命中剂量或「诊断/处方」等词就追加免责提示，`SignalDetector` 用 6 个关键词检测**用户输入**并提示紧急就医。三者都**不做事实校验、不校验引用、不算置信度、不拦截回答**，与诊断正确性无关 |
+| 「回答带 `[ID]` 引用溯源，可验证」 | `AiServiceImpl` 只在提示词里**文字要求**模型标注 `[ID:x]`，代码不解析、不校验引用是否真实存在、不校验内容是否支持结论。模型可以编造引用 |
+| 「真实 RAGAS 评测」 | `RAGEvaluationServiceImpl` 是**词面覆盖启发式**打分（非 LLM-as-judge，类注释自己注明待接入）；`RagRetrievalEvalService` 的召回/精确@K/MRR/nDCG 才是基于金标的检索评测 |
+| 「AI 医生 / 医学准确性提升约 10%」 | 微调模型确有训练与部署链路，但 `ai_model/scripts/eval_summary.txt` 只有 **18 题（9 题各重复两遍）、无基座对照的自评**，综合 6.22/10；报告自述「幻觉控制和鉴别诊断方面仍有提升空间」，胸痛+呼吸困难题漏掉心梗/肺栓塞，另有一题凭空编造药名。**「+10%」没有对照实验支撑，已从全仓文档撤下** |
+| 「AI 判断用户有没有得病」 | **做不到，也不承诺**。无查体/检验/影像、无临床标注验证集、无红旗症状硬规则、无低置信拒答、无医生复核闭环；知识库只是软约束，且全局悬浮助手的症状自查与药品查询两个入口默认 `enableKnowledgeBase: false` |
+
+**结论**：本平台定位为健康信息检索、健康数据管理与分诊建议辅助，**不能保证「不把有病判成没病」**。涉及急症、持续症状或用药决策，必须线下就医。对应能力（答案级金标与假阴性评测集、引用强校验、红旗症状硬规则、低置信拒答、医生复核）**尚未排期实现**，见「改进目标与当前排期」。
+
+---
 
 ## 项目解决什么问题
 
@@ -13,8 +29,8 @@
 
 | 痛点 | 本项目的答案 |
 | --- | --- |
-| 网上健康信息鱼龙混杂、真假难辨 | 双路 RAG 知识检索（向量 × 知识图谱 × 关键词），回答**带 `[ID]` 引用溯源**，可验证、可追溯 |
-| 通用大模型医学不严谨，可能给出不负责任的用药建议 | 三层防幻觉门 + **自研微调医疗模型**（华佗 9k+ 数据 SFT + LoRA，医学准确性与安全性提升约 10%），云端/微调双轨制各取所长 |
+| 网上健康信息鱼龙混杂、真假难辨 | 双路 RAG 知识检索（向量 × 关键词 RRF，图谱独立注入）+ 金标检索评测；引用标注由提示词要求、**未经代码强校验**（见「能力边界」） |
+| 通用大模型医学不严谨，可能给出不负责任的用药建议 | 输出侧追加免责/遵医嘱提示 + 可选本地微调模型双轨切换；**这些是护栏与选项，不是准确性保证**（见「能力边界」） |
 | 个人健康数据零散、无结构，AI 无法利用 | 结构化健康模型 + JSON 导入导出 + 健康报告 PDF，AI 可读取真实数据做个性化分析 |
 
 ## 核心能力
@@ -22,8 +38,8 @@
 | 能力 | 说明 |
 | --- | --- |
 | **Multi-Agent 健康问诊** | 医生/营养师/药师等角色协调器 + ReAct Agent（OpenAI function calling），工具轨迹落库，可观测可回放 |
-| **双路 RAG 检索** | 向量语义（部署 bge-m3）× MySQL LIKE 关键词双路召回 + RRF 融合，知识图谱（GraphRAG）独立上下文并行注入，回答带 `[ID]` 引用溯源 + RAGAS 口径评测 |
-| **三层防幻觉** | `SynthesisGuard` 质量门（端水/重复检测）+ `OutputValidator` 合规门（剂量敏感/免责声明）+ `SignalDetector` 安全门（紧急就医提示） |
+| **双路 RAG 检索** | 向量语义（部署 bge-m3）× MySQL LIKE 关键词双路召回 + RRF 融合，知识图谱（GraphRAG）独立上下文并行注入；引用标注依赖提示词（无强校验），检索侧有金标评测 |
+| **输出侧合规护栏**（非事实校验） | `SynthesisGuard` 查重复/端水、`OutputValidator` 追加免责与遵医嘱提示、`SignalDetector` 检用户输入关键词提示紧急就医；**不校验事实、不拦截回答** |
 | **多模态交互** | 图片进上下文（VIP 512K / 普通 128K 分级窗口 + 预算管理）；语音 ASR/TTS **已落地**（Whisper / FunASR(DashScope Paraformer) / EdgeTTS 三 Provider 化，管理端热切换，浏览器 Web Speech 兜底） |
 | **企业级安全** | 会话版本号（锁定/登出/改密即旧 Token 失效）、JWT 外部注入、fail-closed 接口、SqlGuard 防注入、Sentinel 限流熔断 |
 | **全链路可观测** | MDC traceId/userId 日志关联 + Prometheus/Grafana 指标看板 + Loki 日志聚合 + Alertmanager 告警 |
@@ -42,7 +58,7 @@
 |---|---|---|
 | 前端 | Vue 3 + Vite（开发）/ Nginx 静态托管（生产） | 21091（dev）/ 80（Nginx） |
 | 后端 | Spring Boot 3.5.16 + Java 17（context-path `/api/personal-health/v1.0`） | 21090 |
-| MySQL | 业务主库（**2026-11-09 实测 47 表 / 567 字段 / 201 字符列**；本机实库与部署链终态已对齐） | 3306 |
+| MySQL | 业务主库（**2026-11-14 `information_schema` 实测 47 表 / 567 字段 / 201 字符列**，与部署链终态一致） | 3306 |
 | Redis | 缓存 + 会话版本号（登录/锁定/改密即失效） | 6379 |
 | Neo4j | 知识图谱（可选；未启动时检索自动降级为纯向量） | 7687 |
 | 本地微调模型 | vLLM 部署 `HealthPulse-Qwen2.5-7B`（可选） | 8000 |
@@ -63,12 +79,12 @@
 | ------------ | --------------------------------------- | -------------------------------------------- |
 | **文档索引与阅读指南** | `docs/文档索引与阅读指南.md` | **入口文档**：该读哪份、代码在哪、哪些内容已有更新 |
 | **功能文档** | `docs/功能文档.md` | **平台功能权威说明**：用户端/管理端/数据智能体/AI 智能体架构/RAG/知识图谱/通知系统，按模块描述用户侧行为 |
-| **项目现状基线** | `docs/项目现状基线.md` | 系统当前状态快照。**2026-11-09 实测**：47 表 / 567 字段 / 201 字符列，本机实库与部署链终态已对齐（口径说明见 `docs/文档索引与阅读指南.md` §二） |
+| **项目现状基线** | `docs/项目现状基线.md` | 系统当前状态快照。**2026-11-14 实测**：47 表 / 567 字段 / 201 字符列（口径说明见 `docs/文档索引与阅读指南.md` §二） |
 | **数据表结构基线** | `docs/数据表结构基线-20261003.md` | 逐表逐字段清单（`information_schema` 导出） |
 | **AI 智能体架构** | `docs/智能体架构.md` | **v5.1 新增** Multi-Agent / ReAct / Provider 工厂 / 熔断器 |
 | **数据智能体（功能说明）** | `docs/功能文档.md` §四 | 受控 NL2SQL 十步流水线 / 双守卫 / 三端接口 |
 | **数据资产与 AI 能力整改方案** | `docs/数据资产与AI能力整改方案.md` | 能力建设与缺陷整改记录；**附录 §B** 承接原《缺陷与改进路线图》的待排期清单（S/F/E/A 编号） |
-| **RAG 检索增强** | `docs/RAG子系统.md` | **v5.1 新增** ingestion 管线 / 混合检索 / RAGAS |
+| **RAG 检索增强** | `docs/RAG子系统.md` | **v5.1 新增** ingestion 管线 / 混合检索 / 金标检索评测与词面启发式答案评测 |
 | **安全加固设计** | `docs/安全加固设计.md` | **v5.1 新增** JWT / CRM Key / SqlGuard / XSS / 脱敏 |
 | **多模态能力设计** | `docs/多模态设计.md` | **v5.2 设计** 图片进上下文 + 语音 ASR/TTS；语音**已落地**（文档头部附「落地与设计差异」订正） |
 | **通知系统** | `docs/通知系统.md` | **2026-10-10 新增** 用户通知开关接线、9 个触发点、去重键、就诊前一天定时任务 |
@@ -77,7 +93,7 @@
 | 数据库设计 | `docs/数据库设计.md` | ER 图、建表 SQL、字段说明 |
 | 需求分析 | `docs/需求分析.md` | 功能需求、用例图、流程图 |
 | 架构调研与代码审查 | `docs/调研与代码审查报告-20261003.md` | 一次人工全量审查的结论与处置 |
-| 测试报告 | `docs/测试报告.md` | 测试环境、用例清单、回归范围（用例数按时点分别记录，**合并后总数以本文档为准**） |
+| 测试报告 | `docs/测试报告.md` | 测试环境、用例清单、回归范围（历史时点数字保留作追溯，**当前态以根 README 为准**） |
 | Linux 部署 | `docs/Linux部署.md` | 环境搭建、部署命令、常见问题 |
 | 开发指南 | `docs/开发指南.md` | 编码规范与防坑指南 |
 | 技术问答 | `docs/技术问答.md` | 开发过程中的技术决策问答（含 GraphRAG/评测/升级要点） |
@@ -90,63 +106,16 @@
 
 ---
 
-## 更新日志（Changelog）
+## 当前基线与最近里程碑
 
-> 平台级里程碑；单次缺陷修复与内部重构不在此列。测试以 Mockito 纯对象测试为主，
-> 2026-11-08 起另含 4 个 `@SpringBootTest` 集成用例（走 `mvn verify`），详见 [`docs/测试报告.md`](docs/测试报告.md)。
+> 已完成、不再排期的历史迭代与逐次测试数字流水账已移除；需要回溯查 `git log` 和 `docs/文档索引与阅读指南.md` §五 台账。本节只保留**仍影响当前使用**的状态。
 
-- **2026-11-08 · 文档与结构基线全面复核**
-  - 🔴 **修掉一起「基线虚标掩盖真缺陷」**：`数据表结构基线-20261003.md` 里的 14 个 `user` 设置列是
-    2026-10-10 **手工补录**的，本机实库从来没有；`UserMapper.xml` / `AppointmentMapper.xml` 却在引用 →
-    真实调用必抛 `Unknown column`，而 `MapperTableConsistencyTest` 读那份假基线一直误绿。
-    先修 `gen_schema_doc.py`（日期写死、字符集结论与实测相反、历史行数混作实况），备份 `user` 表后补跑
-    `08_user_settings_columns.sql`（14 → 28 列），再按实库重导出 **42 表 / 504 字段 / 176 字符列**。
-    **反向验证**：补列前测试精确报出 14 个悬空列（真红），补列后 `MapperTableConsistencyTest` 8 例全绿。
-  - 全仓「当前态」数字统一回写：918 例 / 93 类、零 `@SpringBootTest`、35 表 / 391 字段 →
-    **942 单测 / 96 类 + 4 `*IT`**（当时口径；阶段 8 后 1021、阶段 9 后 1060）、启动守护已落地、**本机实库 42 / 504 / 176**（部署链终态 47 / 561 / 196，均为 11-08 时点；阶段 1 与阶段 8 后已统一为 47 / 567 / 201）；
-    带日期的历史轨迹保留不动。
-  - 清理幽灵引用（3 处指向早已删除的 `AI工具使用记录.md`），订正 `bug.md` 里自相矛盾的两处表数台账。
-  - **删 2 份中间开发文件**：`项目调查报告-2026-10-12.md`（一次性快照、取证不完整）与
-    `实施计划-多Agent与UI深化-20261012.md`（阶段已跑完）；删前把实施计划的 5 条决策并入索引 §五 台账，
-    git 历史可回溯。`docs/` 现 19 份 + 根 README 1 份 = 20 份。
-  - 执行 plan 补「执行状态台账」，订正「AI 不跑 mvn」「基线 462/46」等 4 条过时约束。
-
-- **2026-11-08 · 测试基础设施补课：启动守护、顺序无关、CI 转绿**
-  - **补齐长期「零 `@SpringBootTest`」缺口**：新增 `PersonalHealthApplicationIT`（整个应用上下文真正启动）
-    与 `CoreBeanWiringIT`（MyBatis / 自定义 `Neo4jClient` / `RedisTemplate` 接线），共 4 例；
-    由 `pom.xml` 新增的 failsafe 插件在 `mvn verify` 执行，不拖慢 `mvn test`。
-  - **启动守护真正进 CI**：`ci.yml` 的测试步骤由 `mvn test` 改为 `mvn verify` —— 此前 `*IT` 被 surefire 排除，
-    启动守护在 CI 里**一行都没跑过**。实测上下文不依赖 MySQL/Redis/Neo4j（三者懒连接），CI 裸机可直接跑。
-  - **消除测试顺序依赖**：`LocalThreadHolder` 是进程级 ThreadLocal，多个测试类设置身份后不清场，
-    导致「全绿」取决于执行顺序（CI 上已实际翻车）。新增 `IdentityCleanupExtension` 在每个测试前后清场，
-    存量测试类零改动即受保护，并加 `IdentityCleanupGuardTest` 反向锁死。
-  - **修 `OutputValidator` 真 bug**：剂量检测原用 `matches(".*p.*")`，`.` 不匹配换行 →
-    多行 AI 回答里第二行起的剂量**全部漏检**，「遵医嘱」提示从未生效。改预编译 `Pattern` + `find()`，补 9 例测试。
-  - **敏感词「三头不一致」结案**：经实库/后端/前端逐一核查，该能力实为**从未实现**；
-    已订正 `Data/README.md`（原称"改由 `system_config` 存储"为不实）、`docs/技术问答.md`（原称"敏感词过滤"存在）等三处口径，
-    正式取消该功能，不建表不补接口。
-  - **前端 lint 44 errors 清零**（此前 CI 一直红在这）。
-  - **CI 首次全绿**（此前连续 10 次失败）：`mvn test`→`mvn verify` 让启动守护真正执行；
-    修 `application-prod.yml` / `application-example.yml` 的 **YAML 重复 `security:` 键**
-    （生产激活 prod 会直接拒绝启动）；镜像 tag 转小写（`github.repository` 含大写被 buildx 拒绝）；
-    未配置部署密钥时 `deploy` 显式告警跳过，不再把「部署未配置」伪装成代码失败。
-  - 全量 `mvn -o -B verify` = **单测 1085 例 / 118 类全绿 + 集成 4 例全绿**（2026-11-13 阶段 11 实测；0 失败 / 0 错误 / 0 跳过）。
-
-- **2026-10-20 · 六阶段深化收尾（多 Agent / RAG / 多端 / UI / 看板 / 补强）**
-  - 管理端首页改为 Bento 看板（12 列栅格：主模块 8×2 + 两个 4 列侧块 + 6 个指标块），数据全部来自真实接口并带骨架屏。
-  - 用户端与管理端顶栏接入通知铃（原来占位组件文案为空、点通知不跳转）；管理端补上通知入口。
-  - 数据智能体缺只读数据源时改为 **fail-closed**：拒绝执行并提示执行 `09_create_ai_ro_user.sql`，不再静默用主库账号跑模型生成的 SQL。
-  - 工具清单改为类路径扫描 `Tool` 实现（11 个），`system.txt` 与真实注册数由测试强制对齐。
-  - 清理零引用页面/组件与死代码（`MySqlText2SqlService`、`AgentWorkspace` 五组未使用能力、`permission.js` 等），孤儿页面 `AiDoctorManage` / `NavAssistant` 接入布局。
-  - 全量 `mvn -o -B test` = **859 用例 / 86 测试类全绿**（0 失败 / 0 错误 / 0 跳过）。
-- **2026-10-15 · DataAgent 开发完成 + claude 增强合并**
-  - 数据智能体（受控 NL2SQL）十步流水线正式落地：自然语言 → 真实 SQL → 真实数据 → Markdown 分析报告；三端接口（用户/医生/管理）+ SSE 实时步骤事件；双守卫（词法校验 + 租户重写）fail-closed。功能说明见 [`docs/功能文档.md`](docs/功能文档.md) §四。
-  - 合并 `origin/claude` 分支与 claude 增强：新增 **RAG 知识库子系统**（`crm/rag/`）与 **多智能体编排框架**（`core/agent/orchestrator|registry|run`、`Audience.java`）。
-  - 全量 `mvn -o -B test` = **858 用例 / 86 测试类全绿**（0 失败 / 0 错误 / 0 跳过）。
-  - 删除 DataAgent 开发过程文档（`DataAgent集成迁移方案.md`、`DataAgent资产清点报告.md`），功能说明并入 [`docs/功能文档.md`](docs/功能文档.md)。
-- **2026-10-12 · 双线合并**：并入 `origin/claude`（通知系统等）与 claude 增强，合并后实测 684 例 / 69 类全绿。
-- **2026-10-10 · 通知系统上线**：`core/notify/UserNotifier` 统一业务通知出口、9 个触发点、消息中心。
-- **2026-10-07 · 文档与现状基线重构**：整合 6 份过时文档；`项目现状基线.md` 顶部加「原问题 → 当前状态」对照表；`Data/` 部署脚本 10 处缺陷修复并实跑验证。
+- **当前基线（2026-11-14 实测）**：`mvn -o -B verify` = **1085 例单测 / 118 个测试类 + 4 个 `*IT` 真实启动集成用例全绿**（0 失败 / 0 错误 / 0 跳过）；本机实库 47 表 / 567 字段 / 201 字符列；后端 487 个 Java 文件、前端 79 个 `.vue` + 19 个 `.js`。🔴 门禁命令必须是 `mvn -o -B verify` —— `*IT` 被 surefire 排除、只由 failsafe 在 `verify` 执行，写 `mvn test` 等于启动守护一行没跑。
+- **阶段 11（2026-11-13）**：WebSocket 一次性握手票据（连接 URL 不再带凭证）+ Redis `getAndDelete` 原子轮换 refresh token、前端 401 静默续期重放。
+- **阶段 10（2026-11-09）**：CI 四 job 全绿、AI 厂商 API Key 改 AES-256-GCM 加密入库、告警外发与自动备份脚本。
+- **阶段 8–9**：`core/memory/` 结构化记忆、`core/context/` 精确计数与上下文压缩。
+- **测试基础设施补课（2026-11-08）**：补 2 个 `*IT` 类 / 4 个 `@SpringBootTest` 用例，CI 由 `mvn test` 改跑 `mvn verify`；`IdentityCleanupExtension` 消除测试顺序依赖；`OutputValidator` 多行剂量漏检修复；**敏感词过滤正式取消**（代码 / 实库 / 前端从未实现，此前是文档虚标）。
+- **结构基线纠错（2026-11-08）**：修 `gen_schema_doc.py`、补跑 14 个 `user` 设置列并重导出，解决「手工补录的假基线让 `MapperTableConsistencyTest` 误绿半年」。
 
 ---
 
@@ -156,13 +125,13 @@
 | --- | --------------------------------------------- |
 | 前端  | Vue 3 + Element Plus + ECharts + Vue Router   |
 | 后端  | **Spring Boot 3.5.16 + Java 17** + MyBatis + MySQL 8 + Redis + SQLite（CRM 对话历史） |
-| AI  | 12 个国内厂商（DeepSeek、通义千问、Kimi、GLM 等）+ 本地 vLLM 微调模型（可选，训练集与参数见 `ai_model/`，完整权重发布 Hugging Face + 魔搭（`Aulink/HealthPulse-Qwen2.5-7B`）） |
+| AI  | 12 个国内厂商（DeepSeek、通义千问、Kimi、GLM 等）+ 本地 vLLM 微调模型（可选，训练集与参数见 `ai_model/`，完整权重发布 Hugging Face + 魔搭（`Aulink/HealthPulse-Qwen2.5-7B`））。**口径**：12 家是「OpenAI 协议配置级兼容」（改 `ai.chat.api-url/model/key` 即可）；`LLMProviderFactory` 只有 `deepseek` 与 `local-vllm` 两个 Provider 实现，填其他 provider 名会**静默回退 deepseek**（`LLMProviderFactory:58`） |
 | 向量库 | 本地向量库（余弦相似度，规划迁移 pgvector HNSW）+ **bge-m3 嵌入（硅基流动）** + MySQL LIKE，**RRF 混合检索** |
 | 知识图谱 | **Neo4j GraphRAG**（实体抽取 → 关系查询 → 注入上下文，双路召回已接入主链路） |
 | 认证  | JWT（会话版本号，锁定/登出/改密即失效）+ CRM API Key（机器接口，fail-closed） |
 | 智能体 | Multi-Agent 协调器 + ReAct Agent（OpenAI function calling + 工具轨迹落库） |
-| RAG | 文章 ingestion 管线（分块→嵌入→入库）+ 向量/图谱/MySQL 混合检索 + RAGAS 评测 + 引用溯源 |
-| 防幻觉 | **SynthesisGuard 三层防线**：质量门 + 合规门 + 安全门（已接入 chat/chatStream 输出端） |
+| RAG | 文章 ingestion 管线（分块→嵌入→入库）+ 向量/图谱/MySQL 混合检索 + 金标检索评测 + 提示词要求的引用标注（无强校验） |
+| 输出护栏 | `SynthesisGuard` / `OutputValidator` / `SignalDetector`：重复检测 + 免责提示 + 紧急提示（**不做事实校验**，已接入 chat/chatStream 输出端） |
 | 多模态 | 图片进上下文（VIP 512K/普通 128K 分级窗口，TokenBudgetManager 预算管控） |
 | 韧性  | LLM Provider 工厂 + 轻量熔断器（429/5xx 重试与快速失败）+ **Sentinel 限流**（登录/AI/上传） |
 | 安全  | SqlGuard 只读 SQL 守卫（词法校验 + 租户隔离）+ DOMPurify XSS 净化 + PII 出境脱敏 + 上传魔数校验 |
@@ -316,7 +285,9 @@
 
 ### 2. ReAct Agent（工具增强推理）
 
-对话中通过 **OpenAI function calling**（非正则解析）驱动 ReAct 循环，支持最多 5 轮自主决策，调用 6 个本地工具：
+对话中通过 **OpenAI function calling**（非正则解析）驱动 ReAct 循环，支持最多 5 轮自主决策
+（用户侧主链路 `/ai/chat` 的 `ChatToolLoop` 默认 3 轮；`/user/chat` 的 5 轮 ReAct 目前只有医生端在用）。
+`ToolRegistry` 类路径扫描实测注册 **11 个工具**，各智能体按白名单启用 6~8 个：
 
 | 工具                 | 数据来源                            | 说明              |
 | ------------------ | ------------------------------- | --------------- |
@@ -326,6 +297,12 @@
 | `web_search`       | 博查/Tavily/DuckDuckGo            | 联网搜索最新信息        |
 | `get_chat_history` | SQLite                          | 查询聊天历史          |
 | `execute_sql`      | SQLite（只读 + 租户隔离）               | 只读 SQL 查询       |
+| `query_health_records` | MySQL（硬编码白名单，LLM 不产 SQL 片段） | 就诊/体征记录查询 |
+| `query_graph`      | Neo4j / 本地三元组库（limit 硬钳 50） | 知识图谱关系查询 |
+| `data_query`       | `DataAgentPipeline`（受控 NL2SQL） | 把数据智能体作为工具调用 |
+| `call_agent`       | `AgentRegistry` 白名单内子智能体 | Agent 间 handoff（`agent_handoff` 表 5 条配置） |
+| `search_kb`        | `kb_document` / `kb_chunk`      | 知识库文档检索（当前两表 0 行） |
+
 
 每一轮工具调用的**参数、结果、状态**都会随会话落库，支持审计回放（检查点能力已落地）。
 
@@ -340,10 +317,10 @@
                           ↓
               注入 AI 上下文（带引用）→ 基于文章生成回答
                           ↓
-              RAGAS 评测（真实检索 + LLM 打分：精确度/忠实度/相关性）
+              金标检索评测（召回/精确@K/MRR/nDCG）+ 词面启发式答案评测（非 LLM）
 ```
 
-> RAG 质量看板（`/admin/ragMonitor`）展示真实 RAGAS 指标，替代了原先的模拟数据。
+> RAG 质量看板（`/admin/ragMonitor`）展示词面覆盖启发式评分（非 LLM-as-judge）；检索侧另有基于金标的召回/精确/MRR/nDCG 评测，见 `docs/RAG子系统.md`。
 
 ### 4. LLM Provider 工厂与韧性
 
@@ -370,9 +347,9 @@
 | LLM 稳定性 | Provider 工厂 + 熔断器（429/5xx 自动重试，故障快速失败）+ Sentinel 限流（登录/AI/上传） |
 | 成本可观测 | 每次调用 token 用量落库（`ai_usage` 表） |
 | 日志 | `TraceIdFilter` 注入 MDC `traceId`/`userId`，logback 滚动归档，异常不回传前端 |
-| 单元测试 | 用例规模按时点分别为：我方 2026-10-07 基线 **405 个用例 / 38 个测试类全绿**（含 SqlGuard、NL2SQL 双守卫、数据智能体流水线），2026-10-11 P0-P2 合入后达 **541/541**；通知线 2026-10-10~12 自报 **364 例 `mvn -o test` 全绿**并另增一批后端测试。**2026-10-12 两条线合并后实测 `mvn -o -B test`：684 例 / 69 个测试类全绿**；**2026-10-15 合并 + claude 增强后实测 `mvn -o -B test`：859 例 / 86 个测试类全绿**（新增 RAG 知识库子系统与多智能体编排框架，均已编入并跑过）；**2026-10-20 补修 4 处链路缺陷后实测：864 例 / 87 个测试类全绿**（新增工具白名单 fail-safe 守卫 5 例）；**同日再补 P1-3 的同类缺陷（同步链路与 /crm 流式先存后读）后实测：867 例 / 88 个测试类全绿**（新增对话上下文顺序守卫 3 例，做过反向验证）；**2026-10-24 二轮代码级扫描再修 6 处（SQLite 降级方向、会话单条删除漏清磁盘副本、偏好写盘假成功、WebSocket 同连接并发发送、流式空参数返回 0 字节 SSE、工具清单反向差集）后实测：879 例 / 90 个测试类全绿**（新增 12 例，其中 4 例做过反向验证）；**同日按点头方向补修台账 §7.2 的第 1、3 条（账号状态查不出即拒绝、NL2SQL 语义校验不再虚报通过）后实测：893 例 / 91 个测试类全绿**（新增 14 例，其中 8 例做过反向验证）；**2026-10-24~25 把 §7.2 剩下 5 条与第 3 条的二次升级全部落地（通知开关读不到即不发、读盘区分「不存在/读失败/内容写坏」并拒绝据此覆盖、采集槽位回填进 Agent 记忆、鉴权失败回真实 401/越权 403、`/dashboard/stats` 收归管理员并新增「待确认预约」、语义校验改成一遍不中即追问且重生成后重新核对）后实测：918 例 / 93 个测试类全绿**（新增 25 例 / 2 类，其中 18 例逐条做过反向验证，取证记录见各提交说明与 `bug.md` §7.3）（以上带日期的数字均为 Mockito 单测的**历史轨迹**）。**2026-11-13 当前态：`mvn -o -B verify` = 1085 例单测 / 118 类 + 4 例 `*IT` 真实启动集成测试，全绿**（阶段 11 新增 S6/A1 共 21 例，均做反向验证）；🔴 `*IT` 由 failsafe 在 `verify` 阶段执行、surefire 已排除，写 `mvn test` 等于启动守护一行没跑。详见 [`docs/测试报告.md`](docs/测试报告.md) §7，另见「部署指南 · 测试」 |
+| 单元测试 | **当前态（2026-11-14 实测）**：`mvn -o -B verify` = 1085 例单测 / 118 个测试类 + 4 个 `*IT` 真实启动集成用例全绿（0 失败 / 0 错误 / 0 跳过）。历史逐次测试数字不再罗列，需回溯查 `git log`。详见 [`docs/测试报告.md`](docs/测试报告.md) §2.1 |
 
-> 测试位于 `personal-health-api`；**主体仍是 Mockito 纯对象测试**，但 🔴 **2026-11-08 起已补 4 个 `@SpringBootTest` 集成用例**（`PersonalHealthApplicationIT` / `CoreBeanWiringIT`，基类 `BaseIntegrationTest` 用 `@ActiveProfiles("prod")` 走真配置）。这两个 `*IT` 类**被 surefire 排除、只由 failsafe 在 `mvn verify` 执行** —— 务必用 `mvn -o -B verify` 而非 `mvn test`，否则启动守护一行都不会跑。`Nl2SqlReadOnlyDataSourceWiringTest` 用 `ApplicationContextRunner` 拉最小上下文；Mapper XML 由 `MapperXmlParseTest` + `MapperTableConsistencyTest`（表级 + 列级）静态兜底。
+> 测试位于 `personal-health-api`；主体是 Mockito 纯对象测试，另有 4 个 `@SpringBootTest` 集成用例（`PersonalHealthApplicationIT` / `CoreBeanWiringIT`，基类 `BaseIntegrationTest` 走 `@ActiveProfiles("prod")`）。🔴 这两个 `*IT` 类被 surefire 排除、只由 failsafe 在 `mvn verify` 执行，**务必用 `mvn -o -B verify` 而非 `mvn test`**。Mapper XML 由 `MapperXmlParseTest` + `MapperTableConsistencyTest`（表级 + 列级）静态兜底。
 
 **合规提醒**：平台涉及个人健康信息（敏感个人信息），正式商用前建议完成**等保三级测评**与个人信息保护影响评估，并对第三方 AI 厂商的数据出境做合规确认。
 
@@ -529,9 +506,9 @@ AI配置 → MySQL（敏感 key 经 AES-256-GCM 加密存储，管理员后台�
 
 ### 效果与双轨制
 
-- **优势**：安全性、医学准确性相对通用基线**高约 10%**（领域知识更聚焦；自评口径，评测明细见 `ai_model/`）
-- **短板**（如实记录）：完整性、清晰度**低 10%-20%**（基座较老）；华佗数据为 3 年前，**前沿医学问题弱于最新模型**
-- **双轨制**：用户咨询时可自主选择「平台大模型（表达好/知识新，如 DeepSeek）」或「微调模型（医学严谨/安全性高）」，各取所长
+- **评测事实**（`ai_model/scripts/eval_summary.txt`，2026-07-27）：18 题（9 题各重复两遍）、5 维自评，综合 **6.22/10**；医学准确性 6.78、安全性 6.89。报告结论原话「微调有效果，但在幻觉控制和鉴别诊断方面仍有提升空间」。
+- **明确短板**：胸痛 + 呼吸困难题只提肺部原因、漏掉心梗/肺栓塞（综合 4.8/10、安全性 5/10）；另一题凭空编造两个药名（准确性 2/10）；多题出现中韩阿文混杂乱码。**没有基座模型对照实验**，旧文档「相对通用基线高约 10%」无证据支撑，已撤下。
+- **双轨制**：用户可选云端大模型（表达好/知识新）或本地微调模型（领域话术），二者只是**可切换的推理后端**，不构成安全性保证。
 
 ### 发布与资源
 
@@ -568,8 +545,8 @@ AI配置 → MySQL（敏感 key 经 AES-256-GCM 加密存储，管理员后台�
 | 难点 | 解决方案 |
 | --- | --- |
 | Spring Boot 2 → 3 升级，javax→jakarta 全量迁移、隐藏坑多 | OpenRewrite 自动化迁移；修复 `spring.data.redis` 前缀、SQLite + HikariCP 6 `setReadOnly` 冲突（移除 JDBC 只读标志） |
-| 通用模型医学不严谨、安全性不足 | 华佗数据 PySpark 清洗 + Dify + GPT-4o-mini 多维打分（≥6.0 保留 90%-95%）；LoRA 微调 Qwen2.5-7B，5 维 NLU 评测，医学准确性/安全性提升约 10% |
-| RAG 回答"凭感觉"、无出处、易幻觉 | 向量 × 关键词双路 RRF 融合 + 图谱上下文并行注入 + `[ID]` 引用溯源 + SynthesisGuard 三层防幻觉门 + RAGAS 口径真实评测（词面覆盖启发式，LLM-as-judge 待接入） |
+| 通用模型医学不严谨、安全性不足 | 华佗数据 PySpark 清洗 + Dify + GPT-4o-mini 多维打分（≥6.0 保留 90%-95%）；LoRA 微调 Qwen2.5-7B，5 维自评综合 6.22/10，**无基座对照**（见「模型微调」） |
+| RAG 回答"凭感觉"、无出处、易幻觉 | 向量 × 关键词双路 RRF 融合 + 图谱上下文并行注入 + 提示词要求的 `[ID]` 标注（无强校验）+ 输出侧合规提示 + 词面覆盖启发式评测（非 LLM-as-judge）；**均非事实校验** |
 | 个人项目资源有限，本地训不动 7B | 华为云 A800 租借单卡训练；LoRA 低秩适配（rank=8）显存/成本低一个量级；权重双平台发布（魔搭 + HF） |
 | 12 家厂商 API 形态各异，切换成本高 | LLM Provider 工厂 + 轻量熔断器（429/5xx 重试与快速失败），管理员后台热切换 |
 | 健康数据出境与注入风险 | PII 脱敏（剔除姓名/手机号）+ DOMPurify XSS 净化 + SqlGuard 只读 SQL 守卫 + 租户隔离 |
@@ -741,7 +718,7 @@ npm ci && npm run build   # 产物在 dist/，交给 Nginx 托管
 
 ```bash
 # 后端：mvn verify（surefire 跑单测，failsafe 跑 @SpringBootTest 集成用例，见 docs/测试报告.md §2.1）
-#   当前规模：1060 个单测用例 + 4 个集成用例，全量通过（2026-11-09 阶段 9 实测 mvn -o -B verify）
+#   当前规模：1085 个单测用例 / 118 类 + 4 个集成用例，全量通过（2026-11-14 实测 mvn -o -B verify）
 
 # 前端：静态自检（模板标签栈式配平 + <script> 交 node --check）
 python personal-heath-view/selfcheck.py
@@ -1056,160 +1033,19 @@ VitalCortex/
 
 ---
 
-## 更新日志
+## 版本沿革（简要）
 
-### v5.4 (2026-08-10) — 作品集门面完善 + 微调模型发布
+> v3.0 ~ v5.4 的逐版功能清单与每次测试数字已移除：这些版本均已发布、不再排期，完整记录见 `git log`。此处只保留仍影响当前代码的节点。
 
-**文档体系**
-- docs/ 15 个文档改中文名（需求分析/数据库设计/后端开发等），全部交叉引用同步
-- README 作品集化：**VitalCortex** 品牌 + 核心能力矩阵 + 全站去 emoji
-- 路线图/缺陷台账同步完成状态（Boot 3 升级、GraphRAG 接入、Sentinel 限流）
-- 技术问答新增 4 道 v5.3 实战面试题（Boot3 升级坑 / Sentinel / embedding 选型 / GraphRAG 落地）
+| 版本 | 时间 | 保留事实 |
+|---|---|---|
+| v4.0 ~ v4.1 | 2026-06 | 网站小助手、AI 医生角色、健康知识 RAG、历史会话按用户隔离 |
+| v5.1 | 2026-07-31 | ReAct 改 OpenAI function calling、Provider 工厂 + 熔断器、ingestion 管线、双路 RRF、JWT 密钥外部化、CRM API Key 认证、DOMPurify 净化、PII 脱敏 |
+| v5.2 | 2026-08-01 | 多模态设计（图片进上下文、语音 ASR/TTS；语音后续已落地）、账号锁定 |
+| v5.3 | 2026-08-09 | Spring Boot 3.5.16 + Java 17（javax→jakarta）、GraphRAG 接入主链路、Sentinel 限流 |
+| v5.4 | 2026-08-10 | 微调模型训练链路与双平台权重发布（评测结论见「模型微调」） |
 
-**微调模型发布**
-- `ai_model/` 入库：训练集（5MB）+ LoRA 训练参数 + 微调步骤/排障指南/部署指南（vLLM+阿里云）+ 推理评测脚本（FastAPI/Flask）
-- 完整权重（29GB）发布 **Hugging Face**：[`Weikaijie/HealthPulse-Qwen2.5-7B`](https://huggingface.co/Weikaijie/HealthPulse-Qwen2.5-7B)
-
-### v5.3 (2026-08-09) — Spring Boot 3 升级 + 双路 RAG 打通 + 限流
-
-**框架升级**
-- **Spring Boot 2.7.18 → 3.5.16**（OpenRewrite 自动化迁移：javax→jakarta 全量、mybatis 3.0.3、mysql-connector-j），Java 17 编译目标对齐
-- 修复升级隐藏坑：`spring.data.redis` 前缀迁移、`logging.file.path` 迁移瑕疵、SQLite + HikariCP 6 的 `setReadOnly` 兼容问题
-
-**AI 能力**
-- **GraphRAG 接入主检索链路**：Neo4j 实体抽取（真实图谱实体匹配 + 缓存）→ 关系查询 → 注入上下文，与向量路构成双路召回
-- **SynthesisGuard 三层防幻觉接线**：质量门 + 合规门（免责声明/遵医嘱）+ 安全门（紧急就医），chat/chatStream 输出端统一生效
-- **图片多模态 Phase A/B**：OpenAI 视觉格式消息组装、TokenBudgetManager 预算管控（VIP 512K/普通 128K 分级 + 模型上限取 min）
-- **Embedding 接入**：硅基流动 bge-m3（独立密钥，与 LLM 厂商分离），向量检索链路可用
-
-**工程化**
-- **Sentinel 限流**：登录 10QPS / AI 对话 5QPS / 上传 20QPS，blockHandler 兜底（含 SSE 流式）
-- 补齐历史欠账：重建 `PostServiceImpl`（19 方法）/ `SystemConfigServiceImpl`（7 方法）
-
-### v5.2 (2026-08-01) — 多模态设计与账号锁定
-
-**设计方案**
-- 1.1 语音 ASR/TTS Provider 化设计（与 AiConfig 同构，未配置回退 Web Speech）
-- 1.2 图片进上下文 + VIP 分级窗口设计（128K/512K）
-- 1.3 账号锁定即失效 + 会话版本号设计
-
-**v5.2 已实现**
-- 1.3 会话版本号机制：锁定/登出/改密 → 旧 Token 立即失效；账号禁用返回 4010，前端强制退出
-- 1.2 VIP 分级：`is_vip`/`vip_expire_time` 字段 + 128K/512K 预算档位 + 图片数量分级
-
-### v5.1 (2026-07-31) — 架构级改进与加固
-
-**AI 智能体**
-- Multi-Agent 协调器（`AgentCoordinator`）意图词表外部化，6 专科角色路由
-- ReAct Agent 改为 OpenAI function calling 驱动，工具调用轨迹落库（检查点/审计）
-- LLM Provider 工厂 + 熔断器（`DeepSeekProvider` / `LocalVllmProvider` / `CircuitBreaker`），429/5xx 重试与快速失败
-- 本地微调模型 `HealthPulse-Qwen2.5-7B`（vLLM :8000，OpenAI 兼容）可一键切换；训练集/参数入库 `ai_model/`，完整权重双平台分发（魔搭 `Aulink/HealthPulse-Qwen2.5-7B` + HF `Weikaijie/HealthPulse-Qwen2.5-7B`，见 `ai_model/README.md`）
-
-**RAG**
-- 文章 ingestion 管线（分块→嵌入→入库），发布自动联动灌数
-- 向量（余弦）+ MySQL LIKE 双路召回，RRF 融合，回答带引用溯源
-- 真实 RAGAS 评测管线（精确度/忠实度/相关性），替代原模拟数据
-
-**安全**
-- JWT 密钥外部注入 + 启动强校验（空/弱密钥拒绝启动），7 天有效期
-- CRM 接口 API Key 认证（`CrmApiKeyInterceptor`，fail-closed）
-- `SqlGuard` 只读 SQL 守卫 + 租户隔离（仅查本会话数据）
-- AI 输出 DOMPurify 净化、出境前 PII 脱敏、token 用量落库（`ai_usage`）
-
-**工程**
-- 单元测试扩充至 364 例（`mvn -o test` 全绿）：安全护栏（SqlGuard / ChunkUtil / ToolArgsValidator）、
-  登录防撞库、IDOR 归属校验、通知开关与业务通知接线、Mapper XML 静态检查
-- Docker 镜像去默认密码、非 root 运行、healthcheck；CI 去 `continue-on-error`
-- 后端 `pom.xml` 编码属性修正、测试依赖补全；规范化损坏换行符
-
-> 完整部署与后续规划见本文「部署指南」「配置说明」「已知缺陷与限制清单」三章。
-
-### v4.1 (2026-06-03)
-
-**新功能：**
-
-- 网站小助手：独立对话页面 + 4 类意图识别（病情查询/医生推荐/药品介绍/健康知识）
-- 病情查询：联网搜索最新医疗信息
-- 医生推荐：关键词智能匹配，推荐最相关的 1-3 位 AI 医生
-- 药品介绍：调用 55 种药品数据库
-- 健康知识：AI + 知识库 RAG 检索，强制基于文章回答
-- AI 关键词提取：内置医学 NLP Prompt，优化 RAG 搜索精准度
-
-**优化：**
-
-- 搜索结果卡片布局优化（span=4→6，图片高度增加）
-- AI 医生角色图标统一为 Element Plus 矢量图标
-- RAG 文章数量从 3 篇提升到 6 篇，标题匹配优先排序
-- AI 配置持久化到 MySQL（删除 AES 加密，改为明文存储）
-- 历史会话用户隔离存储（`chat_history/{userId}/conversation_{id}.json`）
-
-**修复：**
-
-- 修复 Vue 响应式丢失导致 AI 回复空白的问题（splice 替换）
-- 修复分页查询偏移量重复计算
-- 修复药品数据未注入 AI 上下文的问题
-- 移除 Dify 外部 API 依赖，关键词提取完全本地化
-- 移除了那个bug居多的悬浮球
-
-### v4.0 (2026-06-02)
-
-**新功能：**
-
-- 健康助手悬浮球（可拖拽移动，快捷咨询）
-
-- 健康数据 JSON 导入导出
-
-- AI 配置持久化到 MySQL（AES加密，重启不丢失）
-
-- SaaS 风格功能按钮栏（联网搜索、深度思考、知识库、健康数据）
-
-- Markdown 渲染支持
-
-- 数据导出服务（药品、健康指标导出为JSON供AI读取）
-
-- 会话元数据记录（联网搜索、知识库等状态）
-
-- 增加了dify的关键词搜索功能
-
-**优化：**
-
-- 数据流重构：MySQL为主存储，JSON为备份/导出
-
-- AI工具从JSON文件读取数据（药品、健康指标）
-
-- 对话缓存机制优化
-
-- 用户界面布局优化（三栏布局：角色+聊天+设置）
-
-- 生成设置移至右侧边栏
-
-**安全：**
-
-- API Key 加密存储到数据库
-
-- .gitignore 排除敏感文件
-
-### v3.0 (2026-06-01)
-
-**新功能：**
-
-- 多AI厂商支持（12个国内厂商）
-
-- 联网搜索多引擎支持（6种搜索引擎）
-
-- DeepSeek v4模型支持
-
-- AI厂商一键切换
-
-- 联网搜索配置独立界面
-
-**优化：**
-
-- 更新DeepSeek模型为v4版本
-
-- 优化AI配置管理界面
-
-- 完善厂商配置信息
+> 微服务化、移动端、微信小程序等设想从未实现，已从路线图移除；当前排期见「改进目标与当前排期」。
 
 ---
 
@@ -1262,12 +1098,12 @@ VitalCortex/
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 编译状态
+## 编译状态（2026-11-14 实测）
 
-- 后端编译：**BUILD SUCCESS**（Spring Boot 3.5.16 + Java 17，**483 个 Java 源文件**（2026-11-12 实测）；`javac -encoding UTF-8` 零 error）
-- 后端测试：**1060 个单测用例 + 4 个真实启动集成用例全部通过**（2026-11-09 阶段 9 实测 `mvn -o -B verify`；CI 全绿）
-- 前端：**79 个 `.vue` + 19 个 `.js`**（2026-11-12 实测），`npm run build` exit 0（2026-10-20 实测约 40s）
-- 无编码损坏
+- 后端门禁：`mvn -o -B verify` = **BUILD SUCCESS**，1085 单测 / 118 类 + 4 个 `*IT` 全绿（0 失败 / 0 错误 / 0 跳过）。
+- 源文件：后端 **487 个 Java 文件**，前端 **79 个 `.vue` + 19 个 `.js`**（`find` 实测）。
+- 本机实库：`information_schema` 实测 **47 表 / 567 字段 / 201 字符列**，与部署链终态一致。
+- 前端 build / lint / `selfcheck.py` **以 CI 结论为准**（本地 `node_modules` 不完整，本地跑不通不代表代码有问题）。
 
 ---
 
@@ -1275,11 +1111,11 @@ VitalCortex/
 
 > 记录开发过程中发现并处置的缺陷；仍在处理中的事项见下一小节。
 
-### 已解决（v5.1 / v5.2 完成）
+### 已解决缺陷台账（D 编号保留，供其它文档与历史提交引用；非当前状态宣称）
 
 | 编号    | 原缺陷          | 现状                                                                                    |
 | ----- | ------------ | ------------------------------------------------------------------------------------- |
-| D-005 | 缺少单元测试       | 已扩充至 364 个用例，`mvn -o test` 通过；**但全为 Mockito 纯对象测试、无 `@SpringBootTest`**，容器与 Mapper XML 靠 `MapperXmlParseTest` 静态兜底（该测试揪出过启动阻断缺陷，见 `docs/测试报告.md` §6.2） |
+| D-005 | 缺少单元测试 | 已补齐：当前 1085 单测 / 118 类 + 4 个 `@SpringBootTest` 集成用例（`*IT` 仅 `mvn verify` 执行）；容器与 Mapper XML 另有 `MapperXmlParseTest` / `MapperTableConsistencyTest` 静态兜底 |
 | D-009 | 部分接口缺少输入验证   | CRM 接口加 `CrmApiKeyInterceptor`；`SqlGuard` 只读守卫 + 租户隔离；AI 输出 DOMPurify 净化            |
 | D-001 | 部分 SQL 脚本未执行 | 已补充 `Data/01_建库建表/ai_usage_schema.sql`（token 成本表），其余业务表脚本仍建议部署时执行                      |
 | D-002 | admin 账号可能被锁定 | 修复 `init_database.sql`/`mock_business_data.sql` 种子账号 `is_login 1→0`；`UserServiceImpl.backUpdate` 增加防锁死守卫（保护当前用户 & 最后一名可登录管理员） |
@@ -1313,44 +1149,19 @@ VitalCortex/
 | **服务端 ASR / TTS** | ✅ 已落地（`/voice/asr` `/voice/tts`；Whisper / FunASR(DashScope) / EdgeTTS 三 Provider，`config/voice-config.json` + 管理端热切换；浏览器 Web Speech 兜底） | 医疗级识别 / 电话通道接入；语音模块暂未纳入单测 |
 | **向量库容量** | 本地文件实现，全量扫描 | 数据量 >10 万块时迁移 pgvector / Milvus + HNSW |
 | **知识图谱** | 已构建图谱数据（248 节点 / 485 边）并以独立上下文块接入主链路（不参与 RRF 融合）；Neo4j 长停时自动降级为本地三元组库 | 继续扩充疾病-症状-药物三元组覆盖 |
+| **AI 诊断安全性** | 🔴 **未解决**：无事实/引用强校验、无置信度拒答、无红旗症状硬规则、无医生复核闭环；**不能保证不漏诊** | 见「先读这一段」；需答案级金标与假阴性评测集、引用强校验、低置信转人工、医生复核闭环 |
 
 ---
 
-## 改进目标（路线图）
+## 改进目标与当前排期
 
-### 已完成（v5.1 ~ v5.3 迭代落地）
+> 旧的「短期 1-2 周 / 中期 1-2 月 / 长期 3-6 月」时间表是 2026-08 的设想，多数条目从未排期或已被后续阶段取代，已移除。
 
-| 目标 | 状态 |
-| --- | --- |
-| WebSocket 通知打通 | v5.1（D-004：全链路 + 心跳 + context-path） |
-| Redis 缓存 | v5.1（D-006：Jackson2Json + 10min TTL） |
-| Prometheus 监控 | v5.1（D-007：/actuator/prometheus + Grafana） |
-| Spring Boot 3 升级 | v5.3（3.5.16 + Java 17，javax→jakarta 全量） |
-| Sentinel 限流 | v5.3（登录 10QPS / AI 5QPS / 上传 20QPS） |
-| GraphRAG 双路召回 | v5.3（Neo4j 实体抽取 → 双路召回接入主链路） |
-
-### 短期（1-2 周）
-
-| 优先级 | 目标 | 说明 |
-| --- | --- | --- |
-| P0 | 执行所有 SQL 脚本 | 扩展模块表（部署时执行，见 D-001） |
-| P1 | 统一前端样式 | 约 40 页硬编码色值收敛为品牌蓝（D-003/008 续） |
-
-### 中期（1-2 月）
-
-| 优先级 | 目标 | 说明 |
-| --- | --- | --- |
-| P1 | 旧页面 UI 重构 | 首页、AI分析、药品等 |
-| P1 | 完善单元测试 | 覆盖率 ≥ 70% |
-| P2 | 向量库迁移 pgvector + HNSW | 本地全量扫描 → pgvector（方案已定稿） |
-
-### 长期（3-6 月）
-
-| 优先级 | 目标 | 说明 |
-| --- | --- | --- |
-| P2 | Spring AI demo | 单独实验项目（不重构主线，展示主流框架集成能力） |
-| P3 | 移动端适配 | 响应式设计完善 |
-| P3 | 微信小程序 | 核心功能移植 |
+- **已完成并推送**：阶段 1–11（结构基线对齐、CI 门禁、上下文与记忆、安全加固、WebSocket 票据、refresh token 轮换、目录扁平化）。
+- **已排期未做**：阶段 12–16（文档整理与执行文件清理、依赖漏洞治理、向量库不可召回条目修复、41 项漏洞清零的环境前置、能力增强）。完整清单见本地工作区的下一轮排期文档，该文档不入库。
+- **明确未排期**：本地开发环境固化、CI Docker 耗时优化、**AI 诊断安全性专项**（答案级金标与假阴性评测集、引用强校验、红旗症状硬规则、低置信拒答、医生复核闭环）。
+- ❄️ **冻结线**：硬件数据面（MQTT）+ MCP 双向能力暂停推进，相关草稿不纳入仓库。
+- ❌ **有意不做**：StateGraph 编排、Python 沙箱、Human-in-the-loop、MCP Tool Server、多数据源切换、敏感词过滤（从未实现，已正式取消）。
 
 ---
 

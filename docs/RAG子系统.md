@@ -14,7 +14,7 @@
 
 ```
 知识入库（ingestion）          在线检索（retrieval）         质量评测（evaluation）
-文章 → 分块 → 嵌入 → 入库      向量 + LIKE 双路 → RRF 融合    真实 RAGAS 指标
+文章 → 分块 → 嵌入 → 入库      向量 + LIKE 双路 → RRF 融合    金标检索评测
 ```
 
 ---
@@ -53,20 +53,22 @@
 
 ---
 
-## 5. 评测（RAGEvaluationServiceImpl）
+## 5. 评测
 
-真实 RAGAS 口径（替代原模拟数据）。`runEvaluation()` 对黄金问答集计算三项指标：
+**两套口径要说清楚，不要混称「真实 RAGAS」**：
+
+- `RAGEvaluationServiceImpl`：答案侧**词面覆盖启发式**打分，基于真实检索结果计算 `contextPrecision` / `faithfulness` / `answerRelevance`，底层是 `coverage()`（上下文覆盖标准答案要点的比例）与 `questionRelevance()`。**不是 LLM-as-judge**（类注释已注明生产建议接入），阈值不满足时报警。已移除原先的模拟数据。
+- `RagRetrievalEvalService` + `RetrievalMetrics`：检索侧**基于金标**的召回率 / 精确率@K / MRR / nDCG，是唯一能给出真实召回率的来源；无金标的关键词用例只算精确率，召回率标记「无定义」而非按 0 计入。
 
 | 指标 | key | 说明 / 阈值 |
 |------|-----|-------------|
-| 上下文精确度 | `contextPrecision` | 检索命中是否精准 |
+| 上下文精确度 | `contextPrecision` | 检索命中是否精准（词面启发式） |
 | 忠实度 | `faithfulness`（阈值 80） | 检索上下文对标准答案要点的覆盖比例 |
 | 答案相关性 | `answerRelevance` | 回答与问题相关程度 |
 
-底层 `coverage()`（上下文覆盖 gold answer 要点比例）、`questionRelevance()`（上下文与问题相关度）。管理端「RAG 监控」页展示评测结果。
+管理端「RAG 监控」页展示上述启发式结果；金标检索评测的管理端入口在 `RagEvalAdminController`。
 
 ---
-
 ## 6. 引用溯源
 
 回答末尾附相关文章推荐，链接到 `search_knowledge` 命中的 `articleId`，用户可回溯到原文。
@@ -93,7 +95,7 @@
 | 链路 | 机制 | 判定 |
 |------|------|------|
 | **数据智能体** | `DataAgentQaService` 三道限流：`SESSION_MSG_LIMIT=200`（回看）、`MULTI_TURN_MSG_LIMIT=6`（送 prompt）、`MULTI_TURN_MAX_CHARS=1500`（字符从**尾部**保留）。SQL 层 `ORDER BY id DESC LIMIT ?` 子查询先倒序再正序 | ✅ **唯一真做了截断的** |
-| **AI 问诊** | `AiServiceImpl:901` `for (int i = 0; i < history.size(); i++)` —— **无 limit、无字符截断**，全量历史进 prompt。超预算时 `TokenBudgetManager:82` **抛异常**让用户开新会话 | ❌ 不压缩，靠抛错 |
+| **AI 问诊** | 已由 `core/context/ContextCompressor` 接管（阶段 9）：`AiServiceImpl:1094 appendCompressedHistory()` 按任务预算（≤ 模型窗口 50%）做精确 token 计数 + 滚动摘要；超预算时 `TokenBudgetManager` 仍抛异常让用户开新会话。⚠️ 本节原写「无 limit、全量历史进 prompt（`AiServiceImpl:901`）」是 2026-10-07 时点，现已失效，2026-11-14 更正 | ✅ **已压缩** |
 | **ReAct Agent** | 无历史压缩。`ReActAgent:136 summarizeFinalAnswer()` 是「轮次耗尽后强制收尾」，内部 `new ArrayList<>(messages)` **全量拷贝未压缩** | ❌ 不压缩 |
 | **RAG 检索结果** | `AiServiceImpl:105` `RAG_ARTICLE_LIMIT=6` + `RAG_CONTENT_MAX_LENGTH=300`；`extractRelevantChunk` 按句子分块提取关键词相关片段 —— **全仓唯一像样的语义级压缩**，但只作用于单篇文档内部 | ✅ 有 |
 

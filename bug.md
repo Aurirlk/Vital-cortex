@@ -26,7 +26,7 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 
 **新增的、只能实跑定论的风险**：`11_knowledge_base.sql:177` 的 `WITH PARSER ngram` 现在进了部署链，脚本报错会让 MySQL 容器的整个 initdb 中断（`mysql:8.0` 内建 ngram，按理能过，但没实测）。
 
-**证据口径更新**：阶段 6 后我实跑过 `mvn -o -B test`（859 例 / 0 失败 / BUILD SUCCESS）和 `npm run build`（exit 0，40.3s）；补完 4 处修复后重跑为 **864 例全绿**（新增 5 条白名单守卫用例）、前端构建再次 exit 0；再补 P1-3 的同类缺陷后为 **867 例 / 88 类全绿**（新增 3 条顺序用例）。新用例做过反向验证：把 `SeaChatWorkflow` 临时换回改前版本跑它，报 `expected <3> but was <4>`（当前这句在 prompt 里出现两次），换回修复版即通过 —— 所以它锁的是症状，不是一行位置。所以"前端能否构建""单测是否绿"已属已核实；仍只有静态推导的是**真实启动日志**与**真实库表结构**，`timeSlots` 那处也只做到"声明补上 + 构建通过"，没有浏览器实测。
+**证据口径更新**：阶段 6 后实跑过 `mvn -o -B test` 与 `npm run build`；后续逐次单测数字（859 → 867 → … → 1085）均已完成且不再排期，过程记录以 `git log` 为准。当时结论：前端构建与单测已核实，仍只有静态推导的是**真实启动日志**与**真实库表结构**，`timeSlots` 那处也只做到「声明补上 + 构建通过」，没有浏览器实测。这两项已于 2026-11-14 实跑 / 实查闭环（启动守护 4 例 `*IT` 全绿、实库 47 表 / 567 字段 / 201 字符列）。
 
 ---
 
@@ -121,7 +121,7 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 
 **你会看到什么**：像今天这种"路由注解写坏导致整个服务起不来"的问题，还会再发生，而且测试全绿骗你一次。
 
-> ✅ **闭环记录**：2026-11-08 已补 `PersonalHealthApplicationIT` / `CoreBeanWiringIT` 两个 `*IT` 类（4 个 `@SpringBootTest` 用例，基类 `BaseIntegrationTest` 走 `@ActiveProfiles("prod")` 真配置），CI 测试步骤由 `mvn test` 改为 **`mvn verify`**（`*IT` 只由 failsafe 执行）。当前 `mvn -o -B verify` = 942 单测 / 96 类 + 4 集成全绿，CI 连续两次 success。下面「为什么 / 怎么修」是当时的分析，不再是当前状态。
+> ✅ **闭环记录**：2026-11-08 已补 `PersonalHealthApplicationIT` / `CoreBeanWiringIT` 两个 `*IT` 类（4 个 `@SpringBootTest` 用例，基类 `BaseIntegrationTest` 走 `@ActiveProfiles("prod")` 真配置），CI 测试步骤由 `mvn test` 改为 **`mvn verify`**（`*IT` 只由 failsafe 执行）。当时（2026-11-08）`mvn -o -B verify` = 942 单测 / 96 类 + 4 集成全绿，CI 连续两次 success；当前态见根 README「当前基线」。下面「为什么 / 怎么修」是当时的分析，不再是当前状态。
 
 **为什么（当时）**：仓库里当时 **0 个 `@SpringBootTest`**。本轮新增的 `MappingAnnotationCommentGuardTest` 只有 1 个用例，判据是"注解出现在同一行 `//` 之后"，能挡住这次的形态，但挡不住：注解被 `/* */` 或 Javadoc 吞掉、类级 `@RequestMapping` 被直接删掉、两个控制器路径撞在一起引发 Ambiguous mapping。
 
@@ -294,7 +294,7 @@ Claude Code 之后又做了一轮（下称阶段 6，已拆成 8 个提交并入
 **`e6771eb` 只补了用例、没做反向验证**，写在这里是为了不含糊过去。
 
 `mvn -o -B verify` 现值 = **单测 1085 例 / 118 类全绿 + 集成 4 例全绿**（2026-11-13 阶段 11 实测；
-历史轨迹：931 例（2026-10-25）→ 942 例（2026-11-08，新增 `OutputValidatorTest` 9 例与 `IdentityCleanupGuardTest` 2 例）→ 953（阶段 5）→ 970（阶段 6）→ 1021（阶段 8，结构化记忆 +51）→ 1060（阶段 9，上下文压缩 +39）→ 1085（阶段 11，S6/A1 +21））。
+> 历史逐次用例数已移除（已完成、不再排期）；当前唯一口径见根 README「当前基线与最近里程碑」。
 仍要提醒：`mvn test` 那 1085 例全为方法级单测，全绿只证明方法级逻辑，**不证明应用能启动**；
 启动由 4 个 `*IT` 守护（`PersonalHealthApplicationIT` 上下文启动 + `CoreBeanWiringIT` 校验
 MyBatis/Neo4jClient/RedisTemplate 接线），命名 `*IT` 故不参与 `mvn test`、由 `mvn verify`（failsafe 插件）执行。
